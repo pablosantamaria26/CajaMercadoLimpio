@@ -1,7 +1,8 @@
 // ===============================
 // CONFIG
 // ===============================
-const WORKER_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
+const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
+
 const USUARIO_APP = "Laura"; // se puede parametrizar después
 
 // Proveedores (para autocomplete inteligente)
