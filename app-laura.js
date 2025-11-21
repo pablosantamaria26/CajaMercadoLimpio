@@ -73,7 +73,7 @@ const EMPLEADOS = [
 // ===============================
 
 async function api(fn, params = {}) {
-  const res = await fetch(WORKER_URL, {
+  const res = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fn, params })
