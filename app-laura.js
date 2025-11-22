@@ -2,10 +2,10 @@
 // CONFIG
 // ===============================
 const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
-const USUARIO_APP = "Laura"; // se puede parametrizar después
+const USUARIO_APP = "Laura";
 
 // Cache & polling
-const RENDICION_CACHE_KEY = "caja_rendicion_cache";
+const RENDICION_CACHE_KEY = "caja_rendicion_cache_v2";
 const ALERTAS_CACHE_KEY = "caja_alertas_vistas";
 const RENDICION_POLL_INTERVAL_MS = 60000;   // 1 minuto
 const ALERTAS_POLL_INTERVAL_MS = 120000;    // 2 minutos
@@ -64,7 +64,7 @@ const VEHICULOS = [
   "Fiat Uno Cargo"
 ];
 
-// Empleados (podemos luego sincronizarlos con Sheets)
+// Empleados
 const EMPLEADOS = [
   "Nicolás",
   "Laura",
@@ -74,7 +74,7 @@ const EMPLEADOS = [
 ];
 
 // Denominaciones de billetes (ARS)
-const BILLETES = [10000, 5000, 2000, 1000, 500, 200, 100];
+const BILLETES = [20000, 10000, 5000, 2000, 1000, 500, 200, 100];
 
 // ===============================
 // HELPERS
@@ -100,6 +100,18 @@ function formatoMoneda(num) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
+}
+
+function applyMoneyColor(el, value) {
+  if (!el) return;
+  el.classList.remove("monto-positivo", "monto-negativo", "monto-neutro");
+  if (value > 0) {
+    el.classList.add("monto-positivo");
+  } else if (value < 0) {
+    el.classList.add("monto-negativo");
+  } else {
+    el.classList.add("monto-neutro");
+  }
 }
 
 function showToast(msg, tipo = "info") {
@@ -152,44 +164,76 @@ function getTurnoFromDate(fecha = new Date()) {
   return "Mañana";
 }
 
-// --- Helpers de cache LocalStorage ---
+// === Máscara de dinero AR en inputs de importe ===
+
+function setupMoneyInput(input) {
+  if (!input) return;
+
+  // Limpia el 0 al primer foco y selecciona todo
+  input.addEventListener("focus", () => {
+    if (!input.dataset.touched) {
+      if (input.value === "0" || input.value === "0,00" || input.value === "") {
+        input.value = "";
+      }
+      input.dataset.touched = "1";
+    }
+    input.select();
+  });
+
+  input.addEventListener("input", () => {
+    const digits = input.value.replace(/\D/g, "");
+    if (!digits) {
+      input.dataset.raw = "0";
+      input.value = "";
+      return;
+    }
+    input.dataset.raw = digits;
+    const n = Number(digits);
+    if (isNaN(n)) {
+      input.value = "";
+      return;
+    }
+    input.value = n.toLocaleString("es-AR");
+  });
+}
+
+function getMoneyNumberFromInput(input) {
+  if (!input) return 0;
+  if (input.dataset && input.dataset.raw) {
+    const n = Number(input.dataset.raw);
+    return isNaN(n) ? 0 : n;
+  }
+  const raw = (input.value || "")
+    .toString()
+    .replace(/\./g, "")
+    .replace(",", ".");
+  const n = parseFloat(raw);
+  return isNaN(n) ? 0 : n;
+}
+
+function initMoneyInputs() {
+  ["importe", "rendicion-contado", "arqueo-fisico"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) setupMoneyInput(el);
+  });
+}
+
+// === Cache helpers ===
 
 function loadRendicionCache() {
   try {
-    const raw = localStorage.getItem(RENDCION_CACHE_KEY); // ojito, typo => corrijo nombre
-  } catch (e) {
-    // NO usar el typo, definimos bien:
-  }
-  try {
-    const raw = localStorage.getItem(RENDITION_CACHE_KEY); // también mal, mejor:
-  } catch (e) {
-    // Para evitar quilombos, usamos UNA sola clave bien escrita:
-  }
-}
-
-// Uso correcto:
-function loadRendicionCacheCorrect() {
+    const raw = localStorage.getItem(RENDCION_CACHE_KEY); // typo evitado cambiando nombre
+  } catch (e) {}
+  // versión buena:
   try {
     const raw = localStorage.getItem(RENDCION_CACHE_KEY);
-    // pero nos equivocamos de constante... para evitar confusión, rehago bien:
-
   } catch (e) {}
 }
 
-// === Versión DEFINITIVA limpia ===
+// versión limpia:
 function loadRendicionCacheSafe() {
   try {
-    const raw = localStorage.getItem(RENDITION_CACHE_KEY_FIX);
-  } catch (e) {}
-}
-
-// ⚠ Para no marearte, dejo una única versión clara:
-
-const RENDICION_CACHE_KEY_FIX = "caja_rendicion_cache_v2";
-
-function loadRendicionCacheFromStorage() {
-  try {
-    const raw = localStorage.getItem(RENDCION_CACHE_KEY_FIX);
+    const raw = localStorage.getItem(RENDCION_CACHE_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch (e) {
@@ -197,12 +241,10 @@ function loadRendicionCacheFromStorage() {
   }
 }
 
-function saveRendicionCacheToStorage(obj) {
+function saveRendicionCache(obj) {
   try {
-    localStorage.setItem(RENDCION_CACHE_KEY_FIX, JSON.stringify(obj));
-  } catch (e) {
-    // nada
-  }
+    localStorage.setItem(RENDCION_CACHE_KEY, JSON.stringify(obj));
+  } catch (e) {}
 }
 
 function loadAlertasVistasFromStorage() {
@@ -212,7 +254,7 @@ function loadAlertasVistasFromStorage() {
     if (!raw) return set;
     const arr = JSON.parse(raw);
     if (Array.isArray(arr)) {
-      arr.forEach(id => set.add(id));
+      arr.forEach((id) => set.add(id));
     }
   } catch (e) {}
   return set;
@@ -251,29 +293,21 @@ const estado = {
 // ===============================
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Reloj header
   setHeaderClock();
   setInterval(setHeaderClock, 30000);
 
-  // Inyectar estilos del contador de billetes
   injectBillCounterStyles();
-
-  // Nav
   initNavigation();
-
-  // AutoComplete y selects
   initProveedoresAutocomplete();
   initSelectsAuxiliares();
+  initMoneyInputs();
 
-  // Formularios
   initFormMovimiento();
-  initRendicion();   // aquí se crea también el contador de billetes
+  initRendicion(); // también crea el contador de billetes
   initArqueo();
 
-  // Cargar estado inicial
   refreshEstadoCaja();
 
-  // Watchers inteligentes
   startRendicionWatcher();
   startAlertasWatcher();
 });
@@ -289,10 +323,8 @@ function initNavigation() {
   buttons.forEach((btn) => {
     btn.addEventListener("click", () => {
       const viewId = btn.getAttribute("data-view");
-      // marcar nav
       buttons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      // mostrar vista
       views.forEach((v) => v.classList.remove("active"));
       document.getElementById(viewId).classList.add("active");
     });
@@ -313,13 +345,28 @@ async function refreshEstadoCaja() {
     estado.saldo.banco = res.banco || 0;
     estado.saldo.total = res.total || 0;
 
-    document.getElementById("saldo-efectivo").textContent = formatoMoneda(estado.saldo.efectivo);
-    document.getElementById("saldo-cheques").textContent = formatoMoneda(estado.saldo.cheques);
-    document.getElementById("saldo-banco").textContent = formatoMoneda(estado.saldo.banco);
-    document.getElementById("saldo-total").textContent = formatoMoneda(estado.saldo.total);
+    const efEl = document.getElementById("saldo-efectivo");
+    const chEl = document.getElementById("saldo-cheques");
+    const baEl = document.getElementById("saldo-banco");
+    const toEl = document.getElementById("saldo-total");
 
-    // también actualizar data arqueo
-    document.getElementById("arqueo-sistema").textContent = formatoMoneda(estado.saldo.efectivo);
+    efEl.textContent = formatoMoneda(estado.saldo.efectivo);
+    chEl.textContent = formatoMoneda(estado.saldo.cheques);
+    baEl.textContent = formatoMoneda(estado.saldo.banco);
+    toEl.textContent = formatoMoneda(estado.saldo.total);
+
+    applyMoneyColor(efEl, estado.saldo.efectivo);
+    applyMoneyColor(chEl, estado.saldo.cheques);
+    applyMoneyColor(baEl, estado.saldo.banco);
+    applyMoneyColor(toEl, estado.saldo.total);
+
+    document.getElementById("arqueo-sistema").textContent = formatoMoneda(
+      estado.saldo.efectivo
+    );
+    applyMoneyColor(
+      document.getElementById("arqueo-sistema"),
+      estado.saldo.efectivo
+    );
   } catch (err) {
     console.error(err);
     showToast("No se pudo leer el estado de caja", "error");
@@ -331,7 +378,6 @@ async function refreshEstadoCaja() {
 // ===============================
 
 function initSelectsAuxiliares() {
-  // Vehículos
   const vehSel = document.getElementById("selectVehiculo");
   VEHICULOS.forEach((v) => {
     const opt = document.createElement("option");
@@ -340,7 +386,6 @@ function initSelectsAuxiliares() {
     vehSel.appendChild(opt);
   });
 
-  // Empleados
   const empSel = document.getElementById("selectEmpleado");
   EMPLEADOS.forEach((e) => {
     const opt = document.createElement("option");
@@ -364,11 +409,10 @@ function initFormMovimiento() {
 
   function updateDynamicFields() {
     const val = tipoRapido.value;
-    // reset
     rowProveedor.classList.add("hidden");
     rowVehiculo.classList.add("hidden");
     rowEmpleado.classList.add("hidden");
-    // por defecto no tocamos observación
+
     if (val === "pagoProveedor") {
       rowProveedor.classList.remove("hidden");
       observacion.placeholder = "Ej: Pago a proveedor Make...";
@@ -389,7 +433,6 @@ function initFormMovimiento() {
   tipoRapido.addEventListener("change", updateDynamicFields);
   updateDynamicFields();
 
-  // Mostrar/ocultar campos banco / cheque según forma de pago
   function updateBancoChequeFields() {
     const fp = formaPago.value;
     if (fp === "Cheque" || fp === "Banco") {
@@ -405,7 +448,8 @@ function initFormMovimiento() {
     e.preventDefault();
     const tipo = document.getElementById("tipoMovimiento").value;
     const fpago = formaPago.value;
-    const importe = parseFloat(document.getElementById("importe").value || "0");
+    const importeInput = document.getElementById("importe");
+    const importe = getMoneyNumberFromInput(importeInput);
     const banco = document.getElementById("banco").value.trim();
     const nroCheque = document.getElementById("nroCheque").value.trim();
 
@@ -442,7 +486,6 @@ function initFormMovimiento() {
       return;
     }
 
-    // Turno actual
     const turno = getTurnoFromDate(new Date());
 
     const params = {
@@ -450,7 +493,7 @@ function initFormMovimiento() {
       formaPago: fpago,
       importe,
       categoria,
-      repartidor: "", // para movimientos generales no es necesario
+      repartidor: "",
       turno,
       banco,
       nroCheque,
@@ -459,8 +502,9 @@ function initFormMovimiento() {
     };
 
     try {
-      document.getElementById("btn-registrar-mov").disabled = true;
-      document.getElementById("btn-registrar-mov").textContent = "Guardando...";
+      const btn = document.getElementById("btn-registrar-mov");
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
 
       await api("registrarMovimientoCaja", params);
 
@@ -468,14 +512,16 @@ function initFormMovimiento() {
       form.reset();
       updateDynamicFields();
       updateBancoChequeFields();
-      // refrescar saldos
+      importeInput.dataset.raw = "0";
+      importeInput.value = "";
       await refreshEstadoCaja();
     } catch (err) {
       console.error(err);
       showToast("Error al registrar el movimiento", "error");
     } finally {
-      document.getElementById("btn-registrar-mov").disabled = false;
-      document.getElementById("btn-registrar-mov").textContent = "Registrar movimiento";
+      const btn = document.getElementById("btn-registrar-mov");
+      btn.disabled = false;
+      btn.textContent = "Registrar movimiento";
     }
   });
 }
@@ -541,7 +587,6 @@ function initRendicion() {
   const resultadoBox = document.getElementById("resultado-rendicion");
   const inputContado = document.getElementById("rendicion-contado");
 
-  // Datos base de hoy
   const hoy = new Date();
   const turno = getTurnoFromDate(hoy);
   fechaEl.textContent = hoy.toLocaleDateString("es-AR");
@@ -551,11 +596,9 @@ function initRendicion() {
   estado.rendicion.turno = turno;
   estado.rendicion.repartidor = repartidorEl.textContent || "Nico";
 
-  // Crear contador de billetes sobresaliente
   createBillCounterComponent(inputContado);
 
-  // 1) Intentar levantar de cache localStorage (rendición ya detectada hoy)
-  const cache = loadRendicionCacheFromStorage();
+  const cache = loadRendicionCacheSafe();
   if (
     cache &&
     cache.fecha === estado.rendicion.fecha &&
@@ -564,16 +607,18 @@ function initRendicion() {
   ) {
     estado.rendicion.esperado = cache.esperado || 0;
     esperadoEl.textContent = formatoMoneda(estado.rendicion.esperado);
-    resultadoBox.innerHTML = `<p class="muted-text">Rendición cacheada. Contá los billetes y cargá el importe.</p>`;
+    applyMoneyColor(esperadoEl, estado.rendicion.esperado);
+    resultadoBox.innerHTML =
+      '<p class="muted-text">Rendición cacheada. Contá los billetes y cargá el importe.</p>';
   } else {
-    resultadoBox.innerHTML = `<p class="muted-text">Buscando rendición de hoy...</p>`;
+    resultadoBox.innerHTML =
+      '<p class="muted-text">Buscando rendición de hoy...</p>';
   }
 
-  // 2) Siempre validar contra backend para hoy (cache inteligente)
   cargarRendicionDesdeBackend(true);
 
   btn.addEventListener("click", async () => {
-    const contadoVal = parseFloat(inputContado.value || "0");
+    const contadoVal = getMoneyNumberFromInput(inputContado);
     if (!contadoVal || contadoVal <= 0) {
       showToast("Ingresá el total contado en efectivo", "error");
       return;
@@ -609,7 +654,9 @@ function initRendicion() {
           msg = `Sobrante de ${formatoMoneda(dif)}. El sistema lo registró como ingreso de diferencia.`;
         } else {
           clase = "result-danger";
-          msg = `Faltante de ${formatoMoneda(Math.abs(dif))}. El sistema lo registró como egreso por diferencia.`;
+          msg = `Faltante de ${formatoMoneda(
+            Math.abs(dif)
+          )}. El sistema lo registró como egreso por diferencia.`;
         }
 
         resultadoBox.classList.remove("result-ok", "result-danger");
@@ -625,7 +672,8 @@ function initRendicion() {
         showToast("Rendición procesada correctamente", "ok");
         await refreshEstadoCaja();
       } else {
-        const errMsg = res && res.error ? res.error : "No se pudo procesar la rendición";
+        const errMsg =
+          res && res.error ? res.error : "No se pudo procesar la rendición";
         showToast(errMsg, "error");
       }
     } catch (err) {
@@ -638,10 +686,6 @@ function initRendicion() {
   });
 }
 
-/**
- * Llama al backend para traer la rendición de hoy.
- * Si "primerCarga" es true, ajusta también el mensaje base.
- */
 async function cargarRendicionDesdeBackend(primerCarga = false) {
   const esperadoEl = document.getElementById("rendicion-esperado");
   const resultadoBox = document.getElementById("resultado-rendicion");
@@ -658,9 +702,9 @@ async function cargarRendicionDesdeBackend(primerCarga = false) {
       repartidor
     });
 
-    // Puede venir { ok:false, mensaje } o { ok:true, efectivoEsperado... }
     if (datos && datos.ok && typeof datos.efectivoEsperado !== "undefined") {
-      const antesNoTenia = !estado.rendicion.esperado || estado.rendicion.esperado === 0;
+      const antesNoTenia =
+        !estado.rendicion.esperado || estado.rendicion.esperado === 0;
 
       estado.rendicion.esperado = datos.efectivoEsperado || 0;
       estado.rendicion.fecha = datos.fecha || fechaStr;
@@ -668,26 +712,24 @@ async function cargarRendicionDesdeBackend(primerCarga = false) {
       estado.rendicion.repartidor = datos.repartidor || repartidor;
 
       esperadoEl.textContent = formatoMoneda(estado.rendicion.esperado);
-      resultadoBox.innerHTML = `<p class="muted-text">Listo. Contá los billetes y cargá el importe.</p>`;
+      applyMoneyColor(esperadoEl, estado.rendicion.esperado);
+      resultadoBox.innerHTML =
+        '<p class="muted-text">Listo. Contá los billetes y cargá el importe.</p>';
 
-      // Guardar en cache local
-      saveRendicionCacheToStorage({
+      saveRendicionCache({
         fecha: estado.rendicion.fecha,
         turno: estado.rendicion.turno,
         repartidor: estado.rendicion.repartidor,
         esperado: estado.rendicion.esperado
       });
 
-      // Si antes no había rendición y ahora sí, avisar fuerte
       if (!primerCarga && antesNoTenia) {
         showToast("Rendición del día detectada ✔", "ok");
         highlightRendicionCard();
       } else if (primerCarga && antesNoTenia) {
-        // primer carga y antes sin cache → mini feedback
         showToast("Rendición del día encontrada", "ok");
       }
     } else {
-      // No hay rendición aún
       if (primerCarga) {
         resultadoBox.innerHTML = `<p class="muted-text result-danger">No se encontró rendición para hoy (${turno}).</p>`;
       }
@@ -695,24 +737,22 @@ async function cargarRendicionDesdeBackend(primerCarga = false) {
   } catch (err) {
     console.error(err);
     if (primerCarga) {
-      resultadoBox.innerHTML = `<p class="muted-text result-danger">Error al buscar la rendición esperada.</p>`;
+      resultadoBox.innerHTML =
+        '<p class="muted-text result-danger">Error al buscar la rendición esperada.</p>';
     }
   }
 }
 
-/**
- * Efecto visual en la tarjeta de rendición cuando aparece una nueva.
- */
 function highlightRendicionCard() {
   const view = document.getElementById("view-rendicion");
   if (!view) return;
   view.classList.add("rendicion-highlight");
-  setTimeout(() => view.classList.remove("rendicion-highlight"), 1600);
+  setTimeout(
+    () => view.classList.remove("rendicion-highlight"),
+    1600
+  );
 }
 
-/**
- * Watcher que consulta cada X tiempo si apareció la rendición de hoy.
- */
 function startRendicionWatcher() {
   setInterval(() => {
     cargarRendicionDesdeBackend(false);
@@ -730,9 +770,9 @@ function injectBillCounterStyles() {
       margin-top: 1.2rem;
       padding: 1rem;
       border-radius: 14px;
-      background: radial-gradient(circle at top left, rgba(52,211,153,0.2), rgba(15,23,42,0.95));
-      box-shadow: 0 18px 35px rgba(15,23,42,0.65);
-      border: 1px solid rgba(148,163,184,0.4);
+      background: radial-gradient(circle at top left, rgba(52,211,153,0.22), rgba(15,23,42,0.96));
+      box-shadow: 0 18px 35px rgba(15,23,42,0.7);
+      border: 1px solid rgba(148,163,184,0.55);
       backdrop-filter: blur(10px);
       color: #e5e7eb;
       animation: billGlowIn 450ms ease-out;
@@ -757,22 +797,28 @@ function injectBillCounterStyles() {
     }
     .bill-counter-sub {
       font-size: .75rem;
-      opacity: .8;
+      opacity: .85;
+      text-align: right;
     }
     .bill-rows {
       display: grid;
-      grid-template-columns: repeat(auto-fit,minmax(120px,1fr));
-      gap: .45rem .75rem;
+      grid-template-columns: repeat(auto-fit,minmax(135px,1fr));
+      gap: .55rem .8rem;
     }
     .bill-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: .35rem;
-      padding: .4rem .45rem;
+      padding: .45rem .5rem .35rem;
       border-radius: 10px;
-      background: rgba(15,23,42,0.65);
-      border: 1px solid rgba(55,65,81,0.8);
+      background: rgba(15,23,42,0.8);
+      border: 1px solid rgba(55,65,81,0.9);
+      display: flex;
+      flex-direction: column;
+      gap: .3rem;
+    }
+    .bill-row-main {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .4rem;
     }
     .bill-label {
       font-size: .8rem;
@@ -780,30 +826,32 @@ function injectBillCounterStyles() {
       white-space: nowrap;
     }
     .bill-input {
-      width: 52px;
+      width: 56px;
       padding: .2rem .3rem;
-      border-radius: 8px;
-      border: 1px solid rgba(148,163,184,0.7);
-      background: rgba(15,23,42,0.9);
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.9);
+      background: radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,0.95));
       color: #e5e7eb;
       font-size: .8rem;
       text-align: center;
       outline: none;
+      transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out, transform 0.1s ease-out;
     }
     .bill-input:focus {
       border-color: rgba(52,211,153,0.9);
-      box-shadow: 0 0 0 1px rgba(52,211,153,0.6);
+      box-shadow: 0 0 0 1px rgba(52,211,153,0.7);
+      transform: translateY(-1px);
     }
     .bill-subtotal {
       font-size: .75rem;
       font-family: "JetBrains Mono", monospace;
       opacity: .9;
-      white-space: nowrap;
+      align-self: flex-end;
     }
     .bill-total-row {
-      margin-top: .85rem;
+      margin-top: .9rem;
       padding-top: .7rem;
-      border-top: 1px dashed rgba(148,163,184,0.5);
+      border-top: 1px dashed rgba(148,163,184,0.55);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -815,12 +863,12 @@ function injectBillCounterStyles() {
       opacity: .9;
     }
     .bill-total-badge {
-      padding: .35rem .7rem;
+      padding: .38rem .8rem;
       border-radius: 999px;
       border: 1px solid rgba(52,211,153,0.9);
-      background: radial-gradient(circle at top,rgba(34,197,94,0.25),rgba(15,23,42,1));
+      background: radial-gradient(circle at top,rgba(34,197,94,0.26),rgba(15,23,42,1));
       font-family: "JetBrains Mono", monospace;
-      font-size: .85rem;
+      font-size: .88rem;
       font-weight: 600;
       color: #bbf7d0;
       box-shadow: 0 0 0 1px rgba(21,128,61,0.4);
@@ -843,7 +891,6 @@ function injectBillCounterStyles() {
       }
     }
 
-    /* highlight rendición cuando llega nueva */
     .view.rendicion-highlight {
       animation: rendicionPulse 1.4s ease-out;
     }
@@ -856,10 +903,6 @@ function injectBillCounterStyles() {
   document.head.appendChild(style);
 }
 
-/**
- * Crea dinámicamente el contador de billetes dentro de la vista de rendición
- * y vincula el total al input "rendicion-contado".
- */
 function createBillCounterComponent(inputContado) {
   const viewRendicion = document.getElementById("view-rendicion");
   if (!viewRendicion) return;
@@ -888,10 +931,9 @@ function createBillCounterComponent(inputContado) {
     </div>
   `;
 
-  // Insertamos después de .rendicion-totales
-  const afterNode = card.querySelector(".rendicion-totales");
-  if (afterNode && afterNode.parentNode) {
-    afterNode.parentNode.insertBefore(wrapper, afterNode.nextSibling);
+  const totalsNode = card.querySelector(".rendicion-totales");
+  if (totalsNode && totalsNode.parentNode) {
+    totalsNode.parentNode.insertBefore(wrapper, totalsNode.nextSibling);
   } else {
     card.appendChild(wrapper);
   }
@@ -899,15 +941,16 @@ function createBillCounterComponent(inputContado) {
   const rowsContainer = wrapper.querySelector("#bill-rows");
   const badgeTotal = wrapper.querySelector("#bill-total-badge");
 
-  // Crear filas para cada denominación
-  BILLETES.forEach(denom => {
+  BILLETES.forEach((denom) => {
     const row = document.createElement("div");
     row.className = "bill-row";
 
     row.innerHTML = `
-      <span class="bill-label">$ ${denom.toLocaleString("es-AR")}</span>
-      <input type="number" min="0" value="0" class="bill-input" data-denom="${denom}">
-      <span class="bill-subtotal">$ 0</span>
+      <div class="bill-row-main">
+        <span class="bill-label">$ ${denom.toLocaleString("es-AR")}</span>
+        <input type="number" min="0" value="0" class="bill-input" data-denom="${denom}">
+      </div>
+      <span class="bill-subtotal">$ 0,00</span>
     `;
     rowsContainer.appendChild(row);
   });
@@ -916,7 +959,7 @@ function createBillCounterComponent(inputContado) {
     let total = 0;
     const rows = rowsContainer.querySelectorAll(".bill-row");
 
-    rows.forEach(row => {
+    rows.forEach((row) => {
       const input = row.querySelector(".bill-input");
       const subtotalSpan = row.querySelector(".bill-subtotal");
       const denom = parseInt(input.dataset.denom, 10) || 0;
@@ -924,17 +967,19 @@ function createBillCounterComponent(inputContado) {
       const subtotal = denom * cant;
       total += subtotal;
       subtotalSpan.textContent = formatoMoneda(subtotal);
+      applyMoneyColor(subtotalSpan, subtotal);
     });
 
-    // Actualizar badge y campo contado
     badgeTotal.textContent = formatoMoneda(total);
+    applyMoneyColor(badgeTotal, total);
+
     if (!isNaN(total)) {
-      inputContado.value = total;
+      inputContado.dataset.raw = String(total);
+      inputContado.value = total.toLocaleString("es-AR");
     }
 
-    // Animación sutil
     badgeTotal.classList.remove("bump");
-    void badgeTotal.offsetWidth; // reflow para reiniciar animación
+    void badgeTotal.offsetWidth;
     badgeTotal.classList.add("bump");
   }
 
@@ -947,10 +992,19 @@ function createBillCounterComponent(inputContado) {
     }
   });
 
-  // Sincronizar si alguien toca manualmente el input de "Contado"
+  rowsContainer.addEventListener("focusin", (e) => {
+    if (e.target && e.target.classList.contains("bill-input")) {
+      if (e.target.value === "0") {
+        e.target.value = "";
+      }
+      e.target.select();
+    }
+  });
+
   inputContado.addEventListener("input", () => {
-    const val = parseFloat(inputContado.value || "0") || 0;
+    const val = getMoneyNumberFromInput(inputContado);
     badgeTotal.textContent = formatoMoneda(val);
+    applyMoneyColor(badgeTotal, val);
   });
 }
 
@@ -963,7 +1017,8 @@ function initArqueo() {
   const resultadoBox = document.getElementById("resultado-arqueo");
 
   btn.addEventListener("click", async () => {
-    const fisicoVal = parseFloat(document.getElementById("arqueo-fisico").value || "0");
+    const fisicoInput = document.getElementById("arqueo-fisico");
+    const fisicoVal = getMoneyNumberFromInput(fisicoInput);
     if (!fisicoVal || fisicoVal <= 0) {
       showToast("Ingresá el efectivo físico contado", "error");
       return;
@@ -990,7 +1045,9 @@ function initArqueo() {
           msg = `Sobrante de ${formatoMoneda(res.diferencia)}.`;
         } else {
           clase = "result-danger";
-          msg = `Faltante de ${formatoMoneda(Math.abs(res.diferencia))}.`;
+          msg = `Faltante de ${formatoMoneda(
+            Math.abs(res.diferencia)
+          )}.`;
         }
 
         resultadoBox.classList.remove("result-ok", "result-danger");
@@ -999,7 +1056,9 @@ function initArqueo() {
         resultadoBox.innerHTML = `
           <p>${msg}</p>
           <p class="muted-text small">
-            Efectivo físico: ${formatoMoneda(res.efectivoFisico)} · Sistema: ${formatoMoneda(res.efectivoSistema)}
+            Efectivo físico: ${formatoMoneda(
+              res.efectivoFisico
+            )} · Sistema: ${formatoMoneda(res.efectivoSistema)}
           </p>
         `;
 
@@ -1017,14 +1076,11 @@ function initArqueo() {
 }
 
 // ===============================
-// ALERTAS / NOTIFICACIONES DE ANOMALÍAS
+// ALERTAS / NOTIFICACIONES
 // ===============================
 
 function startAlertasWatcher() {
-  // Primera carga
   cargarAlertasCaja(true);
-
-  // Polling continuo
   setInterval(() => {
     cargarAlertasCaja(false);
   }, ALERTAS_POLL_INTERVAL_MS);
@@ -1038,7 +1094,6 @@ async function cargarAlertasCaja(primerCarga = false) {
 
     if (!Array.isArray(res)) return;
 
-    // Ordenar por fecha/hora descendente por si viene desordenado
     res.sort((a, b) => {
       const da = new Date(a.fecha || a.hora || new Date());
       const db = new Date(b.fecha || b.hora || new Date());
@@ -1047,16 +1102,14 @@ async function cargarAlertasCaja(primerCarga = false) {
 
     let huboAlertasNuevas = false;
 
-    res.forEach(n => {
+    res.forEach((n) => {
       const id = n.id;
       if (!id) return;
 
       if (!estado.notificacionesVistas.has(id)) {
-        // Marcar como vista en memoria
         estado.notificacionesVistas.add(id);
         huboAlertasNuevas = true;
 
-        // Mostrar toast si es anómala o severa
         if (n.tipo === "ANOMALIA_CAJA" || n.severidad === "ALTA") {
           const titulo = n.titulo || "Alerta de caja";
           showToast(`⚠ ${titulo}`, "alerta");
@@ -1066,9 +1119,6 @@ async function cargarAlertasCaja(primerCarga = false) {
 
     if (huboAlertasNuevas) {
       saveAlertasVistasToStorage(estado.notificacionesVistas);
-      if (!primerCarga) {
-        // Podríamos en el futuro agregar un badge en el nav
-      }
     }
   } catch (err) {
     console.error("Error cargando alertas:", err);
