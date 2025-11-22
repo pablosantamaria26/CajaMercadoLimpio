@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
     rel="stylesheet"
   >
 
@@ -39,20 +39,20 @@
           <h2>Saldo de Caja</h2>
           <div class="balance-main">
             <span class="label">Efectivo</span>
-            <span class="value" id="saldo-efectivo">$ 0</span>
+            <span class="value monto-resaltado" id="saldo-efectivo">$ 0</span>
           </div>
           <div class="balance-row">
             <div class="balance-chip">
               <span class="chip-label">Cheques</span>
-              <span class="chip-value" id="saldo-cheques">$ 0</span>
+              <span class="chip-value monto-resaltado" id="saldo-cheques">$ 0</span>
             </div>
             <div class="balance-chip">
               <span class="chip-label">Banco</span>
-              <span class="chip-value" id="saldo-banco">$ 0</span>
+              <span class="chip-value monto-resaltado" id="saldo-banco">$ 0</span>
             </div>
             <div class="balance-chip total-chip">
               <span class="chip-label">Total</span>
-              <span class="chip-value" id="saldo-total">$ 0</span>
+              <span class="chip-value monto-resaltado" id="saldo-total">$ 0</span>
             </div>
           </div>
         </div>
@@ -63,7 +63,7 @@
             <span id="movimientos-dia-resumen" class="muted-text"></span>
           </div>
           <div class="movimientos-list" id="movimientos-list">
-            <!-- Se llenará dinámicamente en futuras versiones -->
+            <!-- Se llenará dinámicamente en versiones futuras -->
           </div>
         </div>
       </section>
@@ -154,12 +154,11 @@
                 <div class="form-field">
                   <label for="importe">Importe</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputmode="decimal"
                     id="importe"
-                    step="0.01"
-                    min="0"
                     required
-                    placeholder="0.00"
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -220,19 +219,20 @@
             <div class="rendicion-totales">
               <div class="tot-card">
                 <span class="label">Esperado (según rendición)</span>
-                <span class="value mono" id="rendicion-esperado">$ 0</span>
+                <span class="value mono monto-resaltado" id="rendicion-esperado">$ 0</span>
               </div>
               <div class="tot-card">
                 <span class="label">Contado (contador de billetes)</span>
                 <input
-                  type="number"
+                  type="text"
+                  inputmode="decimal"
                   id="rendicion-contado"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
             </div>
+
+            <!-- El contador de billetes se inyecta aquí desde app-laura.js -->
 
             <div class="resultado-rendicion" id="resultado-rendicion">
               <p class="muted-text">Buscando rendición de hoy...</p>
@@ -254,16 +254,15 @@
             <div class="arqueo-grid">
               <div class="arqueo-block">
                 <span class="label">Efectivo según sistema</span>
-                <span class="value mono" id="arqueo-sistema">$ 0</span>
+                <span class="value mono monto-resaltado" id="arqueo-sistema">$ 0</span>
               </div>
               <div class="arqueo-block">
                 <label for="arqueo-fisico" class="label">Efectivo físico contado</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputmode="decimal"
                   id="arqueo-fisico"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
             </div>
