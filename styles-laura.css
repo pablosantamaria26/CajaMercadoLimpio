@@ -1,5 +1,5 @@
 :root {
-  --bg-main: #0a1929;
+  --bg-main: #020617;
   --bg-panel: rgba(20, 23, 36, 0.86);
   --bg-glass: rgba(15, 23, 42, 0.7);
   --border-glass: rgba(148, 163, 184, 0.35);
@@ -25,7 +25,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: radial-gradient(circle at top, #132743 0, #020617 55%);
   color: var(--text-main);
 }
@@ -43,7 +43,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(120deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.4));
+  background: linear-gradient(
+    120deg,
+    rgba(15, 23, 42, 0.9),
+    rgba(15, 23, 42, 0.4)
+  );
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
   backdrop-filter: blur(18px);
 }
@@ -146,7 +150,6 @@ body {
 .balance-main .value {
   font-family: "JetBrains Mono", monospace;
   font-size: 26px;
-  color: var(--accent);
 }
 
 .balance-row {
@@ -161,7 +164,11 @@ body {
   min-width: 90px;
   border-radius: 999px;
   padding: 6px 10px;
-  background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.5));
+  background: radial-gradient(
+    circle at top left,
+    rgba(15, 23, 42, 0.7),
+    rgba(15, 23, 42, 0.5)
+  );
   border: 1px solid rgba(148, 163, 184, 0.4);
   display: flex;
   justify-content: space-between;
@@ -187,58 +194,6 @@ body {
   max-height: 260px;
   overflow-y: auto;
   padding-right: 4px;
-}
-
-.mov-item {
-  padding: 6px 4px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-}
-
-.mov-item:last-child {
-  border-bottom: none;
-}
-
-.mov-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.mov-meta .hora {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.mov-meta .cat {
-  color: var(--text-main);
-}
-
-.mov-importe {
-  font-family: "JetBrains Mono", monospace;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.mov-importe .tipo {
-  font-size: 11px;
-}
-
-.mov-importe .monto {
-  font-size: 13px;
-}
-
-.mov-importe.ingreso .monto {
-  color: var(--accent);
-}
-
-.mov-importe.egreso .monto {
-  color: var(--danger);
 }
 
 /* VISTAS DERECHA */
@@ -305,7 +260,8 @@ textarea {
   font-size: 13px;
   font-family: inherit;
   outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
 input:focus,
@@ -362,7 +318,11 @@ textarea {
   border-radius: 999px;
   border: 1px solid rgba(56, 189, 248, 0.8);
   padding: 9px 16px;
-  background: radial-gradient(circle at top, rgba(34, 211, 238, 0.32), rgba(8, 47, 73, 0.9));
+  background: radial-gradient(
+    circle at top,
+    rgba(34, 211, 238, 0.32),
+    rgba(8, 47, 73, 0.9)
+  );
   color: #ecfeff;
   font-weight: 600;
   font-size: 14px;
@@ -370,7 +330,9 @@ textarea {
   letter-spacing: 0.08em;
   cursor: pointer;
   box-shadow: 0 12px 30px rgba(8, 47, 73, 0.8);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+  transition: transform var(--transition-fast),
+    box-shadow var(--transition-fast), border-color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .btn-primary:hover {
@@ -400,6 +362,24 @@ textarea {
 }
 
 .mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* Colores automáticos de montos */
+
+.monto-positivo {
+  color: var(--ok) !important;
+}
+
+.monto-negativo {
+  color: var(--danger) !important;
+}
+
+.monto-neutro {
+  color: var(--text-main) !important;
+}
+
+.monto-resaltado {
   font-family: "JetBrains Mono", monospace;
 }
 
@@ -438,7 +418,11 @@ textarea {
 .tot-card {
   border-radius: 14px;
   padding: 10px 12px;
-  background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+  background: radial-gradient(
+    circle at top left,
+    rgba(15, 23, 42, 0.9),
+    rgba(15, 23, 42, 0.7)
+  );
   border: 1px solid rgba(148, 163, 184, 0.4);
 }
 
@@ -458,6 +442,7 @@ textarea {
 .resultado-rendicion {
   border-radius: 16px;
   padding: 10px 12px;
+  margin-top: 10px;
   margin-bottom: 12px;
   border: 1px dashed rgba(148, 163, 184, 0.4);
   background: rgba(15, 23, 42, 0.7);
@@ -476,7 +461,11 @@ textarea {
 .arqueo-block {
   border-radius: 14px;
   padding: 10px 12px;
-  background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+  background: radial-gradient(
+    circle at top left,
+    rgba(15, 23, 42, 0.9),
+    rgba(15, 23, 42, 0.7)
+  );
   border: 1px solid rgba(148, 163, 184, 0.4);
 }
 
@@ -533,7 +522,8 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.09em;
   cursor: pointer;
-  transition: color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+  transition: color var(--transition-fast),
+    background var(--transition-fast), transform var(--transition-fast);
   border-radius: 999px;
 }
 
