@@ -594,3 +594,73 @@ textarea {
     width: 100%;
   }
 }
+
+/* ==== HOVER PARA BOTONES Y NAV ==== */
+
+.nav-btn:hover {
+  color: var(--accent);
+  background: rgba(8, 47, 73, 0.55);
+  transform: translateY(-2px);
+}
+
+.nav-btn:hover span::after {
+  content: attr(data-hover);
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.btn-primary:hover {
+  background: rgba(34, 211, 238, 0.45);
+}
+
+/* ==== RENDICION — BARRA DE SALDO ESPECIAL ==== */
+
+.rendicion-saldo-bar {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 230, 255, 0.15),
+    rgba(0, 230, 255, 0.05)
+  );
+  border: 1px solid rgba(0, 230, 255, 0.35);
+  border-radius: 14px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rendicion-saldo-label {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.rendicion-saldo-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* INPUT DATE MODERNO */
+
+input[type="date"] {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(148,163,184,0.35);
+  padding: 6px 10px;
+  border-radius: 10px;
+  color: var(--text-main);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+input[type="date"]:hover {
+  background: rgba(15,23,42,0.85);
+}
+
