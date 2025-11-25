@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
     rel="stylesheet"
   >
 
@@ -34,7 +34,7 @@
     <!-- MAIN LAYOUT -->
     <main class="app-main">
 
-      <!-- PANEL IZQUIERDO -->
+      <!-- PANEL IZQUIERDO: Resumen y Movimientos -->
       <section class="panel left-panel">
 
         <!-- SALDO PRINCIPAL -->
@@ -63,27 +63,27 @@
         </div>
 
         <!-- MOVIMIENTOS DEL DÍA -->
-        <div class="card glass">
+        <div class="card glass movements-card">
           <div class="card-header card-header-movs">
             <div class="card-header-left">
-              <h2>Movimientos de caja</h2>
-              <span id="movimientos-dia-resumen" class="muted-text"></span>
+              <h2>Movimientos</h2>
+              <span id="movimientos-dia-resumen" class="muted-text small"></span>
             </div>
-
+            <!-- Selector de Fecha para ver historial -->
             <div class="movimientos-filter">
-              <label for="movimientos-fecha" class="muted-text small">Día</label>
-              <input type="date" id="movimientos-fecha" />
+              <input type="date" id="movimientos-fecha" class="date-selector" />
             </div>
           </div>
 
           <div class="movimientos-list" id="movimientos-list">
-            <!-- Render dinámico -->
+            <!-- Render dinámico aquí -->
+            <div class="empty-state">Cargando movimientos...</div>
           </div>
         </div>
 
       </section>
 
-      <!-- PANEL DERECHO -->
+      <!-- PANEL DERECHO: Vistas Activas -->
       <section class="panel right-panel">
 
         <!-- ======================= -->
@@ -96,18 +96,16 @@
             </div>
 
             <form id="form-movimiento" class="form-grid">
-
               <div class="form-row two-cols">
                 <div class="form-field">
-                  <label for="tipoMovimiento">Tipo</label>
+                  <label>Tipo</label>
                   <select id="tipoMovimiento" required>
                     <option value="Ingreso">Ingreso</option>
                     <option value="Egreso">Egreso</option>
                   </select>
                 </div>
-
                 <div class="form-field">
-                  <label for="formaPago">Forma de pago</label>
+                  <label>Forma de pago</label>
                   <select id="formaPago" required>
                     <option value="Efectivo">Efectivo</option>
                     <option value="Cheque">Cheque</option>
@@ -117,7 +115,7 @@
               </div>
 
               <div class="form-field">
-                <label for="tipoRapido">Tipo rápido</label>
+                <label>Tipo rápido</label>
                 <select id="tipoRapido">
                   <option value="libre">Movimiento libre</option>
                   <option value="pagoProveedor">Pago a proveedor</option>
@@ -125,61 +123,47 @@
                   <option value="adelanto">Adelanto a empleado</option>
                   <option value="haber">Pago de haberes</option>
                 </select>
-                <p class="muted-text small">
-                  Se autocompletan categoría y observación según la selección.
-                </p>
               </div>
 
-              <!-- Proveedor -->
+              <!-- Inputs dinámicos -->
               <div class="form-row dynamic-row hidden" id="row-proveedor">
                 <div class="form-field autocomplete-field">
-                  <label for="inputProveedor">Proveedor</label>
+                  <label>Proveedor</label>
                   <input type="text" id="inputProveedor" autocomplete="off" />
                   <div id="proveedor-suggestions" class="suggestions"></div>
                 </div>
               </div>
-
-              <!-- Vehículo -->
               <div class="form-row dynamic-row hidden" id="row-vehiculo">
                 <div class="form-field">
-                  <label for="selectVehiculo">Vehículo</label>
-                  <select id="selectVehiculo">
-                    <option value="">Seleccionar vehículo</option>
-                  </select>
+                  <label>Vehículo</label>
+                  <select id="selectVehiculo"><option value="">Seleccionar...</option></select>
                 </div>
               </div>
-
-              <!-- Empleado -->
               <div class="form-row dynamic-row hidden" id="row-empleado">
                 <div class="form-field">
-                  <label for="selectEmpleado">Empleado</label>
-                  <select id="selectEmpleado">
-                    <option value="">Seleccionar empleado</option>
-                  </select>
+                  <label>Empleado</label>
+                  <select id="selectEmpleado"><option value="">Seleccionar...</option></select>
                 </div>
               </div>
 
-              <!-- Importe -->
               <div class="form-field">
-                <label for="importe">Importe</label>
-                <input type="text" inputmode="decimal" id="importe" placeholder="0" required />
+                <label>Importe</label>
+                <input type="text" inputmode="decimal" id="importe" placeholder="$ 0" required class="big-input"/>
               </div>
 
-              <!-- Banco / cheque -->
-              <div class="form-row two-cols" id="row-banco-cheque">
+              <div class="form-row two-cols hidden" id="row-banco-cheque">
                 <div class="form-field">
-                  <label for="banco">Banco</label>
-                  <input type="text" id="banco" placeholder="Opcional" />
+                  <label>Banco</label>
+                  <input type="text" id="banco" />
                 </div>
                 <div class="form-field">
-                  <label for="nroCheque">N° Cheque</label>
-                  <input type="text" id="nroCheque" placeholder="Opcional" />
+                  <label>N° Cheque</label>
+                  <input type="text" id="nroCheque" />
                 </div>
               </div>
 
-              <!-- Observación -->
               <div class="form-field">
-                <label for="observacion">Descripción / Observación</label>
+                <label>Observación</label>
                 <textarea id="observacion" rows="2"></textarea>
               </div>
 
@@ -191,52 +175,40 @@
         </section>
 
         <!-- ======================= -->
-        <!-- VIEW: RENDICIÓN -->
+        <!-- VIEW: RENDICIÓN (REDISENADA) -->
         <!-- ======================= -->
         <section id="view-rendicion" class="view">
-          <div class="card glass">
+          
+          <!-- Barra "Divertida" animada -->
+          <div class="fun-balance-bar">
+            <span class="fun-label">💰 Saldo Actual en Caja</span>
+            <span class="fun-value mono" id="rendicion-saldo-actual">$ 0,00</span>
+          </div>
 
-            <div class="card-header">
-              <h2>Rendición del reparto</h2>
-            </div>
+          <!-- CONTADOR DE BILLETES (PROTAGONISTA) -->
+          <!-- Se inyecta vía JS aquí con id="bill-counter-container" -->
+          <div id="bill-counter-container"></div>
 
-            <!-- Barra de saldo especial -->
-            <div class="rendicion-saldo-bar">
-              <span class="rendicion-saldo-label">Saldo efectivo en caja</span>
-              <span class="rendicion-saldo-value mono" id="rendicion-saldo-actual">$ 0</span>
-            </div>
-
-            <div class="rendicion-info">
-              <div class="rendicion-field">
-                <span class="label">Fecha</span>
-                <span class="value" id="rendicion-fecha">-</span>
-              </div>
-              <div class="rendicion-field">
-                <span class="label">Turno</span>
-                <span class="value" id="rendicion-turno">Detectando...</span>
-              </div>
-              <div class="rendicion-field">
-                <span class="label">Repartidor</span>
-                <span class="value" id="rendicion-repartidor">Nico</span>
-              </div>
-            </div>
-
-            <div class="rendicion-totales">
-              <div class="tot-card">
-                <span class="label">Esperado</span>
+          <!-- Totales y Acción -->
+          <div class="card glass" style="margin-top: 15px;">
+            <div class="rendicion-summary">
+              <div class="summary-item">
+                <span class="label">Esperado (Sistema)</span>
                 <span class="value mono" id="rendicion-esperado">$ 0</span>
               </div>
-
-              <div class="tot-card">
-                <span class="label">Contado</span>
-                <input type="text" inputmode="decimal" id="rendicion-contado" placeholder="0" />
+              <div class="summary-item highlight">
+                <span class="label">Contado (Real)</span>
+                <!-- Este input se actualiza solo desde el contador -->
+                <input type="text" id="rendicion-contado" readonly placeholder="$ 0" class="summary-input" />
               </div>
             </div>
 
-            <!-- AQUÍ SE INYECTA EL CONTADOR DE BILLETES -->
+            <div class="rendicion-meta">
+              <span id="rendicion-fecha"></span> - <span id="rendicion-turno"></span> - <span id="rendicion-repartidor"></span>
+            </div>
 
             <div class="resultado-rendicion" id="resultado-rendicion">
-              <p class="muted-text">Buscando rendición de hoy...</p>
+              <p class="muted-text">Esperando conteo...</p>
             </div>
 
             <button class="btn-primary wide" id="btn-procesar-rendicion">
@@ -250,31 +222,25 @@
         <!-- ======================= -->
         <section id="view-arqueo" class="view">
           <div class="card glass">
-
             <div class="card-header">
               <h2>Arqueo de caja</h2>
             </div>
-
             <div class="arqueo-grid">
               <div class="arqueo-block">
-                <span class="label">Efectivo según sistema</span>
+                <span class="label">Sistema</span>
                 <span class="value mono" id="arqueo-sistema">$ 0</span>
               </div>
-
-              <div class="arqueo-block">
-                <label for="arqueo-fisico" class="label">Efectivo físico contado</label>
-                <input type="text" inputmode="decimal" id="arqueo-fisico" placeholder="0" />
+              <div class="arqueo-block input-block">
+                <label for="arqueo-fisico" class="label">Físico</label>
+                <input type="text" inputmode="decimal" id="arqueo-fisico" placeholder="$ 0" class="big-input" />
               </div>
             </div>
-
             <div class="resultado-arqueo" id="resultado-arqueo">
-              <p class="muted-text">Ingresá el efectivo físico para ver el resultado.</p>
+              <p class="muted-text">Ingresá el efectivo físico.</p>
             </div>
-
             <button class="btn-primary wide" id="btn-registrar-arqueo">
               Registrar arqueo
             </button>
-
           </div>
         </section>
 
@@ -283,15 +249,13 @@
 
     <!-- NAV INFERIOR -->
     <nav class="bottom-nav glass">
-      <button class="nav-btn active" data-view="view-movimiento" data-label="Movimiento" data-hover="Registrar mov.">
+      <button class="nav-btn active" data-view="view-movimiento" data-hover="Nuevo Movimiento">
         <span>Movimiento</span>
       </button>
-
-      <button class="nav-btn" data-view="view-rendicion" data-label="Rendición" data-hover="Contar caja">
+      <button class="nav-btn" data-view="view-rendicion" data-hover="Contar Billetes">
         <span>Rendición</span>
       </button>
-
-      <button class="nav-btn" data-view="view-arqueo" data-label="Arqueo" data-hover="Revisar arqueo">
+      <button class="nav-btn" data-view="view-arqueo" data-hover="Control Final">
         <span>Arqueo</span>
       </button>
     </nav>
@@ -303,6 +267,5 @@
   </div>
 
   <script src="app-laura.js"></script>
-
 </body>
 </html>
