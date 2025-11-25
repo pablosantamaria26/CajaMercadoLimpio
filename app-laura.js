@@ -6,1121 +6,423 @@ const USUARIO_APP = "Laura";
 
 // Cache & polling
 const RENDICION_CACHE_KEY = "caja_rendicion_cache_v2";
-const ALERTAS_CACHE_KEY = "caja_alertas_vistas";
-const RENDICION_POLL_INTERVAL_MS = 60000;   // 1 minuto
-const ALERTAS_POLL_INTERVAL_MS = 120000;    // 2 minutos
+const RENDICION_POLL_INTERVAL_MS = 60000;    // 1 minuto
 
-// Proveedores (para autocomplete inteligente)
-const PROVEEDORES = [
-  "Marwiplast",
-  "Bio Bag",
-  "Broche plastico",
-  "Bumerang",
-  "Carol",
-  "Colores",
-  "Coolbazar",
-  "Cotton",
-  "Da Silva",
-  "Desesplast",
-  "Diawara",
-  "Emege",
-  "Entresol",
-  "Fedata",
-  "Fibran",
-  "Flexal",
-  "Hechicera",
-  "Infinity import",
-  "K&K",
-  "La Americana",
-  "La gauchita",
-  "Macetex",
-  "Make Fresh",
-  "Matriplaster",
-  "Mis Plast",
-  "Modoplast",
-  "Molmar",
-  "POP",
-  "Rigolleau",
-  "Romyl",
-  "Samantha",
-  "Santamaria",
-  "Sasha",
-  "Soifer",
-  "lumilagro",
-  "Make",
-  "Suka",
-  "Supy",
-  "Tauro",
-  "Tecnomatric",
-  "Yesi",
-  "Durax",
-  "Javi"
-].sort((a, b) => a.localeCompare(b, "es"));
-
-// Vehículos para combustible
-const VEHICULOS = [
-  "Toyota Hiace",
-  "Volkswagen Saveiro",
-  "Fiat Uno Cargo"
-];
-
-// Empleados
-const EMPLEADOS = [
-  "Nicolás",
-  "Laura",
-  "Nancy",
-  "Martín",
-  "Lucas"
-];
-
-// Denominaciones de billetes (ARS)
-const BILLETES = [20000, 10000, 5000, 2000, 1000, 500, 200, 100];
+// Datos Estáticos
+const PROVEEDORES = ["Marwiplast", "Bio Bag", "Broche plastico", "Bumerang", "Carol", "Colores", "Coolbazar", "Cotton", "Da Silva", "Desesplast", "Diawara", "Emege", "Entresol", "Fedata", "Fibran", "Flexal", "Hechicera", "Infinity import", "K&K", "La Americana", "La gauchita", "Macetex", "Make Fresh", "Matriplaster", "Mis Plast", "Modoplast", "Molmar", "POP", "Rigolleau", "Romyl", "Samantha", "Santamaria", "Sasha", "Soifer", "lumilagro", "Make", "Suka", "Supy", "Tauro", "Tecnomatric", "Yesi", "Durax", "Javi"].sort();
+const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
+const EMPLEADOS = ["Nicolás", "Laura", "Nancy", "Martín", "Lucas"];
+// Agregado el billete de 20.000
+const BILLETES = [20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10]; 
 
 // ===============================
 // HELPERS
 // ===============================
 
 async function api(fn, params = {}) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fn, params })
-  });
-  const text = await res.text();
   try {
-    return JSON.parse(text);
-  } catch {
-    return text;
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fn, params })
+    });
+    return await res.json();
+  } catch (e) {
+    console.error("API Error:", e);
+    showToast("Error de conexión", "error");
+    return null;
   }
 }
 
 function formatoMoneda(num) {
-  if (num == null || isNaN(num)) return "$ 0";
-  return "$ " + Number(num).toLocaleString("es-AR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-}
-
-function applyMoneyColor(el, value) {
-  if (!el) return;
-  el.classList.remove("monto-positivo", "monto-negativo", "monto-neutro");
-  if (value > 0) {
-    el.classList.add("monto-positivo");
-  } else if (value < 0) {
-    el.classList.add("monto-negativo");
-  } else {
-    el.classList.add("monto-neutro");
-  }
+  return "$ " + Number(num || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function showToast(msg, tipo = "info") {
   const toast = document.getElementById("toast");
   const content = document.getElementById("toast-content");
   content.textContent = msg;
+  content.className = "toast-content " + tipo; // Estilos CSS manejarán colores si se desea
+  content.style.borderColor = tipo === 'ok' ? '#10b981' : (tipo === 'error' ? '#ef4444' : '#00e6ff');
   toast.classList.remove("hidden");
-
-  if (tipo === "ok") {
-    content.style.borderColor = "#3dd68c";
-  } else if (tipo === "error") {
-    content.style.borderColor = "#ff6e6c";
-  } else if (tipo === "alerta") {
-    content.style.borderColor = "#f59e0b";
-  } else {
-    content.style.borderColor = "rgba(148,163,184,0.6)";
-  }
-
-  setTimeout(() => {
-    toast.classList.add("hidden");
-  }, 2600);
+  setTimeout(() => toast.classList.add("hidden"), 3000);
 }
 
 function setHeaderClock() {
-  const dateEl = document.getElementById("header-date");
-  const timeEl = document.getElementById("header-time");
   const now = new Date();
-  const fecha = now.toLocaleDateString("es-AR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric"
-  });
-  const hora = now.toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-  dateEl.textContent = fecha;
-  timeEl.textContent = hora;
+  document.getElementById("header-date").textContent = now.toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "long" });
+  document.getElementById("header-time").textContent = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 }
 
 function getTurnoFromDate(fecha = new Date()) {
-  const hhmm = fecha.toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  });
-  if (hhmm >= "06:00" && hhmm <= "14:00") return "Mañana";
-  if (hhmm >= "14:01" && hhmm <= "23:59") return "Tarde";
-  return "Mañana";
-}
-
-// === Máscara de dinero AR en inputs de importe ===
-
-function setupMoneyInput(input) {
-  if (!input) return;
-
-  // Limpia el 0 al primer foco y selecciona todo
-  input.addEventListener("focus", () => {
-    if (!input.dataset.touched) {
-      if (input.value === "0" || input.value === "0,00" || input.value === "") {
-        input.value = "";
-      }
-      input.dataset.touched = "1";
-    }
-    input.select();
-  });
-
-  input.addEventListener("input", () => {
-    const digits = input.value.replace(/\D/g, "");
-    if (!digits) {
-      input.dataset.raw = "0";
-      input.value = "";
-      return;
-    }
-    input.dataset.raw = digits;
-    const n = Number(digits);
-    if (isNaN(n)) {
-      input.value = "";
-      return;
-    }
-    input.value = n.toLocaleString("es-AR");
-  });
-}
-
-function getMoneyNumberFromInput(input) {
-  if (!input) return 0;
-  if (input.dataset && input.dataset.raw) {
-    const n = Number(input.dataset.raw);
-    return isNaN(n) ? 0 : n;
-  }
-  const raw = (input.value || "")
-    .toString()
-    .replace(/\./g, "")
-    .replace(",", ".");
-  const n = parseFloat(raw);
-  return isNaN(n) ? 0 : n;
-}
-
-function initMoneyInputs() {
-  ["importe", "rendicion-contado", "arqueo-fisico"].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) setupMoneyInput(el);
-  });
-}
-
-// === Cache helpers ===
-
-function loadRendicionCache() {
-  try {
-    const raw = localStorage.getItem(RENDCION_CACHE_KEY); // typo evitado cambiando nombre
-  } catch (e) {}
-  // versión buena:
-  try {
-    const raw = localStorage.getItem(RENDCION_CACHE_KEY);
-  } catch (e) {}
-}
-
-// versión limpia:
-function loadRendicionCacheSafe() {
-  try {
-    const raw = localStorage.getItem(RENDCION_CACHE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch (e) {
-    return null;
-  }
-}
-
-function saveRendicionCache(obj) {
-  try {
-    localStorage.setItem(RENDCION_CACHE_KEY, JSON.stringify(obj));
-  } catch (e) {}
-}
-
-function loadAlertasVistasFromStorage() {
-  const set = new Set();
-  try {
-    const raw = localStorage.getItem(ALERTAS_CACHE_KEY);
-    if (!raw) return set;
-    const arr = JSON.parse(raw);
-    if (Array.isArray(arr)) {
-      arr.forEach((id) => set.add(id));
-    }
-  } catch (e) {}
-  return set;
-}
-
-function saveAlertasVistasToStorage(set) {
-  try {
-    const arr = Array.from(set);
-    localStorage.setItem(ALERTAS_CACHE_KEY, JSON.stringify(arr));
-  } catch (e) {}
+  const h = fecha.getHours();
+  return (h >= 6 && h < 14) ? "Mañana" : "Tarde";
 }
 
 // ===============================
 // ESTADO LOCAL
 // ===============================
-
 const estado = {
-  saldo: {
-    efectivo: 0,
-    cheques: 0,
-    banco: 0,
-    total: 0
-  },
-  movimientosDia: [],
-  rendicion: {
-    fecha: null,
-    turno: null,
-    repartidor: null,
-    esperado: 0
-  },
-  notificacionesVistas: loadAlertasVistasFromStorage()
+  saldo: { efectivo: 0, cheques: 0, banco: 0, total: 0 },
+  rendicion: { fecha: null, turno: null, repartidor: null, esperado: 0 },
+  fechaMovimientos: new Date().toISOString().slice(0, 10)
 };
 
 // ===============================
 // INIT
 // ===============================
-
 document.addEventListener("DOMContentLoaded", () => {
-  setHeaderClock();
-  setInterval(setHeaderClock, 30000);
-
-  injectBillCounterStyles();
+  setHeaderClock(); setInterval(setHeaderClock, 30000);
   initNavigation();
-  initProveedoresAutocomplete();
-  initSelectsAuxiliares();
-  initMoneyInputs();
-
   initFormMovimiento();
-  initRendicion(); // también crea el contador de billetes
+  initSelectsAuxiliares();
+  initProveedoresAutocomplete();
+  
+  // Rendición y Arqueo
+  createBillCounterHero(); // Nuevo contador protagonista
+  initRendicionLogic();
   initArqueo();
 
-  refreshEstadoCaja();
+  // Movimientos
+  document.getElementById("movimientos-fecha").value = estado.fechaMovimientos;
+  document.getElementById("movimientos-fecha").addEventListener("change", (e) => {
+    estado.fechaMovimientos = e.target.value;
+    cargarMovimientos();
+  });
 
+  // Carga inicial
+  refreshEstadoCaja();
+  cargarMovimientos(); // Carga movs del día
   startRendicionWatcher();
-  startAlertasWatcher();
 });
 
 // ===============================
-// NAV
+// NAV & UI
 // ===============================
-
 function initNavigation() {
-  const buttons = document.querySelectorAll(".bottom-nav .nav-btn");
+  const btns = document.querySelectorAll(".nav-btn");
   const views = document.querySelectorAll(".view");
-
-  buttons.forEach((btn) => {
+  btns.forEach(btn => {
     btn.addEventListener("click", () => {
-      const viewId = btn.getAttribute("data-view");
-      buttons.forEach((b) => b.classList.remove("active"));
+      btns.forEach(b => b.classList.remove("active"));
+      views.forEach(v => v.classList.remove("active"));
       btn.classList.add("active");
-      views.forEach((v) => v.classList.remove("active"));
-      document.getElementById(viewId).classList.add("active");
+      document.getElementById(btn.dataset.view).classList.add("active");
     });
   });
 }
 
-// ===============================
-// ESTADO CAJA
-// ===============================
-
-async function refreshEstadoCaja() {
-  try {
-    const res = await api("getEstadoCaja", {});
-    if (!res) return;
-
-    estado.saldo.efectivo = res.efectivo || 0;
-    estado.saldo.cheques = res.cheques || 0;
-    estado.saldo.banco = res.banco || 0;
-    estado.saldo.total = res.total || 0;
-
-    const efEl = document.getElementById("saldo-efectivo");
-    const chEl = document.getElementById("saldo-cheques");
-    const baEl = document.getElementById("saldo-banco");
-    const toEl = document.getElementById("saldo-total");
-
-    efEl.textContent = formatoMoneda(estado.saldo.efectivo);
-    chEl.textContent = formatoMoneda(estado.saldo.cheques);
-    baEl.textContent = formatoMoneda(estado.saldo.banco);
-    toEl.textContent = formatoMoneda(estado.saldo.total);
-
-    applyMoneyColor(efEl, estado.saldo.efectivo);
-    applyMoneyColor(chEl, estado.saldo.cheques);
-    applyMoneyColor(baEl, estado.saldo.banco);
-    applyMoneyColor(toEl, estado.saldo.total);
-
-    document.getElementById("arqueo-sistema").textContent = formatoMoneda(
-      estado.saldo.efectivo
-    );
-    applyMoneyColor(
-      document.getElementById("arqueo-sistema"),
-      estado.saldo.efectivo
-    );
-  } catch (err) {
-    console.error(err);
-    showToast("No se pudo leer el estado de caja", "error");
-  }
+function initSelectsAuxiliares() {
+  const fill = (id, arr) => {
+    const s = document.getElementById(id);
+    arr.forEach(x => { const o = document.createElement("option"); o.value=x; o.textContent=x; s.appendChild(o); });
+  };
+  fill("selectVehiculo", VEHICULOS);
+  fill("selectEmpleado", EMPLEADOS);
 }
 
 // ===============================
-// MOVIMIENTOS – FORM
+// LOGICA DE CAJA
 // ===============================
+async function refreshEstadoCaja() {
+  const res = await api("getEstadoCaja");
+  if (!res) return;
+  estado.saldo = res;
+  
+  // Actualizar UI Saldos
+  document.getElementById("saldo-efectivo").textContent = formatoMoneda(res.efectivo);
+  document.getElementById("saldo-cheques").textContent = formatoMoneda(res.cheques);
+  document.getElementById("saldo-banco").textContent = formatoMoneda(res.banco);
+  document.getElementById("saldo-total").textContent = formatoMoneda(res.total);
+  
+  // Actualizar Arqueo y Rendición (Barra divertida)
+  document.getElementById("arqueo-sistema").textContent = formatoMoneda(res.efectivo);
+  document.getElementById("rendicion-saldo-actual").textContent = formatoMoneda(res.efectivo);
+}
 
-function initSelectsAuxiliares() {
-  const vehSel = document.getElementById("selectVehiculo");
-  VEHICULOS.forEach((v) => {
-    const opt = document.createElement("option");
-    opt.value = v;
-    opt.textContent = v;
-    vehSel.appendChild(opt);
-  });
+// ===============================
+// MOVIMIENTOS
+// ===============================
+async function cargarMovimientos() {
+  const list = document.getElementById("movimientos-list");
+  list.innerHTML = '<div style="padding:10px; color:#aaa;">Cargando...</div>';
+  
+  const fecha = estado.fechaMovimientos;
+  const res = await api("getMovimientos", { fechaStr: fecha });
+  
+  list.innerHTML = "";
+  
+  // Resumen del día
+  const totalDia = Array.isArray(res) ? res.length : 0;
+  document.getElementById("movimientos-dia-resumen").textContent = totalDia > 0 ? `${totalDia} movs` : "Sin movs";
 
-  const empSel = document.getElementById("selectEmpleado");
-  EMPLEADOS.forEach((e) => {
-    const opt = document.createElement("option");
-    opt.value = e;
-    opt.textContent = e;
-    empSel.appendChild(opt);
+  if (!res || res.length === 0) {
+    list.innerHTML = '<div style="padding:20px; text-align:center; color:#555;">No hay movimientos para esta fecha.</div>';
+    return;
+  }
+
+  res.forEach(m => {
+    const div = document.createElement("div");
+    const esIngreso = m.tipo === "Ingreso";
+    div.className = `mov-item ${esIngreso ? 'ingreso' : 'egreso'}`;
+    
+    div.innerHTML = `
+      <div class="mov-info">
+        <span class="mov-cat">${m.categoria || m.observacion || 'Varios'}</span>
+        <span class="mov-meta">${m.hora} · ${m.formaPago} · ${m.observacion ? m.observacion.slice(0,25) : ''}</span>
+      </div>
+      <div class="mov-amount ${esIngreso ? 'pos' : 'neg'}">
+        ${esIngreso ? '+' : '-'} ${formatoMoneda(m.importe).replace('$ ','')}
+      </div>
+    `;
+    list.appendChild(div);
   });
 }
 
 function initFormMovimiento() {
-  const form = document.getElementById("form-movimiento");
+  // Lógica de formulario dinámico (similar al original pero optimizada)
   const tipoRapido = document.getElementById("tipoRapido");
   const formaPago = document.getElementById("formaPago");
+  
+  const updateVis = () => {
+    document.querySelectorAll(".dynamic-row").forEach(el => el.classList.add("hidden"));
+    const v = tipoRapido.value;
+    if(v === "pagoProveedor") document.getElementById("row-proveedor").classList.remove("hidden");
+    if(v === "combustible") document.getElementById("row-vehiculo").classList.remove("hidden");
+    if(v === "adelanto" || v === "haber") document.getElementById("row-empleado").classList.remove("hidden");
+  };
+  tipoRapido.addEventListener("change", updateVis);
+  
+  formaPago.addEventListener("change", () => {
+    const v = formaPago.value;
+    const row = document.getElementById("row-banco-cheque");
+    (v === "Cheque" || v === "Banco") ? row.classList.remove("hidden") : row.classList.add("hidden");
+  });
+  
+  updateVis();
 
-  const rowProveedor = document.getElementById("row-proveedor");
-  const rowVehiculo = document.getElementById("row-vehiculo");
-  const rowEmpleado = document.getElementById("row-empleado");
-  const rowBancoCheque = document.getElementById("row-banco-cheque");
-
-  const observacion = document.getElementById("observacion");
-
-  function updateDynamicFields() {
-    const val = tipoRapido.value;
-    rowProveedor.classList.add("hidden");
-    rowVehiculo.classList.add("hidden");
-    rowEmpleado.classList.add("hidden");
-
-    if (val === "pagoProveedor") {
-      rowProveedor.classList.remove("hidden");
-      observacion.placeholder = "Ej: Pago a proveedor Make...";
-    } else if (val === "combustible") {
-      rowVehiculo.classList.remove("hidden");
-      observacion.placeholder = "Ej: Combustible Toyota Hiace...";
-    } else if (val === "adelanto") {
-      rowEmpleado.classList.remove("hidden");
-      observacion.placeholder = "Ej: Adelanto para Nicolás...";
-    } else if (val === "haber") {
-      rowEmpleado.classList.remove("hidden");
-      observacion.placeholder = "Ej: Pago total de haberes a Nancy...";
-    } else {
-      observacion.placeholder = "Descripción libre del movimiento...";
-    }
-  }
-
-  tipoRapido.addEventListener("change", updateDynamicFields);
-  updateDynamicFields();
-
-  function updateBancoChequeFields() {
-    const fp = formaPago.value;
-    if (fp === "Cheque" || fp === "Banco") {
-      rowBancoCheque.classList.remove("hidden");
-    } else {
-      rowBancoCheque.classList.add("hidden");
-    }
-  }
-  formaPago.addEventListener("change", updateBancoChequeFields);
-  updateBancoChequeFields();
-
-  form.addEventListener("submit", async (e) => {
+  document.getElementById("form-movimiento").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const tipo = document.getElementById("tipoMovimiento").value;
-    const fpago = formaPago.value;
-    const importeInput = document.getElementById("importe");
-    const importe = getMoneyNumberFromInput(importeInput);
-    const banco = document.getElementById("banco").value.trim();
-    const nroCheque = document.getElementById("nroCheque").value.trim();
-
-    const proveedor = document.getElementById("inputProveedor").value.trim();
-    const vehiculo = document.getElementById("selectVehiculo").value;
-    const empleado = document.getElementById("selectEmpleado").value;
-
-    let categoria = "Movimiento libre";
-    let obs = observacion.value.trim();
-
-    switch (tipoRapido.value) {
-      case "pagoProveedor":
-        categoria = "Pago a proveedor";
-        if (!obs) obs = `Pago a proveedor ${proveedor || "N/D"}`;
-        break;
-      case "combustible":
-        categoria = `Combustible ${vehiculo || "Vehículo"}`;
-        if (!obs) obs = `Carga combustible ${vehiculo || ""}`.trim();
-        break;
-      case "adelanto":
-        categoria = "Adelanto empleado";
-        if (!obs) obs = `Adelanto a ${empleado || "Empleado"}`;
-        break;
-      case "haber":
-        categoria = "Pago de haberes";
-        if (!obs) obs = `Pago de haberes a ${empleado || "Empleado"}`;
-        break;
-      default:
-        categoria = "Movimiento libre";
-    }
-
-    if (!importe || importe <= 0) {
-      showToast("El importe debe ser mayor a 0", "error");
-      return;
-    }
-
-    const turno = getTurnoFromDate(new Date());
-
+    const btn = document.getElementById("btn-registrar-mov");
+    btn.disabled = true; btn.textContent = "Guardando...";
+    
+    // Recolectar datos
+    const importeRaw = document.getElementById("importe").value.replace(/[^0-9,]/g,'').replace(',','.');
+    
     const params = {
-      tipo,
-      formaPago: fpago,
-      importe,
-      categoria,
+      tipo: document.getElementById("tipoMovimiento").value,
+      formaPago: formaPago.value,
+      importe: parseFloat(importeRaw),
+      categoria: tipoRapido.options[tipoRapido.selectedIndex].text,
       repartidor: "",
-      turno,
-      banco,
-      nroCheque,
+      turno: getTurnoFromDate(),
+      banco: document.getElementById("banco").value,
+      nroCheque: document.getElementById("nroCheque").value,
       usuario: USUARIO_APP,
-      observacion: obs
+      observacion: document.getElementById("observacion").value || (tipoRapido.value === "libre" ? "Movimiento manual" : "") + " " + document.getElementById("inputProveedor").value
     };
 
-    try {
-      const btn = document.getElementById("btn-registrar-mov");
-      btn.disabled = true;
-      btn.textContent = "Guardando...";
-
-      await api("registrarMovimientoCaja", params);
-
-      showToast("Movimiento registrado correctamente", "ok");
-      form.reset();
-      updateDynamicFields();
-      updateBancoChequeFields();
-      importeInput.dataset.raw = "0";
-      importeInput.value = "";
-      await refreshEstadoCaja();
-    } catch (err) {
-      console.error(err);
-      showToast("Error al registrar el movimiento", "error");
-    } finally {
-      const btn = document.getElementById("btn-registrar-mov");
-      btn.disabled = false;
-      btn.textContent = "Registrar movimiento";
-    }
-  });
-}
-
-// ===============================
-// AUTOCOMPLETE PROVEEDORES
-// ===============================
-
-function initProveedoresAutocomplete() {
-  const input = document.getElementById("inputProveedor");
-  const box = document.getElementById("proveedor-suggestions");
-
-  function closeSuggestions() {
-    box.innerHTML = "";
-    box.classList.remove("visible");
-  }
-
-  input.addEventListener("input", () => {
-    const term = input.value.trim().toLowerCase();
-    if (!term) {
-      closeSuggestions();
-      return;
-    }
-
-    const matches = PROVEEDORES.filter((p) =>
-      p.toLowerCase().includes(term)
-    ).slice(0, 8);
-
-    if (matches.length === 0) {
-      closeSuggestions();
-      return;
-    }
-
-    box.innerHTML = "";
-    matches.forEach((m) => {
-      const item = document.createElement("div");
-      item.className = "suggestion-item";
-      item.textContent = m;
-      item.addEventListener("click", () => {
-        input.value = m;
-        closeSuggestions();
-      });
-      box.appendChild(item);
-    });
-    box.classList.add("visible");
-  });
-
-  input.addEventListener("blur", () => {
-    setTimeout(closeSuggestions, 150);
-  });
-}
-
-// ===============================
-// RENDICIÓN + CONTADOR DE BILLETES
-// ===============================
-
-function initRendicion() {
-  const fechaEl = document.getElementById("rendicion-fecha");
-  const turnoEl = document.getElementById("rendicion-turno");
-  const repartidorEl = document.getElementById("rendicion-repartidor");
-  const esperadoEl = document.getElementById("rendicion-esperado");
-  const btn = document.getElementById("btn-procesar-rendicion");
-  const resultadoBox = document.getElementById("resultado-rendicion");
-  const inputContado = document.getElementById("rendicion-contado");
-
-  const hoy = new Date();
-  const turno = getTurnoFromDate(hoy);
-  fechaEl.textContent = hoy.toLocaleDateString("es-AR");
-  turnoEl.textContent = turno;
-
-  estado.rendicion.fecha = hoy.toISOString().slice(0, 10);
-  estado.rendicion.turno = turno;
-  estado.rendicion.repartidor = repartidorEl.textContent || "Nico";
-
-  createBillCounterComponent(inputContado);
-
-  const cache = loadRendicionCacheSafe();
-  if (
-    cache &&
-    cache.fecha === estado.rendicion.fecha &&
-    cache.turno === estado.rendicion.turno &&
-    cache.repartidor === estado.rendicion.repartidor
-  ) {
-    estado.rendicion.esperado = cache.esperado || 0;
-    esperadoEl.textContent = formatoMoneda(estado.rendicion.esperado);
-    applyMoneyColor(esperadoEl, estado.rendicion.esperado);
-    resultadoBox.innerHTML =
-      '<p class="muted-text">Rendición cacheada. Contá los billetes y cargá el importe.</p>';
-  } else {
-    resultadoBox.innerHTML =
-      '<p class="muted-text">Buscando rendición de hoy...</p>';
-  }
-
-  cargarRendicionDesdeBackend(true);
-
-  btn.addEventListener("click", async () => {
-    const contadoVal = getMoneyNumberFromInput(inputContado);
-    if (!contadoVal || contadoVal <= 0) {
-      showToast("Ingresá el total contado en efectivo", "error");
-      return;
-    }
-
-    try {
-      btn.disabled = true;
-      btn.textContent = "Procesando...";
-
-      const fechaStr = estado.rendicion.fecha;
-      const repartidor = estado.rendicion.repartidor || "Nico";
-
-      const res = await api("procesarRendicionDesdeRecibo", {
-        fechaStr,
-        turno,
-        repartidor,
-        efectivoContado: contadoVal,
-        usuario: USUARIO_APP
-      });
-
-      if (res && res.ok) {
-        const dif = res.diferencia || 0;
-        const tipoDif = res.tipoDiferencia || "Exacto";
-
-        let clase = "";
-        let msg = "";
-
-        if (tipoDif === "Exacto") {
-          clase = "result-ok";
-          msg = "Rendición exacta ✔. Caja ajustada automáticamente.";
-        } else if (tipoDif === "Sobrante") {
-          clase = "result-ok";
-          msg = `Sobrante de ${formatoMoneda(dif)}. El sistema lo registró como ingreso de diferencia.`;
-        } else {
-          clase = "result-danger";
-          msg = `Faltante de ${formatoMoneda(
-            Math.abs(dif)
-          )}. El sistema lo registró como egreso por diferencia.`;
-        }
-
-        resultadoBox.classList.remove("result-ok", "result-danger");
-        if (clase) resultadoBox.classList.add(clase);
-
-        resultadoBox.innerHTML = `
-          <p>${msg}</p>
-          <p class="muted-text small">
-            ID Rendición: ${res.idRendicion} · Mov. principal: ${res.movPrincipalId}
-          </p>
-        `;
-
-        showToast("Rendición procesada correctamente", "ok");
-        await refreshEstadoCaja();
-      } else {
-        const errMsg =
-          res && res.error ? res.error : "No se pudo procesar la rendición";
-        showToast(errMsg, "error");
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Error al procesar la rendición", "error");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Procesar rendición";
-    }
-  });
-}
-
-async function cargarRendicionDesdeBackend(primerCarga = false) {
-  const esperadoEl = document.getElementById("rendicion-esperado");
-  const resultadoBox = document.getElementById("resultado-rendicion");
-  const repartidorEl = document.getElementById("rendicion-repartidor");
-
-  const fechaStr = estado.rendicion.fecha;
-  const turno = estado.rendicion.turno;
-  const repartidor = repartidorEl.textContent || "Nico";
-
-  try {
-    const datos = await api("getDatosRendicionEsperada", {
-      fechaStr,
-      turno,
-      repartidor
-    });
-
-    if (datos && datos.ok && typeof datos.efectivoEsperado !== "undefined") {
-      const antesNoTenia =
-        !estado.rendicion.esperado || estado.rendicion.esperado === 0;
-
-      estado.rendicion.esperado = datos.efectivoEsperado || 0;
-      estado.rendicion.fecha = datos.fecha || fechaStr;
-      estado.rendicion.turno = datos.turno || turno;
-      estado.rendicion.repartidor = datos.repartidor || repartidor;
-
-      esperadoEl.textContent = formatoMoneda(estado.rendicion.esperado);
-      applyMoneyColor(esperadoEl, estado.rendicion.esperado);
-      resultadoBox.innerHTML =
-        '<p class="muted-text">Listo. Contá los billetes y cargá el importe.</p>';
-
-      saveRendicionCache({
-        fecha: estado.rendicion.fecha,
-        turno: estado.rendicion.turno,
-        repartidor: estado.rendicion.repartidor,
-        esperado: estado.rendicion.esperado
-      });
-
-      if (!primerCarga && antesNoTenia) {
-        showToast("Rendición del día detectada ✔", "ok");
-        highlightRendicionCard();
-      } else if (primerCarga && antesNoTenia) {
-        showToast("Rendición del día encontrada", "ok");
-      }
+    const res = await api("registrarMovimientoCaja", params);
+    if(res && res.ok) {
+      showToast("Movimiento registrado", "ok");
+      document.getElementById("form-movimiento").reset();
+      document.getElementById("importe").value = ""; 
+      refreshEstadoCaja();
+      cargarMovimientos(); // Recargar lista
     } else {
-      if (primerCarga) {
-        resultadoBox.innerHTML = `<p class="muted-text result-danger">No se encontró rendición para hoy (${turno}).</p>`;
-      }
+      showToast("Error al registrar", "error");
     }
-  } catch (err) {
-    console.error(err);
-    if (primerCarga) {
-      resultadoBox.innerHTML =
-        '<p class="muted-text result-danger">Error al buscar la rendición esperada.</p>';
-    }
-  }
+    btn.disabled = false; btn.textContent = "Registrar movimiento";
+  });
 }
 
-function highlightRendicionCard() {
-  const view = document.getElementById("view-rendicion");
-  if (!view) return;
-  view.classList.add("rendicion-highlight");
-  setTimeout(
-    () => view.classList.remove("rendicion-highlight"),
-    1600
-  );
+// ===============================
+// CONTADOR DE BILLETES HERO
+// ===============================
+function createBillCounterHero() {
+  const container = document.getElementById("bill-counter-container");
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="bill-counter-hero">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; color:var(--accent); text-transform:uppercase; letter-spacing:1px;">💵 Contador de Billetes</h3>
+        <button onclick="resetBillCounter()" style="background:transparent; border:1px solid var(--text-muted); color:var(--text-muted); border-radius:8px; cursor:pointer; font-size:0.7rem;">LIMPIAR</button>
+      </div>
+      <div class="bill-grid" id="bill-grid"></div>
+    </div>
+  `;
+
+  const grid = document.getElementById("bill-grid");
+  
+  BILLETES.forEach(denom => {
+    const item = document.createElement("div");
+    item.className = "bill-item";
+    // Al hacer click, poner foco y seleccionar todo para sobreescribir rápido
+    item.onclick = () => {
+      const inp = item.querySelector("input");
+      inp.focus();
+      inp.select();
+    };
+
+    item.innerHTML = `
+      <span class="bill-denom">$ ${denom.toLocaleString()}</span>
+      <input type="number" class="bill-input-qty" data-denom="${denom}" value="0" min="0" placeholder="0" />
+      <span class="bill-subtotal" id="sub-${denom}">$ 0</span>
+    `;
+    grid.appendChild(item);
+  });
+
+  // Eventos de input
+  grid.addEventListener("input", (e) => {
+    if (e.target.classList.contains("bill-input-qty")) {
+      // Auto-clear logic: si es 0 y el usuario tipea, reemplazar. 
+      // (Ya manejado nativamente por el comportamiento de input number, pero forzamos calculo)
+      calculateBillTotal();
+    }
+  });
+  
+  // Feature "Click to Clear": Si haces click en el input y tiene valor, lo selecciona para borrar facil
+  grid.addEventListener("focusin", (e) => {
+    if (e.target.classList.contains("bill-input-qty")) {
+       e.target.select();
+    }
+  });
+}
+
+function calculateBillTotal() {
+  let total = 0;
+  document.querySelectorAll(".bill-input-qty").forEach(inp => {
+    const qty = parseInt(inp.value) || 0;
+    const denom = parseInt(inp.dataset.denom);
+    const sub = qty * denom;
+    total += sub;
+    // Update subtotal text
+    document.getElementById(`sub-${denom}`).textContent = qty > 0 ? formatoMoneda(sub) : "$ 0";
+    // Visual feedback
+    inp.parentElement.style.borderColor = qty > 0 ? "var(--accent)" : "var(--border-glass)";
+    inp.style.color = qty > 0 ? "#fff" : "var(--accent)";
+  });
+
+  // Actualizar el input "Contado" del resumen
+  const inputContado = document.getElementById("rendicion-contado");
+  inputContado.value = formatoMoneda(total);
+  inputContado.dataset.numeric = total; // Guardar valor numerico real
+}
+
+function resetBillCounter() {
+  document.querySelectorAll(".bill-input-qty").forEach(i => { i.value = "0"; i.parentElement.style.borderColor = "var(--border-glass)"; });
+  calculateBillTotal();
+}
+
+// ===============================
+// RENDICIÓN LÓGICA
+// ===============================
+function initRendicionLogic() {
+  cargarRendicionEsperada(true);
+
+  document.getElementById("btn-procesar-rendicion").addEventListener("click", async () => {
+    const contadoInput = document.getElementById("rendicion-contado");
+    const contado = parseFloat(contadoInput.dataset.numeric || 0);
+    
+    if(contado <= 0) { showToast("Contá los billetes primero", "error"); return; }
+
+    const btn = document.getElementById("btn-procesar-rendicion");
+    btn.disabled = true; btn.textContent = "Procesando...";
+
+    const params = {
+      fechaStr: estado.rendicion.fecha,
+      turno: estado.rendicion.turno,
+      repartidor: estado.rendicion.repartidor,
+      efectivoContado: contado,
+      usuario: USUARIO_APP,
+      efectivoEsperado: estado.rendicion.esperado
+    };
+
+    const res = await api("procesarRendicionDesdeRecibo", params);
+    if(res && res.ok) {
+      showToast(res.tipoDiferencia === "Exacto" ? "Rendición Exacta! 🎉" : "Rendición procesada", "ok");
+      document.getElementById("resultado-rendicion").innerHTML = `<p style="color:var(--ok)">Procesado: ${res.tipoDiferencia} (${formatoMoneda(res.diferencia)})</p>`;
+      refreshEstadoCaja();
+    } else {
+      showToast(res.error || "Error", "error");
+    }
+    btn.disabled = false; btn.textContent = "Procesar Rendición";
+  });
+}
+
+async function cargarRendicionEsperada(firstTime = false) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const turno = getTurnoFromDate();
+  
+  // Update UI meta
+  document.getElementById("rendicion-fecha").textContent = hoy;
+  document.getElementById("rendicion-turno").textContent = turno;
+
+  const res = await api("getDatosRendicionEsperada", { fechaStr: hoy, turno: turno, repartidor: "Nico" });
+  
+  if (res && res.ok) {
+    estado.rendicion.esperado = res.efectivoEsperado;
+    estado.rendicion.fecha = res.fecha;
+    estado.rendicion.turno = res.turno;
+    estado.rendicion.repartidor = res.repartidor;
+
+    document.getElementById("rendicion-esperado").textContent = formatoMoneda(res.efectivoEsperado);
+    document.getElementById("rendicion-repartidor").textContent = res.repartidor;
+    
+    if(firstTime) showToast("Rendición encontrada", "ok");
+  } else {
+    document.getElementById("resultado-rendicion").innerHTML = `<span style="font-size:0.8rem; color:var(--text-muted)">Esperando planilla de ${turno}...</span>`;
+  }
 }
 
 function startRendicionWatcher() {
-  setInterval(() => {
-    cargarRendicionDesdeBackend(false);
-  }, RENDICION_POLL_INTERVAL_MS);
-}
-
-// ===============================
-// CONTADOR DE BILLETES (UI + lógica)
-// ===============================
-
-function injectBillCounterStyles() {
-  const style = document.createElement("style");
-  style.textContent = `
-    .bill-counter {
-      margin-top: 1.2rem;
-      padding: 1rem;
-      border-radius: 14px;
-      background: radial-gradient(circle at top left, rgba(52,211,153,0.22), rgba(15,23,42,0.96));
-      box-shadow: 0 18px 35px rgba(15,23,42,0.7);
-      border: 1px solid rgba(148,163,184,0.55);
-      backdrop-filter: blur(10px);
-      color: #e5e7eb;
-      animation: billGlowIn 450ms ease-out;
-    }
-    .bill-counter-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: .75rem;
-    }
-    .bill-counter-title {
-      font-size: .95rem;
-      font-weight: 600;
-      letter-spacing: .03em;
-      text-transform: uppercase;
-      display: flex;
-      align-items: center;
-      gap: .35rem;
-    }
-    .bill-counter-title span.icon {
-      font-size: 1.2rem;
-    }
-    .bill-counter-sub {
-      font-size: .75rem;
-      opacity: .85;
-      text-align: right;
-    }
-    .bill-rows {
-      display: grid;
-      grid-template-columns: repeat(auto-fit,minmax(135px,1fr));
-      gap: .55rem .8rem;
-    }
-    .bill-row {
-      padding: .45rem .5rem .35rem;
-      border-radius: 10px;
-      background: rgba(15,23,42,0.8);
-      border: 1px solid rgba(55,65,81,0.9);
-      display: flex;
-      flex-direction: column;
-      gap: .3rem;
-    }
-    .bill-row-main {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: .4rem;
-    }
-    .bill-label {
-      font-size: .8rem;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-    .bill-input {
-      width: 56px;
-      padding: .2rem .3rem;
-      border-radius: 999px;
-      border: 1px solid rgba(148,163,184,0.9);
-      background: radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,0.95));
-      color: #e5e7eb;
-      font-size: .8rem;
-      text-align: center;
-      outline: none;
-      transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out, transform 0.1s ease-out;
-    }
-    .bill-input:focus {
-      border-color: rgba(52,211,153,0.9);
-      box-shadow: 0 0 0 1px rgba(52,211,153,0.7);
-      transform: translateY(-1px);
-    }
-    .bill-subtotal {
-      font-size: .75rem;
-      font-family: "JetBrains Mono", monospace;
-      opacity: .9;
-      align-self: flex-end;
-    }
-    .bill-total-row {
-      margin-top: .9rem;
-      padding-top: .7rem;
-      border-top: 1px dashed rgba(148,163,184,0.55);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: .6rem;
-      flex-wrap: wrap;
-    }
-    .bill-total-label {
-      font-size: .85rem;
-      opacity: .9;
-    }
-    .bill-total-badge {
-      padding: .38rem .8rem;
-      border-radius: 999px;
-      border: 1px solid rgba(52,211,153,0.9);
-      background: radial-gradient(circle at top,rgba(34,197,94,0.26),rgba(15,23,42,1));
-      font-family: "JetBrains Mono", monospace;
-      font-size: .88rem;
-      font-weight: 600;
-      color: #bbf7d0;
-      box-shadow: 0 0 0 1px rgba(21,128,61,0.4);
-      transform-origin: center;
-      transition: transform 120ms ease-out;
-    }
-    .bill-total-badge.bump {
-      transform: scale(1.05);
-    }
-
-    @keyframes billGlowIn {
-      from {
-        opacity: 0;
-        transform: translateY(6px) scale(.98);
-        box-shadow: 0 0 0 rgba(15,23,42,0);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
-
-    .view.rendicion-highlight {
-      animation: rendicionPulse 1.4s ease-out;
-    }
-    @keyframes rendicionPulse {
-      0% { box-shadow: 0 0 0 rgba(52,211,153,0); }
-      40% { box-shadow: 0 0 25px rgba(52,211,153,0.55); }
-      100% { box-shadow: 0 0 0 rgba(52,211,153,0); }
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-function createBillCounterComponent(inputContado) {
-  const viewRendicion = document.getElementById("view-rendicion");
-  if (!viewRendicion) return;
-
-  const card = viewRendicion.querySelector(".card");
-  if (!card) return;
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "bill-counter";
-
-  wrapper.innerHTML = `
-    <div class="bill-counter-header">
-      <div class="bill-counter-title">
-        <span class="icon">💵</span>
-        <span>Contador de billetes</span>
-      </div>
-      <div class="bill-counter-sub">
-        Cargá cantidades por denominación<br/>
-        <span style="opacity:.8;">El total se sincroniza con "Contado".</span>
-      </div>
-    </div>
-    <div class="bill-rows" id="bill-rows"></div>
-    <div class="bill-total-row">
-      <span class="bill-total-label">Total contado en billetes</span>
-      <span class="bill-total-badge" id="bill-total-badge">$ 0,00</span>
-    </div>
-  `;
-
-  const totalsNode = card.querySelector(".rendicion-totales");
-  if (totalsNode && totalsNode.parentNode) {
-    totalsNode.parentNode.insertBefore(wrapper, totalsNode.nextSibling);
-  } else {
-    card.appendChild(wrapper);
-  }
-
-  const rowsContainer = wrapper.querySelector("#bill-rows");
-  const badgeTotal = wrapper.querySelector("#bill-total-badge");
-
-  BILLETES.forEach((denom) => {
-    const row = document.createElement("div");
-    row.className = "bill-row";
-
-    row.innerHTML = `
-      <div class="bill-row-main">
-        <span class="bill-label">$ ${denom.toLocaleString("es-AR")}</span>
-        <input type="number" min="0" value="0" class="bill-input" data-denom="${denom}">
-      </div>
-      <span class="bill-subtotal">$ 0,00</span>
-    `;
-    rowsContainer.appendChild(row);
-  });
-
-  function recalcularTotal() {
-    let total = 0;
-    const rows = rowsContainer.querySelectorAll(".bill-row");
-
-    rows.forEach((row) => {
-      const input = row.querySelector(".bill-input");
-      const subtotalSpan = row.querySelector(".bill-subtotal");
-      const denom = parseInt(input.dataset.denom, 10) || 0;
-      const cant = parseInt(input.value || "0", 10) || 0;
-      const subtotal = denom * cant;
-      total += subtotal;
-      subtotalSpan.textContent = formatoMoneda(subtotal);
-      applyMoneyColor(subtotalSpan, subtotal);
-    });
-
-    badgeTotal.textContent = formatoMoneda(total);
-    applyMoneyColor(badgeTotal, total);
-
-    if (!isNaN(total)) {
-      inputContado.dataset.raw = String(total);
-      inputContado.value = total.toLocaleString("es-AR");
-    }
-
-    badgeTotal.classList.remove("bump");
-    void badgeTotal.offsetWidth;
-    badgeTotal.classList.add("bump");
-  }
-
-  rowsContainer.addEventListener("input", (e) => {
-    if (e.target && e.target.classList.contains("bill-input")) {
-      if (e.target.value === "" || parseInt(e.target.value, 10) < 0) {
-        e.target.value = "0";
-      }
-      recalcularTotal();
-    }
-  });
-
-  rowsContainer.addEventListener("focusin", (e) => {
-    if (e.target && e.target.classList.contains("bill-input")) {
-      if (e.target.value === "0") {
-        e.target.value = "";
-      }
-      e.target.select();
-    }
-  });
-
-  inputContado.addEventListener("input", () => {
-    const val = getMoneyNumberFromInput(inputContado);
-    badgeTotal.textContent = formatoMoneda(val);
-    applyMoneyColor(badgeTotal, val);
-  });
+  setInterval(() => cargarRendicionEsperada(false), RENDICION_POLL_INTERVAL_MS);
 }
 
 // ===============================
 // ARQUEO
 // ===============================
-
 function initArqueo() {
-  const btn = document.getElementById("btn-registrar-arqueo");
-  const resultadoBox = document.getElementById("resultado-arqueo");
-
-  btn.addEventListener("click", async () => {
-    const fisicoInput = document.getElementById("arqueo-fisico");
-    const fisicoVal = getMoneyNumberFromInput(fisicoInput);
-    if (!fisicoVal || fisicoVal <= 0) {
-      showToast("Ingresá el efectivo físico contado", "error");
-      return;
-    }
-
-    try {
-      btn.disabled = true;
-      btn.textContent = "Guardando...";
-
-      const res = await api("registrarArqueo", {
-        usuario: USUARIO_APP,
-        efectivoFisico: fisicoVal
-      });
-
-      if (res) {
-        let clase = "";
-        let msg = "";
-
-        if (res.resultado === "OK") {
-          clase = "result-ok";
-          msg = "Arqueo correcto. No hay diferencias de efectivo.";
-        } else if (res.resultado === "Sobrante") {
-          clase = "result-ok";
-          msg = `Sobrante de ${formatoMoneda(res.diferencia)}.`;
-        } else {
-          clase = "result-danger";
-          msg = `Faltante de ${formatoMoneda(
-            Math.abs(res.diferencia)
-          )}.`;
-        }
-
-        resultadoBox.classList.remove("result-ok", "result-danger");
-        if (clase) resultadoBox.classList.add(clase);
-
-        resultadoBox.innerHTML = `
-          <p>${msg}</p>
-          <p class="muted-text small">
-            Efectivo físico: ${formatoMoneda(
-              res.efectivoFisico
-            )} · Sistema: ${formatoMoneda(res.efectivoSistema)}
-          </p>
-        `;
-
-        showToast("Arqueo registrado", "ok");
-        await refreshEstadoCaja();
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Error al registrar el arqueo", "error");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Registrar arqueo";
+  document.getElementById("btn-registrar-arqueo").addEventListener("click", async () => {
+    const valRaw = document.getElementById("arqueo-fisico").value;
+    // Simple parser para input manual
+    const val = parseFloat(valRaw.replace(/[^0-9]/g, ''));
+    
+    if(!val) { showToast("Ingresa valor", "error"); return; }
+    
+    const res = await api("registrarArqueo", { usuario: USUARIO_APP, efectivoFisico: val });
+    if(res && res.resultado) {
+      showToast(`Arqueo: ${res.resultado}`, res.resultado === "OK" ? "ok" : "alerta");
+      document.getElementById("resultado-arqueo").textContent = `Diferencia: ${formatoMoneda(res.diferencia)}`;
+      refreshEstadoCaja();
     }
   });
 }
 
 // ===============================
-// ALERTAS / NOTIFICACIONES
+// AUTOCOMPLETE SIMPLE
 // ===============================
-
-function startAlertasWatcher() {
-  cargarAlertasCaja(true);
-  setInterval(() => {
-    cargarAlertasCaja(false);
-  }, ALERTAS_POLL_INTERVAL_MS);
-}
-
-async function cargarAlertasCaja(primerCarga = false) {
-  try {
-    const res = await api("getNotificacionesCaja", {
-      soloActivas: true
+function initProveedoresAutocomplete() {
+  const inp = document.getElementById("inputProveedor");
+  const box = document.getElementById("proveedor-suggestions");
+  
+  inp.addEventListener("input", () => {
+    const val = inp.value.toLowerCase();
+    box.innerHTML = "";
+    if(val.length < 1) return;
+    const match = PROVEEDORES.filter(p => p.toLowerCase().includes(val));
+    match.forEach(p => {
+      const d = document.createElement("div");
+      d.className = "suggestion-item";
+      d.textContent = p;
+      d.onclick = () => { inp.value = p; box.innerHTML=""; };
+      box.appendChild(d);
     });
-
-    if (!Array.isArray(res)) return;
-
-    res.sort((a, b) => {
-      const da = new Date(a.fecha || a.hora || new Date());
-      const db = new Date(b.fecha || b.hora || new Date());
-      return db.getTime() - da.getTime();
-    });
-
-    let huboAlertasNuevas = false;
-
-    res.forEach((n) => {
-      const id = n.id;
-      if (!id) return;
-
-      if (!estado.notificacionesVistas.has(id)) {
-        estado.notificacionesVistas.add(id);
-        huboAlertasNuevas = true;
-
-        if (n.tipo === "ANOMALIA_CAJA" || n.severidad === "ALTA") {
-          const titulo = n.titulo || "Alerta de caja";
-          showToast(`⚠ ${titulo}`, "alerta");
-        }
-      }
-    });
-
-    if (huboAlertasNuevas) {
-      saveAlertasVistasToStorage(estado.notificacionesVistas);
-    }
-  } catch (err) {
-    console.error("Error cargando alertas:", err);
-  }
+    if(match.length>0) box.classList.add("visible");
+  });
+  
+  document.addEventListener("click", (e) => {
+    if(e.target !== inp) box.innerHTML="";
+  });
 }
