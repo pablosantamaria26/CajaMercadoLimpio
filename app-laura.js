@@ -1,14 +1,10 @@
 // ===============================
-// CONFIG
+// CONFIGURACIÓN Y ESTADO
 // ===============================
 const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
 const USUARIO_APP = "Laura";
+const RENDICION_POLL_INTERVAL_MS = 60000; 
 
-// Cache & polling
-const RENDICION_CACHE_KEY = "caja_rendicion_cache_v2";
-const RENDICION_POLL_INTERVAL_MS = 60000;    // 1 minuto
-
-// Datos Estáticos
 const PROVEEDORES = [
   "Marwiplast", "Bio Bag", "Broche plastico", "Bumerang", "Carol", "Colores",
   "Coolbazar", "Cotton", "Da Silva", "Desesplast", "Diawara", "Emege",
@@ -18,15 +14,18 @@ const PROVEEDORES = [
   "Santamaria", "Sasha", "Soifer", "lumilagro", "Make", "Suka", "Supy", "Tauro",
   "Tecnomatric", "Yesi", "Durax", "Javi"
 ].sort();
-
 const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
 const EMPLEADOS = ["Nicolás", "Laura", "Nancy", "Martín", "Lucas"];
-
-// Agregado el billete de 20.000
 const BILLETES = [20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10]; 
 
+const estado = {
+  saldo: { efectivo: 0, cheques: 0, banco: 0, total: 0 },
+  rendicion: { fecha: null, turno: null, repartidor: null, esperado: 0 },
+  fechaMovimientos: new Date().toISOString().slice(0, 10)
+};
+
 // ===============================
-// HELPERS
+// HELPERS Y UTILS
 // ===============================
 async function api(fn, params = {}) {
   try {
@@ -37,8 +36,7 @@ async function api(fn, params = {}) {
     });
     return await res.json();
   } catch (e) {
-    console.error("API Error:", e);
-    showToast("Error de conexión", "error");
+    showToast("Error de conexión con la API", "error");
     return null;
   }
 }
@@ -50,32 +48,25 @@ function formatoMoneda(num) {
   });
 }
 
-function showToast(msg, tipo = "info") {
+function showToast(msg, type = "info") {
   const toast = document.getElementById("toast");
-  const content = document.getElementById("toast-content");
-  content.textContent = msg;
-  content.className = "toast-content " + tipo;
-  content.style.borderColor =
-    tipo === "ok"
-      ? "#10b981"
-      : tipo === "error"
-      ? "#ef4444"
-      : "#00e6ff";
+  if(!toast) return;
 
-  toast.classList.remove("hidden");
-  setTimeout(() => toast.classList.add("hidden"), 3000);
+  toast.textContent = msg;
+  toast.className = `toast-msg show ${type}`;
+  setTimeout(() => toast.classList.remove("show"), 3000);
 }
+
+// Función auxiliar para actualizar texto de forma segura
+const updateText = (id, text) => {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+};
 
 function setHeaderClock() {
   const now = new Date();
-  document.getElementById("header-date").textContent = now.toLocaleDateString(
-    "es-AR",
-    { weekday: "short", day: "2-digit", month: "long" }
-  );
-  document.getElementById("header-time").textContent = now.toLocaleTimeString(
-    "es-AR",
-    { hour: "2-digit", minute: "2-digit" }
-  );
+  updateText("header-date", now.toLocaleDateString("es-AR"));
+  updateText("header-time", now.toLocaleTimeString("es-AR", {hour:'2-digit', minute:'2-digit'}));
 }
 
 function getTurnoFromDate(fecha = new Date()) {
@@ -84,16 +75,7 @@ function getTurnoFromDate(fecha = new Date()) {
 }
 
 // ===============================
-// ESTADO LOCAL
-// ===============================
-const estado = {
-  saldo: { efectivo: 0, cheques: 0, banco: 0, total: 0 },
-  rendicion: { fecha: null, turno: null, repartidor: null, esperado: 0 },
-  fechaMovimientos: new Date().toISOString().slice(0, 10)
-};
-
-// ===============================
-// INIT
+// INICIALIZACIÓN PRINCIPAL
 // ===============================
 document.addEventListener("DOMContentLoaded", () => {
   setHeaderClock();
@@ -104,38 +86,51 @@ document.addEventListener("DOMContentLoaded", () => {
   initSelectsAuxiliares();
   initProveedoresAutocomplete();
 
-  // Rendición y Arqueo
-  createBillCounterHero(); // Nuevo contador protagonista
+  createBillCounterHero();
   initRendicionLogic();
   initArqueo();
 
   // Movimientos
   const inputFechaMov = document.getElementById("movimientos-fecha");
-  inputFechaMov.value = estado.fechaMovimientos;
-  inputFechaMov.addEventListener("change", (e) => {
-    estado.fechaMovimientos = e.target.value;
-    cargarMovimientos();
-  });
+  if (inputFechaMov) {
+    inputFechaMov.value = estado.fechaMovimientos;
+    inputFechaMov.addEventListener("change", (e) => {
+      estado.fechaMovimientos = e.target.value;
+      cargarMovimientos();
+    });
+  }
 
-  // Carga inicial
-  refreshEstadoCaja();
-  cargarMovimientos(); // Carga movimientos del día
-  startRendicionWatcher();
+  refreshData();
+  setInterval(refreshData, RENDICION_POLL_INTERVAL_MS);
 });
 
+function refreshData() {
+  refreshEstadoCaja();
+  cargarMovimientos();
+  cargarRendicionEsperada(false);
+}
+
 // ===============================
-// NAV & UI
+// NAV & VISTAS (FIX)
 // ===============================
 function initNavigation() {
   const btns = document.querySelectorAll(".nav-btn");
-  const views = document.querySelectorAll(".view");
+  const views = document.querySelectorAll(".view-section");
 
-  btns.forEach((btn) => {
+  btns.forEach(btn => {
     btn.addEventListener("click", () => {
-      btns.forEach((b) => b.classList.remove("active"));
-      views.forEach((v) => v.classList.remove("active"));
+      btns.forEach(b => b.classList.remove("active"));
+      views.forEach(v => v.classList.remove("active"));
+
       btn.classList.add("active");
-      document.getElementById(btn.dataset.view).classList.add("active");
+      
+      const targetId = btn.dataset.target;
+      const targetView = document.getElementById(targetId);
+      
+      // FIX: Asegura que la vista existe antes de activar (evita crash)
+      if(targetView) {
+        targetView.classList.add("active");
+      }
     });
   });
 }
@@ -143,6 +138,7 @@ function initNavigation() {
 function initSelectsAuxiliares() {
   const fill = (id, arr) => {
     const s = document.getElementById(id);
+    if (!s) return;
     arr.forEach((x) => {
       const o = document.createElement("option");
       o.value = x;
@@ -155,7 +151,7 @@ function initSelectsAuxiliares() {
 }
 
 // ===============================
-// LOGICA DE CAJA
+// ESTADO DE CAJA
 // ===============================
 async function refreshEstadoCaja() {
   const res = await api("getEstadoCaja");
@@ -163,73 +159,46 @@ async function refreshEstadoCaja() {
 
   estado.saldo = res;
 
-  // Actualizar UI Saldos
-  document.getElementById("saldo-efectivo").textContent = formatoMoneda(
-    res.efectivo
-  );
-  document.getElementById("saldo-cheques").textContent = formatoMoneda(
-    res.cheques
-  );
-  document.getElementById("saldo-banco").textContent = formatoMoneda(
-    res.banco
-  );
-  document.getElementById("saldo-total").textContent = formatoMoneda(
-    res.total
-  );
+  // Actualizar UI Saldos (FIX: Uso de updateText seguro)
+  updateText("saldo-efectivo", formatoMoneda(res.efectivo));
+  updateText("saldo-cheques", formatoMoneda(res.cheques));
+  updateText("saldo-banco", formatoMoneda(res.banco));
+  updateText("saldo-total", formatoMoneda(res.total));
 
-  // Actualizar Arqueo y Rendición (Barra divertida)
-  document.getElementById("arqueo-sistema").textContent = formatoMoneda(
-    res.efectivo
-  );
-  document.getElementById("rendicion-saldo-actual").textContent = formatoMoneda(
-    res.efectivo
-  );
+  // Actualizar Arqueo y Rendición (Barra duotono)
+  updateText("arqueo-sistema", formatoMoneda(res.efectivo));
+  updateText("rendicion-saldo-actual", formatoMoneda(res.efectivo));
 }
 
 // ===============================
-// MOVIMIENTOS
+// MOVIMIENTOS Y FORMULARIOS
 // ===============================
 async function cargarMovimientos() {
   const list = document.getElementById("movimientos-list");
-  list.innerHTML =
-    '<div style="padding:10px; color:#aaa;">Cargando...</div>';
+  const fechaInput = document.getElementById("movimientos-fecha");
 
-  const fecha = estado.fechaMovimientos;
+  if (!list || !fechaInput) return;
+
+  // Asegurar la fecha para la API
+  if(!fechaInput.value) fechaInput.value = estado.fechaMovimientos;
+
+  list.innerHTML =
+    '<div style="padding:10px; color:var(--text-muted); text-align:center;">Cargando...</div>';
+
+  const fecha = fechaInput.value;
   const res = await api("getMovimientos", { fechaStr: fecha });
 
-  // Manejo robusto de errores / respuestas raras
-  if (!res) {
-    document.getElementById("movimientos-dia-resumen").textContent = "Error";
-    list.innerHTML =
-      '<div style="padding:20px; text-align:center; color:#f87171;">No se pudieron cargar los movimientos.</div>';
-    return;
-  }
-
-  if (res.error) {
-    console.error("Error getMovimientos:", res.error);
-    document.getElementById("movimientos-dia-resumen").textContent = "Error";
-    list.innerHTML =
-      '<div style="padding:20px; text-align:center; color:#f87171;">Error al leer los movimientos del día.</div>';
-    return;
-  }
-
   if (!Array.isArray(res)) {
-    console.warn("Respuesta inesperada getMovimientos:", res);
-    document.getElementById("movimientos-dia-resumen").textContent = "Sin movs";
     list.innerHTML =
-      '<div style="padding:20px; text-align:center; color:#555;">No hay movimientos para esta fecha.</div>';
+      '<div style="padding:20px; text-align:center; color:var(--danger);">Error al cargar los movimientos o respuesta inesperada.</div>';
     return;
   }
 
   list.innerHTML = "";
 
-  const totalDia = res.length;
-  document.getElementById("movimientos-dia-resumen").textContent =
-    totalDia > 0 ? `${totalDia} movs` : "Sin movs";
-
-  if (totalDia === 0) {
+  if (res.length === 0) {
     list.innerHTML =
-      '<div style="padding:20px; text-align:center; color:#555;">No hay movimientos para esta fecha.</div>';
+      '<div style="padding:20px; text-align:center; color:var(--text-muted);">No hay movimientos para esta fecha.</div>';
     return;
   }
 
@@ -243,10 +212,10 @@ async function cargarMovimientos() {
 
     div.innerHTML = `
       <div class="mov-info">
-        <span class="mov-cat">${m.categoria || obs || "Varios"}</span>
-        <span class="mov-meta">${m.hora} · ${m.formaPago} · ${obsShort}</span>
+        <span class="mov-desc">${m.categoria || obs || "Varios"}</span>
+        <span class="mov-sub">${m.hora} · ${m.formaPago} · ${obsShort}</span>
       </div>
-      <div class="mov-amount ${esIngreso ? "pos" : "neg"}">
+      <div class="mov-amount mono ${esIngreso ? "text-success" : "text-danger"}">
         ${esIngreso ? "+" : "-"} ${formatoMoneda(m.importe).replace("$ ", "")}
       </div>
     `;
@@ -259,29 +228,23 @@ function initFormMovimiento() {
   const formaPago = document.getElementById("formaPago");
 
   const updateVis = () => {
+    if (!tipoRapido) return;
     document
-      .querySelectorAll(".dynamic-row")
-      .forEach((el) => el.classList.add("hidden"));
+      .querySelectorAll(".form-group.hidden")
+      .forEach((el) => el.style.display = 'none');
 
     const v = tipoRapido.value;
-    if (v === "pagoProveedor")
-      document.getElementById("row-proveedor").classList.remove("hidden");
-    if (v === "combustible")
-      document.getElementById("row-vehiculo").classList.remove("hidden");
-    if (v === "adelanto" || v === "haber")
-      document.getElementById("row-empleado").classList.remove("hidden");
+    if (v === "pagoProveedor") document.getElementById("row-proveedor").style.display = 'block';
+    if (v === "combustible") document.getElementById("row-vehiculo").style.display = 'block';
+    if (v === "adelanto" || v === "haber") document.getElementById("row-empleado").style.display = 'block';
   };
 
-  tipoRapido.addEventListener("change", updateVis);
+  if(tipoRapido) tipoRapido.addEventListener("change", updateVis);
 
-  formaPago.addEventListener("change", () => {
+  if(formaPago) formaPago.addEventListener("change", () => {
     const v = formaPago.value;
     const row = document.getElementById("row-banco-cheque");
-    if (v === "Cheque" || v === "Banco") {
-      row.classList.remove("hidden");
-    } else {
-      row.classList.add("hidden");
-    }
+    if (row) row.style.display = (v === "Cheque" || v === "Banco") ? 'grid' : 'none';
   });
 
   updateVis();
@@ -291,33 +254,28 @@ function initFormMovimiento() {
     .addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = document.getElementById("btn-registrar-mov");
+      const importeInput = document.getElementById("importe");
+      if(!btn || !importeInput || !tipoRapido) return;
+
       btn.disabled = true;
       btn.textContent = "Guardando...";
 
-      const importeRaw = document
-        .getElementById("importe")
-        .value.replace(/[^0-9,]/g, "")
-        .replace(",", ".");
-
-      const categoriaTexto =
-        tipoRapido.options[tipoRapido.selectedIndex].text || "Movimiento";
+      const importeRaw = importeInput.value.replace(/[^0-9,]/g, "").replace(",", ".");
+      const categoriaTexto = tipoRapido.options[tipoRapido.selectedIndex].text || "Movimiento";
 
       const proveedorTxt = document.getElementById("inputProveedor").value;
       const obsManual = document.getElementById("observacion").value.trim();
+      const bancoInput = document.getElementById("banco");
+      const chequeInput = document.getElementById("nroCheque");
+
 
       let observacionFinal = obsManual;
       if (!observacionFinal) {
-        if (tipoRapido.value === "pagoProveedor" && proveedorTxt) {
-          observacionFinal = `Pago a proveedor: ${proveedorTxt}`;
-        } else if (tipoRapido.value === "combustible") {
-          observacionFinal = "Carga de combustible";
-        } else if (tipoRapido.value === "adelanto") {
-          observacionFinal = "Adelanto de sueldo";
-        } else if (tipoRapido.value === "haber") {
-          observacionFinal = "Pago de haberes";
-        } else {
-          observacionFinal = "Movimiento manual";
-        }
+        if (tipoRapido.value === "pagoProveedor" && proveedorTxt) observacionFinal = `Pago a proveedor: ${proveedorTxt}`;
+        else if (tipoRapido.value === "combustible") observacionFinal = "Carga de combustible";
+        else if (tipoRapido.value === "adelanto") observacionFinal = "Adelanto de sueldo";
+        else if (tipoRapido.value === "haber") observacionFinal = "Pago de haberes";
+        else observacionFinal = "Movimiento manual";
       }
 
       const params = {
@@ -325,10 +283,10 @@ function initFormMovimiento() {
         formaPago: formaPago.value,
         importe: parseFloat(importeRaw),
         categoria: categoriaTexto,
-        repartidor: "", // La caja es Laura; el repartidor se maneja en otro circuito
+        repartidor: "", 
         turno: getTurnoFromDate(),
-        banco: document.getElementById("banco").value,
-        nroCheque: document.getElementById("nroCheque").value,
+        banco: bancoInput ? bancoInput.value : "",
+        nroCheque: chequeInput ? chequeInput.value : "",
         usuario: USUARIO_APP,
         observacion: observacionFinal
       };
@@ -338,8 +296,7 @@ function initFormMovimiento() {
         showToast("Movimiento registrado", "ok");
         document.getElementById("form-movimiento").reset();
         document.getElementById("importe").value = "";
-        refreshEstadoCaja();
-        cargarMovimientos();
+        refreshData();
       } else {
         showToast("Error al registrar", "error");
       }
@@ -349,49 +306,41 @@ function initFormMovimiento() {
 }
 
 // ===============================
-// CONTADOR DE BILLETES HERO
+// CONTADOR DE BILLETES (HERO)
 // ===============================
 function createBillCounterHero() {
   const container = document.getElementById("bill-counter-container");
   if (!container) return;
 
-  container.innerHTML = `
-    <div class="bill-counter-hero">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3 style="margin:0; color:var(--accent); text-transform:uppercase; letter-spacing:1px;">💵 Contador de Billetes</h3>
-        <button type="button" onclick="resetBillCounter()" style="background:transparent; border:1px solid var(--text-muted); color:var(--text-muted); border-radius:8px; cursor:pointer; font-size:0.7rem;">LIMPIAR</button>
-      </div>
-      <div class="bill-grid" id="bill-grid"></div>
-    </div>
-  `;
-
-  const grid = document.getElementById("bill-grid");
+  container.innerHTML = "";
 
   BILLETES.forEach((denom) => {
     const item = document.createElement("div");
-    item.className = "bill-item";
+    item.className = "bill-box";
 
-    item.onclick = () => {
-      const inp = item.querySelector("input");
-      inp.focus();
-      inp.select();
+    item.onclick = (e) => {
+      if(e.target.tagName !== "INPUT") {
+        const inp = item.querySelector("input");
+        inp.focus();
+        inp.select();
+      }
     };
 
     item.innerHTML = `
       <span class="bill-denom">$ ${denom.toLocaleString()}</span>
-      <input type="number" class="bill-input-qty" data-denom="${denom}" value="0" min="0" placeholder="0" />
-      <span class="bill-subtotal" id="sub-${denom}">$ 0</span>
+      <input type="number" class="bill-input-qty mono" data-denom="${denom}" value="0" min="0" placeholder="0" />
+      <span class="bill-subtotal mono" id="sub-${denom}">$ 0</span>
     `;
-    grid.appendChild(item);
+    container.appendChild(item);
   });
 
-  grid.addEventListener("input", (e) => {
+  container.addEventListener("input", (e) => {
     if (e.target.classList.contains("bill-input-qty")) {
       calculateBillTotal();
     }
   });
 
-  grid.addEventListener("focusin", (e) => {
+  container.addEventListener("focusin", (e) => {
     if (e.target.classList.contains("bill-input-qty")) {
       e.target.select();
     }
@@ -406,23 +355,27 @@ function calculateBillTotal() {
     const sub = qty * denom;
     total += sub;
 
-    document.getElementById(`sub-${denom}`).textContent =
-      qty > 0 ? formatoMoneda(sub) : "$ 0";
+    const subTotalEl = document.getElementById(`sub-${denom}`);
+    if(subTotalEl) subTotalEl.textContent = qty > 0 ? formatoMoneda(sub) : "$ 0";
 
-    inp.parentElement.style.borderColor =
-      qty > 0 ? "var(--accent)" : "var(--border-glass)";
-    inp.style.color = qty > 0 ? "#fff" : "var(--accent)";
+    // Efecto visual al ingresar cantidad
+    inp.parentElement.style.borderColor = qty > 0 ? "var(--accent)" : "var(--border-glass)";
+    inp.style.color = qty > 0 ? "var(--text-main)" : "var(--accent)";
   });
 
   const inputContado = document.getElementById("rendicion-contado");
-  inputContado.value = formatoMoneda(total);
-  inputContado.dataset.numeric = total;
+  // FIX: Lo chequeamos antes de usar.
+  if(inputContado) {
+    inputContado.value = formatoMoneda(total);
+    inputContado.dataset.numeric = total;
+  }
 }
 
-function resetBillCounter() {
+window.resetBillCounter = function() {
   document.querySelectorAll(".bill-input-qty").forEach((i) => {
     i.value = "0";
     i.parentElement.style.borderColor = "var(--border-glass)";
+    i.style.color = "var(--accent)";
   });
   calculateBillTotal();
 }
@@ -437,7 +390,7 @@ function initRendicionLogic() {
     .getElementById("btn-procesar-rendicion")
     .addEventListener("click", async () => {
       const contadoInput = document.getElementById("rendicion-contado");
-      const contado = parseFloat(contadoInput.dataset.numeric || 0);
+      const contado = parseFloat(contadoInput ? contadoInput.dataset.numeric : 0) || 0;
 
       if (contado <= 0) {
         showToast("Contá los billetes primero", "error");
@@ -445,37 +398,39 @@ function initRendicionLogic() {
       }
 
       const btn = document.getElementById("btn-procesar-rendicion");
+      if (!btn) return;
+
       btn.disabled = true;
-      btn.textContent = "Procesando...";
+      btn.textContent = "PROCESANDO...";
 
       const params = {
         fechaStr: estado.rendicion.fecha,
         turno: estado.rendicion.turno,
-        repartidor: estado.rendicion.repartidor, // viene desde la rendición detectada
+        repartidor: estado.rendicion.repartidor,
         efectivoContado: contado,
         usuario: USUARIO_APP,
         efectivoEsperado: estado.rendicion.esperado
       };
 
       const res = await api("procesarRendicionDesdeRecibo", params);
+      const resultadoEl = document.getElementById("resultado-rendicion");
+
       if (res && res.ok) {
-        const msg =
-          res.tipoDiferencia === "Exacto"
-            ? "Rendición Exacta! 🎉"
-            : "Rendición procesada";
-        showToast(msg, "ok");
-        document.getElementById(
-          "resultado-rendicion"
-        ).innerHTML = `<p style="color:var(--ok)">Procesado: ${res.tipoDiferencia} (${formatoMoneda(
-          res.diferencia
-        )})</p>`;
-        refreshEstadoCaja();
+        const diff = res.diferencia;
+        const diffMoneda = formatoMoneda(Math.abs(diff));
+        const msg = diff === 0 ? "¡EXACTO! 🎉" : (diff > 0 ? `SOBRANTE: +${diffMoneda}` : `FALTANTE: -${diffMoneda}`);
+        
+        if (resultadoEl) {
+            resultadoEl.innerHTML = `<span style="color:${diff===0?'var(--success)':'var(--danger)'}">${msg}</span>`;
+        }
+        showToast("Rendición procesada", "ok");
+        refreshData();
       } else {
         showToast((res && res.error) || "Error al procesar la rendición", "error");
       }
 
       btn.disabled = false;
-      btn.textContent = "Procesar rendición";
+      btn.textContent = "PROCESAR RENDICIÓN";
     });
 }
 
@@ -483,10 +438,9 @@ async function cargarRendicionEsperada(firstTime = false) {
   const hoy = new Date().toISOString().slice(0, 10);
   const turno = getTurnoFromDate();
 
-  document.getElementById("rendicion-fecha").textContent = hoy;
-  document.getElementById("rendicion-turno").textContent = turno;
+  updateText("rendicion-fecha", hoy);
+  updateText("rendicion-turno", turno);
 
-  // 🔴 IMPORTANTE: ya NO enviamos repartidor; lo resuelve el backend
   const res = await api("getDatosRendicionEsperada", {
     fechaStr: hoy,
     turno: turno
@@ -498,28 +452,25 @@ async function cargarRendicionEsperada(firstTime = false) {
     estado.rendicion.turno = res.turno;
     estado.rendicion.repartidor = res.repartidor;
 
-    document.getElementById("rendicion-esperado").textContent =
-      formatoMoneda(res.efectivoEsperado);
-    document.getElementById("rendicion-repartidor").textContent =
-      res.repartidor || "";
+    updateText("rendicion-esperado", formatoMoneda(res.efectivoEsperado));
+    updateText("rendicion-repartidor", res.repartidor || "");
 
     if (firstTime) showToast("Rendición encontrada", "ok");
   } else {
-    console.warn("Sin rendición encontrada:", res && res.mensaje);
-    document.getElementById("rendicion-esperado").textContent = "$ 0";
-    document.getElementById("rendicion-repartidor").textContent = "";
-    document.getElementById("resultado-rendicion").innerHTML =
-      `<span style="font-size:0.8rem; color:var(--text-muted)">
-         Esperando planilla de ${turno}...
-       </span>`;
+    updateText("rendicion-esperado", "$ 0,00");
+    updateText("rendicion-repartidor", "---");
+
+    const resultadoEl = document.getElementById("resultado-rendicion");
+    if (resultadoEl) {
+      resultadoEl.innerHTML =
+        `<span style="font-size:0.8rem; color:var(--text-muted)">
+           Esperando planilla de ${turno}...
+         </span>`;
+    }
     if (firstTime && res && res.mensaje) {
       showToast(res.mensaje, "info");
     }
   }
-}
-
-function startRendicionWatcher() {
-  setInterval(() => cargarRendicionEsperada(false), RENDICION_POLL_INTERVAL_MS);
 }
 
 // ===============================
@@ -529,7 +480,10 @@ function initArqueo() {
   document
     .getElementById("btn-registrar-arqueo")
     .addEventListener("click", async () => {
-      const valRaw = document.getElementById("arqueo-fisico").value || "";
+      const fisicoInput = document.getElementById("arqueo-fisico");
+      if(!fisicoInput) return;
+
+      const valRaw = fisicoInput.value || "";
       const limpio = valRaw.replace(/[^0-9]/g, "");
       const val = parseFloat(limpio);
 
@@ -543,14 +497,14 @@ function initArqueo() {
         efectivoFisico: val
       });
 
+      const resultadoEl = document.getElementById("resultado-arqueo");
+
       if (res && res.resultado) {
-        showToast(
-          `Arqueo: ${res.resultado}`,
-          res.resultado === "OK" ? "ok" : "alerta"
-        );
-        document.getElementById(
-          "resultado-arqueo"
-        ).textContent = `Diferencia: ${formatoMoneda(res.diferencia)}`;
+        const colorClass = res.resultado === "OK" ? "var(--success)" : "var(--danger)";
+        if(resultadoEl) {
+            resultadoEl.innerHTML = `<span style="color:${colorClass}; font-weight:bold;">Diferencia: ${formatoMoneda(res.diferencia)} (${res.resultado})</span>`;
+        }
+        showToast(`Arqueo: ${res.resultado}`, res.resultado === "OK" ? "ok" : "alerta");
         refreshEstadoCaja();
       } else {
         showToast("Error al registrar arqueo", "error");
@@ -564,6 +518,8 @@ function initArqueo() {
 function initProveedoresAutocomplete() {
   const inp = document.getElementById("inputProveedor");
   const box = document.getElementById("proveedor-suggestions");
+
+  if (!inp || !box) return;
 
   inp.addEventListener("input", () => {
     const val = inp.value.toLowerCase();
