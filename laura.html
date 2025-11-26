@@ -1,94 +1,91 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>Caja Mercado Limpio — Terminal Laura</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+  <meta charset="UTF-8">
+  <title>Caja Mercado Limpio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="styles-laura.css" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="styles-laura.css">
 </head>
 <body>
 
-  <div id="toast" class="toast hidden">
-    <div class="toast-content" id="toast-content">Notificación</div>
+  <div class="toast-container">
+    <div id="toast" class="toast-msg">Notificación</div>
   </div>
 
   <header class="app-header">
-    <div>
-      <h1>Mercado Limpio</h1>
-      <p class="subtitle">Terminal de Caja · Operadora Laura</p>
-    </div>
-    <div class="header-status">
-      <div id="header-date" style="font-weight: 700; color:var(--accent);"></div>
-      <div id="header-time" style="opacity: 0.7;"></div>
+    <h1>Mercado Limpio</h1>
+    <div class="header-info">
+      <div id="header-date">--/--/----</div>
+      <div id="header-time">--:--</div>
     </div>
   </header>
 
   <main class="app-main">
-
-    <aside class="left-panel">
-      <div class="card main-balance-card">
-        <h2 style="margin:0 0 10px 0; font-size:0.9rem; text-transform:uppercase; color:var(--text-muted);">Efectivo en Caja</h2>
-        <div class="balance-main">
-          <span class="value mono" id="saldo-efectivo">$ 0,00</span>
-        </div>
+    
+    <aside class="panel left-panel">
+      <div class="card balance-card">
+        <label class="form-label">Efectivo en Caja</label>
+        <div class="balance-big" id="saldo-efectivo">$ 0,00</div>
         
-        <div class="balance-row">
-          <div class="balance-chip">
-            <span class="chip-label">Cheques</span>
-            <span class="chip-value mono" id="saldo-cheques">$ 0</span>
+        <div class="balance-grid">
+          <div class="mini-stat">
+            <label>Cheques</label>
+            <span id="saldo-cheques">$ 0</span>
           </div>
-          <div class="balance-chip">
-            <span class="chip-label">Banco</span>
-            <span class="chip-value mono" id="saldo-banco">$ 0</span>
+          <div class="mini-stat">
+            <label>Banco</label>
+            <span id="saldo-banco">$ 0</span>
           </div>
-          <div class="balance-chip total-chip">
-            <span class="chip-label">Total Activos</span>
-            <span class="chip-value mono" id="saldo-total">$ 0</span>
+          <div class="mini-stat total">
+            <label>Total</label>
+            <span id="saldo-total">$ 0</span>
           </div>
         </div>
       </div>
 
       <div class="card movements-card">
-        <div class="card-header-movs">
-          <h2 style="margin:0; font-size:1rem; color:#fff;">Últimos Movimientos</h2>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <span id="movimientos-dia-resumen" style="font-size:0.75rem; color:var(--text-muted);"></span>
-            <input type="date" id="movimientos-fecha" class="date-selector" />
-          </div>
+        <div class="mov-header">
+          <span class="form-label" style="margin:0">Últimos Movimientos</span>
+          <input type="date" id="movimientos-fecha" class="date-input">
         </div>
-        
-        <div id="movimientos-list" class="movimientos-list">
-          <div style="text-align:center; padding:20px; color:var(--text-muted);">Cargando datos...</div>
+        <div class="mov-list-container" id="movimientos-list">
+          <div style="padding:20px; text-align:center; color:gray;">Cargando...</div>
         </div>
       </div>
     </aside>
 
-    <section class="right-panel">
-
-      <div id="view-movimiento" class="view active">
-        <div class="card form-card">
-          <h2 style="color:var(--accent); margin-bottom:20px; border-bottom:1px solid var(--border-glass); padding-bottom:10px;">Nuevo Movimiento</h2>
+    <section class="panel right-panel">
+      
+      <div id="view-movimiento" class="view-section active">
+        <div class="card">
+          <h2 style="color:var(--accent); margin-top:0;">Nuevo Movimiento</h2>
           
-          <form id="form-movimiento" class="form-grid">
-            <div class="form-row two-cols">
+          <form id="form-movimiento">
+            <div class="form-group row-2">
               <div>
-                <label>Tipo</label>
-                <select id="tipoMovimiento"><option value="Ingreso">Ingreso (+)</option><option value="Egreso">Egreso (-)</option></select>
+                <label class="form-label">Tipo</label>
+                <select id="tipoMovimiento" class="form-select">
+                  <option value="Ingreso">Ingreso (+)</option>
+                  <option value="Egreso">Egreso (-)</option>
+                </select>
               </div>
               <div>
-                <label>Pago</label>
-                <select id="formaPago"><option value="Efectivo">Efectivo</option><option value="Cheque">Cheque</option><option value="Banco">Banco</option></select>
+                <label class="form-label">Pago</label>
+                <select id="formaPago" class="form-select">
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Banco">Banco</option>
+                </select>
               </div>
             </div>
 
-            <div>
-              <label>Concepto Rápido</label>
-              <select id="tipoRapido">
+            <div class="form-group">
+              <label class="form-label">Concepto Rápido</label>
+              <select id="tipoRapido" class="form-select">
                 <option value="libre">Movimiento General</option>
                 <option value="pagoProveedor">Pago a Proveedor</option>
                 <option value="combustible">Carga Combustible</option>
@@ -97,96 +94,93 @@
               </select>
             </div>
 
-            <div id="row-proveedor" class="hidden dynamic-row">
-              <label>Proveedor</label>
-              <input type="text" id="inputProveedor" placeholder="Buscar proveedor..." />
-              <div id="proveedor-suggestions" class="suggestions"></div>
+            <div id="row-proveedor" class="form-group hidden" style="display:none;">
+              <label class="form-label">Proveedor</label>
+              <input type="text" id="inputProveedor" class="form-input" placeholder="Nombre...">
+              <div id="proveedor-suggestions"></div>
             </div>
-            <div id="row-vehiculo" class="hidden dynamic-row">
-              <label>Vehículo</label>
-              <select id="selectVehiculo"></select>
+            <div id="row-vehiculo" class="form-group hidden" style="display:none;">
+              <label class="form-label">Vehículo</label>
+              <select id="selectVehiculo" class="form-select"></select>
             </div>
-            <div id="row-empleado" class="hidden dynamic-row">
-              <label>Empleado</label>
-              <select id="selectEmpleado"></select>
+            <div id="row-empleado" class="form-group hidden" style="display:none;">
+              <label class="form-label">Empleado</label>
+              <select id="selectEmpleado" class="form-select"></select>
             </div>
-            <div id="row-banco-cheque" class="hidden two-cols">
-              <div><label>Banco</label><input type="text" id="banco"></div>
-              <div><label>N° Cheque</label><input type="text" id="nroCheque"></div>
+             <div id="row-banco-cheque" class="form-group row-2 hidden" style="display:none;">
+                <div><label class="form-label">Banco</label><input type="text" id="banco" class="form-input"></div>
+                <div><label class="form-label">N° Cheque</label><input type="text" id="nroCheque" class="form-input"></div>
+             </div>
+
+            <div class="form-group">
+              <label class="form-label">Monto</label>
+              <input type="text" id="importe" class="form-input input-big" placeholder="$ 0" required>
             </div>
 
-            <div>
-              <label>Monto</label>
-              <input type="text" id="importe" placeholder="$ 0" class="big-input" required />
+            <div class="form-group">
+              <label class="form-label">Nota</label>
+              <textarea id="observacion" rows="2" class="form-input"></textarea>
             </div>
 
-            <div>
-              <label>Nota</label>
-              <textarea id="observacion" rows="2" placeholder="Detalle opcional..."></textarea>
-            </div>
-
-            <button type="submit" id="btn-registrar-mov" class="btn-primary">Registrar</button>
+            <button type="submit" id="btn-registrar-mov" class="btn-action">Registrar</button>
           </form>
         </div>
       </div>
 
-      <div id="view-rendicion" class="view">
+      <div id="view-rendicion" class="view-section">
         <div class="rendicion-hero">
-          <div class="fun-balance-bar">
+          
+          <div class="status-bar">
             <div>
-              <div class="fun-label">Saldos Sistema</div>
-              <div style="font-size:0.9rem; opacity:0.7;">
-                 <span id="rendicion-fecha"></span> | <span id="rendicion-turno"></span>
-              </div>
+              <div style="font-size:0.8rem; color:#cbd5e1;">RENDICIÓN REPARTO</div>
+              <div style="font-weight:bold; color:#fff;" id="rendicion-repartidor">--</div>
             </div>
             <div style="text-align:right;">
-               <div class="fun-label" style="font-size:0.8rem;">REPARTIDOR: <span id="rendicion-repartidor" style="color:var(--accent);">--</span></div>
-               <div class="fun-value mono" id="rendicion-saldo-actual" style="font-size:1.5rem;">$ 0,00</div>
+              <div style="font-size:0.8rem; color:#cbd5e1;">ESPERADO</div>
+              <div style="font-weight:bold; font-size:1.2rem; color:#fff;" id="rendicion-esperado">$ 0</div>
             </div>
           </div>
 
-          <div id="bill-counter-container" style="flex:1; display:flex; flex-direction:column;"></div>
-
-          <div class="rendicion-footer">
-            <div class="summary-box">
-              <h3>Esperado (Según App Reparto)</h3>
-              <div class="val" id="rendicion-esperado">$ 0</div>
-            </div>
-            <div class="summary-box real">
-              <h3>Contado (En Mano)</h3>
-              <input type="text" id="rendicion-contado" readonly class="summary-input-clean" placeholder="$ 0" />
-            </div>
+          <div class="bill-container">
+             <div style="text-align:center; color:var(--accent); margin-bottom:10px; font-weight:bold;">CONTADOR DE BILLETES</div>
+             <div id="bill-counter-container" class="bill-grid"></div>
           </div>
-          
-          <div id="resultado-rendicion" style="text-align:center; min-height:20px; font-weight:bold;"></div>
 
-          <button id="btn-procesar-rendicion" class="btn-primary" style="background:var(--ok); color:#000;">
-            CONFIRMAR Y PROCESAR
-          </button>
+          <div class="card">
+            <div class="row-2" style="align-items:end;">
+               <div>
+                 <label class="form-label">Total Contado</label>
+                 <input type="text" id="rendicion-contado" readonly class="form-input input-big" style="color:var(--success);">
+               </div>
+               <button id="btn-procesar-rendicion" class="btn-action" style="background:var(--success); color:#fff; height:100%;">
+                 CONFIRMAR
+               </button>
+            </div>
+            <div id="resultado-rendicion" style="text-align:center; margin-top:10px; font-weight:bold;"></div>
+          </div>
+
         </div>
       </div>
 
-      <div id="view-arqueo" class="view">
-        <div class="card form-card">
-          <h2 style="color:var(--accent); margin-bottom:20px; border-bottom:1px solid var(--border-glass); padding-bottom:10px;">Cierre y Arqueo</h2>
+      <div id="view-arqueo" class="view-section">
+        <div class="card">
+          <h2 style="color:var(--accent); margin-top:0;">Cierre de Caja</h2>
           
-          <div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:15px; text-align:center; margin-bottom:20px;">
-            <div style="color:var(--text-muted); font-size:0.9rem; text-transform:uppercase;">Saldo Teórico Sistema</div>
-            <div class="mono" id="arqueo-sistema" style="font-size:2.5rem; font-weight:700; color:#fff;">$ 0,00</div>
+          <div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:10px; text-align:center; margin-bottom:20px;">
+            <label class="form-label">Saldo Sistema</label>
+            <div id="arqueo-sistema" style="font-size:2.5rem; font-weight:bold;">$ 0,00</div>
           </div>
 
-          <div style="margin-bottom:20px;">
-            <label style="font-size:1rem; color:var(--accent);">EFECTIVO FÍSICO (Contado)</label>
-            <input type="text" id="arqueo-fisico" placeholder="$ 0" class="big-input" style="font-size:3rem; padding:20px;" />
+          <div class="form-group">
+            <label class="form-label">Efectivo Físico (Real)</label>
+            <input type="text" id="arqueo-fisico" class="form-input input-big" placeholder="$ 0">
           </div>
 
-          <div id="resultado-arqueo" style="text-align:center; margin-bottom:20px; font-weight:600; font-size:1.1rem; color:var(--text-muted);">
-            Ingrese valor para comparar...
+          <div id="resultado-arqueo" style="text-align:center; margin-bottom:20px; color:var(--text-muted);">
+            Ingrese el valor para comparar
           </div>
 
-          <button id="btn-registrar-arqueo" class="btn-primary" style="background:var(--danger); color:#fff;">
-            CERRAR ARQUEO
-          </button>
+          <button id="btn-registrar-arqueo" class="btn-action" style="background:var(--danger); color:#fff;">Cerrar Arqueo</button>
         </div>
       </div>
 
@@ -194,17 +188,17 @@
   </main>
 
   <nav class="bottom-nav">
-    <button class="nav-btn active" data-view="view-movimiento">
+    <button class="nav-btn active" data-target="view-movimiento">
       📥 Movimiento
     </button>
-    <button class="nav-btn" data-view="view-rendicion">
+    <button class="nav-btn" data-target="view-rendicion">
       💵 Rendición
     </button>
-    <button class="nav-btn" data-view="view-arqueo">
+    <button class="nav-btn" data-target="view-arqueo">
       🔒 Arqueo
     </button>
   </nav>
 
-  <script src="cajamlapp.js"></script>
+  <script src="app-laura.js"></script>
 </body>
 </html>
