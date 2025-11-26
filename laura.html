@@ -18,7 +18,7 @@
 
   <header class="app-header">
     <div>
-      <h1>Mercado Limpio</h1>
+      <h1>MERCADO LIMPIO</h1>
       <p class="subtitle">Operadora: Laura</p>
     </div>
     <div class="header-info">
@@ -30,23 +30,22 @@
   <main class="app-main">
 
     <aside class="panel left-panel">
-
       <div class="card balance-card">
         <label class="form-label">Efectivo en Caja</label>
-        <div class="balance-big" id="saldo-efectivo">$ 0,00</div>
+        <div class="balance-big mono" id="saldo-efectivo">$ 0,00</div>
         
         <div class="balance-grid">
           <div class="mini-stat">
             <label>Cheques</label>
-            <span id="saldo-cheques">$ 0</span>
+            <span class="mono" id="saldo-cheques">$ 0</span>
           </div>
           <div class="mini-stat">
             <label>Banco</label>
-            <span id="saldo-banco">$ 0</span>
+            <span class="mono" id="saldo-banco">$ 0</span>
           </div>
           <div class="mini-stat total">
-            <label>Total</label>
-            <span id="saldo-total">$ 0</span>
+            <label>Total Activos</label>
+            <span class="mono" id="saldo-total">$ 0</span>
           </div>
         </div>
       </div>
@@ -57,16 +56,15 @@
           <input type="date" id="movimientos-fecha" class="date-input">
         </div>
         <div class="mov-list-container" id="movimientos-list">
-          <div style="padding:20px; text-align:center; color:gray;">Cargando...</div>
+          <div style="padding:20px; text-align:center; color:var(--text-muted);">Cargando...</div>
         </div>
       </div>
-
     </aside>
 
     <section class="panel right-panel">
 
       <div id="view-movimiento" class="view-section active">
-        <div class="card">
+        <div class="card glass">
           <h2 style="color:var(--accent); margin-top:0;">Nuevo Movimiento</h2>
           
           <form id="form-movimiento">
@@ -136,27 +134,34 @@
         <div class="duotone-header">
           <div class="duo-left">
             <span class="duo-label">Saldo Caja (Sistema)</span>
-            <span class="duo-value" id="rendicion-saldo-actual">$ 0,00</span>
+            <span class="duo-value mono" id="rendicion-saldo-actual">$ 0,00</span>
           </div>
           <div class="duo-right">
              <span class="duo-label">Rendición Esperada</span>
-             <span class="duo-value" id="rendicion-esperado">$ 0,00</span>
+             <span class="duo-value mono" id="rendicion-esperado">$ 0,00</span>
           </div>
         </div>
 
         <div class="rendicion-content">
           <div style="text-align:center; margin-bottom:10px; color:#cbd5e1;">
             Repartidor: <strong id="rendicion-repartidor" style="color:var(--accent);">--</strong>
+            <span style="font-size:0.8rem; color:var(--text-muted); margin-left:10px;">
+                <span id="rendicion-fecha"></span> | <span id="rendicion-turno"></span>
+            </span>
           </div>
 
           <div class="bill-container">
+             <div class="bill-counter-header">
+                <h3 style="margin:0; color:var(--accent);">💵 CONTADOR DE BILLETES</h3>
+                <button type="button" onclick="resetBillCounter()" class="btn-reset-bills">LIMPIAR</button>
+             </div>
              <div id="bill-counter-container" class="bill-grid"></div>
           </div>
 
           <div class="confirm-panel">
                <div style="flex:1;">
                  <label class="form-label">Total Contado (Físico)</label>
-                 <input type="text" id="rendicion-contado" readonly class="input-total-real" data-numeric="0">
+                 <input type="text" id="rendicion-contado" readonly class="input-total-real mono" data-numeric="0">
                </div>
                <button id="btn-procesar-rendicion" class="btn-confirm">
                  PROCESAR RENDICIÓN
@@ -167,12 +172,12 @@
       </div>
 
       <div id="view-arqueo" class="view-section">
-        <div class="card">
-          <h2 style="color:var(--accent); margin-top:0;">Cierre de Caja</h2>
+        <div class="card glass">
+          <h2 style="color:var(--accent); margin-top:0;">Cierre y Arqueo</h2>
           
-          <div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:10px; text-align:center; margin-bottom:20px;">
-            <label class="form-label">Saldo Sistema</label>
-            <div id="arqueo-sistema" style="font-size:2.5rem; font-weight:bold;">$ 0,00</div>
+          <div class="arqueo-summary">
+            <label class="form-label">Saldo Teórico Sistema</label>
+            <div id="arqueo-sistema" class="arqueo-sistema mono">$ 0,00</div>
           </div>
 
           <div class="form-group">
@@ -184,7 +189,7 @@
             Ingrese el valor para comparar
           </div>
 
-          <button id="btn-registrar-arqueo" class="btn-action" style="background:var(--danger); color:#fff;">Cerrar Arqueo</button>
+          <button id="btn-registrar-arqueo" class="btn-action btn-danger-style">Cerrar Arqueo</button>
         </div>
       </div>
 
