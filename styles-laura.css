@@ -19,7 +19,7 @@ body {
   background: radial-gradient(circle at top, #1e293b, #020617);
   color: var(--text-main);
   height: 100vh;
-  overflow: hidden;
+  overflow: hidden; /* Controla el scroll general */
   display: flex;
   flex-direction: column;
 }
@@ -36,6 +36,7 @@ body {
   flex-shrink: 0;
 }
 .app-header h1 { margin: 0; font-size: 1.2rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
+.subtitle { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
 .header-info { text-align: right; font-size: 0.8rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
 
 /* === GRID PRINCIPAL === */
@@ -46,7 +47,7 @@ body {
   gap: 20px;
   padding: 20px;
   overflow: hidden;
-  height: calc(100vh - 60px - var(--nav-height));
+  height: calc(100vh - 60px - var(--nav-height)); /* Alto menos header y nav */
 }
 
 .panel {
@@ -76,20 +77,20 @@ body {
 .mini-stat span { display: block; font-size: 0.9rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
 .mini-stat.total { border-color: var(--accent); color: var(--accent); }
 
-/* Movimientos (FIX) */
+/* Movimientos (FIX LISTA ALTURA) */
 .movements-card {
-  flex: 1; /* Ocupa el espacio restante */
+  flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Importante para el hijo scrollable */
-  min-height: 0; /* Fix flexbox */
+  overflow: hidden;
+  min-height: 0; /* Asegura que flexbox calcule correctamente la altura restante */
 }
 .mov-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-shrink: 0; }
 .date-input { background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 5px; border-radius: 5px; }
 
 .mov-list-container {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; /* Scroll interno */
   padding-right: 5px;
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -127,7 +128,6 @@ body {
   width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border);
   padding: 12px; border-radius: 8px; color: #fff; font-family: 'Outfit', sans-serif;
 }
-.form-input:focus { border-color: var(--accent); outline: none; }
 .input-big { font-size: 2rem; text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--accent); font-weight: bold; }
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 
@@ -138,13 +138,13 @@ body {
 }
 .btn-action:hover { background: #fff; }
 
-/* === DISEÑO ESPECIAL RENDICIÓN === */
+/* === DISEÑO ESPECIAL RENDICIÓN (ALTO CONTRASTE) === */
 .special-rendicion-bg {
-  background: #0f172a; /* Fondo más oscuro y sólido */
+  background: #0f172a; /* Fondo muy oscuro */
   border-radius: 12px;
   border: 1px solid #1e293b;
   display: flex; flex-direction: column;
-  overflow: hidden; /* Contiene la barra */
+  overflow: hidden;
 }
 /* Barra Duotono Azul/Verde */
 .duotone-header {
@@ -173,7 +173,7 @@ body {
   background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px;
   padding: 10px; text-align: center; cursor: pointer; transition: 0.2s;
 }
-.bill-box:hover { border-color: var(--accent); background: rgba(0,230,255,0.05); transform: translateY(-2px); }
+.bill-box:hover { border-color: var(--accent); background: rgba(0,230,255,0.05); }
 .bill-denom { font-weight: bold; color: var(--text-muted); margin-bottom: 5px; }
 .bill-qty {
   background: transparent; border: none; color: #fff; font-size: 1.8rem;
@@ -185,8 +185,8 @@ body {
 .confirm-panel {
   background: #1e293b; padding: 15px; border-radius: 12px;
   display: flex; gap: 15px; align-items: flex-end; border: 1px solid #334155;
+  flex-shrink: 0;
 }
-.confirm-panel > div { flex: 1; }
 .input-total-real {
   width: 100%; background: transparent; border: none; 
   font-size: 2rem; color: var(--success); font-weight: 700; font-family: 'JetBrains Mono', monospace;
@@ -198,7 +198,7 @@ body {
 }
 .btn-confirm:hover { background: #34d399; transform: scale(1.02); }
 
-/* === BARRA INFERIOR (TASKBAR) === */
+/* === BARRA INFERIOR (TASKBAR - FIX) === */
 .bottom-nav {
   height: var(--nav-height);
   background: rgba(15, 23, 42, 0.98);
@@ -207,7 +207,7 @@ body {
   justify-content: center;
   align-items: center;
   gap: 10px;
-  position: fixed; bottom: 0; left: 0; width: 100%;
+  position: fixed; bottom: 0; left: 0; width: 100%; /* Ahora es 100% ancha y fija */
   z-index: 100;
   box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
 }
@@ -217,7 +217,7 @@ body {
   padding: 0 30px; height: 100%;
   font-family: 'Outfit', sans-serif; font-weight: 600; text-transform: uppercase;
   cursor: pointer; transition: 0.2s;
-  border-top: 4px solid transparent; /* Indicador arriba */
+  border-top: 4px solid transparent;
   display: flex; flex-direction: column; justify-content: center; align-items: center;
 }
 .nav-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
@@ -232,13 +232,3 @@ body {
 .toast-msg.show { opacity: 1; transform: translateY(0); }
 .toast-msg.ok { border-left: 5px solid var(--success); color: var(--success); }
 .toast-msg.error { border-left: 5px solid var(--danger); color: var(--danger); }
-
-/* Responsive */
-@media (max-width: 900px) {
-  .app-main { grid-template-columns: 1fr; overflow-y: auto; padding-bottom: 80px; }
-  .left-panel { min-width: auto; height: auto; }
-  .right-panel { height: auto; min-height: 500px; }
-  .view-section { display: block; margin-bottom: 30px; height: auto; } /* En movil se ve todo seguido */
-  .view-section { display: none; } /* Reset para JS logic */
-  .view-section.active { display: block; }
-}
