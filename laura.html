@@ -131,43 +131,45 @@
       </div>
 
       <div id="view-rendicion" class="view-section special-rendicion-bg">
-        <div class="duotone-header">
-          <div class="duo-left">
-            <span class="duo-label">Saldo Caja (Sistema)</span>
-            <span class="duo-value mono" id="rendicion-saldo-actual">$ 0,00</span>
-          </div>
-          <div class="duo-right">
-             <span class="duo-label">Rendición Esperada</span>
-             <span class="duo-value mono" id="rendicion-esperado">$ 0,00</span>
-          </div>
-        </div>
+        <div class="rendicion-wrapper"> 
+            <div class="duotone-header">
+              <div class="duo-left">
+                <span class="duo-label">Saldo Caja (Sistema)</span>
+                <span class="duo-value mono" id="rendicion-saldo-actual">$ 0,00</span>
+              </div>
+              <div class="duo-right">
+                 <span class="duo-label">Rendición Esperada</span>
+                 <span class="duo-value mono" id="rendicion-esperado">$ 0,00</span>
+              </div>
+            </div>
 
-        <div class="rendicion-content">
-          <div style="text-align:center; margin-bottom:10px; color:#cbd5e1;">
-            Repartidor: <strong id="rendicion-repartidor" style="color:var(--accent);">--</strong>
-            <span style="font-size:0.8rem; color:var(--text-muted); margin-left:10px;">
-                <span id="rendicion-fecha"></span> | <span id="rendicion-turno"></span>
-            </span>
-          </div>
+            <div class="rendicion-content">
+              <div style="text-align:center; margin-bottom:10px; color:#cbd5e1;">
+                Repartidor: <strong id="rendicion-repartidor" style="color:var(--accent);">--</strong>
+                <span style="font-size:0.8rem; color:var(--text-muted); margin-left:10px;">
+                    <span id="rendicion-fecha"></span> | <span id="rendicion-turno"></span>
+                </span>
+              </div>
 
-          <div class="bill-container">
-             <div class="bill-counter-header">
-                <h3 style="margin:0; color:var(--accent);">💵 CONTADOR DE BILLETES</h3>
-                <button type="button" onclick="resetBillCounter()" class="btn-reset-bills">LIMPIAR</button>
-             </div>
-             <div id="bill-counter-container" class="bill-grid"></div> 
-          </div>
+              <div class="bill-container">
+                 <div class="bill-counter-header">
+                    <h3 style="margin:0; color:var(--accent);">💵 CONTADOR DE BILLETES</h3>
+                    <button type="button" onclick="resetBillCounter()" class="btn-reset-bills">LIMPIAR</button>
+                 </div>
+                 <div id="bill-counter-container" class="bill-grid"></div> 
+              </div>
 
-          <div class="confirm-panel">
-               <div style="flex:1;">
-                 <label class="form-label">Total Contado (Físico)</label>
-                 <input type="text" id="rendicion-contado" readonly class="input-total-real mono" data-numeric="0">
-               </div>
-               <button id="btn-procesar-rendicion" class="btn-confirm">
-                 PROCESAR RENDICIÓN
-               </button>
-          </div>
-          <div id="resultado-rendicion" style="text-align:center; margin-top:10px; font-weight:bold;"></div>
+              <div class="confirm-panel">
+                   <div style="flex:1;">
+                     <label class="form-label">Total Contado (Físico)</label>
+                     <input type="text" id="rendicion-contado" readonly class="input-total-real mono" data-numeric="0">
+                   </div>
+                   <button id="btn-procesar-rendicion" class="btn-confirm">
+                     PROCESAR RENDICIÓN
+                   </button>
+              </div>
+              <div id="resultado-rendicion" style="text-align:center; margin-top:10px; font-weight:bold;"></div>
+            </div>
         </div>
       </div>
 
