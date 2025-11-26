@@ -18,8 +18,8 @@ body {
   font-family: var(--font-ui);
   background: radial-gradient(circle at top center, #1e293b 0%, #020617 100%);
   color: var(--text-main);
-  height: 100vh;
-  overflow: hidden; /* App feel */
+  min-height: 100vh;
+  overflow-y: auto; /* Permitir scroll natural */
 }
 
 /* Header & Shell */
