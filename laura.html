@@ -127,38 +127,37 @@
         </div>
       </div>
 
-      <div id="view-rendicion" class="view-section">
-        <div class="rendicion-hero">
-          
-          <div class="status-bar">
-            <div>
-              <div style="font-size:0.8rem; color:#cbd5e1;">RENDICIÓN REPARTO</div>
-              <div style="font-weight:bold; color:#fff;" id="rendicion-repartidor">--</div>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-size:0.8rem; color:#cbd5e1;">ESPERADO</div>
-              <div style="font-weight:bold; font-size:1.2rem; color:#fff;" id="rendicion-esperado">$ 0</div>
-            </div>
+      <div id="view-rendicion" class="view-section special-rendicion-bg">
+        <div class="duotone-header">
+          <div class="duo-left">
+            <span class="duo-label">Saldo Caja (Sistema)</span>
+            <span class="duo-value" id="rendicion-saldo-actual">$ 0,00</span>
+          </div>
+          <div class="duo-right">
+             <span class="duo-label">Rendición Esperada</span>
+             <span class="duo-value" id="rendicion-esperado">$ 0,00</span>
+          </div>
+        </div>
+
+        <div class="rendicion-content">
+          <div style="text-align:center; margin-bottom:10px; color:#cbd5e1;">
+            Repartidor: <strong id="rendicion-repartidor" style="color:var(--accent);">--</strong>
           </div>
 
           <div class="bill-container">
-             <div style="text-align:center; color:var(--accent); margin-bottom:10px; font-weight:bold;">CONTADOR DE BILLETES</div>
              <div id="bill-counter-container" class="bill-grid"></div>
           </div>
 
-          <div class="card">
-            <div class="row-2" style="align-items:end;">
+          <div class="confirm-panel">
                <div>
-                 <label class="form-label">Total Contado</label>
-                 <input type="text" id="rendicion-contado" readonly class="form-input input-big" style="color:var(--success);">
+                 <label class="form-label">Total Contado (Físico)</label>
+                 <input type="text" id="rendicion-contado" readonly class="input-total-real">
                </div>
-               <button id="btn-procesar-rendicion" class="btn-action" style="background:var(--success); color:#fff; height:100%;">
+               <button id="btn-procesar-rendicion" class="btn-confirm">
                  CONFIRMAR
                </button>
-            </div>
-            <div id="resultado-rendicion" style="text-align:center; margin-top:10px; font-weight:bold;"></div>
           </div>
-
+          <div id="resultado-rendicion" style="text-align:center; margin-top:10px; font-weight:bold;"></div>
         </div>
       </div>
 
