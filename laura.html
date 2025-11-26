@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Caja Mercado Limpio</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
+  <meta charset="UTF-8" />
+  <title>Caja Mercado Limpio — Terminal Laura</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-  
-  <link rel="stylesheet" href="styles-laura.css">
+
+  <link rel="stylesheet" href="styles-laura.css" />
 </head>
 <body>
 
@@ -17,7 +17,10 @@
   </div>
 
   <header class="app-header">
-    <h1>Mercado Limpio</h1>
+    <div>
+      <h1>Mercado Limpio</h1>
+      <p class="subtitle">Operadora: Laura</p>
+    </div>
     <div class="header-info">
       <div id="header-date">--/--/----</div>
       <div id="header-time">--:--</div>
@@ -25,8 +28,9 @@
   </header>
 
   <main class="app-main">
-    
+
     <aside class="panel left-panel">
+
       <div class="card balance-card">
         <label class="form-label">Efectivo en Caja</label>
         <div class="balance-big" id="saldo-efectivo">$ 0,00</div>
@@ -56,10 +60,11 @@
           <div style="padding:20px; text-align:center; color:gray;">Cargando...</div>
         </div>
       </div>
+
     </aside>
 
     <section class="panel right-panel">
-      
+
       <div id="view-movimiento" class="view-section active">
         <div class="card">
           <h2 style="color:var(--accent); margin-top:0;">Nuevo Movimiento</h2>
@@ -149,12 +154,12 @@
           </div>
 
           <div class="confirm-panel">
-               <div>
+               <div style="flex:1;">
                  <label class="form-label">Total Contado (Físico)</label>
-                 <input type="text" id="rendicion-contado" readonly class="input-total-real">
+                 <input type="text" id="rendicion-contado" readonly class="input-total-real" data-numeric="0">
                </div>
                <button id="btn-procesar-rendicion" class="btn-confirm">
-                 CONFIRMAR
+                 PROCESAR RENDICIÓN
                </button>
           </div>
           <div id="resultado-rendicion" style="text-align:center; margin-top:10px; font-weight:bold;"></div>
