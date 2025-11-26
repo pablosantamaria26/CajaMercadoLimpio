@@ -83,7 +83,7 @@ body {
 .mini-stat span { display: block; font-size: 0.9rem; font-weight: 600; }
 .mini-stat.total { border-color: var(--accent); background: rgba(0, 230, 255, 0.05); color: var(--accent); }
 
-/* Movimientos (FIX DE VISIBILIDAD) */
+/* Movimientos (SCROLL FORZADO) */
 .movements-card {
   flex: 1;
   display: flex;
@@ -96,7 +96,7 @@ body {
 
 .mov-list-container {
   flex: 1;
-  overflow-y: auto; /* Scroll interno */
+  overflow-y: auto; /* SCROLL ACTIVO AQUÍ */
   padding-right: 5px;
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -122,12 +122,15 @@ body {
 .right-panel { position: relative; }
 
 .view-section {
-  display: none; /* Oculto por defecto */
+  display: none; /* OCULTAR POR DEFECTO */
   width: 100%; height: 100%;
   overflow-y: auto;
   animation: fadeIn 0.3s ease-out;
 }
-.view-section.active { display: block; }
+.view-section.active { 
+    display: block; /* MOSTRAR SOLO ACTIVO */
+    position: relative; /* Asegura que se aísle del resto */
+}
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Formularios */
@@ -153,16 +156,23 @@ body {
 
 /* === DISEÑO RENDICIÓN (ALTO CONTRASTE) === */
 .special-rendicion-bg {
-  background: #0b1120; /* Fondo más oscuro para concentrar la vista */
+  background: #0b1120;
   border-radius: 12px;
   border: 1px solid #1e293b;
   display: flex; flex-direction: column;
   overflow: hidden;
 }
 
+.rendicion-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
 /* Barra Duotono Azul/Verde (Live Data) */
 .duotone-header {
-  background: linear-gradient(90deg, #1d4ed8 0%, #059669 100%); /* Azul oscuro a Verde fuerte */
+  background: linear-gradient(90deg, #1d4ed8 0%, #059669 100%);
   padding: 18px 25px;
   display: flex; justify-content: space-between; align-items: center;
   flex-shrink: 0;
