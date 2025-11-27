@@ -2,7 +2,6 @@
 // CONFIGURACIÓN Y ESTADO
 // ===============================
 const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/"; 
-// ^ ASEGÚRATE DE QUE ESTA URL SEA LA CORRECTA
 const USUARIO_APP = "Laura";
 const RENDICION_POLL_INTERVAL_MS = 60000; 
 
@@ -20,31 +19,42 @@ const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
 const EMPLEADOS = ["Nicolás", "Laura", "Nancy", "Martín", "Lucas"];
 const BILLETES = [20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10]; 
 
+// Helper para obtener fecha actual YYYY-MM-DD en zona local (evita errores de UTC)
+const getHoyLocal = () => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - offset).toISOString().split('T')[0];
+};
+
 const estado = {
   saldo: { efectivo: 0, cheques: 0, banco: 0, total: 0 },
   rendicion: { fecha: null, turno: null, repartidor: null, esperado: 0 },
-  fechaMovimientos: new Date().toLocaleDateString('en-CA'), // Formato YYYY-MM-DD
+  fechaMovimientos: getHoyLocal(), 
   rendicionEncontrada: false
 };
 
 // ===============================
-// HELPERS Y UTILS
+// CONEXIÓN API (WORKER)
 // ===============================
 async function api(fn, params = {}) {
   try {
     const res = await fetch(API_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" }, // Fix CORS simple request
+      // Header específico para que tu Worker procese sin preflight CORS complejo
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, 
       body: JSON.stringify({ fn, params })
     });
     return await res.json();
   } catch (e) {
     console.error(e);
-    showToast("Error de conexión. Intente nuevamente.", "error");
+    showToast("Error de conexión. Revisa internet.", "error");
     return null;
   }
 }
 
+// ===============================
+// HELPERS VISUALES
+// ===============================
 function formatoMoneda(num) {
   return "$ " + Number(num || 0).toLocaleString("es-AR", {
     minimumFractionDigits: 2,
@@ -57,7 +67,8 @@ function showToast(msg, type = "info") {
   if(!toast) return;
   toast.textContent = msg;
   toast.className = `toast-msg show ${type}`;
-  setTimeout(() => toast.classList.remove("show"), 3000);
+  if(toast.timeoutId) clearTimeout(toast.timeoutId);
+  toast.timeoutId = setTimeout(() => toast.classList.remove("show"), 3000);
 }
 
 const updateText = (id, text) => {
@@ -78,18 +89,25 @@ document.addEventListener("DOMContentLoaded", () => {
   initRendicionLogic();
   initArqueo();
 
-  // Listener fecha movimientos
+  // Configuración del input de fecha para movimientos
   const inputFechaMov = document.getElementById("movimientos-fecha");
   if (inputFechaMov) {
+    // 1. Poner la fecha de hoy al iniciar
     inputFechaMov.value = estado.fechaMovimientos;
+    
+    // 2. Escuchar cambios (para ver días anteriores)
     inputFechaMov.addEventListener("change", (e) => {
-      estado.fechaMovimientos = e.target.value;
-      cargarMovimientos();
+      if(e.target.value) {
+          estado.fechaMovimientos = e.target.value;
+          cargarMovimientos();
+      }
     });
   }
 
-  // Carga inicial
+  // Carga inicial de datos
   refreshData();
+  
+  // Polling automático cada minuto
   setInterval(refreshData, RENDICION_POLL_INTERVAL_MS);
 });
 
@@ -103,11 +121,13 @@ function initClock() {
     setInterval(update, 30000);
 }
 
+// Función principal de recarga
 function refreshData() {
   refreshEstadoCaja();
   cargarMovimientos();
-  // Solo buscar rendición si no hemos encontrado una válida aún o si es automática
-  if (!estado.rendicionEncontrada) {
+  
+  // Solo buscar rendición automática si no hay una cargada en pantalla
+  if (!estado.rendicionEncontrada || estado.rendicion.esperado === 0) {
       buscarRendicionInteligente();
   }
 }
@@ -122,69 +142,65 @@ function initNavigation() {
 
   btns.forEach(btn => {
     btn.addEventListener("click", () => {
-      // 1. Activar botón
       btns.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
 
-      // 2. Cambiar Vista con Animación
       const targetId = btn.dataset.target;
       views.forEach(v => {
-          v.classList.remove("active");
-          if(v.id === targetId) {
-             // Pequeño delay para permitir que la saliente termine (opcional)
-             setTimeout(() => v.classList.add("active"), 50);
-          }
+          if(v.id === targetId) v.classList.add("active");
+          else v.classList.remove("active");
       });
 
-      // 3. Cambiar Tema (Color)
+      // Cambio de tema
       const theme = btn.dataset.theme;
-      body.className = theme; // theme-blue, theme-green, theme-orange
+      body.className = theme; 
       
-      // Meta theme-color para móviles
-      const colorMap = {
-          'theme-blue': '#1565C0',
-          'theme-green': '#2E7D32',
-          'theme-orange': '#EF6C00'
-      };
-      document.querySelector('meta[name="theme-color"]').setAttribute('content', colorMap[theme]);
+      const colorMap = { 'theme-blue': '#1565C0', 'theme-green': '#2E7D32', 'theme-orange': '#EF6C00' };
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if(meta) meta.setAttribute('content', colorMap[theme]);
     });
   });
 }
 
 // ===============================
-// ESTADO Y MOVIMIENTOS
+// ESTADO DE CAJA
 // ===============================
 async function refreshEstadoCaja() {
   const res = await api("getEstadoCaja");
   if (!res) return;
+  
   estado.saldo = res;
   updateText("saldo-total", formatoMoneda(res.total));
   updateText("arqueo-sistema", formatoMoneda(res.efectivo));
 }
 
+// ===============================
+// MOVIMIENTOS (SOLUCIONADO)
+// ===============================
 async function cargarMovimientos() {
   const list = document.getElementById("movimientos-list");
   if (!list) return;
 
+  // Usar la fecha del input o la del estado
   const fecha = document.getElementById("movimientos-fecha").value || estado.fechaMovimientos;
   
-  // Spinner simple
   list.innerHTML = '<div style="text-align:center;padding:20px;color:#999"><span class="material-icons-round spin">autorenew</span></div>';
 
+  // Llamada a la API con el parámetro fechaStr
   const res = await api("getMovimientos", { fechaStr: fecha });
 
   if (!Array.isArray(res) || res.length === 0) {
-    list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:0.9rem;">Sin movimientos hoy</div>';
+    list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:0.9rem;">Sin movimientos para esta fecha</div>';
     return;
   }
 
   list.innerHTML = "";
+  
   res.forEach((m) => {
     const esIngreso = m.tipo === "Ingreso";
     const div = document.createElement("div");
     div.className = "mov-item";
     
-    // Icono según categoría
     let icon = "paid";
     const cat = (m.categoria || "").toLowerCase();
     if(cat.includes("combustible")) icon = "local_gas_station";
@@ -192,13 +208,16 @@ async function cargarMovimientos() {
     else if(cat.includes("sueldo") || cat.includes("adelanto")) icon = "person";
     else if(cat.includes("retiro") || cat.includes("libre")) icon = "logout";
 
+    // Estructura HTML coincidente con styles-laura.css
     div.innerHTML = `
-      <div class="mov-info">
-        <div style="display:flex; align-items:center; gap:8px;">
-            <span class="material-icons-round" style="font-size:18px; color:#ccc;">${icon}</span>
-            <span class="mov-desc">${m.categoria || "Varios"}</span>
+      <div class="mov-left-group">
+        <div class="mov-icon-box">
+            <span class="material-icons-round">${icon}</span>
         </div>
-        <span class="mov-sub">${m.hora} · ${m.formaPago} · ${m.observacion || ""}</span>
+        <div class="mov-info">
+            <span class="mov-desc">${m.categoria || "Varios"}</span>
+            <span class="mov-sub">${m.hora} · ${m.formaPago} · ${m.observacion || ""}</span>
+        </div>
       </div>
       <div class="mov-amount ${esIngreso ? "text-success" : "text-danger"}">
         ${esIngreso ? "+" : "-"} ${Math.abs(m.importe).toLocaleString("es-AR")}
@@ -209,11 +228,9 @@ async function cargarMovimientos() {
 }
 
 function initFormMovimiento() {
-    // Lógica visual del formulario (mostrar/ocultar campos)
     const tipoRapido = document.getElementById("tipoRapido");
     
     tipoRapido.addEventListener("change", () => {
-        // Ocultar todos primero
         document.querySelectorAll(".hidden-row").forEach(el => el.style.display = 'none');
         
         const v = tipoRapido.value;
@@ -227,7 +244,6 @@ function initFormMovimiento() {
         const btn = document.getElementById("btn-registrar-mov");
         const importeInput = document.getElementById("importe");
         
-        // Validación básica
         if(!importeInput.value) { showToast("Ingrese un importe", "error"); return; }
 
         btn.disabled = true;
@@ -236,7 +252,6 @@ function initFormMovimiento() {
         const importeRaw = importeInput.value.replace(/[^0-9,.]/g, "").replace(",", ".");
         const tipoRapidoText = tipoRapido.options[tipoRapido.selectedIndex].text;
         
-        // Armar observación automática si está vacía
         let obs = document.getElementById("observacion").value;
         const proveedor = document.getElementById("inputProveedor").value;
         if(!obs && tipoRapido.value === "pagoProveedor") obs = `Pago a ${proveedor}`;
@@ -258,7 +273,8 @@ function initFormMovimiento() {
             showToast("¡Movimiento registrado!", "ok");
             document.getElementById("form-movimiento").reset();
             document.querySelectorAll(".hidden-row").forEach(el => el.style.display = 'none');
-            refreshData(); // Actualiza la lista y saldos
+            document.getElementById("importe").value = "";
+            refreshData(); // Actualizar lista inmediatamente
         } else {
             showToast("Error al registrar", "error");
         }
@@ -269,30 +285,30 @@ function initFormMovimiento() {
 }
 
 // ===============================
-// LÓGICA DE RENDICIÓN (INTELIGENTE)
+// RENDICIÓN INTELIGENTE
 // ===============================
 async function buscarRendicionInteligente() {
+    updateText("rendicion-repartidor", "Buscando...");
+    
     // 1. Intentar buscar AYER a la TARDE
     const ayer = new Date();
     ayer.setDate(ayer.getDate() - 1);
-    const fechaAyer = ayer.toISOString().slice(0, 10);
+    const offset = ayer.getTimezoneOffset() * 60000;
+    const fechaAyer = new Date(ayer.getTime() - offset).toISOString().split('T')[0];
     
-    updateText("rendicion-repartidor", "Buscando...");
-    
-    console.log("Buscando rendición Ayer Tarde:", fechaAyer);
     let res = await api("getDatosRendicionEsperada", {
         fechaStr: fechaAyer,
         turno: "Tarde",
-        repartidor: "Nico" // Default
+        repartidor: "Nico"
     });
 
-    // 2. Si falla o no trae dinero, buscar HOY a la MAÑANA
+    // 2. Si falla, buscar HOY a la MAÑANA
     if (!res || !res.ok || res.efectivoEsperado === 0) {
-        const hoy = new Date().toISOString().slice(0, 10);
-        console.log("No encontrada ayer. Buscando Hoy Mañana:", hoy);
+        const hoy = new Date();
+        const fechaHoy = new Date(hoy.getTime() - offset).toISOString().split('T')[0];
         
         res = await api("getDatosRendicionEsperada", {
-            fechaStr: hoy,
+            fechaStr: fechaHoy,
             turno: "Mañana",
             repartidor: "Nico"
         });
@@ -309,11 +325,10 @@ async function buscarRendicionInteligente() {
         updateText("rendicion-repartidor", res.repartidor);
         updateText("rendicion-turno", res.turno);
         
-        // Convertir fecha YYYY-MM-DD a DD/MM
         const partes = res.fecha.split("-");
-        updateText("rendicion-fecha", `${partes[2]}/${partes[1]}`);
+        if(partes.length === 3) updateText("rendicion-fecha", `${partes[2]}/${partes[1]}`);
         
-        showToast(`Planilla cargada: ${res.turno}`, "ok");
+        showToast(`Planilla: ${res.turno}`, "ok");
     } else {
         updateText("rendicion-repartidor", "No encontrada");
         updateText("rendicion-esperado", "$ 0,00");
@@ -331,10 +346,10 @@ function initRendicionLogic() {
 
         const btn = document.getElementById("btn-procesar-rendicion");
         btn.disabled = true;
-        btn.innerText = "PROCESANDO...";
+        btn.innerHTML = '<span class="material-icons-round spin">sync</span> PROCESANDO...';
 
         const params = {
-            fechaStr: estado.rendicion.fecha || new Date().toISOString().slice(0, 10),
+            fechaStr: estado.rendicion.fecha || getHoyLocal(),
             turno: estado.rendicion.turno || "Mañana",
             repartidor: estado.rendicion.repartidor || "Manual",
             efectivoContado: contado,
@@ -353,13 +368,14 @@ function initRendicionLogic() {
             else { msg = `FALTAN ${formatoMoneda(diff)}`; color = "var(--danger)"; }
 
             document.getElementById("resultado-rendicion").innerHTML = `<h3 style="color:${color}">${msg}</h3>`;
-            showToast("Rendición procesada y caja actualizada", "ok");
-            refreshData(); // Actualiza el saldo y lista de movimientos
+            showToast("Rendición procesada", "ok");
+            window.resetBillCounter();
+            refreshData(); 
         } else {
             showToast(res.error || "Error al procesar", "error");
         }
         btn.disabled = false;
-        btn.innerText = "PROCESAR RENDICIÓN";
+        btn.innerHTML = '<span class="material-icons-round">check_circle</span> PROCESAR RENDICIÓN';
     });
 }
 
@@ -375,24 +391,28 @@ function createBillCounterHero() {
     box.className = "bill-box";
     box.innerHTML = `
       <span class="bill-denom">$ ${denom.toLocaleString()}</span>
-      <input type="tel" class="bill-input-qty" data-denom="${denom}" value="0" placeholder="0">
-      <span class="bill-subtotal" id="sub-${denom}">$ 0</span>
+      <input type="tel" class="bill-input-qty" data-denom="${denom}" value="0" placeholder="0" autocomplete="off">
+      <span class="bill-subtotal" id="sub-${denom}"></span>
     `;
     
     const input = box.querySelector("input");
     
-    // UX: Borrar automáticamente al tocar
+    // UX: Borrar "0" al tocar
     input.addEventListener("focus", function() {
         if(this.value === "0") this.value = "";
     });
     
-    // UX: Restaurar 0 si queda vacío
+    // UX: Restaurar "0" si vacío
     input.addEventListener("blur", function() {
         if(this.value === "") this.value = "0";
         calculateBillTotal();
     });
 
-    input.addEventListener("input", calculateBillTotal);
+    input.addEventListener("input", (e) => {
+        // Permitir solo números
+        e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        calculateBillTotal();
+    });
 
     container.appendChild(box);
   });
@@ -408,20 +428,22 @@ function calculateBillTotal() {
         const sub = val * denom;
         total += sub;
         
-        // Actualizar subtotal visual
         const subEl = document.getElementById(`sub-${denom}`);
+        const box = inp.closest('.bill-box');
+
         if(sub > 0) {
             subEl.innerText = `$ ${sub.toLocaleString()}`;
             subEl.style.color = "var(--primary)";
+            box.style.borderColor = "var(--primary)";
+            box.style.background = "white";
             inp.style.color = "#000";
-            inp.parentElement.style.borderColor = "var(--primary)";
-            inp.parentElement.style.backgroundColor = "#fff";
+            inp.style.fontWeight = "800";
         } else {
-            subEl.innerText = "$ 0";
-            subEl.style.color = "#ccc";
+            subEl.innerText = "";
+            box.style.borderColor = "#eee";
+            box.style.background = "#fafafa";
             inp.style.color = "#999";
-            inp.parentElement.style.borderColor = "#eee";
-            inp.parentElement.style.backgroundColor = "#fafafa";
+            inp.style.fontWeight = "normal";
         }
     });
 
@@ -433,6 +455,7 @@ function calculateBillTotal() {
 window.resetBillCounter = function() {
     document.querySelectorAll(".bill-input-qty").forEach(i => i.value = "0");
     calculateBillTotal();
+    document.getElementById("resultado-rendicion").innerHTML = "";
 }
 
 // ===============================
@@ -441,18 +464,34 @@ window.resetBillCounter = function() {
 function initArqueo() {
     document.getElementById("btn-registrar-arqueo").addEventListener("click", async () => {
         const inp = document.getElementById("arqueo-fisico");
-        const val = parseFloat(inp.value) || 0;
+        const val = parseFloat(inp.value.replace(/[^0-9.]/g, "")) || 0;
         
-        if(val <= 0) { showToast("Ingrese el monto físico", "error"); return; }
+        if(val <= 0 && inp.value !== "0") { showToast("Ingrese el monto físico", "error"); return; }
         
+        const btn = document.getElementById("btn-registrar-arqueo");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons-round spin">sync</span> Guardando...';
+
         const res = await api("registrarArqueo", { usuario: USUARIO_APP, efectivoFisico: val });
         
         if(res && res.resultado) {
             const color = res.resultado === "OK" ? "var(--success)" : "var(--danger)";
-            document.getElementById("resultado-arqueo").innerHTML = 
-                `<h3 style="color:${color}">${res.resultado} (${formatoMoneda(res.diferencia)})</h3>`;
+            const icon = res.resultado === "OK" ? "check_circle" : "warning";
+            
+            document.getElementById("resultado-arqueo").innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:center;gap:10px;color:${color};font-size:1.2rem;font-weight:700;">
+                    <span class="material-icons-round">${icon}</span>
+                    <span>${res.resultado}</span>
+                </div>
+                <div style="color:${color};margin-top:5px;">Dif: ${formatoMoneda(res.diferencia)}</div>
+            `;
             showToast("Arqueo guardado", "ok");
+            refreshEstadoCaja();
+        } else {
+            showToast("Error al registrar arqueo", "error");
         }
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round">verified</span> CONFIRMAR ARQUEO';
     });
 }
 
@@ -462,10 +501,7 @@ function initArqueo() {
 function initSelectsAuxiliares() {
     const fill = (id, arr) => {
         const s = document.getElementById(id);
-        arr.forEach(x => {
-            const o = document.createElement("option");
-            o.value = x; o.text = x; s.appendChild(o);
-        });
+        arr.forEach(x => s.add(new Option(x, x)));
     };
     fill("selectVehiculo", VEHICULOS);
     fill("selectEmpleado", EMPLEADOS);
@@ -478,20 +514,26 @@ function initProveedoresAutocomplete() {
     inp.addEventListener("input", function() {
         const val = this.value.toLowerCase();
         box.innerHTML = "";
-        if(val.length < 2) return;
+        
+        if(val.length < 2) { box.style.display = 'none'; return; }
         
         const matches = PROVEEDORES.filter(p => p.toLowerCase().includes(val));
-        matches.forEach(p => {
-            const div = document.createElement("div");
-            div.className = "suggestion-item";
-            div.innerText = p;
-            div.onclick = () => { inp.value = p; box.innerHTML = ""; };
-            box.appendChild(div);
-        });
+        
+        if(matches.length > 0) {
+            box.style.display = 'block';
+            matches.forEach(p => {
+                const div = document.createElement("div");
+                div.className = "suggestion-item";
+                div.innerText = p;
+                div.onclick = () => { inp.value = p; box.style.display = 'none'; };
+                box.appendChild(div);
+            });
+        } else {
+            box.style.display = 'none';
+        }
     });
     
-    // Cerrar al hacer click afuera
     document.addEventListener("click", (e) => {
-        if(e.target !== inp) box.innerHTML = "";
+        if(e.target !== inp && e.target.parentNode !== box) box.style.display = 'none';
     });
 }
