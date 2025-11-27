@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tablero de Control - Pablo</title>
+    
+    <!-- Fuentes e Iconos -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Chart.js para los gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* =========================================
+           STYLE PABLO.CSS (Estilo Ejecutivo Dark)
+           ========================================= */
+        :root {
+            --bg-dark: #101827;
+            --card-bg: #1F2937;
+            --primary: #3B82F6;     /* Azul Ejecutivo */
+            --accent: #F59E0B;      /* Dorado Alerta */
+            --success: #10B981;     /* Verde Dinero */
+            --danger: #EF4444;      /* Rojo Peligro */
+            --text-main: #F3F4F6;
+            --text-muted: #9CA3AF;
+        }
+
+        * { box-sizing: border-box; }
+        
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            padding-bottom: 80px; /* Espacio para nav si hubiera */
+        }
+
+        /* HEADER */
+        .admin-header {
+            padding: 20px;
+            background: linear-gradient(180deg, rgba(31,41,55,1) 0%, rgba(16,24,39,0) 100%);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .admin-title { font-size: 1.2rem; font-weight: 800; letter-spacing: 1px; color: var(--primary); }
+        .refresh-btn { background: none; border: none; color: var(--text-main); cursor: pointer; }
+
+        /* NARRATIVA / ASISTENTE */
+        .narrative-card {
+            background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
+            margin: 15px; padding: 20px; border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.2);
+            position: relative; overflow: hidden;
+        }
+        .narrative-card::after {
+            content: ''; position: absolute; top: -50px; right: -50px;
+            width: 150px; height: 150px; background: rgba(255,255,255,0.1);
+            border-radius: 50%; pointer-events: none;
+        }
+        .assistant-face { font-size: 40px; margin-bottom: 10px; display: block; }
+        .assistant-text { font-size: 1.1rem; line-height: 1.5; font-weight: 500; }
+        .assistant-highlight { font-weight: 800; color: #FFD700; }
+
+        /* KPI CARDS (SALUD FINANCIERA) */
+        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 0 15px; margin-bottom: 20px; }
+        .kpi-card {
+            background: var(--card-bg); padding: 15px; border-radius: 16px;
+            text-align: center; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .kpi-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .kpi-value { font-size: 1.4rem; font-weight: 800; margin-top: 5px; }
+        .kpi-value.ingreso { color: var(--success); }
+        .kpi-value.egreso { color: var(--danger); }
+
+        /* SECCIONES */
+        .section-title {
+            padding: 0 20px; margin-top: 30px; margin-bottom: 10px;
+            font-size: 1rem; font-weight: 700; color: var(--text-muted);
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* GRÁFICO DONA */
+        .chart-container {
+            margin: 0 15px; padding: 20px; background: var(--card-bg);
+            border-radius: 20px; position: relative; height: 300px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* LISTAS DE DETALLE (ACORDEÓN) */
+        .detail-card {
+            background: var(--card-bg); margin: 0 15px 10px; border-radius: 12px;
+            overflow: hidden;
+        }
+        .detail-header {
+            padding: 15px; display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; background: rgba(255,255,255,0.02);
+        }
+        .detail-title { font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .detail-total { font-weight: 700; color: var(--text-main); }
+        .detail-content {
+            display: none; padding: 10px 15px; border-top: 1px solid rgba(255,255,255,0.05);
+            background: rgba(0,0,0,0.2);
+        }
+        .detail-content.show { display: block; animation: slideDown 0.3s; }
+        
+        .detail-row {
+            display: flex; justify-content: space-between; padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem;
+        }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-sub { font-size: 0.75rem; color: var(--text-muted); }
+
+        /* ALERTAS DE FRAUDE */
+        .alert-feed { padding: 0 15px; }
+        .alert-card {
+            background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger);
+            padding: 15px; border-radius: 8px; margin-bottom: 10px;
+        }
+        .alert-title { color: var(--danger); font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;}
+        .alert-msg { font-size: 0.85rem; color: #FECACA; line-height: 1.4; }
+        .alert-time { font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 5px; text-align: right; }
+        
+        .empty-state { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.9rem; }
+
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Loading */
+        #loading-overlay {
+            position: fixed; inset: 0; background: var(--bg-dark); z-index: 1000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(59, 130, 246, 0.3); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p style="margin-top:15px; font-size:0.9rem; color:var(--text-muted);">Analizando finanzas...</p>
+    </div>
+
+    <!-- Header -->
+    <header class="admin-header">
+        <div class="admin-title">PABLO ADMIN</div>
+        <button class="refresh-btn" onclick="cargarDashboard()"><span class="material-icons-round">refresh</span></button>
+    </header>
+
+    <!-- 1. El Asesor Virtual -->
+    <section>
+        <div class="narrative-card">
+            <span class="assistant-face">🤖</span>
+            <div id="narrativa-texto" class="assistant-text">
+                Analizando los movimientos de la semana...
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. Salud Financiera -->
+    <section>
+        <div class="section-title"><span class="material-icons-round">insights</span> Salud Semanal</div>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Ingresos</div>
+                <div id="kpi-ingresos" class="kpi-value ingreso">$ 0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Egresos</div>
+                <div id="kpi-egresos" class="kpi-value egreso">$ 0</div>
+            </div>
+        </div>
+        <!-- Barra de Salud -->
+        <div style="padding:0 15px; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:5px; color:var(--text-muted);">
+                <span>Flujo de Caja</span>
+                <span id="health-percentage">0%</span>
+            </div>
+            <div style="height:8px; background:#374151; border-radius:4px; overflow:hidden;">
+                <div id="health-bar" style="width:0%; height:100%; background:var(--success); transition: width 1s;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. Distribución de Gastos (Gráfico) -->
+    <section>
+        <div class="section-title"><span class="material-icons-round">pie_chart</span> ¿En qué gastamos?</div>
+        <div class="chart-container">
+            <canvas id="expensesChart"></canvas>
+        </div>
+    </section>
+
+    <!-- 4. Detalles Desplegables -->
+    <section id="details-container">
+        <!-- Se llenan con JS -->
+    </section>
+
+    <!-- 5. Monitor de Seguridad -->
+    <section>
+        <div class="section-title" style="color:var(--danger); margin-top:40px;">
+            <span class="material-icons-round">security</span> Alertas de Fraude
+        </div>
+        <div id="fraud-monitor-feed" class="alert-feed">
+            <div class="empty-state">Todo tranquilo por ahora.</div>
+        </div>
+    </section>
+
+    <script>
+        /* =========================================
+           APP PABLO.JS (Lógica de Negocio)
+           ========================================= */
+        
+        // URL del Backend (Mismo script que Laura)
+        const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/"; 
+        let myChart = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            cargarDashboard();
+        });
+
+        async function api(fn, params = {}) {
+            try {
+                const res = await fetch(API_URL, {
+                    method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ fn, params })
+                });
+                return await res.json();
+            } catch (e) { console.error(e); return null; }
+        }
+
+        async function cargarDashboard() {
+            document.getElementById('loading-overlay').style.display = 'flex';
+            
+            // 1. Obtener datos (Simulamos "Semana" pidiendo los últimos 7 días)
+            const hoy = new Date();
+            const movimientosSemana = await fetchMovimientosUltimosDias(7);
+            const notificaciones = await api("getNotificacionesCaja", { soloActivas: true });
+
+            // 2. Procesar Datos
+            const metricas = procesarMetricas(movimientosSemana);
+
+            // 3. Renderizar UI
+            renderNarrativa(metricas);
+            renderKPIs(metricas);
+            renderGrafico(metricas);
+            renderDetalles(metricas);
+            renderMonitorSeguridad(notificaciones);
+
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+
+        // --- Helpers de Datos ---
+        async function fetchMovimientosUltimosDias(dias) {
+            // Como la API trae por día específico, hacemos un Promise.all para traer la semana
+            // Esto es un "truco" frontend para no modificar el backend complejo
+            const promesas = [];
+            for (let i = 0; i < dias; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const fechaStr = d.toISOString().split('T')[0];
+                promesas.push(api("getMovimientos", { fechaStr }));
+            }
+            const resultados = await Promise.all(promesas);
+            return resultados.flat().filter(m => m && m.id); // Aplanar y limpiar
+        }
+
+        function procesarMetricas(movs) {
+            let ingresos = 0;
+            let egresosTotal = 0;
+            const categorias = {
+                combustible: { total: 0, items: [] },
+                sueldos: { total: 0, items: [] },
+                proveedores: { total: 0, items: [] },
+                otros: { total: 0, items: [] }
+            };
+
+            movs.forEach(m => {
+                const imp = parseFloat(m.importe) || 0;
+                if (m.tipo === "Ingreso") {
+                    ingresos += imp;
+                } else {
+                    egresosTotal += imp;
+                    const catLower = (m.categoria || "").toLowerCase();
+                    const obsLower = (m.observacion || "").toLowerCase();
+                    
+                    // Clasificación inteligente
+                    if (catLower.includes("combustible")) {
+                        categorias.combustible.total += imp;
+                        categorias.combustible.items.push(m);
+                    } else if (catLower.includes("adelanto") || catLower.includes("haber")) {
+                        categorias.sueldos.total += imp;
+                        categorias.sueldos.items.push(m);
+                    } else if (catLower.includes("proveedor")) {
+                        categorias.proveedores.total += imp;
+                        categorias.proveedores.items.push(m);
+                    } else {
+                        categorias.otros.total += imp;
+                        categorias.otros.items.push(m);
+                    }
+                }
+            });
+
+            return { ingresos, egresosTotal, categorias, totalMovs: movs.length };
+        }
+
+        // --- Render UI ---
+        function formatoMoneda(num) {
+            return "$ " + new Intl.NumberFormat('es-AR').format(num);
+        }
+
+        function renderNarrativa(data) {
+            const saldo = data.ingresos - data.egresosTotal;
+            const ratio = data.ingresos > 0 ? (data.egresosTotal / data.ingresos) * 100 : 100;
+            let mensaje = "";
+            let emoji = "";
+
+            if (data.totalMovs === 0) {
+                mensaje = "Hola Pablo. Aún no hay movimientos esta semana para analizar.";
+                emoji = "💤";
+            } else if (ratio < 50) {
+                mensaje = `¡Excelente semana Pablo! <br>Los ingresos son sólidos y los gastos están controlados. <span class="assistant-highlight">Tenemos un superávit de ${formatoMoneda(saldo)}.</span>`;
+                emoji = "🚀";
+            } else if (ratio < 85) {
+                mensaje = `Semana estable. <br>Estamos gastando, pero ingresa dinero. Ojo con el combustible, llevamos <span class="assistant-highlight">${formatoMoneda(data.categorias.combustible.total)}</span> gastados.`;
+                emoji = "📊";
+            } else {
+                mensaje = `⚠️ <b>Atención Pablo.</b> <br>Los gastos están comiendo casi todo el ingreso (${ratio.toFixed(0)}%). Revisa los pagos a proveedores y adelantos.`;
+                emoji = "🧐";
+            }
+
+            document.querySelector('.assistant-face').textContent = emoji;
+            document.getElementById('narrativa-texto').innerHTML = mensaje;
+        }
+
+        function renderKPIs(data) {
+            document.getElementById('kpi-ingresos').textContent = formatoMoneda(data.ingresos);
+            document.getElementById('kpi-egresos').textContent = formatoMoneda(data.egresosTotal);
+            
+            // Barra de Salud (Egresos sobre Ingresos)
+            const porcentajeGasto = data.ingresos > 0 ? (data.egresosTotal / data.ingresos) * 100 : 100;
+            const porcentajeBarra = Math.min(porcentajeGasto, 100);
+            
+            const bar = document.getElementById('health-bar');
+            const label = document.getElementById('health-percentage');
+            
+            bar.style.width = `${porcentajeBarra}%`;
+            label.textContent = `${porcentajeGasto.toFixed(1)}% Gastado`;
+
+            if(porcentajeGasto > 80) { bar.style.background = "#EF4444"; label.style.color="#EF4444"; }
+            else if(porcentajeGasto > 50) { bar.style.background = "#F59E0B"; label.style.color="#F59E0B"; }
+            else { bar.style.background = "#10B981"; label.style.color="#10B981"; }
+        }
+
+        function renderGrafico(data) {
+            const ctx = document.getElementById('expensesChart').getContext('2d');
+            
+            if (myChart) myChart.destroy();
+
+            const cats = data.categorias;
+            const valores = [cats.combustible.total, cats.sueldos.total, cats.proveedores.total, cats.otros.total];
+            const labels = ['Combustible', 'Sueldos', 'Proveedores', 'Otros'];
+            const colors = ['#F59E0B', '#3B82F6', '#10B981', '#6B7280'];
+
+            // Si todo es 0, mostrar vacío
+            if (valores.reduce((a,b)=>a+b, 0) === 0) return;
+
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: valores,
+                        backgroundColor: colors,
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#9CA3AF', font: {family:'Montserrat'} } }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function renderDetalles(data) {
+            const container = document.getElementById('details-container');
+            container.innerHTML = ""; // Limpiar
+
+            const createSection = (title, icon, color, catData) => {
+                if (catData.total === 0) return; // No mostrar si está vacío
+
+                const html = `
+                    <div class="detail-card">
+                        <div class="detail-header" onclick="toggleDetail(this)">
+                            <div class="detail-title" style="color:${color}">
+                                <span class="material-icons-round">${icon}</span> ${title}
+                            </div>
+                            <div class="detail-total">${formatoMoneda(catData.total)}</div>
+                        </div>
+                        <div class="detail-content">
+                            ${catData.items.map(m => `
+                                <div class="detail-row">
+                                    <div>
+                                        <div>${m.categoria}</div>
+                                        <div class="detail-sub">${m.observacion || '-'}</div>
+                                    </div>
+                                    <div style="font-weight:600;">$ ${parseInt(m.importe).toLocaleString()}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += html;
+            };
+
+            createSection("Combustible", "local_gas_station", "#F59E0B", data.categorias.combustible);
+            createSection("Sueldos y Adelantos", "groups", "#3B82F6", data.categorias.sueldos);
+            createSection("Proveedores", "local_shipping", "#10B981", data.categorias.proveedores);
+            createSection("Otros Gastos", "receipt_long", "#9CA3AF", data.categorias.otros);
+        }
+
+        window.toggleDetail = function(el) {
+            const content = el.nextElementSibling;
+            content.classList.toggle('show');
+        }
+
+        function renderMonitorSeguridad(notificaciones) {
+            const feed = document.getElementById('fraud-monitor-feed');
+            
+            // Filtramos solo las de tipo ANOMALIA_CAJA y que sean recientes
+            // Como la API getNotificacionesCaja devuelve array...
+            if (!notificaciones || !Array.isArray(notificaciones) || notificaciones.length === 0) {
+                feed.innerHTML = '<div class="empty-state">✅ Sin alertas de seguridad recientes.</div>';
+                return;
+            }
+
+            const anomalias = notificaciones.filter(n => n.tipo === "ANOMALIA_CAJA");
+
+            if (anomalias.length === 0) {
+                feed.innerHTML = '<div class="empty-state">✅ Sin alertas de seguridad recientes.</div>';
+                return;
+            }
+
+            feed.innerHTML = "";
+            anomalias.slice(0, 5).forEach(n => {
+                const date = new Date(n.fecha);
+                const timeStr = date.toLocaleDateString() + ' ' + (n.hora || '');
+                
+                feed.innerHTML += `
+                    <div class="alert-card">
+                        <div class="alert-title">
+                            <span class="material-icons-round">warning</span> ${n.titulo}
+                        </div>
+                        <div class="alert-msg">${n.mensaje}</div>
+                        <div class="alert-time">${timeStr}</div>
+                    </div>
+                `;
+            });
+        }
+
+    </script>
+</body>
+</html>
