@@ -19,10 +19,8 @@ const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
 const EMPLEADOS = ["Nicolás", "Laura", "Nancy", "Martín", "Lucas"];
 const BILLETES = [20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10]; 
 
-// Helper para obtener fecha actual YYYY-MM-DD local
 const getHoyLocal = () => {
     const d = new Date();
-    // Ajuste simple para obtener la fecha local en formato ISO
     const offset = d.getTimezoneOffset() * 60000;
     return new Date(d.getTime() - offset).toISOString().split('T')[0];
 };
@@ -35,7 +33,7 @@ const estado = {
 };
 
 // ===============================
-// CONEXIÓN API (WORKER)
+// CONEXIÓN API
 // ===============================
 async function api(fn, params = {}) {
   try {
@@ -53,10 +51,8 @@ async function api(fn, params = {}) {
 }
 
 // ===============================
-// HELPERS VISUALES Y FORMATO
+// HELPERS FORMATO
 // ===============================
-
-// Formato moneda para etiquetas ($ 10.000,00)
 function formatoMoneda(num) {
   return "$ " + Number(num || 0).toLocaleString("es-AR", {
     minimumFractionDigits: 2,
@@ -64,43 +60,28 @@ function formatoMoneda(num) {
   });
 }
 
-// Configura un input para que se vea como moneda (10.000) mientras escribes
 function setupCurrencyInput(inputId) {
     const input = document.getElementById(inputId);
     if (!input) return;
 
     input.addEventListener('input', function(e) {
-        // Eliminar todo lo que no sea número
         let val = this.value.replace(/\D/g, '');
-        
-        if (val === "") {
-            this.dataset.realValue = ""; // Guardar valor limpio
-            return;
-        }
-
-        // Guardar el valor numérico puro para usar en cálculos
+        if (val === "") { this.dataset.realValue = ""; return; }
         this.dataset.realValue = val;
-
-        // Formatear visualmente con puntos (1.000.000)
         let formatted = new Intl.NumberFormat('es-AR').format(parseInt(val));
         this.value = formatted;
     });
 }
 
-// Helper para obtener el valor numérico real de un input formateado
 function getCleanNumber(inputId) {
     const input = document.getElementById(inputId);
-    // Intentar leer del dataset (donde guardamos el valor sin puntos)
     if (input.dataset.realValue && input.dataset.realValue !== "") {
         return parseFloat(input.dataset.realValue);
     }
-    // Si no, limpiar el value visible
     const val = input.value.replace(/\./g, '').replace(',', '.');
     return parseFloat(val) || 0;
 }
 
-// Helper: Convierte fecha YYYY-MM-DD a formato seguro para el backend (Mediodía)
-// Esto evita que por diferencias horarias Google busque en el día anterior.
 function getFechaSegura(fechaYMD) {
     if(!fechaYMD) return "";
     return fechaYMD + "T12:00:00"; 
@@ -131,9 +112,8 @@ document.addEventListener("DOMContentLoaded", () => {
   initProveedoresAutocomplete();
   createBillCounterHero();
   initRendicionLogic();
-  initArqueo();
+  initArqueoLogic(); // Lógica nueva de arqueo
 
-  // Configuración del input de fecha para movimientos
   const inputFechaMov = document.getElementById("movimientos-fecha");
   if (inputFechaMov) {
     inputFechaMov.value = estado.fechaMovimientos;
@@ -145,10 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Carga inicial
   refreshData();
-  
-  // Polling automático
   setInterval(refreshData, RENDICION_POLL_INTERVAL_MS);
 });
 
@@ -165,15 +142,11 @@ function initClock() {
 function refreshData() {
   refreshEstadoCaja();
   cargarMovimientos();
-  
   if (!estado.rendicionEncontrada || estado.rendicion.esperado === 0) {
       buscarRendicionInteligente();
   }
 }
 
-// ===============================
-// NAVEGACIÓN Y TEMAS
-// ===============================
 function initNavigation() {
   const btns = document.querySelectorAll(".nav-btn");
   const views = document.querySelectorAll(".view-section");
@@ -201,36 +174,28 @@ function initNavigation() {
 }
 
 // ===============================
-// ESTADO DE CAJA
+// MOVIMIENTOS Y ESTADO
 // ===============================
 async function refreshEstadoCaja() {
   const res = await api("getEstadoCaja");
   if (!res) return;
-  
   estado.saldo = res;
   updateText("saldo-total", formatoMoneda(res.total));
   updateText("arqueo-sistema", formatoMoneda(res.efectivo));
 }
 
-// ===============================
-// MOVIMIENTOS
-// ===============================
 async function cargarMovimientos() {
   const list = document.getElementById("movimientos-list");
   if (!list) return;
-
   const fecha = document.getElementById("movimientos-fecha").value || estado.fechaMovimientos;
   
   list.innerHTML = '<div style="text-align:center;padding:20px;color:#999"><span class="material-icons-round spin">autorenew</span></div>';
-
-  // FIX: Mandamos la fecha con hora segura para evitar problemas de zona horaria
   const res = await api("getMovimientos", { fechaStr: getFechaSegura(fecha) });
 
   if (!Array.isArray(res) || res.length === 0) {
     list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:0.9rem;">Sin movimientos para esta fecha</div>';
     return;
   }
-
   list.innerHTML = "";
   
   res.forEach((m) => {
@@ -244,6 +209,7 @@ async function cargarMovimientos() {
     else if(cat.includes("proveedor")) icon = "local_shipping";
     else if(cat.includes("sueldo") || cat.includes("adelanto")) icon = "person";
     else if(cat.includes("retiro") || cat.includes("libre")) icon = "logout";
+    else if(cat.includes("ajuste") || cat.includes("arqueo")) icon = "tune";
 
     div.innerHTML = `
       <div class="mov-left-group">
@@ -265,13 +231,10 @@ async function cargarMovimientos() {
 
 function initFormMovimiento() {
     const tipoRapido = document.getElementById("tipoRapido");
-    
-    // Activar máscara de dinero en el input importe
     setupCurrencyInput("importe");
 
     tipoRapido.addEventListener("change", () => {
         document.querySelectorAll(".hidden-row").forEach(el => el.style.display = 'none');
-        
         const v = tipoRapido.value;
         if(v === "pagoProveedor") document.getElementById("row-proveedor").style.display = 'block';
         if(v === "combustible") document.getElementById("row-vehiculo").style.display = 'block';
@@ -280,18 +243,23 @@ function initFormMovimiento() {
 
     document.getElementById("form-movimiento").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const btn = document.getElementById("btn-registrar-mov");
         
-        // Obtener valor limpio (sin puntos)
+        // 1. Validar Motivo Obligatorio
+        if (!tipoRapido.value) {
+            showToast("Debes seleccionar un Concepto/Motivo", "alerta");
+            tipoRapido.focus();
+            return;
+        }
+
+        const btn = document.getElementById("btn-registrar-mov");
         const importeVal = getCleanNumber("importe");
         
-        if(importeVal <= 0) { showToast("Ingrese un importe", "error"); return; }
+        if(importeVal <= 0) { showToast("Ingrese un importe válido", "error"); return; }
 
         btn.disabled = true;
         btn.innerHTML = '<span class="material-icons-round spin">sync</span> Guardando...';
 
         const tipoRapidoText = tipoRapido.options[tipoRapido.selectedIndex].text;
-        
         let obs = document.getElementById("observacion").value;
         const proveedor = document.getElementById("inputProveedor").value;
         if(!obs && tipoRapido.value === "pagoProveedor") obs = `Pago a ${proveedor}`;
@@ -300,29 +268,22 @@ function initFormMovimiento() {
             tipo: document.getElementById("tipoMovimiento").value,
             formaPago: document.getElementById("formaPago").value,
             importe: importeVal,
-            categoria: tipoRapido.value ? tipoRapidoText : "Manual",
-            repartidor: "", 
-            turno: "",
-            usuario: USUARIO_APP,
-            observacion: obs
+            categoria: tipoRapidoText,
+            repartidor: "", turno: "", usuario: USUARIO_APP, observacion: obs
         };
 
         const res = await api("registrarMovimientoCaja", params);
-        
         if (res && res.ok) {
             showToast("¡Movimiento registrado!", "ok");
             document.getElementById("form-movimiento").reset();
             document.querySelectorAll(".hidden-row").forEach(el => el.style.display = 'none');
-            // Resetear input visual y su data
+            // Reset input visual
             const impInput = document.getElementById("importe");
-            impInput.value = "";
-            impInput.dataset.realValue = "";
-            
+            impInput.value = ""; impInput.dataset.realValue = "";
             refreshData(); 
         } else {
             showToast("Error al registrar", "error");
         }
-        
         btn.disabled = false;
         btn.innerHTML = '<span class="material-icons-round">save</span> REGISTRAR';
     });
@@ -333,28 +294,19 @@ function initFormMovimiento() {
 // ===============================
 async function buscarRendicionInteligente() {
     updateText("rendicion-repartidor", "Buscando...");
-    
-    // 1. AYER TARDE
-    const ayer = new Date();
-    ayer.setDate(ayer.getDate() - 1);
+    const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
     const offset = ayer.getTimezoneOffset() * 60000;
     const fechaAyerStr = new Date(ayer.getTime() - offset).toISOString().split('T')[0];
     
-    // FIX: Usamos getFechaSegura para enviar hora fija
     let res = await api("getDatosRendicionEsperada", {
         fechaStr: getFechaSegura(fechaAyerStr),
-        turno: "Tarde",
-        repartidor: "Nico"
+        turno: "Tarde", repartidor: "Nico"
     });
 
-    // 2. HOY MAÑANA
     if (!res || !res.ok || res.efectivoEsperado === 0) {
-        const hoyStr = getHoyLocal();
-        
         res = await api("getDatosRendicionEsperada", {
-            fechaStr: getFechaSegura(hoyStr),
-            turno: "Mañana",
-            repartidor: "Nico"
+            fechaStr: getFechaSegura(getHoyLocal()),
+            turno: "Mañana", repartidor: "Nico"
         });
     }
 
@@ -368,7 +320,6 @@ async function buscarRendicionInteligente() {
         updateText("rendicion-esperado", formatoMoneda(res.efectivoEsperado));
         updateText("rendicion-repartidor", res.repartidor);
         updateText("rendicion-turno", res.turno);
-        
         const partes = res.fecha.split("-");
         if(partes.length === 3) updateText("rendicion-fecha", `${partes[2]}/${partes[1]}`);
         
@@ -382,18 +333,13 @@ async function buscarRendicionInteligente() {
 function initRendicionLogic() {
     document.getElementById("btn-procesar-rendicion").addEventListener("click", async () => {
         const contado = parseFloat(document.getElementById("rendicion-contado").dataset.numeric) || 0;
-        
-        if (contado === 0) {
-            showToast("Contá los billetes primero", "alerta");
-            return;
-        }
+        if (contado === 0) { showToast("Contá los billetes primero", "alerta"); return; }
 
         const btn = document.getElementById("btn-procesar-rendicion");
         btn.disabled = true;
         btn.innerHTML = '<span class="material-icons-round spin">sync</span> PROCESANDO...';
 
         const params = {
-            // Enviamos fecha segura también aquí
             fechaStr: getFechaSegura(estado.rendicion.fecha || getHoyLocal()),
             turno: estado.rendicion.turno || "Mañana",
             repartidor: estado.rendicion.repartidor || "Manual",
@@ -403,7 +349,6 @@ function initRendicionLogic() {
         };
 
         const res = await api("procesarRendicionDesdeRecibo", params);
-        
         if (res && res.ok) {
             const diff = res.diferencia;
             let msg = "", color = "";
@@ -424,12 +369,88 @@ function initRendicionLogic() {
 }
 
 // ===============================
-// CONTADOR DE BILLETES
+// LÓGICA DE ARQUEO BLINDADO
+// ===============================
+function initArqueoLogic() {
+    setupCurrencyInput("arqueo-fisico");
+    
+    // 1. Click en Botón -> Abre Modal
+    document.getElementById("btn-pre-arqueo").addEventListener("click", () => {
+        const val = getCleanNumber("arqueo-fisico");
+        if (val <= 0) { showToast("Ingresa el efectivo físico contado", "alerta"); return; }
+        
+        // Abrir Modal
+        const modal = document.getElementById("modal-confirm");
+        modal.classList.add("show");
+        modal.style.display = "flex";
+    });
+
+    // 2. Click en Confirmar (Dentro del modal)
+    document.getElementById("btn-confirm-arqueo-action").addEventListener("click", async () => {
+        closeModal(); // Cerrar modal
+        
+        const fisicoVal = getCleanNumber("arqueo-fisico");
+        const btn = document.getElementById("btn-pre-arqueo");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons-round spin">sync</span> CERRANDO CAJA...';
+
+        // A) Registrar Arqueo (Log y Auditoría)
+        const resArqueo = await api("registrarArqueo", { usuario: USUARIO_APP, efectivoFisico: fisicoVal });
+        
+        if (resArqueo && resArqueo.resultado) {
+            // B) Ajuste Automático de Saldo
+            const diferencia = resArqueo.diferencia; // El backend calcula: fisico - sistema
+            
+            if (diferencia !== 0) {
+                // Si hay diferencia, registramos movimiento para ajustar
+                const tipoAjuste = diferencia > 0 ? "Ingreso" : "Egreso";
+                const importeAjuste = Math.abs(diferencia);
+                
+                await api("registrarMovimientoCaja", {
+                    tipo: tipoAjuste,
+                    formaPago: "Efectivo",
+                    importe: importeAjuste,
+                    categoria: "Ajuste Post-Arqueo",
+                    repartidor: "", turno: "", usuario: USUARIO_APP,
+                    observacion: `Ajuste automático por cierre de caja (${formatoMoneda(diferencia)})`
+                });
+            }
+
+            // C) UI: Éxito y Bloqueo
+            showToast("Arqueo Finalizado Correctamente", "ok");
+            
+            // Ocultar formulario, mostrar resultado final
+            document.getElementById("card-arqueo-content").style.display = "none";
+            const msgBox = document.getElementById("arqueo-final-msg");
+            msgBox.style.display = "block";
+            
+            document.getElementById("final-cash-display").textContent = formatoMoneda(fisicoVal);
+
+            // D) Limpieza General
+            window.resetBillCounter(); // Borrar contador de billetes
+            refreshEstadoCaja();       // Actualizar saldo (ahora coincidirá con el físico)
+            
+        } else {
+            showToast("Error al registrar arqueo", "error");
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-icons-round">verified</span> CONFIRMAR ARQUEO';
+        }
+    });
+}
+
+// Cerrar modal global
+window.closeModal = function() {
+    const modal = document.getElementById("modal-confirm");
+    modal.classList.remove("show");
+    modal.style.display = "none";
+}
+
+// ===============================
+// CONTADOR BILLETES
 // ===============================
 function createBillCounterHero() {
   const container = document.getElementById("bill-counter-container");
   container.innerHTML = "";
-
   BILLETES.forEach((denom) => {
     const box = document.createElement("div");
     box.className = "bill-box";
@@ -438,23 +459,10 @@ function createBillCounterHero() {
       <input type="tel" class="bill-input-qty" data-denom="${denom}" value="0" placeholder="0" autocomplete="off">
       <span class="bill-subtotal" id="sub-${denom}"></span>
     `;
-    
     const input = box.querySelector("input");
-    
-    input.addEventListener("focus", function() {
-        if(this.value === "0") this.value = "";
-    });
-    
-    input.addEventListener("blur", function() {
-        if(this.value === "") this.value = "0";
-        calculateBillTotal();
-    });
-
-    input.addEventListener("input", (e) => {
-        e.target.value = e.target.value.replace(/[^0-9]/g, '');
-        calculateBillTotal();
-    });
-
+    input.addEventListener("focus", function() { if(this.value==="0") this.value=""; });
+    input.addEventListener("blur", function() { if(this.value==="") this.value="0"; calculateBillTotal(); });
+    input.addEventListener("input", (e) => { e.target.value = e.target.value.replace(/[^0-9]/g, ''); calculateBillTotal(); });
     container.appendChild(box);
   });
 }
@@ -462,16 +470,12 @@ function createBillCounterHero() {
 function calculateBillTotal() {
     let total = 0;
     document.querySelectorAll(".bill-input-qty").forEach(inp => {
-        let val = parseInt(inp.value);
-        if(isNaN(val)) val = 0;
-        
+        let val = parseInt(inp.value)||0;
         const denom = parseInt(inp.dataset.denom);
         const sub = val * denom;
         total += sub;
-        
         const subEl = document.getElementById(`sub-${denom}`);
         const box = inp.closest('.bill-box');
-
         if(sub > 0) {
             subEl.innerText = `$ ${sub.toLocaleString()}`;
             subEl.style.color = "var(--primary)";
@@ -487,7 +491,6 @@ function calculateBillTotal() {
             inp.style.fontWeight = "normal";
         }
     });
-
     const display = document.getElementById("rendicion-contado");
     display.value = formatoMoneda(total);
     display.dataset.numeric = total;
@@ -500,83 +503,28 @@ window.resetBillCounter = function() {
 }
 
 // ===============================
-// ARQUEO
-// ===============================
-function initArqueo() {
-    // Activar máscara de dinero
-    setupCurrencyInput("arqueo-fisico");
-
-    document.getElementById("btn-registrar-arqueo").addEventListener("click", async () => {
-        const val = getCleanNumber("arqueo-fisico");
-        
-        if(val <= 0) { showToast("Ingrese el monto físico", "error"); return; }
-        
-        const btn = document.getElementById("btn-registrar-arqueo");
-        btn.disabled = true;
-        btn.innerHTML = '<span class="material-icons-round spin">sync</span> Guardando...';
-
-        const res = await api("registrarArqueo", { usuario: USUARIO_APP, efectivoFisico: val });
-        
-        if(res && res.resultado) {
-            const color = res.resultado === "OK" ? "var(--success)" : "var(--danger)";
-            const icon = res.resultado === "OK" ? "check_circle" : "warning";
-            
-            document.getElementById("resultado-arqueo").innerHTML = `
-                <div style="display:flex;align-items:center;justify-content:center;gap:10px;color:${color};font-size:1.2rem;font-weight:700;">
-                    <span class="material-icons-round">${icon}</span>
-                    <span>${res.resultado}</span>
-                </div>
-                <div style="color:${color};margin-top:5px;">Dif: ${formatoMoneda(res.diferencia)}</div>
-            `;
-            showToast("Arqueo guardado", "ok");
-            refreshEstadoCaja();
-        } else {
-            showToast("Error al registrar arqueo", "error");
-        }
-        btn.disabled = false;
-        btn.innerHTML = '<span class="material-icons-round">verified</span> CONFIRMAR ARQUEO';
-    });
-}
-
-// ===============================
-// AUTOCOMPLETE SIMPLE
+// UTILS
 // ===============================
 function initSelectsAuxiliares() {
-    const fill = (id, arr) => {
-        const s = document.getElementById(id);
-        arr.forEach(x => s.add(new Option(x, x)));
-    };
-    fill("selectVehiculo", VEHICULOS);
-    fill("selectEmpleado", EMPLEADOS);
+    const fill = (id, arr) => { const s = document.getElementById(id); arr.forEach(x => s.add(new Option(x, x))); };
+    fill("selectVehiculo", VEHICULOS); fill("selectEmpleado", EMPLEADOS);
 }
 
 function initProveedoresAutocomplete() {
     const inp = document.getElementById("inputProveedor");
     const box = document.getElementById("proveedor-suggestions");
-    
     inp.addEventListener("input", function() {
-        const val = this.value.toLowerCase();
-        box.innerHTML = "";
-        
+        const val = this.value.toLowerCase(); box.innerHTML = "";
         if(val.length < 2) { box.style.display = 'none'; return; }
-        
         const matches = PROVEEDORES.filter(p => p.toLowerCase().includes(val));
-        
         if(matches.length > 0) {
             box.style.display = 'block';
             matches.forEach(p => {
-                const div = document.createElement("div");
-                div.className = "suggestion-item";
-                div.innerText = p;
-                div.onclick = () => { inp.value = p; box.style.display = 'none'; };
+                const div = document.createElement("div"); div.className = "suggestion-item";
+                div.innerText = p; div.onclick = () => { inp.value = p; box.style.display = 'none'; };
                 box.appendChild(div);
             });
-        } else {
-            box.style.display = 'none';
-        }
+        } else { box.style.display = 'none'; }
     });
-    
-    document.addEventListener("click", (e) => {
-        if(e.target !== inp && e.target.parentNode !== box) box.style.display = 'none';
-    });
+    document.addEventListener("click", (e) => { if(e.target !== inp && e.target.parentNode !== box) box.style.display = 'none'; });
 }
