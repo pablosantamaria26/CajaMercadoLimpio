@@ -19,9 +19,10 @@ const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
 const EMPLEADOS = ["Nicolás", "Laura", "Nancy", "Martín", "Lucas"];
 const BILLETES = [20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10]; 
 
-// Helper para obtener fecha actual YYYY-MM-DD en zona local (evita errores de UTC)
+// Helper para obtener fecha actual YYYY-MM-DD local
 const getHoyLocal = () => {
     const d = new Date();
+    // Ajuste simple para obtener la fecha local en formato ISO
     const offset = d.getTimezoneOffset() * 60000;
     return new Date(d.getTime() - offset).toISOString().split('T')[0];
 };
@@ -40,7 +41,6 @@ async function api(fn, params = {}) {
   try {
     const res = await fetch(API_URL, {
       method: "POST",
-      // Header específico para que tu Worker procese sin preflight CORS complejo
       headers: { "Content-Type": "text/plain;charset=utf-8" }, 
       body: JSON.stringify({ fn, params })
     });
@@ -53,13 +53,57 @@ async function api(fn, params = {}) {
 }
 
 // ===============================
-// HELPERS VISUALES
+// HELPERS VISUALES Y FORMATO
 // ===============================
+
+// Formato moneda para etiquetas ($ 10.000,00)
 function formatoMoneda(num) {
   return "$ " + Number(num || 0).toLocaleString("es-AR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
+}
+
+// Configura un input para que se vea como moneda (10.000) mientras escribes
+function setupCurrencyInput(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    input.addEventListener('input', function(e) {
+        // Eliminar todo lo que no sea número
+        let val = this.value.replace(/\D/g, '');
+        
+        if (val === "") {
+            this.dataset.realValue = ""; // Guardar valor limpio
+            return;
+        }
+
+        // Guardar el valor numérico puro para usar en cálculos
+        this.dataset.realValue = val;
+
+        // Formatear visualmente con puntos (1.000.000)
+        let formatted = new Intl.NumberFormat('es-AR').format(parseInt(val));
+        this.value = formatted;
+    });
+}
+
+// Helper para obtener el valor numérico real de un input formateado
+function getCleanNumber(inputId) {
+    const input = document.getElementById(inputId);
+    // Intentar leer del dataset (donde guardamos el valor sin puntos)
+    if (input.dataset.realValue && input.dataset.realValue !== "") {
+        return parseFloat(input.dataset.realValue);
+    }
+    // Si no, limpiar el value visible
+    const val = input.value.replace(/\./g, '').replace(',', '.');
+    return parseFloat(val) || 0;
+}
+
+// Helper: Convierte fecha YYYY-MM-DD a formato seguro para el backend (Mediodía)
+// Esto evita que por diferencias horarias Google busque en el día anterior.
+function getFechaSegura(fechaYMD) {
+    if(!fechaYMD) return "";
+    return fechaYMD + "T12:00:00"; 
 }
 
 function showToast(msg, type = "info") {
@@ -92,10 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Configuración del input de fecha para movimientos
   const inputFechaMov = document.getElementById("movimientos-fecha");
   if (inputFechaMov) {
-    // 1. Poner la fecha de hoy al iniciar
     inputFechaMov.value = estado.fechaMovimientos;
-    
-    // 2. Escuchar cambios (para ver días anteriores)
     inputFechaMov.addEventListener("change", (e) => {
       if(e.target.value) {
           estado.fechaMovimientos = e.target.value;
@@ -104,10 +145,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Carga inicial de datos
+  // Carga inicial
   refreshData();
   
-  // Polling automático cada minuto
+  // Polling automático
   setInterval(refreshData, RENDICION_POLL_INTERVAL_MS);
 });
 
@@ -121,12 +162,10 @@ function initClock() {
     setInterval(update, 30000);
 }
 
-// Función principal de recarga
 function refreshData() {
   refreshEstadoCaja();
   cargarMovimientos();
   
-  // Solo buscar rendición automática si no hay una cargada en pantalla
   if (!estado.rendicionEncontrada || estado.rendicion.esperado === 0) {
       buscarRendicionInteligente();
   }
@@ -151,7 +190,6 @@ function initNavigation() {
           else v.classList.remove("active");
       });
 
-      // Cambio de tema
       const theme = btn.dataset.theme;
       body.className = theme; 
       
@@ -175,19 +213,18 @@ async function refreshEstadoCaja() {
 }
 
 // ===============================
-// MOVIMIENTOS (SOLUCIONADO)
+// MOVIMIENTOS
 // ===============================
 async function cargarMovimientos() {
   const list = document.getElementById("movimientos-list");
   if (!list) return;
 
-  // Usar la fecha del input o la del estado
   const fecha = document.getElementById("movimientos-fecha").value || estado.fechaMovimientos;
   
   list.innerHTML = '<div style="text-align:center;padding:20px;color:#999"><span class="material-icons-round spin">autorenew</span></div>';
 
-  // Llamada a la API con el parámetro fechaStr
-  const res = await api("getMovimientos", { fechaStr: fecha });
+  // FIX: Mandamos la fecha con hora segura para evitar problemas de zona horaria
+  const res = await api("getMovimientos", { fechaStr: getFechaSegura(fecha) });
 
   if (!Array.isArray(res) || res.length === 0) {
     list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:0.9rem;">Sin movimientos para esta fecha</div>';
@@ -208,7 +245,6 @@ async function cargarMovimientos() {
     else if(cat.includes("sueldo") || cat.includes("adelanto")) icon = "person";
     else if(cat.includes("retiro") || cat.includes("libre")) icon = "logout";
 
-    // Estructura HTML coincidente con styles-laura.css
     div.innerHTML = `
       <div class="mov-left-group">
         <div class="mov-icon-box">
@@ -230,6 +266,9 @@ async function cargarMovimientos() {
 function initFormMovimiento() {
     const tipoRapido = document.getElementById("tipoRapido");
     
+    // Activar máscara de dinero en el input importe
+    setupCurrencyInput("importe");
+
     tipoRapido.addEventListener("change", () => {
         document.querySelectorAll(".hidden-row").forEach(el => el.style.display = 'none');
         
@@ -242,14 +281,15 @@ function initFormMovimiento() {
     document.getElementById("form-movimiento").addEventListener("submit", async (e) => {
         e.preventDefault();
         const btn = document.getElementById("btn-registrar-mov");
-        const importeInput = document.getElementById("importe");
         
-        if(!importeInput.value) { showToast("Ingrese un importe", "error"); return; }
+        // Obtener valor limpio (sin puntos)
+        const importeVal = getCleanNumber("importe");
+        
+        if(importeVal <= 0) { showToast("Ingrese un importe", "error"); return; }
 
         btn.disabled = true;
         btn.innerHTML = '<span class="material-icons-round spin">sync</span> Guardando...';
 
-        const importeRaw = importeInput.value.replace(/[^0-9,.]/g, "").replace(",", ".");
         const tipoRapidoText = tipoRapido.options[tipoRapido.selectedIndex].text;
         
         let obs = document.getElementById("observacion").value;
@@ -259,7 +299,7 @@ function initFormMovimiento() {
         const params = {
             tipo: document.getElementById("tipoMovimiento").value,
             formaPago: document.getElementById("formaPago").value,
-            importe: parseFloat(importeRaw),
+            importe: importeVal,
             categoria: tipoRapido.value ? tipoRapidoText : "Manual",
             repartidor: "", 
             turno: "",
@@ -273,8 +313,12 @@ function initFormMovimiento() {
             showToast("¡Movimiento registrado!", "ok");
             document.getElementById("form-movimiento").reset();
             document.querySelectorAll(".hidden-row").forEach(el => el.style.display = 'none');
-            document.getElementById("importe").value = "";
-            refreshData(); // Actualizar lista inmediatamente
+            // Resetear input visual y su data
+            const impInput = document.getElementById("importe");
+            impInput.value = "";
+            impInput.dataset.realValue = "";
+            
+            refreshData(); 
         } else {
             showToast("Error al registrar", "error");
         }
@@ -290,25 +334,25 @@ function initFormMovimiento() {
 async function buscarRendicionInteligente() {
     updateText("rendicion-repartidor", "Buscando...");
     
-    // 1. Intentar buscar AYER a la TARDE
+    // 1. AYER TARDE
     const ayer = new Date();
     ayer.setDate(ayer.getDate() - 1);
     const offset = ayer.getTimezoneOffset() * 60000;
-    const fechaAyer = new Date(ayer.getTime() - offset).toISOString().split('T')[0];
+    const fechaAyerStr = new Date(ayer.getTime() - offset).toISOString().split('T')[0];
     
+    // FIX: Usamos getFechaSegura para enviar hora fija
     let res = await api("getDatosRendicionEsperada", {
-        fechaStr: fechaAyer,
+        fechaStr: getFechaSegura(fechaAyerStr),
         turno: "Tarde",
         repartidor: "Nico"
     });
 
-    // 2. Si falla, buscar HOY a la MAÑANA
+    // 2. HOY MAÑANA
     if (!res || !res.ok || res.efectivoEsperado === 0) {
-        const hoy = new Date();
-        const fechaHoy = new Date(hoy.getTime() - offset).toISOString().split('T')[0];
+        const hoyStr = getHoyLocal();
         
         res = await api("getDatosRendicionEsperada", {
-            fechaStr: fechaHoy,
+            fechaStr: getFechaSegura(hoyStr),
             turno: "Mañana",
             repartidor: "Nico"
         });
@@ -349,7 +393,8 @@ function initRendicionLogic() {
         btn.innerHTML = '<span class="material-icons-round spin">sync</span> PROCESANDO...';
 
         const params = {
-            fechaStr: estado.rendicion.fecha || getHoyLocal(),
+            // Enviamos fecha segura también aquí
+            fechaStr: getFechaSegura(estado.rendicion.fecha || getHoyLocal()),
             turno: estado.rendicion.turno || "Mañana",
             repartidor: estado.rendicion.repartidor || "Manual",
             efectivoContado: contado,
@@ -361,8 +406,7 @@ function initRendicionLogic() {
         
         if (res && res.ok) {
             const diff = res.diferencia;
-            let msg = "";
-            let color = "";
+            let msg = "", color = "";
             if(diff === 0) { msg = "EXACTO ✅"; color = "var(--success)"; }
             else if(diff > 0) { msg = `SOBRAN ${formatoMoneda(diff)}`; color = "var(--success)"; }
             else { msg = `FALTAN ${formatoMoneda(diff)}`; color = "var(--danger)"; }
@@ -380,7 +424,7 @@ function initRendicionLogic() {
 }
 
 // ===============================
-// CONTADOR DE BILLETES (UX MEJORADA)
+// CONTADOR DE BILLETES
 // ===============================
 function createBillCounterHero() {
   const container = document.getElementById("bill-counter-container");
@@ -397,19 +441,16 @@ function createBillCounterHero() {
     
     const input = box.querySelector("input");
     
-    // UX: Borrar "0" al tocar
     input.addEventListener("focus", function() {
         if(this.value === "0") this.value = "";
     });
     
-    // UX: Restaurar "0" si vacío
     input.addEventListener("blur", function() {
         if(this.value === "") this.value = "0";
         calculateBillTotal();
     });
 
     input.addEventListener("input", (e) => {
-        // Permitir solo números
         e.target.value = e.target.value.replace(/[^0-9]/g, '');
         calculateBillTotal();
     });
@@ -462,11 +503,13 @@ window.resetBillCounter = function() {
 // ARQUEO
 // ===============================
 function initArqueo() {
+    // Activar máscara de dinero
+    setupCurrencyInput("arqueo-fisico");
+
     document.getElementById("btn-registrar-arqueo").addEventListener("click", async () => {
-        const inp = document.getElementById("arqueo-fisico");
-        const val = parseFloat(inp.value.replace(/[^0-9.]/g, "")) || 0;
+        const val = getCleanNumber("arqueo-fisico");
         
-        if(val <= 0 && inp.value !== "0") { showToast("Ingrese el monto físico", "error"); return; }
+        if(val <= 0) { showToast("Ingrese el monto físico", "error"); return; }
         
         const btn = document.getElementById("btn-registrar-arqueo");
         btn.disabled = true;
