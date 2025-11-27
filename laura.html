@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Caja - Laura</title>
+    <title>Caja Mercado Limpio</title>
     
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
         /* =========================================
-           CSS COMPACTO & RESPONSIVE (AUTO-AJUSTE)
+           ESTILOS PREMIUM & ANIMADOS
            ========================================= */
         :root {
             --primary: #1565C0;
             --success: #2E7D32;
             --danger: #c62828;
-            --warning: #F9A825;
+            --warning: #FF8F00;
             --dark: #121212;
             --light: #f5f5f5;
-            --header-h: 60px; /* Header más compacto */
-            --nav-h: 65px;    /* Nav más compacta */
+            --header-h: 60px;
+            --nav-h: 70px;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -29,175 +29,202 @@
             margin: 0; padding: 0;
             font-family: 'Poppins', sans-serif;
             background-color: #ECEFF1;
-            height: 100vh; /* Altura fija pantalla */
-            overflow: hidden; /* Sin scroll en el body */
+            height: 100vh;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
 
-        /* HEADER FIJO */
+        /* HEADER */
         .app-header {
-            background: var(--primary); color: white;
-            padding: 10px 15px;
+            background: linear-gradient(135deg, var(--primary) 0%, #0D47A1 100%);
+            color: white; padding: 0 15px;
             display: flex; justify-content: space-between; align-items: center;
             height: var(--header-h); flex-shrink: 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100;
         }
-        .app-title { font-size: 1.1rem; margin: 0; font-weight: 700; }
-        .header-info { text-align: right; font-size: 0.75rem; opacity: 0.9; }
-        #saldo-total { font-weight: 700; font-size: 1rem; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 12px; }
+        .app-title { font-size: 1.1rem; margin: 0; font-weight: 700; letter-spacing: 0.5px; }
+        .header-info { text-align: right; }
+        #header-time { font-size: 0.75rem; opacity: 0.9; }
+        #saldo-total { 
+            font-weight: 800; font-size: 1rem; 
+            background: rgba(255,255,255,0.2); 
+            padding: 4px 10px; border-radius: 20px;
+            margin-top: 2px; display: inline-block;
+        }
 
-        /* CONTENEDOR PRINCIPAL (Se estira) */
+        /* MAIN CONTAINER */
         #main-container {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
+            flex: 1; position: relative; overflow: hidden;
             display: flex; flex-direction: column;
         }
 
-        /* SECCIONES (Ocupan todo el main) */
         .view-section {
             display: none; height: 100%; width: 100%;
             flex-direction: column; padding: 10px;
+            animation: fadeIn 0.3s ease-in-out;
         }
         .view-section.active { display: flex; }
 
-        /* TARJETAS */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CARDS */
         .card {
-            background: white; border-radius: 12px;
-            padding: 12px; margin-bottom: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            background: white; border-radius: 16px;
+            padding: 15px; margin-bottom: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
         }
 
-        /* --- VISTA MOVIMIENTOS --- */
-        #view-movimientos .form-card { flex-shrink: 0; } /* Form fijo arriba */
-        
-        /* Inputs compactos */
-        .input-group { display: flex; gap: 8px; margin-bottom: 8px; }
+        /* INPUTS & FORM */
+        .input-group { display: flex; gap: 10px; margin-bottom: 10px; }
         .anim-input {
-            width: 100%; padding: 10px; border: 1px solid #ddd;
-            border-radius: 8px; font-size: 0.9rem; outline: none;
+            width: 100%; padding: 12px; border: 2px solid #eee;
+            border-radius: 12px; font-size: 0.95rem; outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            font-family: 'Poppins', sans-serif;
         }
-        .huge-input { font-size: 1.3rem; font-weight: 700; text-align: center; color: var(--primary); }
+        .anim-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1); }
+        
+        .huge-input { font-size: 1.5rem; font-weight: 800; text-align: center; color: var(--primary); letter-spacing: 1px; }
+
+        /* BOTONES */
         .btn-action {
-            width: 100%; padding: 12px; border: none; border-radius: 8px;
+            width: 100%; padding: 14px; border: none; border-radius: 12px;
             background: var(--primary); color: white; font-weight: 700;
-            font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+            font-size: 1rem; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
         }
-
-        #view-movimientos .list-card {
-            flex: 1; /* Ocupa el resto */
-            display: flex; flex-direction: column; overflow: hidden;
-            margin-bottom: 0; padding-bottom: 0;
-        }
-        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .btn-action:active { transform: translateY(4px); box-shadow: none; }
+        
+        /* LISTA MOVIMIENTOS */
+        #view-movimientos .list-card { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
         .scroll-list { flex: 1; overflow-y: auto; padding-right: 5px; }
+        .mov-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+        .mov-icon { 
+            background: #E3F2FD; color: var(--primary); padding: 8px; 
+            border-radius: 50%; margin-right: 12px; font-size: 20px;
+        }
+        .mov-desc { font-weight: 600; color: #333; }
+        .mov-sub { font-size: 0.75rem; color: #888; margin-top: 2px; }
+
+        /* RENDICIÓN ESTILO HUMANO */
+        .human-msg-box {
+            background: #E8EAF6; border-radius: 12px; padding: 15px;
+            text-align: center; margin-bottom: 10px; border: 1px solid #C5CAE9;
+        }
+        .human-highlight { color: var(--primary); font-weight: 800; display: block; margin-top: 5px; font-size: 1.1rem; }
         
-        .mov-item {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem;
-        }
-        .mov-left { display: flex; gap: 10px; align-items: center; }
-        .mov-icon { color: #999; font-size: 20px; }
-        .mov-desc { font-weight: 600; display: block; }
-        .mov-sub { font-size: 0.75rem; color: #777; }
-        .text-success { color: var(--success); font-weight: 700; }
-        .text-danger { color: var(--danger); font-weight: 700; }
-
-        /* --- VISTA RENDICIÓN (REDSEÑADA) --- */
-        .rendicion-dashboard {
-            flex-shrink: 0;
-            background: white; border-radius: 12px; padding: 10px;
-            margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        
-        .dash-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .dash-label { font-size: 0.8rem; color: #666; }
-        .dash-value { font-weight: 700; font-size: 1.1rem; }
-
-        /* BARRA NEGRA (TOTAL FÍSICO) */
-        .black-bar {
-            background: #212121; color: white;
-            padding: 10px 15px; border-radius: 8px;
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 5px;
-        }
-        .black-bar label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-        .black-bar .total-display { font-size: 1.5rem; font-weight: 700; color: #4CAF50; }
-
-        /* BARRA DIFERENCIA EN VIVO */
-        .diff-bar {
-            text-align: center; padding: 8px; border-radius: 6px;
-            font-weight: 700; font-size: 0.95rem; transition: all 0.3s;
-        }
-        .diff-bar.exacto { background: #E8F5E9; color: #2E7D32; border: 1px solid #2E7D32; animation: pulseGreen 2s infinite; }
-        .diff-bar.falta { background: #FFEBEE; color: #C62828; border: 1px solid #C62828; }
-        .diff-bar.sobra { background: #E3F2FD; color: #1565C0; border: 1px solid #1565C0; }
-
-        /* GRID DE BILLETES (SCROLLABLE) */
-        .bill-scroll-area {
-            flex: 1; overflow-y: auto;
-            background: white; border-radius: 12px; padding: 10px;
-        }
-        .grid-billetes {
-            display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; /* 2 columnas para ser compacto */
-        }
+        /* CONTADOR BILLETES */
+        .bill-scroll-area { flex: 1; overflow-y: auto; background: white; border-radius: 16px; padding: 10px; display: flex; flex-direction: column; }
+        .grid-billetes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .bill-box {
-            border: 1px solid #eee; border-radius: 8px; padding: 5px 8px;
-            display: flex; flex-direction: column; align-items: center;
-            background: #fafafa;
+            background: #fafafa; border: 1px solid #eee; border-radius: 12px;
+            padding: 8px; display: flex; flex-direction: column; align-items: center;
+            transition: all 0.2s;
         }
-        .bill-denom { font-size: 0.8rem; color: #555; font-weight: 600; margin-bottom: 2px; }
-        .bill-input-qty {
-            width: 100%; text-align: center; border: 1px solid #ddd;
-            border-radius: 6px; padding: 5px; font-size: 1.1rem; font-weight: bold;
-        }
-        .bill-subtotal { font-size: 0.7rem; color: var(--primary); min-height: 14px; margin-top: 2px;}
+        .bill-box.active { background: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(21,101,192,0.15); transform: translateY(-2px); }
+        .bill-denom { font-weight: 700; color: #555; font-size: 0.85rem; }
+        .bill-input-qty { width: 100%; text-align: center; border: none; background: transparent; font-size: 1.3rem; font-weight: 800; color: #333; outline: none; }
 
-        /* --- VISTA ARQUEO --- */
-        #view-arqueo { justify-content: center; }
-        .audit-header { text-align: center; margin-bottom: 20px; }
-        .audit-system-box { text-align: center; background: #E0F7FA; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        /* BOTÓN BORRAR TODO DIVERTIDO */
+        .btn-trash-circle {
+            width: 50px; height: 50px; border-radius: 50%;
+            background: #FFEBEE; color: var(--danger); border: none;
+            display: flex; align-items: center; justify-content: center;
+            margin: 10px auto 0; cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+        .btn-trash-circle:active { transform: scale(0.9); background: var(--danger); color: white; }
+        .btn-trash-circle span { font-size: 24px; }
+
+        /* BARRAS DE ESTADO */
+        .diff-bar {
+            text-align: center; padding: 10px; border-radius: 10px;
+            font-weight: 700; margin-top: 5px; font-size: 0.9rem;
+            animation: popIn 0.3s;
+        }
+        .diff-bar.exacto { background: #E8F5E9; color: var(--success); border: 2px solid var(--success); }
+        .diff-bar.falta { background: #FFEBEE; color: var(--danger); border: 2px solid var(--danger); }
+        .diff-bar.sobra { background: #E3F2FD; color: var(--primary); border: 2px solid var(--primary); }
+
+        /* MODAL PERSONALIZADO */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 2000;
+            display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        .modal-box {
+            background: white; width: 85%; max-width: 320px;
+            padding: 25px; border-radius: 25px; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes modalPop { from { transform: scale(0.7) translateY(50px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
         
-        /* NAVBAR */
+        .modal-icon-top { font-size: 50px; margin-bottom: 10px; display: block; }
+        .modal-title { font-size: 1.2rem; font-weight: 800; margin-bottom: 10px; color: #333; }
+        .modal-text { font-size: 0.95rem; color: #666; margin-bottom: 20px; line-height: 1.5; }
+        
+        .modal-btns { display: flex; gap: 10px; }
+        .btn-modal { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; }
+        .btn-cancel { background: #f0f2f5; color: #555; }
+        .btn-confirm { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(21,101,192,0.3); }
+
+        /* NAVBAR ANIMADO */
         .bottom-nav {
-            height: var(--nav-h); background: white; border-top: 1px solid #ddd;
+            height: var(--nav-h); background: white;
             display: flex; justify-content: space-around; align-items: center;
-            flex-shrink: 0; padding-bottom: 5px; z-index: 100;
+            border-radius: 20px 20px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+            z-index: 100;
         }
         .nav-btn {
-            background: none; border: none; color: #888;
+            background: none; border: none; color: #90A4AE;
             display: flex; flex-direction: column; align-items: center;
-            font-size: 0.7rem; width: 100%; padding: 5px 0;
+            width: 100%; padding: 10px 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .nav-btn span { font-size: 24px; margin-bottom: 2px; }
-        .nav-btn.active { color: var(--primary); font-weight: 700; }
+        .nav-btn span { font-size: 26px; margin-bottom: 4px; transition: transform 0.2s; }
+        .nav-btn .nav-label { font-size: 0.75rem; font-weight: 600; }
+        
+        /* Estados Activos Nav */
+        .nav-btn.active span { transform: translateY(-5px); }
+        .nav-btn.active[data-theme="blue"] { color: var(--primary); }
+        .nav-btn.active[data-theme="green"] { color: var(--success); }
+        .nav-btn.active[data-theme="orange"] { color: var(--warning); }
 
-        /* EXTRAS */
+        /* TOAST */
+        .toast-container {
+            position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+            z-index: 3000; pointer-events: none; width: 90%; max-width: 400px;
+            display: flex; flex-direction: column; gap: 10px; align-items: center;
+        }
         .toast-msg {
-            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.85); color: white; padding: 10px 20px;
-            border-radius: 25px; font-size: 0.9rem; opacity: 0; pointer-events: none;
-            transition: opacity 0.3s; z-index: 2000;
+            background: #212121; color: white; padding: 12px 20px;
+            border-radius: 50px; font-size: 0.9rem; font-weight: 500;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            opacity: 0; transform: translateY(20px); transition: all 0.3s;
+            display: flex; align-items: center; gap: 10px;
         }
-        .toast-msg.show { opacity: 1; }
+        .toast-msg.show { opacity: 1; transform: translateY(0); }
 
-        .hidden-row { display: none; margin-top: 8px; }
-
-        @keyframes pulseGreen { 0% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(46, 125, 50, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); } }
-
-        /* AJUSTE PARA PANTALLAS CHICAS */
+        .hidden-row { display: none; }
+        
+        /* Ajuste pantalla chica */
         @media (max-height: 700px) {
-            .grid-billetes { grid-template-columns: repeat(3, 1fr); } /* 3 col en pantallas bajas para ver más */
-            .bill-input-qty { font-size: 1rem; padding: 2px; }
-            .dash-row { margin-bottom: 2px; }
+            .grid-billetes { grid-template-columns: repeat(3, 1fr); }
+            .bill-input-qty { font-size: 1.1rem; }
         }
     </style>
 </head>
 <body class="theme-blue">
 
     <header class="app-header">
-        <h1 class="app-title">Caja (Laura)</h1>
+        <h1 class="app-title">Caja Mercado Limpio</h1>
         <div class="header-info">
             <div id="header-time">00:00</div>
             <div id="saldo-total">...</div>
@@ -206,6 +233,9 @@
 
     <main id="main-container">
 
+        <!-- ======================= -->
+        <!-- VISTA MOVIMIENTOS -->
+        <!-- ======================= -->
         <section id="view-movimientos" class="view-section active">
             <div class="card form-card">
                 <form id="form-movimiento">
@@ -222,7 +252,7 @@
                     </div>
 
                     <div class="input-group">
-                        <select id="tipoRapido" class="anim-input" style="width:100%">
+                        <select id="tipoRapido" class="anim-input">
                             <option value="" disabled selected>-- Motivo (Obligatorio) --</option>
                             <option value="varios">Varios / Manual</option>
                             <option value="pagoProveedor">Pago Proveedor</option>
@@ -234,76 +264,74 @@
                         </select>
                     </div>
 
-                    <div id="row-proveedor" class="hidden-row">
-                        <input type="text" id="inputProveedor" placeholder="Buscar Proveedor..." class="anim-input" style="width:100%" autocomplete="off">
-                        <div id="proveedor-suggestions" style="position:absolute; background:white; border:1px solid #ccc; width:90%; z-index:10; display:none;"></div>
+                    <div id="row-proveedor" class="hidden-row" style="position:relative;">
+                        <input type="text" id="inputProveedor" placeholder="Buscar Proveedor..." class="anim-input" autocomplete="off">
+                        <div id="proveedor-suggestions" style="position:absolute; top:100%; left:0; width:100%; background:white; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.1); z-index:10; display:none; max-height:200px; overflow-y:auto;"></div>
                     </div>
                     <div id="row-vehiculo" class="hidden-row">
-                        <select id="selectVehiculo" class="anim-input" style="width:100%"><option value="">Vehículo...</option></select>
+                        <select id="selectVehiculo" class="anim-input"><option value="">Vehículo...</option></select>
                     </div>
                     <div id="row-empleado" class="hidden-row">
-                        <select id="selectEmpleado" class="anim-input" style="width:100%"><option value="">Empleado...</option></select>
+                        <select id="selectEmpleado" class="anim-input"><option value="">Empleado...</option></select>
                     </div>
 
-                    <div style="display:flex; gap:5px; margin-top:8px;">
+                    <div style="display:flex; gap:10px; margin-top:10px;">
                         <input type="text" inputmode="decimal" id="importe" placeholder="$ 0" class="anim-input huge-input" autocomplete="off" style="flex:1;">
-                        <button type="submit" id="btn-registrar-mov" class="btn-action" style="flex:1;">
-                            <span class="material-icons-round">save</span>
+                        <button type="submit" id="btn-registrar-mov" class="btn-action" style="flex:0 0 60px; padding:0;">
+                            <span class="material-icons-round" style="font-size:28px">send</span>
                         </button>
                     </div>
-                    <input id="observacion" placeholder="Obs..." class="anim-input" style="width:100%; margin-top:5px; font-size:0.8rem;">
+                    <input id="observacion" placeholder="Observación (Opcional)" class="anim-input" style="width:100%; margin-top:10px; font-size:0.85rem; padding:10px;">
                 </form>
             </div>
 
             <div class="card list-card">
                 <div class="list-header">
-                    <span style="font-weight:700; font-size:0.9rem; color:#555;">Historial</span>
-                    <input type="date" id="movimientos-fecha" style="border:1px solid #ccc; border-radius:4px; padding:2px;">
+                    <span style="font-weight:700; color:#555;">Movimientos</span>
+                    <input type="date" id="movimientos-fecha" style="border:1px solid #ddd; border-radius:8px; padding:4px; font-family:'Poppins';">
                 </div>
                 <div id="movimientos-list" class="scroll-list">
-                    <div style="text-align:center; padding:20px; color:#aaa;">Cargando...</div>
+                    <div style="text-align:center; padding:30px; color:#bbb;">Cargando...</div>
                 </div>
             </div>
         </section>
 
 
+        <!-- ======================= -->
+        <!-- VISTA RENDICIÓN -->
+        <!-- ======================= -->
         <section id="view-rendicion" class="view-section">
             
-            <div class="rendicion-dashboard">
-                <div class="dash-row" style="border-bottom:1px solid #eee; padding-bottom:5px;">
-                    <div>
-                        <div class="dash-label">Planilla Detectada</div>
-                        <div id="rendicion-repartidor" style="font-weight:bold; color:var(--primary);">Buscando...</div>
+            <div class="human-msg-box">
+                <div id="rendicion-status-text" style="color:#666; font-size:0.9rem;">Buscando rendiciones...</div>
+                <span id="rendicion-detalle-humano" class="human-highlight">--</span>
+            </div>
+
+            <div class="card" style="padding:10px; flex-shrink:0;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                    <div style="text-align:left;">
+                        <small style="color:#888;">Esperado (Sistema)</small>
+                        <div id="rendicion-esperado" style="font-size:1.4rem; font-weight:700; color:#444;">$ 0,00</div>
                     </div>
                     <div style="text-align:right;">
-                        <div class="dash-label">Turno/Fecha</div>
-                        <div id="rendicion-turno-fecha" style="font-size:0.8rem;">--</div>
+                        <small style="color:#888;">Dinero Físico Real</small>
+                        <div id="rendicion-contado" style="font-size:1.6rem; font-weight:800; color:var(--primary);">$ 0,00</div>
                     </div>
                 </div>
-
-                <div style="display:flex; justify-content:space-between; margin:10px 0;">
-                    <div>
-                        <div class="dash-label">Esperado (Sistema)</div>
-                        <div id="rendicion-esperado" style="font-size:1.2rem; font-weight:700; color:#555;">$ 0,00</div>
-                    </div>
-                </div>
-
-                <div class="black-bar">
-                    <label>Total Dinero Físico</label>
-                    <div id="rendicion-contado" class="total-display">$ 0,00</div>
-                </div>
-
-                <div id="live-diff-display" class="diff-bar exacto">
-                    DIFERENCIA: $ 0,00
+                <!-- Barra de Diferencia Viva -->
+                <div id="live-diff-display" class="diff-bar" style="background:#f5f5f5; color:#999; border:none;">
+                    Contá el dinero para empezar
                 </div>
             </div>
 
             <div class="bill-scroll-area">
                 <div id="bill-counter-container" class="grid-billetes">
-                    </div>
-                <div style="text-align:center; margin-top:10px;">
-                    <button onclick="resetBillCounter()" style="background:none; border:none; color:#999; text-decoration:underline;">Borrar todo</button>
+                    <!-- JS Injected -->
                 </div>
+                
+                <button onclick="resetBillCounter()" class="btn-trash-circle" title="Borrar todo">
+                    <span class="material-icons-round">delete_outline</span>
+                </button>
             </div>
 
             <div style="margin-top:10px;">
@@ -314,49 +342,72 @@
         </section>
 
 
+        <!-- ======================= -->
+        <!-- VISTA ARQUEO -->
+        <!-- ======================= -->
         <section id="view-arqueo" class="view-section">
-            <div class="card" style="text-align:center; padding:20px;">
-                <span class="material-icons-round" style="font-size:40px; color:var(--warning);">point_of_sale</span>
-                <h2 style="font-size:1.2rem; margin:10px 0;">Cierre de Caja</h2>
+            <div class="card" style="text-align:center; padding:30px 20px; margin:auto 0;">
+                <div style="width:70px; height:70px; background:#FFF3E0; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                    <span class="material-icons-round" style="font-size:40px; color:var(--warning);">lock</span>
+                </div>
                 
-                <div style="background:#E3F2FD; padding:15px; border-radius:8px; margin:20px 0;">
-                    <small>Según sistema debe haber:</small>
-                    <div id="arqueo-sistema" style="font-size:1.5rem; font-weight:700; color:var(--primary);">$ 0,00</div>
+                <h2 style="font-size:1.4rem; font-weight:800; margin:0 0 5px; color:#333;">Cierre de Caja</h2>
+                <p style="color:#777; font-size:0.9rem; margin-bottom:25px;">Finalizar el día y ajustar saldos.</p>
+                
+                <div style="background:#f9f9f9; padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed #ddd;">
+                    <small style="display:block; margin-bottom:5px;">El sistema espera:</small>
+                    <div id="arqueo-sistema" style="font-size:1.8rem; font-weight:800; color:var(--primary);">$ 0,00</div>
                 </div>
 
-                <label style="display:block; text-align:left; font-size:0.9rem; color:#666; margin-bottom:5px;">Efectivo contado REAL:</label>
-                <input type="text" inputmode="decimal" id="arqueo-fisico" placeholder="$ 0" class="anim-input huge-input" style="margin-bottom:20px;">
+                <div style="margin-bottom:25px;">
+                    <label style="display:block; text-align:left; font-size:0.9rem; font-weight:600; color:#555; margin-bottom:8px; margin-left:5px;">¿Cuánto efectivo hay REALMENTE?</label>
+                    <input type="text" inputmode="decimal" id="arqueo-fisico" placeholder="$ 0" class="anim-input huge-input" style="border-color:var(--warning); color:var(--warning);">
+                </div>
 
-                <div id="resultado-arqueo" style="margin-bottom:20px; font-weight:bold;"></div>
-
-                <button id="btn-pre-arqueo" class="btn-action" style="background:var(--warning);">
-                    <span class="material-icons-round">lock</span> CERRAR CAJA
+                <button id="btn-pre-arqueo" class="btn-action" style="background:var(--warning); box-shadow:0 4px 15px rgba(255,143,0,0.3);">
+                    <span class="material-icons-round">verified_user</span> CERRAR CAJA
                 </button>
             </div>
 
-            <div id="arqueo-final-msg" class="card" style="display:none; text-align:center; border:2px solid var(--success);">
-                <h3 style="color:var(--success); margin:0;">¡Caja Cerrada!</h3>
-                <p>Efectivo inicial para mañana:</p>
-                <div id="final-cash-display" style="font-size:2rem; font-weight:800;"></div>
+            <!-- Pantalla Final Éxito -->
+            <div id="arqueo-final-msg" class="card" style="display:none; text-align:center; margin:auto 0; border:2px solid var(--success); background:#E8F5E9;">
+                <span class="material-icons-round" style="font-size:60px; color:var(--success); margin-bottom:10px;">check_circle</span>
+                <h2 style="color:var(--success); font-weight:800; margin:0;">¡Caja Cerrada!</h2>
+                <p style="margin:10px 0 20px;">Todo listo. Mañana empezás con:</p>
+                <div id="final-cash-display" style="font-size:2.5rem; font-weight:800; color:#1B5E20;"></div>
             </div>
         </section>
 
     </main>
 
-    <div id="toast" class="toast-msg">Mensaje</div>
+    <!-- TOAST CONTAINER -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- MODAL CUSTOM -->
+    <div id="modal-custom" class="modal-overlay">
+        <div class="modal-box">
+            <span id="modal-icon" class="material-icons-round modal-icon-top">info</span>
+            <div id="modal-title" class="modal-title">Título</div>
+            <div id="modal-msg" class="modal-text">Mensaje</div>
+            <div class="modal-btns">
+                <button class="btn-modal btn-cancel" onclick="closeModal()">Cancelar</button>
+                <button id="btn-modal-confirm" class="btn-modal btn-confirm">Aceptar</button>
+            </div>
+        </div>
+    </div>
 
     <nav class="bottom-nav">
-        <button class="nav-btn active" data-target="view-movimientos">
-            <span class="material-icons-round">swap_horiz</span>
-            <span>Caja</span>
+        <button class="nav-btn active" data-target="view-movimientos" data-theme="blue">
+            <span class="material-icons-round">storefront</span>
+            <span class="nav-label">Caja</span>
         </button>
-        <button class="nav-btn" data-target="view-rendicion">
-            <span class="material-icons-round">assignment_turned_in</span>
-            <span>Rendición</span>
+        <button class="nav-btn" data-target="view-rendicion" data-theme="green">
+            <span class="material-icons-round">fact_check</span>
+            <span class="nav-label">Rendición</span>
         </button>
-        <button class="nav-btn" data-target="view-arqueo">
-            <span class="material-icons-round">inventory</span>
-            <span>Arqueo</span>
+        <button class="nav-btn" data-target="view-arqueo" data-theme="orange">
+            <span class="material-icons-round">lock_clock</span>
+            <span class="nav-label">Arqueo</span>
         </button>
     </nav>
 
