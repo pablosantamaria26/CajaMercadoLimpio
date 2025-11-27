@@ -5,14 +5,116 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Caja - Laura</title>
     
-    <link rel="stylesheet" href="styles-laura.css">
-
+    <link rel="stylesheet" href="styles-laura.css"> 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     
     <meta name="theme-color" content="#1565C0">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <style>
+        /* =========================================
+           CSS ESPECÍFICO PARA "SIN SCROLL" Y MODAL
+           ========================================= */
+        :root {
+            --header-height: 140px; /* Aprox */
+            --nav-height: 80px;
+        }
+
+        /* Bloqueamos el scroll del cuerpo para que sea una "App" */
+        body {
+            height: 100vh;
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* El Header se queda fijo arriba */
+        .app-header {
+            flex-shrink: 0; /* No se encoge */
+            z-index: 10;
+        }
+
+        /* El contenedor principal ocupa el espacio restante */
+        #main-container {
+            flex: 1; /* Ocupa todo el alto disponible */
+            overflow: hidden; /* Evita scroll doble */
+            position: relative;
+            padding: 10px 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Las secciones ocupan el 100% del main */
+        .view-section {
+            height: 100%;
+            display: none;
+            flex-direction: column;
+        }
+        .view-section.active {
+            display: flex;
+        }
+
+        /* AJUSTES ESPECÍFICOS POR VISTA */
+        
+        /* Vista Movimientos: Lista con scroll interno */
+        #view-movimientos .card.form-card {
+            flex-shrink: 0; /* El formulario no se achica */
+            margin-bottom: 10px;
+        }
+        #view-movimientos .card.list-card {
+            flex: 1; /* La lista ocupa el resto */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0; /* Importante para flexbox scroll */
+            margin-bottom: 80px; /* Espacio para el nav */
+        }
+        .scroll-list {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px; /* Espacio para scrollbar */
+        }
+
+        /* Vista Rendición y Arqueo: Scroll normal si es necesario */
+        #view-rendicion, #view-arqueo {
+            overflow-y: auto;
+            padding-bottom: 90px;
+        }
+
+        /* MODAL DE CONFIRMACIÓN */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 2000;
+            display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.show { display: flex; animation: fadeIn 0.2s; }
+        
+        .modal-box {
+            background: white; width: 85%; max-width: 320px;
+            padding: 25px; border-radius: 20px; text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal-icon { font-size: 48px; color: var(--theme-color, #1565C0); margin-bottom: 10px; }
+        .modal-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 10px; color: #333; }
+        .modal-text { font-size: 0.9rem; color: #666; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; }
+        .btn-modal { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; }
+        .btn-cancel { background: #f0f2f5; color: #555; }
+        .btn-confirm { background: var(--theme-color, #1565C0); color: white; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        /* Resultado final destacado */
+        .final-success-box {
+            background: #E8F5E9; border: 2px solid #2E7D32; color: #1B5E20;
+            padding: 20px; border-radius: 15px; margin-top: 15px;
+            animation: popIn 0.5s;
+        }
+    </style>
 </head>
 <body class="theme-blue">
 
@@ -49,14 +151,14 @@
 
                     <div class="input-group">
                         <select id="tipoRapido" class="anim-input full-width">
-                            <option value="" disabled selected>-- Seleccionar Concepto --</option>
+                            <option value="" disabled selected>-- Seleccionar Motivo (Obligatorio) --</option>
                             <option value="varios">Varios / Manual</option>
                             <option value="pagoProveedor">Pago Proveedor</option>
                             <option value="combustible">Combustible</option>
                             <option value="adelanto">Adelanto Sueldo</option>
                             <option value="haber">Pago Haberes</option>
                             <option value="movimientoLibre">Movimiento Libre (Retiro)</option>
-                        </select>
+                            <option value="ajusteArqueo">Ajuste Post-Arqueo</option> </select>
                     </div>
 
                     <div id="row-proveedor" class="hidden-row relative-container">
@@ -135,11 +237,11 @@
 
 
         <section id="view-arqueo" class="view-section">
-            <div class="card audit-card centered-card">
+            <div class="card audit-card centered-card" id="card-arqueo-content">
                 <div class="audit-header">
                     <span class="material-icons-round big-icon theme-icon">point_of_sale</span>
                     <h2>Arqueo de Caja</h2>
-                    <p>Verificación de efectivo físico final</p>
+                    <p>Cierre final del día</p>
                 </div>
 
                 <div class="audit-system-box">
@@ -157,13 +259,32 @@
 
                 <div id="resultado-arqueo" class="result-box"></div>
 
-                <button id="btn-registrar-arqueo" class="btn-action btn-bounce btn-orange">
+                <button id="btn-pre-arqueo" class="btn-action btn-bounce btn-orange">
                     <span class="material-icons-round">verified</span> CONFIRMAR ARQUEO
                 </button>
+            </div>
+            
+            <div id="arqueo-final-msg" class="final-success-box" style="display:none; text-align:center;">
+                <h3><span class="material-icons-round">lock</span> CAJA CERRADA</h3>
+                <p style="margin-top:10px;">Este es el efectivo REAL que tenemos hoy para empezar mañana:</p>
+                <div id="final-cash-display" style="font-size:2.5rem; font-weight:800; margin:15px 0;">$ 0,00</div>
+                <small>Ajuste registrado automáticamente.</small>
             </div>
         </section>
 
     </main>
+
+    <div id="modal-confirm" class="modal-overlay">
+        <div class="modal-box">
+            <span class="material-icons-round modal-icon">help_outline</span>
+            <div class="modal-title">¿Confirmás el ARQUEO?</div>
+            <p class="modal-text">Esto ajustará el saldo automáticamente y cerrará la caja. No se puede deshacer.</p>
+            <div class="modal-actions">
+                <button class="btn-modal btn-cancel" onclick="closeModal()">Cancelar</button>
+                <button class="btn-modal btn-confirm" id="btn-confirm-arqueo-action">SÍ, CERRAR</button>
+            </div>
+        </div>
+    </div>
 
     <div id="toast" class="toast-msg">Mensaje</div>
 
