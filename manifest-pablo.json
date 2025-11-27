@@ -1,0 +1,21 @@
+{
+  "name": "Admin Mercado Limpio",
+  "short_name": "Admin ML",
+  "start_url": "./pablo.html",
+  "display": "standalone",
+  "background_color": "#1F2937",
+  "theme_color": "#1F2937",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/9703/9703596.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/9703/9703596.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
