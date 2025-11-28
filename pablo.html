@@ -13,22 +13,22 @@
     
     <style>
         /* =========================================
-           ESTILOS V4.0: IA INTEGRATION
+           ESTILOS V4.1: GESTIÓN EMPLEADOS
            ========================================= */
         :root {
-            --bg-body: #0f172a;       
-            --bg-card: #1e293b;       
+            --bg-body: #0f172a;        
+            --bg-card: #1e293b;        
             --bg-header: rgba(15, 23, 42, 0.98);
             
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             
-            --primary: #3b82f6;       
-            --success: #10b981;       
+            --primary: #3b82f6;        
+            --success: #10b981;        
             --danger: #ef4444;        
-            --warning: #f59e0b;       
+            --warning: #f59e0b;        
             --purple: #8b5cf6;        
-            --ai-color: #8B5CF6; /* Color para IA */
+            --ai-color: #8B5CF6; 
             
             --safe-top: env(safe-area-inset-top);
             --safe-bottom: env(safe-area-inset-bottom);
@@ -180,6 +180,53 @@
         .row-title { font-weight: 600; font-size: 1rem; color: var(--text-main); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .row-sub { font-size: 0.8rem; color: var(--text-muted); }
         .row-amount { font-weight: 700; font-size: 1rem; white-space: nowrap; }
+
+        /* --- EMPLEADOS INPUTS (Dark Mode) --- */
+        .emp-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .emp-name { flex: 1; font-weight: 600; font-size: 0.95rem; }
+        .emp-input {
+            width: 100px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-main);
+            padding: 8px;
+            border-radius: 8px;
+            text-align: right;
+            font-weight: 700;
+            outline: none;
+        }
+        .emp-input:focus { border-color: var(--primary); }
+        .btn-emp-save {
+            background: var(--primary); color: white; border: none;
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        .btn-emp-save:active { transform: scale(0.95); }
+        
+        .btn-add-block {
+            width: 100%; padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px dashed rgba(255,255,255,0.2);
+            color: var(--text-muted);
+            border-radius: 12px;
+            font-weight: 600; margin-top: 10px;
+            cursor: pointer;
+        }
+        .add-form { 
+            display: none; background: rgba(0,0,0,0.2); padding: 15px; 
+            border-radius: 12px; margin-top: 10px; 
+        }
+        .add-form.active { display: block; }
+        .input-dark {
+            width: 100%; padding: 12px; margin-bottom: 10px;
+            background: var(--bg-body); border: 1px solid rgba(255,255,255,0.1);
+            color: white; border-radius: 10px; outline: none;
+        }
+
 
         /* --- COMBUSTIBLE CARDS --- */
         .fuel-vehicle-card {
@@ -345,6 +392,7 @@
         <div class="tabs-scroller">
             <div class="tab-chip active" onclick="showScreen('resumen', this)">📊 Resumen</div>
             <div class="tab-chip" onclick="showScreen('movimientos', this)">📝 Movimientos</div>
+            <div class="tab-chip" onclick="showScreen('empleados', this)">👥 Empleados</div>
             <div class="tab-chip" onclick="showScreen('combustible', this)">⛽ Combustible</div>
             <div class="tab-chip" onclick="showScreen('proveedores', this)">🚚 Proveedores</div>
             <div class="tab-chip" onclick="showScreen('alertas', this)">🚨 Alertas</div>
@@ -407,7 +455,36 @@
         </div>
     </div>
 
-    <!-- 3. PANTALLA COMBUSTIBLE -->
+    <!-- 3. PANTALLA EMPLEADOS (NUEVA) -->
+    <div id="screen-empleados" class="screen">
+        <div class="card">
+            <div class="card-title">
+                <span>Gestión de Sueldos</span>
+                <span class="material-icons-round">badge</span>
+            </div>
+            <div id="empleados-list">
+                <div class="empty-state">
+                    <span class="spin material-icons-round">sync</span> Cargando equipo...
+                </div>
+            </div>
+            
+            <button class="btn-add-block" onclick="toggleAddForm()">+ Agregar Nuevo Empleado</button>
+            
+            <div id="add-emp-form" class="add-form">
+                <input type="text" id="new-emp-name" class="input-dark" placeholder="Nombre (ej: Juan)">
+                <input type="number" id="new-emp-wage" class="input-dark" placeholder="Sueldo Base Semanal ($)">
+                <button class="btn-ai-generate" onclick="addNewEmpleado()">Guardar Empleado</button>
+            </div>
+        </div>
+        <div class="card">
+            <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;">
+                <span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--ai-color);">auto_awesome</span>
+                <strong>Lógica Automática:</strong> Al configurar el sueldo base aquí, la App de Laura descontará automáticamente los adelantos de la semana cuando vaya a pagar los viernes.
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. PANTALLA COMBUSTIBLE -->
     <div id="screen-combustible" class="screen">
         <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border:none;">
             <div style="color:white; opacity:0.9; font-size:0.8rem; font-weight:700; margin-bottom:5px;">TOTAL COMBUSTIBLE (DÍA)</div>
@@ -419,7 +496,7 @@
         </div>
     </div>
 
-    <!-- 4. PANTALLA PROVEEDORES -->
+    <!-- 5. PANTALLA PROVEEDORES -->
     <div id="screen-proveedores" class="screen">
         <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); border:none;">
             <div style="color:white; opacity:0.9; font-size:0.8rem; font-weight:700; margin-bottom:5px;">PAGOS PROVEEDORES (DÍA)</div>
@@ -433,7 +510,7 @@
         </div>
     </div>
 
-    <!-- 5. PANTALLA ALERTAS -->
+    <!-- 6. PANTALLA ALERTAS -->
     <div id="screen-alertas" class="screen">
         <div class="card">
             <div class="card-title">Centro de Seguridad</div>
@@ -498,6 +575,7 @@
             const localIso = new Date(today.getTime() - offset).toISOString().split('T')[0];
             setDate(localIso);
             fetchStatusCaja(); 
+            fetchEmpleados(); // Cargar la lista de empleados al inicio
         });
 
         // --- GESTIÓN DE FECHAS ---
@@ -543,6 +621,7 @@
             const icon = document.querySelector('.fab-refresh span');
             icon.classList.add('spin');
             fetchStatusCaja();
+            fetchEmpleados();
             fetchDataForDate(currentDateStr).then(() => {
                 setTimeout(() => icon.classList.remove('spin'), 500);
             });
@@ -562,6 +641,95 @@
                 return null;
             }
         }
+
+        // --- NUEVAS FUNCIONES EMPLEADOS ---
+        async function fetchEmpleados() {
+            const container = document.getElementById('empleados-list');
+            // Mock de carga mientras traemos el backend real
+            // En el paso siguiente implementaremos "getConfigEmpleados" en GAS
+            const res = await api("getConfigEmpleados"); 
+            
+            if (!res || !res.ok) {
+                // Si falla o aún no existe la función, mostramos estado vacío controlado
+                container.innerHTML = '<div class="empty-state">No se pudo cargar la lista o aún no está configurada.</div>';
+                return;
+            }
+            
+            const empleados = res.data || [];
+            if(empleados.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay empleados configurados.</div>';
+                return;
+            }
+            
+            let html = '';
+            empleados.forEach(emp => {
+                html += `
+                    <div class="emp-row">
+                        <span class="material-icons-round" style="color:var(--primary);">account_circle</span>
+                        <div class="emp-name">${emp.nombre}</div>
+                        <input type="number" class="emp-input" id="wage-${emp.nombre}" value="${emp.sueldoBase}" placeholder="0">
+                        <button class="btn-emp-save" onclick="saveSueldo('${emp.nombre}')">
+                            <span class="material-icons-round" style="font-size:18px">save</span>
+                        </button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        async function saveSueldo(nombre) {
+            const input = document.getElementById(`wage-${nombre}`);
+            const nuevoSueldo = parseInt(input.value) || 0;
+            
+            // UI Feedback
+            const btn = input.nextElementSibling;
+            const originalIcon = btn.innerHTML;
+            btn.innerHTML = '<span class="spin material-icons-round" style="font-size:18px">sync</span>';
+            
+            const res = await api("updateConfigEmpleado", { nombre: nombre, sueldoBase: nuevoSueldo });
+            
+            if(res && res.ok) {
+                btn.style.background = 'var(--success)';
+                btn.innerHTML = '<span class="material-icons-round" style="font-size:18px">check</span>';
+                setTimeout(() => {
+                    btn.style.background = 'var(--primary)';
+                    btn.innerHTML = originalIcon;
+                }, 2000);
+            } else {
+                alert("Error al guardar");
+                btn.innerHTML = originalIcon;
+            }
+        }
+        
+        function toggleAddForm() {
+            document.getElementById('add-emp-form').classList.toggle('active');
+        }
+
+        async function addNewEmpleado() {
+            const name = document.getElementById('new-emp-name').value.trim();
+            const wage = parseInt(document.getElementById('new-emp-wage').value) || 0;
+            
+            if(!name || wage <= 0) return alert("Completa nombre y sueldo válido.");
+            
+            const btn = document.querySelector('#add-emp-form button');
+            btn.disabled = true;
+            btn.innerText = "Guardando...";
+            
+            const res = await api("addConfigEmpleado", { nombre: name, sueldoBase: wage });
+            
+            if(res && res.ok) {
+                document.getElementById('new-emp-name').value = "";
+                document.getElementById('new-emp-wage').value = "";
+                toggleAddForm();
+                fetchEmpleados(); // Recargar lista
+            } else {
+                alert("Error al agregar empleado");
+            }
+            btn.disabled = false;
+            btn.innerText = "Guardar Empleado";
+        }
+
+        // --- FUNCIONES EXISTENTES ---
 
         async function fetchStatusCaja() {
             const res = await api("getEstadoCaja");
