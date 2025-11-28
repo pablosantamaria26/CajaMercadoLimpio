@@ -20,10 +20,9 @@
     
     <style>
         /* =========================================
-           ESTILOS V4.3: FUN, VISUAL & READABLE
+           ESTILOS V4.4: LOADING & FEEDBACK
            ========================================= */
         :root {
-            /* Paleta */
             --bg-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
             --glass-bg: rgba(255, 255, 255, 0.95); 
             --glass-border: rgba(255, 255, 255, 0.6);
@@ -34,7 +33,7 @@
             --text-main: #2D3436;
             --text-light: #636E72;
             
-            /* Colores específicos Arqueo */
+            /* Colores Arqueo */
             --fisico-color: #e17055; 
             --sistema-color: #0984e3; 
         }
@@ -51,6 +50,36 @@
             min-height: 100vh;
         }
 
+        /* --- LOADING OVERLAY (NUEVO) --- */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            display: none; /* Se activa con JS */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.3s;
+        }
+        #loading-overlay.active { display: flex; }
+        
+        .spinner {
+            width: 50px; height: 50px;
+            border: 6px solid #dfe6e9;
+            border-top: 6px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        .loading-text {
+            font-weight: 800; color: var(--primary); font-size: 1.2rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
         /* --- FONDO ANIMADO --- */
         .background-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -63,189 +92,98 @@
             opacity: 0.5;
             animation: float 12s infinite ease-in-out;
         }
-        .shape-1 {
-            width: 350px; height: 350px; background: #81ecec;
-            top: -100px; left: -50px; border-radius: 50%;
-        }
-        .shape-2 {
-            width: 300px; height: 300px; background: #fab1a0;
-            bottom: -50px; right: -50px; border-radius: 50%;
-            animation-delay: 2s;
-        }
-        
-        @keyframes float {
-            0% { transform: translate(0, 0) rotate(0deg); }
-            50% { transform: translate(30px, 50px) rotate(10deg); }
-            100% { transform: translate(0, 0) rotate(0deg); }
-        }
-
-        /* --- LOADING OVERLAY (NUEVO) --- */
-        .loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(5px);
-            z-index: 9999;
-            display: none; /* Se activa con JS */
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            transition: opacity 0.3s;
-        }
-        .loading-overlay.active { display: flex; }
-        
-        .spinner {
-            width: 50px; height: 50px;
-            border: 6px solid #dfe6e9;
-            border-top: 6px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 15px;
-        }
-        .loading-text {
-            font-weight: 800; color: var(--primary); font-size: 1.2rem;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        .shape-1 { width: 350px; height: 350px; background: #81ecec; top: -100px; left: -50px; border-radius: 50%; }
+        .shape-2 { width: 300px; height: 300px; background: #fab1a0; bottom: -50px; right: -50px; border-radius: 50%; animation-delay: 2s; }
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(30px, 50px) rotate(10deg); } 100% { transform: translate(0, 0) rotate(0deg); } }
 
         /* --- HEADER --- */
         .app-header {
-            padding: 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            background: rgba(255,255,255,0.5);
-            backdrop-filter: blur(10px);
-            position: sticky; top: 0; z-index: 50;
+            padding: 20px; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255,255,255,0.5); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 50;
         }
-        .app-title { 
-            font-size: 1.3rem; font-weight: 800; color: var(--text-main); 
-            display: flex; align-items: center; gap: 8px;
-        }
+        .app-title { font-size: 1.3rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
         .balance-pill { 
-            background: var(--primary);
-            padding: 8px 16px; border-radius: 50px;
-            font-weight: 800; color: white;
-            box-shadow: 0 4px 10px rgba(108, 99, 255, 0.3);
+            background: var(--primary); padding: 8px 16px; border-radius: 50px;
+            font-weight: 800; color: white; box-shadow: 0 4px 10px rgba(108, 99, 255, 0.3);
         }
 
         /* --- CARDS --- */
         .card { 
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px; 
-            padding: 20px; 
-            margin: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 24px; 
+            padding: 20px; margin: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);
         }
-
         .section-title { 
             font-size: 0.95rem; color: var(--text-light); font-weight: 800; 
             margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;
             display: flex; align-items: center; gap: 8px;
         }
 
-        /* --- INPUTS & FORMS --- */
+        /* --- FORMS --- */
         .form-group { margin-bottom: 15px; }
         .form-control {
             width: 100%; padding: 16px; border: 2px solid #dfe6e9; border-radius: 16px;
             font-size: 1rem; font-family: 'Quicksand'; outline: none; transition: all 0.3s;
             background: white; color: var(--text-main); font-weight: 700;
         }
-        .form-control:focus { 
-            border-color: var(--primary); 
-            box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.1);
-        }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.1); }
         .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        #mov-importe { font-size: 2.2rem; text-align: center; color: var(--primary); border: 2px dashed var(--primary); }
 
-        /* Input gigante Importe */
-        #mov-importe { 
-            font-size: 2.2rem; text-align: center; color: var(--primary); 
-            border: 2px dashed var(--primary);
-        }
-
-        /* --- BOTONES --- */
+        /* --- BUTTONS --- */
         .btn-main {
             width: 100%; padding: 18px; border: none; border-radius: 18px;
             font-size: 1.1rem; font-weight: 800; color: white; cursor: pointer;
             background: linear-gradient(45deg, #6C63FF, #4834d4);
-            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3);
-            transition: transform 0.2s; 
+            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; 
             display: flex; align-items: center; justify-content: center; gap: 10px;
         }
         .btn-main:active { transform: scale(0.96); }
         .btn-success { background: linear-gradient(45deg, #00b894, #00cec9); box-shadow: 0 8px 20px rgba(0, 184, 148, 0.3); }
         .btn-orange { background: linear-gradient(45deg, #e17055, #d63031); box-shadow: 0 8px 20px rgba(225, 112, 85, 0.3); }
 
-        /* --- CONTADOR BILLETES (GIGANTE) --- */
+        /* --- BILLETES --- */
         .billetes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .billete-item { 
             background: white; border-radius: 20px; padding: 15px; text-align: center; 
-            border: 1px solid #dfe6e9; position: relative;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-            transition: transform 0.1s;
+            border: 1px solid #dfe6e9; box-shadow: 0 4px 8px rgba(0,0,0,0.05);
         }
-        .billete-item:active { transform: scale(0.98); }
-        
-        .billete-label { 
-            font-size: 1.5rem; 
-            color: var(--primary-dark); 
-            font-weight: 800; 
-            margin-bottom: 5px;
-            line-height: 1.2;
-        }
-        
+        .billete-label { font-size: 1.5rem; color: var(--primary-dark); font-weight: 800; margin-bottom: 5px; line-height: 1.2; }
         .billete-input { 
-            width: 100%; border: none; text-align: center; 
-            font-size: 2rem; font-weight: 800; color: var(--text-main); 
-            outline: none; background: transparent; padding: 0;
-            border-bottom: 2px solid transparent;
+            width: 100%; border: none; text-align: center; font-size: 2rem; font-weight: 800; 
+            color: var(--text-main); outline: none; background: transparent; padding: 0;
         }
-        .billete-input:focus { border-bottom-color: var(--primary); }
         .billete-input::placeholder { color: #eee; }
 
-        /* --- ARQUEO VISUAL --- */
-        .arqueo-comparison {
-            display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px;
-        }
-        .arqueo-box {
-            padding: 20px; border-radius: 20px; text-align: center; position: relative;
-        }
+        /* --- ARQUEO --- */
+        .arqueo-comparison { display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px; }
+        .arqueo-box { padding: 20px; border-radius: 20px; text-align: center; position: relative; }
         .box-sistema { background: #e3f2fd; border: 2px solid #90caf9; color: var(--sistema-color); }
         .box-sistema .label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
         .box-sistema .value { font-size: 2.5rem; font-weight: 900; margin-top: 5px; }
 
         .box-fisico {
             background: #ffeaa7; border: 2px solid #fdcb6e; color: #d35400;
-            box-shadow: 0 10px 20px rgba(253, 203, 110, 0.3);
-            animation: pulseSoft 3s infinite;
+            box-shadow: 0 10px 20px rgba(253, 203, 110, 0.3); animation: pulseSoft 3s infinite;
         }
         .box-fisico .label { font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
         .box-fisico .value { font-size: 3rem; font-weight: 900; margin-top: 5px; text-shadow: 1px 1px 0px rgba(255,255,255,0.5); }
-
         @keyframes pulseSoft { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
 
-        /* --- MENSAJE ZEN --- */
         .mensaje-zen {
             background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 12px;
-            font-size: 0.9rem; line-height: 1.4; border-left: 5px solid #00b894;
-            margin-bottom: 15px;
+            font-size: 0.9rem; line-height: 1.4; border-left: 5px solid #00b894; margin-bottom: 15px;
         }
 
-        /* --- NAV DOCK --- */
+        /* --- NAV --- */
         .bottom-nav {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 400px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            display: flex; justify-content: space-around; padding: 12px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px;
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-radius: 24px;
+            display: flex; justify-content: space-around; padding: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.1);
             z-index: 100; border: 1px solid rgba(255,255,255,1);
         }
         .nav-item {
-            display: flex; flex-direction: column; align-items: center;
-            color: #b2bec3; text-decoration: none; font-size: 0.7rem; font-weight: 600;
-            transition: all 0.3s; padding: 5px; border-radius: 12px;
+            display: flex; flex-direction: column; align-items: center; color: #b2bec3; text-decoration: none;
+            font-size: 0.7rem; font-weight: 600; transition: all 0.3s; padding: 5px; border-radius: 12px;
         }
         .nav-item.active { color: var(--primary); background: #ecebff; transform: translateY(-5px); }
         .nav-icon { font-size: 26px; margin-bottom: 2px; }
@@ -257,18 +195,19 @@
 
         .history-controls { display: flex; gap: 10px; margin-bottom: 10px; }
         .date-picker { background: transparent; border: 1px solid #ccc; padding: 5px; border-radius: 8px; font-family: 'Quicksand'; font-weight: 700;}
-        
         .mov-item { padding: 12px; background: white; border-radius: 12px; margin-bottom: 10px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .amount-in { color: var(--success); font-weight: 800; }
         .amount-out { color: var(--accent); font-weight: 800; }
 
-        /* Toast */
+        /* --- TOAST --- */
         .toast {
             position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
             background: #2D3436; color: white; padding: 12px 24px; border-radius: 50px;
             font-weight: 600; z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            width: max-content; max-width: 90%;
         }
-        .toast.show { opacity: 1; top: 30px; }
+        .toast.show { opacity: 1; top: 40px; }
         .toast-success { background: var(--success); }
         .toast-error { background: var(--accent); }
         .toast-warning { background: var(--fisico-color); }
@@ -284,7 +223,7 @@
     </div>
 
     <!-- PANTALLA DE CARGA (BLOCKING) -->
-    <div id="loading-overlay" class="loading-overlay">
+    <div id="loading-overlay">
         <div class="spinner"></div>
         <div class="loading-text" id="loading-text">Procesando...</div>
     </div>
@@ -324,7 +263,7 @@
                 </select>
             </div>
 
-            <!-- Campos Extra (Proveedor, Vehiculo, Empleado, Cheque) -->
+            <!-- Campos Extra (CORREGIDOS) -->
             <div id="extra-fields-container" style="display:none; background:#f1f2f6; padding:15px; border-radius:16px; margin-bottom:15px;">
                 
                 <!-- Proveedor -->
@@ -347,10 +286,9 @@
                     <option value="Tomas">👤 Tomas</option>
                     <option value="Ariel">👤 Ariel</option>
                     <option value="Lucas">👤 Lucas</option>
-                    <option value="Otro">👤 Otro</option>
                 </select>
 
-                <!-- Cheques (Nuevo) -->
+                <!-- Cheques -->
                 <div id="cheque-fields" style="display:none;">
                     <div style="font-size:0.8rem; font-weight:700; color:var(--text-light); margin-bottom:5px;">Datos del Cheque</div>
                     <input type="text" id="mov-banco" class="form-control" placeholder="🏦 Banco Emisor" style="margin-bottom:10px;">
@@ -363,7 +301,7 @@
             </div>
 
             <div class="form-group">
-                <input type="text" id="mov-obs" class="form-control" placeholder="📝 Observación (opcional)">
+                <input type="text" id="mov-obs" class="form-control" placeholder="📝 Descripcion (opcional)">
             </div>
 
             <button class="btn-main" onclick="registrarMovimiento()">
@@ -390,28 +328,21 @@
             🔍 Buscando novedades...
         </div>
 
-        <!-- Confirmación de Monto -->
         <div class="card" id="card-rendicion-confirm" style="display:none; text-align:center;">
-            
             <div style="background:white; padding:15px; border-radius:16px; margin-bottom:20px; border:2px solid #eee;">
                 <div style="font-size:0.8rem; color:var(--text-light); font-weight:700;">TOTAL PLANILLA (Sistema)</div>
                 <div id="rendicion-esperado" style="font-size:2rem; font-weight:800; color:var(--primary);">$ 0</div>
             </div>
-            
             <div style="background:#fff3e0; padding:15px; border-radius:16px; margin-bottom:20px; border:2px solid #ffe0b2;">
                 <div style="font-size:0.8rem; color:var(--text-light); font-weight:700;">TOTAL BILLETES (Tú contaste)</div>
                 <div id="rendicion-contado-display" style="font-size:2rem; font-weight:800; color:var(--text-main);">$ 0</div>
             </div>
-
-            <!-- Mensaje Zen de Diferencia -->
             <div id="rendicion-diferencia-container"></div>
-
             <button class="btn-main btn-success" onclick="enviarRendicion()">
                 <span class="material-icons-round">verified</span> CONFIRMAR RENDICIÓN
             </button>
         </div>
 
-        <!-- Contador -->
         <div class="card">
             <div class="section-title" style="justify-content:space-between;">
                 <span><span class="material-icons-round">payments</span> Billetes</span>
@@ -434,20 +365,17 @@
     <div id="screen-arqueo" class="screen">
         <div class="card">
             <div class="arqueo-comparison">
-                <!-- Caja Físico (Grande y Naranja) -->
                 <div class="arqueo-box box-fisico">
                     <div class="label">Total Efectivo Físico</div>
                     <div id="arqueo-total-display" class="value">$ 0</div>
                 </div>
-
-                <!-- Caja Sistema (Azul y Clara) -->
                 <div class="arqueo-box box-sistema">
-                    <div class="label">Esperado por Sistema</div>
+                    <div class="label">Total esperado por Sistema</div>
                     <div id="arqueo-sistema" class="value">$ ...</div>
                 </div>
             </div>
             
-             <div style="margin-top:20px; border-top:1px dashed #ccc; padding-top:15px;">
+            <div style="margin-top:20px; border-top:1px dashed #ccc; padding-top:15px;">
                 <div class="section-title" style="justify-content:space-between;">
                     <span><span class="material-icons-round">savings</span> Contar</span>
                     <span style="color:var(--accent); cursor:pointer;" onclick="limpiarBilletes('arq')">Borrar</span>
@@ -462,9 +390,9 @@
                     <div class="billete-item"><div class="billete-label">$ 200</div><input type="number" class="billete-input" data-val="200" oninput="calcBilletes('arq')" placeholder="0"></div>
                     <div class="billete-item"><div class="billete-label">$ 100</div><input type="number" class="billete-input" data-val="100" oninput="calcBilletes('arq')" placeholder="0"></div>
                 </div>
-             </div>
+            </div>
 
-             <input type="hidden" id="arqueo-fisico">
+            <input type="hidden" id="arqueo-fisico">
 
             <div style="margin-top:25px;">
                 <button class="btn-main btn-orange" onclick="enviarArqueo()">
@@ -513,14 +441,33 @@
             actualizarSaldoHeader();
             buscarRendicionAutomatica();
         }
-        
-        // --- LOADING HELPERS ---
+
+        // --- FUNCIONES DE LOADING & TOAST ---
         function showLoading(msg) {
             document.getElementById('loading-text').innerText = msg;
             document.getElementById('loading-overlay').classList.add('active');
         }
         function hideLoading() {
             document.getElementById('loading-overlay').classList.remove('active');
+        }
+
+        function showToast(msg, success) {
+            const t = document.getElementById('toast');
+            t.className = 'toast show'; 
+            if (success) {
+                t.classList.add('toast-success');
+                document.getElementById('toast-icon').textContent = 'check_circle';
+            } else {
+                if (msg.includes("Sobrante")) {
+                    t.classList.add('toast-warning');
+                    document.getElementById('toast-icon').textContent = 'warning';
+                } else {
+                    t.classList.add('toast-error');
+                    document.getElementById('toast-icon').textContent = 'error';
+                }
+            }
+            document.getElementById('toast-msg').textContent = msg;
+            setTimeout(() => t.className = 'toast', 4000); 
         }
 
         function setFechaHoy(reload = true) {
@@ -710,7 +657,7 @@
                 detalle += ` (Cheque: ${banco} #${nroCheque})`;
             }
 
-            showLoading("Guardando movimiento...");
+            showLoading("Guardando...");
 
             const res = await api("registrarMovimientoCaja", {
                 tipo, formaPago: pago, importe: imp, categoria: catFinal,
@@ -820,44 +767,21 @@
 
             if (res && res.idArqueo) {
                 let msg = "Caja cerrada.";
-                let type = 'success';
+                let isSuccess = true;
                 
                 if (res.resultado === 'OK') msg += " ✨ Perfecto.";
-                else if (res.resultado === 'Sobrante') { msg += ` ⚠️ Sobran $${res.diferencia}`; type = 'warning'; }
-                else { msg += ` 🚨 Faltan $${Math.abs(res.diferencia)}`; type = 'error'; }
+                else if (res.resultado === 'Sobrante') { msg += ` ⚠️ Sobran $${res.diferencia}`; isSuccess = false; }
+                else { msg += ` 🚨 Faltan $${Math.abs(res.diferencia)}`; isSuccess = false; }
                 
-                showToast(msg, type === 'success');
+                showToast(msg, isSuccess);
                 
-                // Esperar 3 segundos para que lea el toast y recargar
+                // REINICIA LA APP DESPUÉS DE 3 SEGUNDOS
                 setTimeout(() => location.reload(), 3000); 
             } else {
-                // Muestra el error real si viene del backend, sino genérico
-                const errorMsg = (res && res.error) ? res.error : "Error al cerrar caja (Sin ID)";
+                // Manejo de errores mejorado
+                const errorMsg = (res && res.error) ? res.error : "Error desconocido al cerrar caja";
                 showToast("❌ " + errorMsg, false);
             }
-        }
-
-        function showToast(msg, success) {
-            const t = document.getElementById('toast');
-            // Reset clases
-            t.className = 'toast show'; 
-            
-            if (success) {
-                t.classList.add('toast-success');
-                document.getElementById('toast-icon').textContent = 'check_circle';
-            } else {
-                // Si el mensaje contiene "Sobran", usamos warning (color naranja)
-                if (msg.includes("Sobran")) {
-                    t.classList.add('toast-warning');
-                    document.getElementById('toast-icon').textContent = 'warning';
-                } else {
-                    t.classList.add('toast-error');
-                    document.getElementById('toast-icon').textContent = 'error';
-                }
-            }
-            
-            document.getElementById('toast-msg').textContent = msg;
-            setTimeout(() => t.className = 'toast', 4000); // 4 seg visible
         }
     </script>
 </body>
