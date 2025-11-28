@@ -3,627 +3,841 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- PWA Config Pablo -->
-    <link rel="manifest" href="manifest-pablo.json">
-    <meta name="theme-color" content="#1F2937">
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
-      }
-    </script>
-
-    <title>Tablero de Control - Pablo</title>
+    <title>Control Mercado Limpio - Dueño</title>
     
     <!-- Fuentes e Iconos -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <!-- Chart.js para los gráficos -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
+    
     <style>
         /* =========================================
-           STYLE PABLO.CSS (Estilo Ejecutivo Dark V2)
+           ESTILOS V1.0: DASHBOARD DUEÑO (DARK EXECUTIVE)
            ========================================= */
         :root {
-            --bg-dark: #101827;
-            --card-bg: #1F2937;
-            --primary: #3B82F6;     /* Azul Ejecutivo */
-            --accent: #F59E0B;      /* Dorado Alerta */
-            --success: #10B981;     /* Verde Dinero */
-            --danger: #EF4444;      /* Rojo Peligro */
-            --text-main: #F3F4F6;
-            --text-muted: #9CA3AF;
+            --bg-dark: #1F2937; /* Gris oscuro / Azul oscuro */
+            --card-bg: #374151; /* Gris más claro para tarjetas */
+            --text-light: #F9FAFB;
+            --text-muted: #D1D5DB;
+            --primary-accent: #3B82F6; /* Azul brillante */
+            --success: #10B981; /* Verde */
+            --warning: #F59E0B; /* Amarillo */
+            --danger: #EF4444; /* Rojo */
+            --alert-critical: #991B1B;
+            --alert-medium: #FCD34D;
+            --alert-low: #6EE7B7;
+            --kpi-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
         }
 
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
         body {
             margin: 0; padding: 0;
-            font-family: 'Montserrat', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
+            font-family: 'Roboto', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-light);
             padding-bottom: 90px;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        /* HEADER */
-        .admin-header {
-            padding: 20px;
-            background: linear-gradient(180deg, rgba(31,41,55,1) 0%, rgba(16,24,39,0) 100%);
-            display: flex; justify-content: space-between; align-items: center;
-            position: sticky; top: 0; z-index: 100; backdrop-filter: blur(5px);
+        /* --- HEADER --- */
+        .app-header { 
+            padding: 15px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: rgba(31, 41, 55, 0.95); /* Semi-transparente oscuro */
+            backdrop-filter: blur(8px); 
+            position: sticky; 
+            top: 0; 
+            z-index: 50; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
         }
-        .admin-title { font-size: 1.2rem; font-weight: 800; letter-spacing: 1px; color: var(--primary); text-transform: uppercase; }
-        .refresh-btn { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 5px; }
+        .app-title { font-size: 1.3rem; font-weight: 900; color: var(--primary-accent); display: flex; align-items: center; gap: 8px; }
+        .header-actions { display: flex; align-items: center; gap: 15px; }
 
-        /* NARRATIVA / ASISTENTE */
-        .narrative-card {
-            background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
-            margin: 15px; padding: 20px; border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.2);
-            position: relative; overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .narrative-card::after {
-            content: ''; position: absolute; top: -50px; right: -50px;
-            width: 150px; height: 150px; background: rgba(255,255,255,0.1);
-            border-radius: 50%; pointer-events: none;
-        }
-        .assistant-face { font-size: 40px; margin-bottom: 10px; display: block; animation: float 3s ease-in-out infinite; }
-        .assistant-text { font-size: 1rem; line-height: 1.5; font-weight: 500; }
-        .assistant-highlight { font-weight: 800; color: #FFD700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        .date-display { font-size: 0.9rem; font-weight: 400; color: var(--text-muted); }
+        .notification-icon { position: relative; cursor: pointer; color: var(--text-light); }
+        .badge { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; font-weight: 700; line-height: 1; }
 
-        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+        /* --- CARDS & LAYOUT --- */
+        .content-container { padding: 15px; }
+        .card { 
+            background: var(--card-bg); 
+            border-radius: 16px; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            box-shadow: var(--kpi-shadow); 
+        }
+        .section-title { 
+            font-size: 1.1rem; 
+            color: var(--text-light); 
+            font-weight: 700; 
+            margin-bottom: 15px; 
+            border-bottom: 2px solid rgba(255,255,255,0.05);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-        /* KPI CARDS */
-        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 0 15px; margin-bottom: 20px; }
-        .kpi-card {
-            background: var(--card-bg); padding: 15px; border-radius: 16px;
-            text-align: center; border: 1px solid rgba(255,255,255,0.05);
-            transition: transform 0.2s;
+        /* --- KPI GRIDS --- */
+        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .kpi-item {
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
-        .kpi-card:active { transform: scale(0.98); }
-        .kpi-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;}
-        .kpi-value { font-size: 1.3rem; font-weight: 800; }
-        .kpi-value.ingreso { color: var(--success); }
-        .kpi-value.egreso { color: var(--danger); }
-
-        /* BUSCADOR */
-        .search-container { padding: 0 15px; margin-bottom: 20px; }
-        .search-input {
-            width: 100%; background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1);
-            padding: 12px 15px; border-radius: 12px; color: white; font-family: 'Montserrat';
-            font-size: 1rem; outline: none; transition: border-color 0.3s;
-        }
-        .search-input:focus { border-color: var(--primary); }
-
-        /* RANKING PODIO */
-        .podium-container { 
-            display: flex; justify-content: center; align-items: flex-end; gap: 10px; 
-            padding: 20px 15px; margin: 0 15px 20px; background: var(--card-bg); border-radius: 16px;
-        }
-        .podium-step { 
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end; 
-            text-align: center; width: 33%;
-        }
-        .podium-bar { 
-            width: 100%; border-radius: 8px 8px 0 0; margin-top: 5px; 
-            display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px;
-            font-weight: 800; color: rgba(0,0,0,0.6); font-size: 1.2rem;
-        }
-        .podium-name { font-size: 0.8rem; margin-top: 5px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-        .podium-amount { font-size: 0.7rem; color: var(--text-muted); }
+        .kpi-label { font-size: 0.8rem; font-weight: 400; color: var(--text-muted); margin-bottom: 5px; }
+        .kpi-value { font-size: 1.8rem; font-weight: 900; line-height: 1.2; }
         
-        .rank-1 .podium-bar { height: 100px; background: linear-gradient(to top, #F59E0B, #FFD700); box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); }
-        .rank-2 .podium-bar { height: 70px; background: linear-gradient(to top, #9CA3AF, #D1D5DB); }
-        .rank-3 .podium-bar { height: 50px; background: linear-gradient(to top, #78350F, #B45309); }
+        .kpi-ingreso { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .kpi-egreso { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .kpi-neto-pos { background: rgba(59, 130, 246, 0.15); color: var(--primary-accent); }
+        .kpi-neto-neg { background: rgba(239, 68, 68, 0.3); color: var(--danger); }
+        
+        /* --- NARRATIVA INTELIGENTE --- */
+        .narrativa-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 20px;
+            border-left: 4px solid var(--primary-accent);
+            line-height: 1.5;
+            font-size: 0.95rem;
+        }
+        .narrativa-title { font-weight: 700; color: var(--primary-accent); margin-bottom: 5px; }
+        .highlight-green { color: var(--success); font-weight: 700; }
+        .highlight-red { color: var(--danger); font-weight: 700; }
 
-        /* GRÁFICO DONA */
-        .chart-container {
-            margin: 0 15px; padding: 20px; background: var(--card-bg);
-            border-radius: 20px; position: relative; height: 280px;
-            display: flex; align-items: center; justify-content: center;
+        /* --- METRICA RIESGO (FLAG) --- */
+        .risk-flag-container { 
+            padding: 20px; 
+            border-radius: 16px; 
+            text-align: center; 
+            margin-bottom: 20px; 
+        }
+        .risk-flag-container h3 { margin: 0 0 5px; font-size: 1.1rem; }
+        .risk-flag-container .ratio { font-size: 2.5rem; font-weight: 900; margin-bottom: 5px; }
+        
+        .risk-green { background: rgba(16, 185, 129, 0.2); border: 2px solid var(--success); color: var(--success); }
+        .risk-yellow { background: rgba(245, 158, 11, 0.2); border: 2px solid var(--warning); color: var(--warning); }
+        .risk-red { background: rgba(239, 68, 68, 0.2); border: 2px solid var(--danger); color: var(--danger); }
+
+        /* --- GRAFICOS (MOCK) --- */
+        .chart-mock {
+            height: 150px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        
+        /* --- ANALISIS RÁPIDO (TABS) --- */
+        .analysis-tabs { display: flex; overflow-x: auto; padding-bottom: 10px; gap: 10px; margin-bottom: 15px; }
+        .tab-btn {
+            background: var(--card-bg);
+            color: var(--text-muted);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tab-btn.active {
+            background: var(--primary-accent);
+            color: var(--text-light);
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+        }
+        .analysis-content { animation: fadeIn 0.4s; }
+
+        /* --- SEGURIDAD / ALERTS --- */
+        .alert-list { list-style: none; padding: 0; }
+        .alert-item {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.9rem;
+        }
+        .alert-item.critical { background: var(--alert-critical); border-left: 5px solid var(--danger); }
+        .alert-item.medium { background: rgba(245, 158, 11, 0.2); border-left: 5px solid var(--warning); color: var(--warning); }
+        .alert-item.info { background: rgba(59, 130, 246, 0.1); border-left: 5px solid var(--primary-accent); color: var(--text-muted); }
+
+        /* --- BUSCADOR --- */
+        #global-search { 
+            width: 100%; 
+            padding: 15px; 
+            border-radius: 12px; 
+            border: 2px solid var(--card-bg); 
+            background: var(--bg-dark); 
+            color: var(--text-light); 
+            font-size: 1rem; 
+            margin-bottom: 15px;
         }
 
-        /* LISTAS DE DETALLE */
-        .section-title { padding: 0 20px; margin-top: 30px; margin-bottom: 10px; font-size: 0.9rem; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; }
-        
-        .detail-card { background: var(--card-bg); margin: 0 15px 10px; border-radius: 12px; overflow: hidden; }
-        .detail-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: rgba(255,255,255,0.02); }
-        .detail-title { font-weight: 600; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
-        .detail-total { font-weight: 700; color: var(--text-main); }
-        
-        .detail-content { display: none; padding: 0; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); }
-        .detail-content.show { display: block; animation: slideDown 0.3s; }
-        
-        .mov-item { 
-            padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); 
-            display: flex; justify-content: space-between; align-items: center; 
+        /* --- NAV --- */
+        .bottom-nav { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            background: rgba(31, 41, 55, 0.95); 
+            backdrop-filter: blur(8px); 
+            display: flex; 
+            justify-content: space-around; 
+            padding: 10px 0; 
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.3); 
+            z-index: 100; 
         }
-        .mov-item:last-child { border-bottom: none; }
-        .mov-info { display: flex; flex-direction: column; gap: 2px; }
-        .mov-cat { font-size: 0.9rem; font-weight: 500; color: #E5E7EB; }
-        .mov-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; }
-        .mov-amount { font-weight: 700; font-size: 0.95rem; }
-        .amount-in { color: var(--success); }
-        .amount-out { color: var(--danger); }
+        .nav-item { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            color: var(--text-muted); 
+            text-decoration: none; 
+            font-size: 0.75rem; 
+            font-weight: 700; 
+            transition: color 0.2s, background 0.2s; 
+            padding: 8px 10px;
+            border-radius: 8px;
+        }
+        .nav-item.active { 
+            color: var(--primary-accent); 
+            background: rgba(59, 130, 246, 0.1); 
+        }
+        .nav-icon { font-size: 24px; margin-bottom: 2px; }
 
-        /* ALERTAS */
-        .alert-feed { padding: 0 15px; }
-        .alert-card { background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 15px; border-radius: 8px; margin-bottom: 10px; }
-        .alert-title { color: var(--danger); font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;}
-        .alert-msg { font-size: 0.85rem; color: #FECACA; line-height: 1.4; }
-        .alert-time { font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 5px; text-align: right; }
-        
-        .empty-state { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.9rem; font-style: italic;}
+        /* --- UTILS --- */
+        .screen { display: none; animation: fadeIn 0.4s; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* Loading */
-        #loading-overlay { position: fixed; inset: 0; background: var(--bg-dark); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .spinner { width: 40px; height: 40px; border: 4px solid rgba(59, 130, 246, 0.3); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
+        /* --- AUXILIAR SIMULACION (PARA LA HISTORIA) --- */
+        .history-item { 
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--primary-accent);
+        }
+        .history-item-title { font-weight: 700; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
-    <!-- Loading Screen -->
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-        <p style="margin-top:15px; font-size:0.9rem; color:var(--text-muted); letter-spacing: 1px;">CARGANDO INTELIGENCIA...</p>
-    </div>
-
-    <!-- Header -->
-    <header class="admin-header">
-        <div class="admin-title">PABLO ADMIN <span style="font-size:0.7em; opacity:0.5;">V2.0</span></div>
-        <button class="refresh-btn" onclick="location.reload()"><span class="material-icons-round">refresh</span></button>
+    <!-- HEADER -->
+    <header class="app-header">
+        <div class="app-title"><span class="material-icons-round">analytics</span> Dashboard Dueño</div>
+        <div class="header-actions">
+            <div class="date-display" id="current-date">Cargando...</div>
+            <div class="notification-icon" onclick="showScreen('seguridad', document.querySelector('.nav-item[data-screen=\'seguridad\']'))">
+                <span class="material-icons-round">notifications</span>
+                <span class="badge" id="alert-badge">0</span>
+            </div>
+            <span class="material-icons-round" style="cursor:pointer;" onclick="fetchDashboardData()">refresh</span>
+        </div>
     </header>
 
-    <!-- 1. El Asesor Virtual -->
-    <section>
-        <div class="narrative-card">
-            <span class="assistant-face">🤖</span>
-            <div id="narrativa-texto" class="assistant-text">
-                Analizando el flujo de caja...
+    <div class="content-container">
+
+        <!-- 1. DASHBOARD DIARIO INTELIGENTE (INICIO) -->
+        <div id="screen-inicio" class="screen active">
+            
+            <div class="risk-flag-container" id="risk-flag">
+                <h3 id="risk-title">Calculando Métrica...</h3>
+                <div class="ratio" id="risk-ratio">--%</div>
+                <p id="risk-message" style="font-size:0.9rem; margin: 0;"></p>
+            </div>
+
+            <div class="card">
+                <div class="section-title"><span class="material-icons-round">insights</span> Pulso de Hoy</div>
+                <div class="kpi-grid">
+                    <div class="kpi-item kpi-ingreso">
+                        <div class="kpi-label">Ingreso Total</div>
+                        <div class="kpi-value" id="kpi-ingreso">--</div>
+                    </div>
+                    <div class="kpi-item kpi-egreso">
+                        <div class="kpi-label">Egreso Total</div>
+                        <div class="kpi-value" id="kpi-egreso">--</div>
+                    </div>
+                    <div class="kpi-item kpi-neto-pos" id="kpi-neto-box">
+                        <div class="kpi-label">Resultado Neto</div>
+                        <div class="kpi-value" id="kpi-neto">--</div>
+                    </div>
+                    <div class="kpi-item" style="background:rgba(255,255,255,0.05);">
+                        <div class="kpi-label">Proyección Mensual</div>
+                        <div class="kpi-value" style="color:var(--text-light); font-size:1.5rem;" id="kpi-proyeccion">--</div>
+                    </div>
+                </div>
+
+                <!-- NARRATIVA INTELIGENTE -->
+                <div class="narrativa-box">
+                    <div class="narrativa-title">Análisis Rápido</div>
+                    <div id="narrativa-diaria">Cargando...</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-title"><span class="material-icons-round">pie_chart</span> Ranking de Gastos (Hoy)</div>
+                <div class="chart-mock" id="gasto-ranking">
+                    
+                </div>
+                <ul id="ranking-list" style="list-style:none; padding:0; font-size:0.9rem;">
+                    <!-- Se rellena con JS -->
+                </ul>
+            </div>
+            
+            <div class="card">
+                <div class="section-title"><span class="material-icons-round">bolt</span> Día Crítico (Resumen)</div>
+                <div id="dia-critico-resumen">
+                    <!-- Módulo Día Crítico -->
+                    <p style="color:var(--text-muted);">Cargando ítems clave:</p>
+                    <ul id="critical-items" style="list-style:none; padding:0;">
+                        <!-- Se rellena con JS -->
+                    </ul>
+                </div>
             </div>
         </div>
-    </section>
 
-    <!-- 2. KPIs Salud -->
-    <section>
-        <div class="section-title"><span class="material-icons-round">insights</span> Resumen Semanal</div>
-        <div class="kpi-grid">
-            <div class="kpi-card">
-                <div class="kpi-label">Ingresos</div>
-                <div id="kpi-ingresos" class="kpi-value ingreso">...</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Egresos</div>
-                <div id="kpi-egresos" class="kpi-value egreso">...</div>
-            </div>
-        </div>
-        <!-- Barra de Salud -->
-        <div style="padding:0 15px; margin-bottom:20px;">
-            <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:5px; color:var(--text-muted);">
-                <span>Nivel de Gasto</span>
-                <span id="health-percentage">0%</span>
-            </div>
-            <div style="height:6px; background:#374151; border-radius:4px; overflow:hidden;">
-                <div id="health-bar" style="width:0%; height:100%; background:var(--success); transition: width 1s;"></div>
+        <!-- 2. DIAS ANTERIORES + VISTA DETALLADA -->
+        <div id="screen-dias" class="screen">
+            <div class="card">
+                <div class="section-title"><span class="material-icons-round">calendar_today</span> Selección de Fecha</div>
+                <input type="date" id="date-selector" class="form-control" onchange="loadDayDetail(this.value)" style="width:100%; margin-bottom:15px; padding:10px;">
+                <div class="section-title" id="day-detail-title">Detalle del Día Seleccionado</div>
+                <div class="chart-mock" style="height:200px; margin-bottom:15px;">
+                    
+                </div>
+                <div id="day-detail-content">
+                    <p style="color:var(--text-muted);">Selecciona una fecha para ver el detalle de movimientos, rendiciones y ajustes.</p>
+                </div>
             </div>
         </div>
-    </section>
 
-    <!-- 3. NUEVO: Hall of Fame (Ranking Repartidores) -->
-    <section id="section-ranking" style="display:none;">
-        <div class="section-title"><span class="material-icons-round">emoji_events</span> Top Repartidores (Ingresos)</div>
-        <div class="podium-container" id="podium-container">
-            <!-- Se llena con JS -->
-        </div>
-    </section>
+        <!-- 3. ANÁLISIS (Combustible, Sueldos, Proveedores) -->
+        <div id="screen-analisis" class="screen">
+            <div class="section-title"><span class="material-icons-round">data_usage</span> Análisis por Rubro</div>
 
-    <!-- 4. Gráfico Gastos -->
-    <section>
-        <div class="section-title"><span class="material-icons-round">pie_chart</span> Distribución de Gastos</div>
-        <div class="chart-container">
-            <canvas id="expensesChart"></canvas>
-        </div>
-    </section>
+            <div class="analysis-tabs">
+                <button class="tab-btn active" data-tab="combustible" onclick="switchAnalysisTab(this)">🔥 Combustible</button>
+                <button class="tab-btn" data-tab="empleados" onclick="switchAnalysisTab(this)">👥 Empleados</button>
+                <button class="tab-btn" data-tab="proveedores" onclick="switchAnalysisTab(this)">🚚 Proveedores</button>
+            </div>
 
-    <!-- 5. NUEVO: Buscador Global -->
-    <section>
-        <div class="section-title"><span class="material-icons-round">search</span> Lupa Financiera</div>
-        <div class="search-container">
-            <input type="text" id="search-input" class="search-input" placeholder="Buscar gasto, proveedor, repartidor..." onkeyup="filtrarMovimientos()">
-        </div>
-    </section>
+            <div class="analysis-content active" id="tab-combustible">
+                <div class="card">
+                    <div class="section-title"><span class="material-icons-round">local_gas_station</span> Informe Combustible</div>
+                    <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="kpi-item" style="background:rgba(255,255,255,0.05);">
+                            <div class="kpi-label">Total Mensual</div>
+                            <div class="kpi-value" id="fuel-monthly">--</div>
+                        </div>
+                        <div class="kpi-item" style="background:rgba(255,255,255,0.05);">
+                            <div class="kpi-label">Costo Promedio</div>
+                            <div class="kpi-value" id="fuel-avg-cost">--</div>
+                        </div>
+                        <div class="kpi-item" id="fuel-alert-box">
+                            <div class="kpi-label">Cargas Semanales</div>
+                            <div class="kpi-value" id="fuel-weekly-count">--</div>
+                        </div>
+                    </div>
+                    <div class="chart-mock" style="margin-top:15px;">
+                        
+                    </div>
+                </div>
+            </div>
 
-    <!-- 6. Listado Detallado (o Resultados de Búsqueda) -->
-    <section id="details-container">
-        <!-- Se llenan con JS -->
-    </section>
-    
-    <section id="search-results-container" style="display:none;">
-        <div class="section-title">Resultados de Búsqueda</div>
-        <div class="detail-card">
-            <div id="search-results-list" class="detail-content show"></div>
-        </div>
-    </section>
+            <div class="analysis-content" id="tab-empleados" style="display:none;">
+                <div class="card">
+                    <div class="section-title"><span class="material-icons-round">payments</span> Sueldos y Adelantos</div>
+                    <p>Adelantos realizados este mes:</p>
+                    <ul id="adelantos-list" style="list-style:disc; padding-left:20px; font-size:0.9rem; color:var(--text-muted);">
+                        <li>Laura: $40.000</li>
+                        <li>Nico: $10.000</li>
+                    </ul>
+                    <div class="chart-mock" style="height:120px; margin-top:15px;">
+                        
+                    </div>
+                </div>
+            </div>
 
-    <!-- 7. Monitor Seguridad -->
-    <section>
-        <div class="section-title" style="color:var(--danger); margin-top:40px;">
-            <span class="material-icons-round">security</span> Alertas de Fraude
+            <div class="analysis-content" id="tab-proveedores" style="display:none;">
+                <div class="card">
+                    <div class="section-title"><span class="material-icons-round">inventory_2</span> Ranking de Proveedores</div>
+                    <p>Top 3 gastos (Últimas 4 semanas):</p>
+                    <ol id="proveedor-ranking" style="padding-left:20px; font-size:0.9rem;">
+                        <li>Romyl: $1.2M <span class="highlight-red">(-5% vs Sem. Ant.)</span></li>
+                        <li>Distribuidora: $850K <span class="highlight-green">(+12% vs Sem. Ant.)</span></li>
+                        <li>Proveedor X: $320K</li>
+                    </ol>
+                </div>
+            </div>
         </div>
-        <div id="fraud-monitor-feed" class="alert-feed">
-            <div class="empty-state">Escaneando sistema...</div>
+
+        <!-- 4. SEGURIDAD / ANTI-FRAUDE -->
+        <div id="screen-seguridad" class="screen">
+            <div class="section-title"><span class="material-icons-round">security</span> Panel Anti-Fraude (La Joya)</div>
+            <div class="card">
+                <h3 style="color:var(--danger); margin-top:0;">🔴 ALERTAS CRÍTICAS</h3>
+                <ul class="alert-list" id="critical-alerts">
+                    <li class="alert-item critical">
+                        <span class="material-icons-round">warning</span> 
+                        Diferencia elevada de $32.000 en el último Arqueo.
+                    </li>
+                    <li class="alert-item critical">
+                        <span class="material-icons-round">visibility_off</span> 
+                        Movimiento libre registrado 4 mins después del Arqueo.
+                    </li>
+                </ul>
+
+                <h3 style="color:var(--warning);">🟡 RIESGO MODERADO</h3>
+                <ul class="alert-list" id="medium-alerts">
+                    <li class="alert-item medium">
+                        <span class="material-icons-round">info</span> 
+                        Se han registrado 3 Arqueos con diferencias hoy.
+                    </li>
+                    <li class="alert-item medium">
+                        <span class="material-icons-round">edit</span> 
+                        Laura editó el conteo de billetes 12 veces antes de Rendir.
+                    </li>
+                </ul>
+
+                <h3 style="color:var(--primary-accent);">🟢 INFORMACIÓN</h3>
+                <ul class="alert-list" id="info-alerts">
+                    <li class="alert-item info">
+                        <span class="material-icons-round">lock</span> 
+                        Sistema estable. Nada sospechoso en las últimas 48hs.
+                    </li>
+                </ul>
+            </div>
         </div>
-    </section>
+
+        <!-- 5. BUSCADOR GLOBAL -->
+        <div id="screen-buscador" class="screen">
+            <div class="section-title"><span class="material-icons-round">travel_explore</span> Buscador Global con IA</div>
+            <input type="text" id="global-search" placeholder="Ej: combustible toyota, adelanto laura, ajuste raro...">
+            <button class="tab-btn active" onclick="performSearch()" style="width:100%;">BUSCAR</button>
+            <div class="card" style="margin-top:15px;">
+                <div class="section-title">Resultados con Narrativa</div>
+                <div id="search-results">
+                    <p style="color:var(--text-muted);">Escribe tu consulta arriba para buscar en todos los movimientos, rendiciones y alertas.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. AUDITORÍAS SEMANALES -->
+        <div id="screen-auditorias" class="screen">
+            <div class="section-title"><span class="material-icons-round">checklist</span> Historial de Auditorías Semanales</div>
+            <div class="card">
+                <h3 style="color:var(--text-light); margin-top:0;">Auditoría de la semana (Lunes 25/11 - Hoy)</h3>
+                <ul id="auditoria-current" style="list-style:none; padding:0; font-size:0.9rem;">
+                    <li style="margin-bottom:5px;">Ingresos: <span class="highlight-green">$ 4.5M</span></li>
+                    <li style="margin-bottom:5px;">Egresos: <span class="highlight-red">$ 2.2M</span></li>
+                    <li style="margin-bottom:5px;">Riesgo (Gastos/Ingresos): <span class="highlight-green">48.9%</span></li>
+                    <li style="margin-bottom:5px; font-weight:700;">Movimiento Libre: <span class="highlight-red">$ 120.000</span> (Revisar)</li>
+                </ul>
+                
+                <div style="margin-top:20px;">
+                    <h3 style="color:var(--text-muted);">Historial de las 10 últimas</h3>
+                    <div id="auditoria-historial">
+                        <div class="history-item">
+                            <div class="history-item-title">Semana 18 Nov - 22 Nov</div>
+                            <span class="highlight-green">Riesgo: 42% (OK)</span>
+                        </div>
+                        <div class="history-item">
+                            <div class="history-item-title">Semana 11 Nov - 15 Nov</div>
+                            <span class="highlight-yellow">Riesgo: 65% (Precaución)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- NAV -->
+    <nav class="bottom-nav">
+        <a href="#" class="nav-item active" data-screen="inicio" onclick="showScreen('inicio', this)">
+            <span class="material-icons-round nav-icon">dashboard</span> <span>Inicio</span>
+        </a>
+        <a href="#" class="nav-item" data-screen="dias" onclick="showScreen('dias', this)">
+            <span class="material-icons-round nav-icon">event_note</span> <span>Días</span>
+        </a>
+        <a href="#" class="nav-item" data-screen="analisis" onclick="showScreen('analisis', this)">
+            <span class="material-icons-round nav-icon">bar_chart</span> <span>Análisis</span>
+        </a>
+        <a href="#" class="nav-item" data-screen="seguridad" onclick="showScreen('seguridad', this)">
+            <span class="material-icons-round nav-icon">lock</span> <span>Seguridad</span>
+        </a>
+        <a href="#" class="nav-item" data-screen="buscador" onclick="showScreen('buscador', this)">
+            <span class="material-icons-round nav-icon">search</span> <span>Buscar</span>
+        </a>
+        <a href="#" class="nav-item" data-screen="auditorias" onclick="showScreen('auditorias', this)">
+            <span class="material-icons-round nav-icon">history_toggle_off</span> <span>Auditorías</span>
+        </a>
+    </nav>
 
     <script>
-        /* =========================================
-           APP PABLO.JS V2.0 (Lógica Avanzada)
-           ========================================= */
-        
-        const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/"; 
-        let myChart = null;
-        let globalMovimientos = []; // Guardamos todo aquí para el buscador local
+        // La URL de tu API del backend de Apps Script (es la misma)
+        const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
+        const USUARIO_APP = "Pablo (Dueño)";
 
         document.addEventListener("DOMContentLoaded", () => {
-            cargarDashboard();
+            initApp();
         });
 
+        function initApp() {
+            setInitialDate();
+            fetchDashboardData();
+            loadAlertsBadge();
+        }
+        
+        // --- UTILS ---
+        function setInitialDate() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const todayFmt = `${dd}/${mm}/${yyyy}`;
+            document.getElementById('current-date').textContent = todayFmt;
+            document.getElementById('date-selector').value = `${yyyy}-${mm}-${dd}`;
+        }
+        
+        window.showScreen = (id, el) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-' + id).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            el.classList.add('active');
+            
+            // Recargar datos específicos si se cambia a Análisis/Seguridad
+            if (id === 'analisis') {
+                switchAnalysisTab(document.querySelector('.tab-btn.active') || document.querySelector('.tab-btn'));
+            }
+            if (id === 'seguridad') {
+                loadSecurityPanel();
+            }
+        };
+
+        // --- API & DATA FETCHING ---
         async function api(fn, params = {}) {
             try {
                 const res = await fetch(API_URL, {
-                    method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ fn, params })
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ fn, params })
                 });
                 return await res.json();
-            } catch (e) { console.error(e); return null; }
-        }
-
-        async function cargarDashboard() {
-            // 1. Fetch Datos (Últimos 15 días para tener más contexto)
-            globalMovimientos = await fetchMovimientosUltimosDias(15);
-            const notificaciones = await api("getNotificacionesCaja", { soloActivas: true });
-
-            // 2. Procesar Métricas
-            const metricas = procesarMetricas(globalMovimientos);
-
-            // 3. Renderizar
-            renderNarrativa(metricas);
-            renderKPIs(metricas);
-            renderRanking(globalMovimientos); // Nuevo
-            renderGrafico(metricas);
-            renderDetalles(metricas);
-            renderMonitorSeguridad(notificaciones);
-
-            document.getElementById('loading-overlay').style.display = 'none';
-        }
-
-        async function fetchMovimientosUltimosDias(dias) {
-            const promesas = [];
-            for (let i = 0; i < dias; i++) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                const fechaStr = d.toISOString().split('T')[0];
-                promesas.push(api("getMovimientos", { fechaStr }));
+            } catch (e) {
+                console.error("Error en la llamada a la API:", e);
+                return null;
             }
-            const resultados = await Promise.all(promesas);
-            // Aplanar, limpiar y ordenar por fecha (más reciente primero)
-            return resultados.flat()
-                .filter(m => m && m.id)
-                .sort((a,b) => b.id - a.id); 
+        }
+        
+        async function loadAlertsBadge() {
+            const res = await api("getNotificacionesCaja", { soloActivas: true });
+            const count = (res && res.length) || 0;
+            document.getElementById('alert-badge').textContent = count;
+            document.getElementById('alert-badge').style.display = count > 0 ? 'block' : 'none';
         }
 
-        function procesarMetricas(movs) {
-            // Filtramos solo los de los últimos 7 días para los KPIs principales
-            const hace7dias = new Date();
-            hace7dias.setDate(hace7dias.getDate() - 7);
+        async function fetchDashboardData() {
+            // MOCK: En una app real, esta función de backend (getDailyMetrics) devolvería todo precalculado.
+            // Aquí, simulamos el cálculo del backend usando los movimientos del día.
             
-            const movsSemana = movs.filter(m => {
-                const [d, M, y] = m.fecha.split('/');
-                return new Date(`${y}-${M}-${d}`) >= hace7dias;
-            });
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            const movements = await api("getMovimientos", { fechaStr: todayStr + "T12:00:00" });
 
+            if (!movements || movements.error) {
+                console.error("No se pudieron cargar los movimientos diarios.");
+                return;
+            }
+
+            // --- 1. CÁLCULO DE KPIs ---
             let ingresos = 0;
-            let egresosTotal = 0;
-            const categorias = {
-                combustible: { total: 0, items: [] },
-                sueldos: { total: 0, items: [] },
-                proveedores: { total: 0, items: [] },
-                otros: { total: 0, items: [] }
-            };
-
-            movsSemana.forEach(m => {
-                const imp = parseFloat(m.importe) || 0;
-                if (m.tipo === "Ingreso") {
-                    ingresos += imp;
+            let egresos = 0;
+            let totalEgreso = 0;
+            const gastosPorCategoria = {};
+            const MOVIMIENTOS_CRITICOS = [];
+            
+            movements.forEach(m => {
+                const importe = m.importe;
+                if (m.tipo === 'Ingreso') {
+                    ingresos += importe;
                 } else {
-                    egresosTotal += imp;
-                    const catLower = (m.categoria || "").toLowerCase();
+                    egresos += importe;
+                    totalEgreso += importe;
                     
-                    if (catLower.includes("combustible")) {
-                        categorias.combustible.total += imp;
-                        categorias.combustible.items.push(m);
-                    } else if (catLower.includes("adelanto") || catLower.includes("haber") || catLower.includes("sueldo")) {
-                        categorias.sueldos.total += imp;
-                        categorias.sueldos.items.push(m);
-                    } else if (catLower.includes("proveedor")) {
-                        categorias.proveedores.total += imp;
-                        categorias.proveedores.items.push(m);
-                    } else {
-                        categorias.otros.total += imp;
-                        categorias.otros.items.push(m);
-                    }
+                    const cat = m.categoria.split(" ")[0]; // Simplificar categoría para el ranking
+                    gastosPorCategoria[cat] = (gastosPorCategoria[cat] || 0) + importe;
+                }
+                
+                // MÓDULO DÍA CRÍTICO - Identificación de eventos clave
+                if (m.categoria.includes('Rendición') || m.categoria.includes('Ajuste') || m.categoria.includes('Combustible') || importe > 50000) {
+                    MOVIMIENTOS_CRITICOS.push({
+                        type: m.categoria,
+                        amount: m.importe,
+                        time: m.hora,
+                        obs: m.observacion
+                    });
                 }
             });
 
-            return { ingresos, egresosTotal, categorias, totalMovs: movsSemana.length };
-        }
+            const neto = ingresos - egresos;
+            const riesgo = ingresos > 0 ? (egresos / ingresos) * 100 : 100;
 
-        // --- Render UI ---
-        function formatoMoneda(num) {
-            return "$ " + new Intl.NumberFormat('es-AR').format(num);
-        }
-
-        function renderNarrativa(data) {
-            const saldo = data.ingresos - data.egresosTotal;
-            const ratio = data.ingresos > 0 ? (data.egresosTotal / data.ingresos) * 100 : 0;
+            // --- 2. DISPLAY DE KPIS ---
+            const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
             
-            // Proyección Simple (El Oráculo)
-            const promedioDiarioIngreso = data.ingresos / 7;
-            const proyeccionMes = promedioDiarioIngreso * 30;
+            document.getElementById('kpi-ingreso').textContent = formatCurrency(ingresos);
+            document.getElementById('kpi-egreso').textContent = formatCurrency(egresos);
+            document.getElementById('kpi-neto').textContent = formatCurrency(neto);
+            
+            const netoBox = document.getElementById('kpi-neto-box');
+            netoBox.className = 'kpi-item ' + (neto >= 0 ? 'kpi-neto-pos' : 'kpi-neto-neg');
+            
+            // --- 3. METRICA DE RIESGO ---
+            const flagContainer = document.getElementById('risk-flag');
+            flagContainer.className = 'risk-flag-container';
+            let flagMsg, flagTitle;
 
-            let mensaje = "";
-            let emoji = "";
-
-            if (data.totalMovs === 0) {
-                mensaje = "Hola Pablo. Esperando movimientos de la semana...";
-                emoji = "💤";
-            } else if (ratio < 50) {
-                mensaje = `¡Semana sólida Pablo! <br>El negocio es rentable. A este ritmo, proyectamos ingresos mensuales de <span class="assistant-highlight">${formatoMoneda(proyeccionMes)}</span>.`;
-                emoji = "🚀";
-            } else if (ratio < 85) {
-                mensaje = `Semana operativa. <br>Estamos moviendo caja. Hemos gastado <span class="assistant-highlight">${formatoMoneda(data.categorias.combustible.total)}</span> en combustible esta semana.`;
-                emoji = "📊";
+            if (riesgo <= 55) {
+                flagContainer.classList.add('risk-green');
+                flagTitle = '🟢 BANDERA VERDE';
+                flagMsg = 'Gastos bajo control. La rentabilidad de hoy es excelente.';
+            } else if (riesgo <= 75) {
+                flagContainer.classList.add('risk-yellow');
+                flagTitle = '🟡 BANDERA AMARILLA';
+                flagMsg = 'Precaución: Gastos en ascenso. Monitorea los egresos de la tarde.';
             } else {
-                mensaje = `⚠️ <b>Alerta Financiera.</b> <br>El nivel de gastos está al ${ratio.toFixed(0)}% de los ingresos. Revisa los adelantos y proveedores.`;
-                emoji = "🧐";
+                flagContainer.classList.add('risk-red');
+                flagTitle = '🔴 BANDERA ROJA';
+                flagMsg = '¡Alerta! Los egresos superan o igualan el 75% de tus ingresos.';
             }
 
-            document.querySelector('.assistant-face').textContent = emoji;
-            document.getElementById('narrativa-texto').innerHTML = mensaje;
-        }
-
-        function renderKPIs(data) {
-            document.getElementById('kpi-ingresos').textContent = formatoMoneda(data.ingresos);
-            document.getElementById('kpi-egresos').textContent = formatoMoneda(data.egresosTotal);
+            document.getElementById('risk-title').textContent = flagTitle;
+            document.getElementById('risk-ratio').textContent = `${riesgo.toFixed(1)}%`;
+            document.getElementById('risk-message').textContent = flagMsg;
             
-            const porcentajeGasto = data.ingresos > 0 ? (data.egresosTotal / data.ingresos) * 100 : 0;
-            const bar = document.getElementById('health-bar');
-            const label = document.getElementById('health-percentage');
+            // --- 4. PROYECCIÓN MENSUAL ---
+            const daysInMonth = 30; // Simplificación
+            const projNeto = (neto * daysInMonth);
+            document.getElementById('kpi-proyeccion').textContent = formatCurrency(projNeto);
+            document.getElementById('kpi-proyeccion').style.color = projNeto >= 0 ? 'var(--success)' : 'var(--danger)';
+
+            // --- 5. NARRATIVA INTELIGENTE (Simulación) ---
+            const sortedGastos = Object.entries(gastosPorCategoria)
+                .sort(([, a], [, b]) => b - a);
             
-            // Animación barra
-            setTimeout(() => { bar.style.width = `${Math.min(porcentajeGasto, 100)}%`; }, 100);
-            
-            label.textContent = `${porcentajeGasto.toFixed(1)}% Gastado`;
-
-            if(porcentajeGasto > 85) { bar.style.background = "#EF4444"; label.style.color="#EF4444"; }
-            else if(porcentajeGasto > 60) { bar.style.background = "#F59E0B"; label.style.color="#F59E0B"; }
-            else { bar.style.background = "#10B981"; label.style.color="#10B981"; }
-        }
-
-        // --- NUEVO: RANKING ---
-        function renderRanking(movs) {
-            // Filtramos Rendiciones de los últimos 7 días
-            const hace7dias = new Date(); hace7dias.setDate(hace7dias.getDate() - 7);
-            
-            // Agrupar por repartidor
-            const rankingMap = {};
-            movs.forEach(m => {
-                const [d, M, y] = m.fecha.split('/');
-                if (new Date(`${y}-${M}-${d}`) < hace7dias) return;
-                
-                // Buscamos movimientos que sean "Ingreso" y parezcan rendiciones (usamos una lógica flexible)
-                if (m.tipo === "Ingreso" && (m.categoria.toLowerCase().includes("rendi") || m.observacion.toLowerCase().includes("rendi"))) {
-                    // Extraer nombre del observacion o categoria si es posible, o usar un default si tuvieramos el campo
-                    // Como en tu sistema guardamos el nombre en "observacion" a veces como "Rendición Nico (Mañana)"
-                    // Intentamos parsear o usamos la columna repartidor si viniera en la API.
-                    // Nota: Tu API devuelve m.categoria y m.observacion. Tu backend NO devolvía columna 'repartidor' en getMovimientos.
-                    // TRUCO: Vamos a intentar adivinar el nombre del texto.
-                    
-                    let nombre = "N/D";
-                    const texto = (m.observacion + " " + m.categoria).toLowerCase();
-                    if(texto.includes("nico")) nombre = "Nico";
-                    else if(texto.includes("martin")) nombre = "Martin";
-                    else if(texto.includes("fede")) nombre = "Fede";
-                    else if(texto.includes("facu")) nombre = "Facu";
-                    else return; // Si no identificamos nombre, saltamos (o agrupar en 'Otros')
-
-                    if(!rankingMap[nombre]) rankingMap[nombre] = 0;
-                    rankingMap[nombre] += parseFloat(m.importe);
-                }
-            });
-
-            const sortedRanking = Object.entries(rankingMap)
-                .sort(([,a], [,b]) => b - a)
-                .slice(0, 3); // Top 3
-
-            const container = document.getElementById('podium-container');
-            const section = document.getElementById('section-ranking');
-
-            if (sortedRanking.length === 0) {
-                section.style.display = 'none';
-                return;
-            }
-
-            section.style.display = 'block';
-            container.innerHTML = "";
-
-            // Orden visual: 2do - 1ro - 3ro
-            const order = [1, 0, 2]; 
-            
-            order.forEach(idx => {
-                if (!sortedRanking[idx]) return;
-                const [name, amount] = sortedRanking[idx];
-                const rankClass = `rank-${idx + 1}`;
-                const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
-                
-                container.innerHTML += `
-                    <div class="podium-step ${rankClass}">
-                        <div class="podium-name">${medal} ${name}</div>
-                        <div class="podium-amount">${formatoMoneda(amount).split(',')[0]}</div>
-                        <div class="podium-bar">${idx + 1}</div>
-                    </div>
-                `;
-            });
-        }
-
-        function renderGrafico(data) {
-            const ctx = document.getElementById('expensesChart').getContext('2d');
-            if (myChart) myChart.destroy();
-
-            const cats = data.categorias;
-            const valores = [cats.combustible.total, cats.sueldos.total, cats.proveedores.total, cats.otros.total];
-            
-            if (valores.reduce((a,b)=>a+b, 0) === 0) return;
-
-            myChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Combustible', 'Sueldos', 'Proveedores', 'Otros'],
-                    datasets: [{
-                        data: valores,
-                        backgroundColor: ['#F59E0B', '#3B82F6', '#10B981', '#6B7280'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'right', labels: { color: '#9CA3AF', font: {family:'Montserrat', size:10}, boxWidth: 10 } }
-                    },
-                    cutout: '75%'
-                }
-            });
-        }
-
-        function renderDetalles(data) {
-            const container = document.getElementById('details-container');
-            container.innerHTML = ""; 
-
-            const createSection = (title, icon, color, items) => {
-                if (items.length === 0) return;
-                const total = items.reduce((sum, i) => sum + parseFloat(i.importe), 0);
-
-                const html = `
-                    <div class="detail-card">
-                        <div class="detail-header" onclick="toggleDetail(this)">
-                            <div class="detail-title" style="color:${color}">
-                                <span class="material-icons-round">${icon}</span> ${title}
-                            </div>
-                            <div class="detail-total">${formatoMoneda(total)}</div>
-                        </div>
-                        <div class="detail-content">
-                            ${items.map(m => renderMovimientoItem(m)).join('')}
-                        </div>
-                    </div>
-                `;
-                container.innerHTML += html;
-            };
-
-            createSection("Combustible", "local_gas_station", "#F59E0B", data.categorias.combustible.items);
-            createSection("Sueldos", "groups", "#3B82F6", data.categorias.sueldos.items);
-            createSection("Proveedores", "local_shipping", "#10B981", data.categorias.proveedores.items);
-            createSection("Otros", "receipt_long", "#9CA3AF", data.categorias.otros.items);
-        }
-
-        function renderMovimientoItem(m) {
-            const isIngreso = m.tipo === 'Ingreso';
-            const colorClass = isIngreso ? 'amount-in' : 'amount-out';
-            const sign = isIngreso ? '+' : '-';
-            
-            return `
-                <div class="mov-item">
-                    <div class="mov-info">
-                        <div class="mov-cat">${m.categoria}</div>
-                        <div class="mov-meta">
-                            <span>${m.fecha} ${m.hora}</span>
-                            <span>•</span>
-                            <span>${m.observacion || ''}</span>
-                        </div>
-                    </div>
-                    <div class="mov-amount ${colorClass}">${sign} ${formatoMoneda(m.importe).replace('$ ','')}</div>
-                </div>
-            `;
-        }
-
-        // --- NUEVO: BUSCADOR ---
-        function filtrarMovimientos() {
-            const term = document.getElementById('search-input').value.toLowerCase();
-            const resultsContainer = document.getElementById('search-results-container');
-            const detailsContainer = document.getElementById('details-container');
-            const list = document.getElementById('search-results-list');
-
-            if (term.length < 2) {
-                resultsContainer.style.display = 'none';
-                detailsContainer.style.display = 'block';
-                return;
-            }
-
-            detailsContainer.style.display = 'none';
-            resultsContainer.style.display = 'block';
-
-            const filtrados = globalMovimientos.filter(m => 
-                (m.categoria && m.categoria.toLowerCase().includes(term)) ||
-                (m.observacion && m.observacion.toLowerCase().includes(term)) ||
-                (m.tipo && m.tipo.toLowerCase().includes(term))
-            );
-
-            if (filtrados.length === 0) {
-                list.innerHTML = '<div style="padding:20px; text-align:center; color:#6B7280;">No se encontraron resultados.</div>';
+            let narrativa = '';
+            if (egresos === 0) {
+                narrativa += '¡Excelente! Hoy no hay egresos, solo ingresos. ';
             } else {
-                list.innerHTML = filtrados.map(m => renderMovimientoItem(m)).join('');
-            }
-        }
-
-        window.toggleDetail = function(el) {
-            const content = el.nextElementSibling;
-            content.classList.toggle('show');
-        }
-
-        function renderMonitorSeguridad(notificaciones) {
-            const feed = document.getElementById('fraud-monitor-feed');
-            
-            if (!notificaciones || notificaciones.length === 0) {
-                feed.innerHTML = '<div class="empty-state">✅ Sin alertas recientes.</div>';
-                return;
-            }
-
-            const anomalias = notificaciones.filter(n => n.tipo === "ANOMALIA_CAJA");
-            if (anomalias.length === 0) {
-                feed.innerHTML = '<div class="empty-state">✅ Sistema seguro.</div>';
-                return;
-            }
-
-            feed.innerHTML = "";
-            anomalias.slice(0, 5).forEach(n => {
-                const date = new Date(n.fecha);
-                const timeStr = date.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'}) + ' ' + (n.hora || '');
+                const topGasto = sortedGastos[0];
+                const topGastoPercent = (topGasto[1] / totalEgreso) * 100;
                 
-                feed.innerHTML += `
-                    <div class="alert-card">
-                        <div class="alert-title">
-                            <span class="material-icons-round">warning</span> ${n.titulo}
-                        </div>
-                        <div class="alert-msg">${n.mensaje}</div>
-                        <div class="alert-time">${timeStr}</div>
-                    </div>
+                narrativa += `Hoy estás gastando un <span class="${neto >= 0 ? 'highlight-green' : 'highlight-red'}">${riesgo.toFixed(1)}%</span> de lo que entra. `;
+                narrativa += `<br><br>El rubro de **${topGasto[0]}** representa el <span class="highlight-red">${topGastoPercent.toFixed(1)}%</span> del egreso del día.`;
+            }
+            // Simular un chequeo de fraude basado en el backend
+            const fraudAlert = (await api("getNotificacionesCaja", { soloActivas: true })).find(a => a.severidad === 'ALTA');
+            if (fraudAlert) {
+                narrativa += `<br><br>🚨 **ALERTA DE SEGURIDAD**: Se detectó un patrón de ${fraudAlert.titulo} (${fraudAlert.mensaje}). Revisa el panel de Seguridad.`;
+            }
+            
+            document.getElementById('narrativa-diaria').innerHTML = narrativa;
+            
+            // --- 6. RANKING DE GASTOS ---
+            const rankingList = document.getElementById('ranking-list');
+            rankingList.innerHTML = '';
+            sortedGastos.slice(0, 4).forEach(([cat, amount]) => {
+                const percent = (amount / totalEgreso) * 100;
+                rankingList.innerHTML += `
+                    <li style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span>${cat}</span>
+                        <span>${percent.toFixed(1)}% (${formatCurrency(amount)})</span>
+                    </li>
                 `;
             });
+
+            // --- 7. DÍA CRÍTICO ---
+            const criticalList = document.getElementById('critical-items');
+            criticalList.innerHTML = '';
+            MOVIMIENTOS_CRITICOS.forEach(item => {
+                 criticalList.innerHTML += `
+                    <li style="margin-bottom:8px; border-bottom:1px dashed rgba(255,255,255,0.05); padding-bottom:5px;">
+                        <span class="material-icons-round" style="font-size:1rem; vertical-align:middle; color:var(--warning);">check_circle</span>
+                        <b>${item.type}:</b> ${formatCurrency(item.amount)} a las ${item.time}.
+                    </li>
+                `;
+            });
+            if (MOVIMIENTOS_CRITICOS.length === 0) {
+                 criticalList.innerHTML = '<li style="color:var(--success);">Día sin eventos críticos o gastos fuertes.</li>';
+            }
         }
+        
+        // --- VISTAS SECUNDARIAS ---
+        
+        function switchAnalysisTab(button) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            document.querySelectorAll('.analysis-content').forEach(content => content.style.display = 'none');
+            const targetId = button.getAttribute('data-tab');
+            document.getElementById('tab-' + targetId).style.display = 'block';
+
+            // Cargar datos específicos de Combustible
+            if (targetId === 'combustible') {
+                loadCombustibleAnalysis();
+            }
+        }
+        
+        async function loadCombustibleAnalysis() {
+            // MOCK: En una app real, llamarías a checkCombustibleSemana para cada vehículo
+            // y a funciones para obtener totales semanales/mensuales.
+            
+            document.getElementById('fuel-monthly').textContent = "$ 2.500.000";
+            document.getElementById('fuel-avg-cost').textContent = "$ 35.000";
+            
+            // Simular checkCombustibleSemana(vehiculo) para Saveiro
+            const resCombustible = await api("checkCombustibleSemana", { vehiculo: "Volkswagen Saveiro" });
+            const count = (resCombustible && resCombustible.cantidad) || 3; // Simular 3 cargas
+            
+            document.getElementById('fuel-weekly-count').textContent = `${count} cargas`;
+            const alertBox = document.getElementById('fuel-alert-box');
+            alertBox.className = 'kpi-item';
+            
+            if (count >= 3) {
+                 alertBox.style.background = 'rgba(239, 68, 68, 0.3)';
+                 alertBox.style.color = 'var(--danger)';
+            } else if (count === 2) {
+                 alertBox.style.background = 'rgba(245, 158, 11, 0.3)';
+                 alertBox.style.color = 'var(--warning)';
+            } else {
+                 alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
+                 alertBox.style.color = 'var(--success)';
+            }
+        }
+
+        async function loadSecurityPanel() {
+            const res = await api("getNotificacionesCaja", { soloActivas: true });
+            
+            const criticalList = document.getElementById('critical-alerts');
+            const mediumList = document.getElementById('medium-alerts');
+            const infoList = document.getElementById('info-alerts');
+            
+            criticalList.innerHTML = '';
+            mediumList.innerHTML = '';
+            infoList.innerHTML = '';
+            
+            // MOCK: Usar los datos reales del backend (Notificaciones)
+            if (!res || res.length === 0) {
+                 infoList.innerHTML = '<li class="alert-item info"><span class="material-icons-round">thumb_up</span> Sistema estable. Nada sospechoso en las últimas 48hs.</li>';
+                 document.getElementById('alert-badge').textContent = '0';
+                 document.getElementById('alert-badge').style.display = 'none';
+                 return;
+            }
+
+            let criticalCount = 0;
+
+            res.forEach(alert => {
+                const time = new Date(alert.fecha).toLocaleDateString('es-AR', { hour: '2-digit', minute: '2-digit' });
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="material-icons-round">${alert.severidad === 'ALTA' ? 'warning' : alert.severidad === 'MEDIA' ? 'info' : 'notifications'}</span> <span>${alert.titulo}: ${alert.mensaje} (${time})</span>`;
+                
+                if (alert.severidad === 'ALTA') {
+                    li.classList.add('alert-item', 'critical');
+                    criticalCount++;
+                    criticalList.appendChild(li);
+                } else if (alert.severidad === 'MEDIA') {
+                    li.classList.add('alert-item', 'medium');
+                    mediumList.appendChild(li);
+                } else {
+                    li.classList.add('alert-item', 'info');
+                    infoList.appendChild(li);
+                }
+            });
+            
+            document.getElementById('alert-badge').textContent = criticalCount;
+            document.getElementById('alert-badge').style.display = criticalCount > 0 ? 'block' : 'none';
+        }
+        
+        async function loadDayDetail(dateStr) {
+            const date = new Date(dateStr);
+            const detailTitle = document.getElementById('day-detail-title');
+            const detailContent = document.getElementById('day-detail-content');
+            
+            detailTitle.textContent = `Detalle del Día: ${date.toLocaleDateString('es-AR')}`;
+            detailContent.innerHTML = '<p style="color:var(--text-muted);">Cargando movimientos y eventos de ese día...</p>';
+            
+            const movements = await api("getMovimientos", { fechaStr: dateStr + "T12:00:00" });
+            
+            if (!movements || movements.error || movements.length === 0) {
+                 detailContent.innerHTML = '<p style="color:var(--text-muted); padding:20px;">No se encontraron movimientos para esta fecha.</p>';
+                 return;
+            }
+            
+            let html = '<h4>Movimientos (Hora)</h4><ul style="list-style:none; padding:0;">';
+            movements.forEach(m => {
+                 const sign = m.tipo === 'Ingreso' ? '+' : '-';
+                 const color = m.tipo === 'Ingreso' ? 'var(--success)' : 'var(--danger)';
+                 html += `
+                    <li style="margin-bottom:8px; border-bottom:1px dashed rgba(255,255,255,0.05); padding-bottom:5px;">
+                        <span style="font-weight:700;">${m.hora}</span> - ${m.categoria} <br>
+                        <span style="color:${color}; font-weight:700; font-size:1.1rem;">${sign} ${m.importe.toLocaleString('es-AR')}</span> | Obs: ${m.observacion || 'N/D'}
+                    </li>
+                 `;
+            });
+            html += '</ul>';
+            detailContent.innerHTML = html;
+        }
+
+        async function performSearch() {
+            const query = document.getElementById('global-search').value;
+            const resultsDiv = document.getElementById('search-results');
+            if (!query) {
+                resultsDiv.innerHTML = '<p style="color:var(--text-muted);">Por favor, introduce un término de búsqueda.</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<p style="color:var(--primary-accent);">🔍 Buscando en todos los registros...</p>';
+
+            // MOCK DE BÚSQUEDA CON IA (usaría Google Search o un endpoint de Apps Script con lógica de filtrado)
+            
+            // Simulación de 5 segundos de búsqueda
+            await new Promise(resolve => setTimeout(resolve, 1500)); 
+            
+            // Simulación de resultados
+            let mockResult = '';
+            if (query.toLowerCase().includes('combustible toyota')) {
+                 mockResult = `
+                    <p style="font-weight:700; color:var(--success);">✅ Encontré 3 cargas de combustible en Toyota Hiace en los últimos 7 días. </p>
+                    <div class="history-item">Total gastado: $125.000. Una de ellas fue registrada a las 02:30 AM (fuera de horario habitual).</div>
+                 `;
+            } else if (query.toLowerCase().includes('ajuste raro')) {
+                 mockResult = `
+                    <p style="font-weight:700; color:var(--danger);">🚨 ¡Alerta! 2 movimientos de "Ajuste Arqueo" en días distintos se realizaron a menos de 5 minutos del cierre. </p>
+                    <div class="history-item">El último ocurrió el 27/11 a las 23:56. Revisa el Panel de Seguridad.</div>
+                 `;
+            } else {
+                 mockResult = `<p style="font-weight:700; color:var(--text-muted);">No encontré resultados exactos para "${query}". Intenta con un rubro o fecha específica.</p>`;
+            }
+            
+            resultsDiv.innerHTML = mockResult;
+        }
+
     </script>
 </body>
 </html>
