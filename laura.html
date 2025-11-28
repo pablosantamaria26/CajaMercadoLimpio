@@ -432,7 +432,7 @@
 
     <script>
         /* =========================================
-           LOGICA APP V3.2
+           LOGICA APP V3.3
            ========================================= */
         const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
         
@@ -579,7 +579,13 @@
 
         async function cargarMovimientos() {
             // Obtenemos la fecha del input (YYYY-MM-DD)
-            const fechaApi = document.getElementById('fecha-historial').value;
+            let fechaInput = document.getElementById('fecha-historial').value;
+            
+            // CORRECCIÓN TIMEZONE:
+            // Al enviar "YYYY-MM-DD" a Google Apps Script, new Date() lo toma como UTC 00:00.
+            // En Argentina (UTC-3), eso cae en el día anterior a las 21:00hs.
+            // Solución: Agregamos T12:00:00 para asegurar que caiga al mediodía del día correcto.
+            const fechaApi = fechaInput + "T12:00:00"; 
             
             const lista = document.getElementById('lista-movimientos');
             lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Cargando...</li>';
