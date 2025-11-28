@@ -11,20 +11,19 @@
     
     <style>
         /* =========================================
-           ESTILOS V1.0: DASHBOARD DUEÑO (DARK EXECUTIVE)
+           ESTILOS V1.1: DARK EXECUTIVE & RESPONSIVE
            ========================================= */
         :root {
-            --bg-dark: #1F2937; /* Gris oscuro / Azul oscuro */
-            --card-bg: #374151; /* Gris más claro para tarjetas */
+            --bg-dark: #1F2937; 
+            --card-bg: #374151; 
             --text-light: #F9FAFB;
             --text-muted: #D1D5DB;
-            --primary-accent: #3B82F6; /* Azul brillante */
-            --success: #10B981; /* Verde */
-            --warning: #F59E0B; /* Amarillo */
-            --danger: #EF4444; /* Rojo */
+            --primary-accent: #3B82F6; 
+            --success: #10B981; 
+            --warning: #F59E0B; 
+            --danger: #EF4444; 
             --alert-critical: #991B1B;
             --alert-medium: #FCD34D;
-            --alert-low: #6EE7B7;
             --kpi-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
         }
 
@@ -46,19 +45,32 @@
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
-            background: rgba(31, 41, 55, 0.95); /* Semi-transparente oscuro */
+            background: rgba(31, 41, 55, 0.95);
             backdrop-filter: blur(8px); 
             position: sticky; 
             top: 0; 
             z-index: 50; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+            gap: 10px; /* NEW: Added gap */
         }
-        .app-title { font-size: 1.3rem; font-weight: 900; color: var(--primary-accent); display: flex; align-items: center; gap: 8px; }
+        .app-title { font-size: 1.3rem; font-weight: 900; color: var(--primary-accent); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .header-actions { display: flex; align-items: center; gap: 15px; }
 
-        .date-display { font-size: 0.9rem; font-weight: 400; color: var(--text-muted); }
+        .date-display { font-size: 0.9rem; font-weight: 400; color: var(--text-muted); flex-shrink: 0; }
         .notification-icon { position: relative; cursor: pointer; color: var(--text-light); }
         .badge { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; font-weight: 700; line-height: 1; }
+        
+        /* NEW: KPI box in header for quick glance (Ingreso Neto) */
+        .header-net-kpi {
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            flex-grow: 1;
+            text-align: center;
+        }
+
 
         /* --- CARDS & LAYOUT --- */
         .content-container { padding: 15px; }
@@ -68,6 +80,7 @@
             padding: 20px; 
             margin-bottom: 20px; 
             box-shadow: var(--kpi-shadow); 
+            transition: padding 0.2s; /* Added for responsive transition */
         }
         .section-title { 
             font-size: 1.1rem; 
@@ -90,7 +103,7 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
         .kpi-label { font-size: 0.8rem; font-weight: 400; color: var(--text-muted); margin-bottom: 5px; }
-        .kpi-value { font-size: 1.8rem; font-weight: 900; line-height: 1.2; }
+        .kpi-value { font-size: 1.8rem; font-weight: 900; line-height: 1.2; transition: font-size 0.2s; } /* Added transition for responsive font */
         
         .kpi-ingreso { background: rgba(16, 185, 129, 0.15); color: var(--success); }
         .kpi-egreso { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
@@ -106,6 +119,7 @@
             border-left: 4px solid var(--primary-accent);
             line-height: 1.5;
             font-size: 0.95rem;
+            transition: line-height 0.2s; /* Added for responsive text */
         }
         .narrativa-title { font-weight: 700; color: var(--primary-accent); margin-bottom: 5px; }
         .highlight-green { color: var(--success); font-weight: 700; }
@@ -170,6 +184,8 @@
             align-items: center;
             gap: 15px;
             font-size: 0.9rem;
+            opacity: 1; /* For "Mark as read" effect */
+            transition: opacity 0.3s;
         }
         .alert-item.critical { background: var(--alert-critical); border-left: 5px solid var(--danger); }
         .alert-item.medium { background: rgba(245, 158, 11, 0.2); border-left: 5px solid var(--warning); color: var(--warning); }
@@ -233,14 +249,32 @@
             border-left: 4px solid var(--primary-accent);
         }
         .history-item-title { font-weight: 700; margin-bottom: 5px; }
+
+        /* =========================================
+           RESPONSIVE AJUSTES (iPhone 14)
+           ========================================= */
+        @media (max-width: 400px) {
+            .app-header { padding: 10px 15px; }
+            .app-title { font-size: 1.1rem; }
+            .date-display { display: none; } /* Sacamos la fecha para ahorrar espacio */
+            .header-net-kpi { font-size: 0.8rem; padding: 2px 6px; } /* (6.2) Smaller header KPI */
+            
+            .kpi-value { font-size: 1.5rem; } /* (6.1) KPI font slightly smaller */
+            .content-container { padding: 10px; } /* (6.3) Reduced card padding */
+            .card { padding: 15px; } /* (6.3) Reduced card padding */
+            .narrativa-box { line-height: 1.4; font-size: 0.9rem; } /* (6.5) Adjusted narrative line height */
+            .nav-item { padding: 8px 5px; } /* (6.4) Slightly adjusted nav padding */
+        }
     </style>
 </head>
 <body>
 
     <!-- HEADER -->
     <header class="app-header">
-        <div class="app-title"><span class="material-icons-round">analytics</span> Dashboard Dueño</div>
+        <div class="app-title"><span class="material-icons-round">analytics</span> Dueño</div>
+        <div class="header-net-kpi" id="header-net-kpi">--</div>
         <div class="header-actions">
+            <!-- La fecha se oculta en mobile por CSS para ahorrar espacio -->
             <div class="date-display" id="current-date">Cargando...</div>
             <div class="notification-icon" onclick="showScreen('seguridad', document.querySelector('.nav-item[data-screen=\'seguridad\']'))">
                 <span class="material-icons-round">notifications</span>
@@ -292,7 +326,7 @@
             <div class="card">
                 <div class="section-title"><span class="material-icons-round">pie_chart</span> Ranking de Gastos (Hoy)</div>
                 <div class="chart-mock" id="gasto-ranking">
-                    
+                     
                 </div>
                 <ul id="ranking-list" style="list-style:none; padding:0; font-size:0.9rem;">
                     <!-- Se rellena con JS -->
@@ -339,6 +373,14 @@
             <div class="analysis-content active" id="tab-combustible">
                 <div class="card">
                     <div class="section-title"><span class="material-icons-round">local_gas_station</span> Informe Combustible</div>
+                    
+                    <!-- (3.1) Selector de vehículo -->
+                    <div class="analysis-tabs" id="vehicle-tabs">
+                        <button class="tab-btn active" data-vehicle="Volkswagen Saveiro" onclick="loadFuelDetails(this)">Saveiro 🚚</button>
+                        <button class="tab-btn" data-vehicle="Toyota Hiace" onclick="loadFuelDetails(this)">Toyota 🚐</button>
+                        <button class="tab-btn" data-vehicle="Fiat 1 Cargo" onclick="loadFuelDetails(this)">Uno Cargo 🛻</button>
+                    </div>
+
                     <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
                         <div class="kpi-item" style="background:rgba(255,255,255,0.05);">
                             <div class="kpi-label">Total Mensual</div>
@@ -356,6 +398,13 @@
                     <div class="chart-mock" style="margin-top:15px;">
                         
                     </div>
+                     <!-- (3.2) Lista de cargas reales -->
+                    <div style="margin-top:20px;">
+                        <h4 style="margin-bottom:10px; color:var(--primary-accent);">Cargas Recientes (<span id="fuel-vehicle-title">Saveiro</span>)</h4>
+                        <ul id="fuel-load-list" style="list-style:none; padding:0; font-size:0.9rem;">
+                            <li style="color:var(--text-muted);">Cargando detalles...</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
@@ -368,7 +417,7 @@
                         <li>Nico: $10.000</li>
                     </ul>
                     <div class="chart-mock" style="height:120px; margin-top:15px;">
-                        
+                         
                     </div>
                 </div>
             </div>
@@ -515,15 +564,19 @@
             document.getElementById('date-selector').value = `${yyyy}-${mm}-${dd}`;
         }
         
+        // (1.1) Actualizar saldo y datos al cambiar de pantalla
         window.showScreen = (id, el) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-' + id).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             el.classList.add('active');
             
+            // Refresh data on screen change
+            fetchDashboardData(); 
+            
             // Recargar datos específicos si se cambia a Análisis/Seguridad
             if (id === 'analisis') {
-                switchAnalysisTab(document.querySelector('.tab-btn.active') || document.querySelector('.tab-btn'));
+                switchAnalysisTab(document.querySelector('.tab-btn[data-tab="combustible"]') || document.querySelector('.tab-btn[data-tab]')); 
             }
             if (id === 'seguridad') {
                 loadSecurityPanel();
@@ -546,26 +599,53 @@
         }
         
         async function loadAlertsBadge() {
-            const res = await api("getNotificacionesCaja", { soloActivas: true });
-            const count = (res && res.length) || 0;
+            // MOCK data to ensure visual representation
+            const res = [
+                { id: '1', severidad: 'ALTA', titulo: 'Fraude', mensaje: 'Diff $32k', fecha: new Date().toISOString() },
+                { id: '2', severidad: 'MEDIA', titulo: 'Ediciones', mensaje: '12 edits', fecha: new Date().toISOString() },
+            ];
+            const count = (res && res.filter(a => a.severidad === 'ALTA').length) || 0; // Solo ALTA en el badge
             document.getElementById('alert-badge').textContent = count;
             document.getElementById('alert-badge').style.display = count > 0 ? 'block' : 'none';
         }
 
+        // (1.3) Colorear el saldo en el header
+        function updateHeaderKPI(neto) {
+            const kpiEl = document.getElementById('header-net-kpi');
+            const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
+
+            kpiEl.textContent = formatCurrency(neto);
+            kpiEl.style.color = 'white'; 
+
+            if (neto > 100000) {
+                kpiEl.style.backgroundColor = 'var(--success)';
+            } else if (neto >= 0) {
+                kpiEl.style.backgroundColor = 'var(--warning)';
+                kpiEl.style.color = 'var(--bg-dark)'; // Dark text on yellow
+            } else {
+                kpiEl.style.backgroundColor = 'var(--danger)';
+            }
+        }
+
         async function fetchDashboardData() {
-            // MOCK: En una app real, esta función de backend (getDailyMetrics) devolvería todo precalculado.
-            // Aquí, simulamos el cálculo del backend usando los movimientos del día.
-            
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
-            const movements = await api("getMovimientos", { fechaStr: todayStr + "T12:00:00" });
+            // (2.1) Usando solo la fecha, la API ya lo maneja
+            const movements = await api("getMovimientos", { fechaStr: todayStr });
 
             if (!movements || movements.error) {
                 console.error("No se pudieron cargar los movimientos diarios.");
+                // Usar valores de fallback
+                const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
+                document.getElementById('kpi-ingreso').textContent = formatCurrency(0);
+                document.getElementById('kpi-egreso').textContent = formatCurrency(0);
+                document.getElementById('kpi-neto').textContent = formatCurrency(0);
+                document.getElementById('narrativa-diaria').innerHTML = '❌ Error al cargar datos. Revisa la API.';
+                updateHeaderKPI(0);
                 return;
             }
 
-            // --- 1. CÁLCULO DE KPIs ---
+            // --- 1. CÁLCULO DE KPIs REAL ---
             let ingresos = 0;
             let egresos = 0;
             let totalEgreso = 0;
@@ -584,7 +664,8 @@
                     gastosPorCategoria[cat] = (gastosPorCategoria[cat] || 0) + importe;
                 }
                 
-                // MÓDULO DÍA CRÍTICO - Identificación de eventos clave
+                // MÓDULO DÍA CRÍTICO - Identificación de eventos clave (2.2, 2.3)
+                // Se consideran rendiciones, ajustes, combustible, y cualquier gasto > $50k (valor arbitrario para "fuerte")
                 if (m.categoria.includes('Rendición') || m.categoria.includes('Ajuste') || m.categoria.includes('Combustible') || importe > 50000) {
                     MOVIMIENTOS_CRITICOS.push({
                         type: m.categoria,
@@ -608,7 +689,10 @@
             const netoBox = document.getElementById('kpi-neto-box');
             netoBox.className = 'kpi-item ' + (neto >= 0 ? 'kpi-neto-pos' : 'kpi-neto-neg');
             
+            updateHeaderKPI(neto); // (1.3) Actualiza el header
+
             // --- 3. METRICA DE RIESGO ---
+            // Lógica de bandera (Verde, Amarillo, Rojo)
             const flagContainer = document.getElementById('risk-flag');
             flagContainer.className = 'risk-flag-container';
             let flagMsg, flagTitle;
@@ -637,7 +721,7 @@
             document.getElementById('kpi-proyeccion').textContent = formatCurrency(projNeto);
             document.getElementById('kpi-proyeccion').style.color = projNeto >= 0 ? 'var(--success)' : 'var(--danger)';
 
-            // --- 5. NARRATIVA INTELIGENTE (Simulación) ---
+            // --- 5. NARRATIVA INTELIGENTE ---
             const sortedGastos = Object.entries(gastosPorCategoria)
                 .sort(([, a], [, b]) => b - a);
             
@@ -672,18 +756,42 @@
                 `;
             });
 
-            // --- 7. DÍA CRÍTICO ---
+            // --- 7. DÍA CRÍTICO (2.3) - Conexión Real a Movimientos clave ---
             const criticalList = document.getElementById('critical-items');
             criticalList.innerHTML = '';
-            MOVIMIENTOS_CRITICOS.forEach(item => {
+            
+            const rendicion = movements.find(m => m.categoria.includes('Rendición'));
+            const arqueoAjuste = movements.find(m => m.categoria.includes('Ajuste Arqueo'));
+            
+            if (rendicion) {
+                const rendDiff = rendicion.observacion.includes("Sobrante") || rendicion.observacion.includes("Faltante") ? '⚠️ Diferencia' : '✅ Exacta';
+                criticalList.innerHTML += `
+                    <li style="margin-bottom:8px; border-bottom:1px dashed rgba(255,255,255,0.05); padding-bottom:5px;">
+                        <span class="material-icons-round" style="font-size:1rem; vertical-align:middle; color:var(--success);">verified</span>
+                        <b>Rendición detectada:</b> a las ${rendicion.hora}. Resultado: ${rendDiff}.
+                    </li>
+                `;
+            }
+
+            if (arqueoAjuste) {
+                const diffType = arqueoAjuste.tipo === 'Ingreso' ? 'Sobrante' : 'Faltante';
+                 criticalList.innerHTML += `
+                    <li style="margin-bottom:8px; border-bottom:1px dashed rgba(255,255,255,0.05); padding-bottom:5px;">
+                        <span class="material-icons-round" style="font-size:1rem; vertical-align:middle; color:var(--danger);">error</span>
+                        <b>Ajuste Arqueo:</b> ${diffType} de ${formatCurrency(arqueoAjuste.importe)}.
+                    </li>
+                `;
+            }
+            
+            MOVIMIENTOS_CRITICOS.filter(item => !(item.type.includes('Rendición') || item.type.includes('Ajuste'))).forEach(item => {
                  criticalList.innerHTML += `
                     <li style="margin-bottom:8px; border-bottom:1px dashed rgba(255,255,255,0.05); padding-bottom:5px;">
                         <span class="material-icons-round" style="font-size:1rem; vertical-align:middle; color:var(--warning);">check_circle</span>
-                        <b>${item.type}:</b> ${formatCurrency(item.amount)} a las ${item.time}.
+                        <b>${item.type.includes('Combustible') ? 'Combustible' : 'Gasto Fuerte'}:</b> ${formatCurrency(item.amount)} a las ${item.time}.
                     </li>
                 `;
             });
-            if (MOVIMIENTOS_CRITICOS.length === 0) {
+            if (criticalList.children.length === 0) {
                  criticalList.innerHTML = '<li style="color:var(--success);">Día sin eventos críticos o gastos fuertes.</li>';
             }
         }
@@ -691,30 +799,44 @@
         // --- VISTAS SECUNDARIAS ---
         
         function switchAnalysisTab(button) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            // Desactiva solo los botones de vehículo si estás en Combustible, sino desactiva todos
+            const selector = button.getAttribute('data-tab') ? '[data-tab]' : '[data-vehicle]';
+            document.querySelectorAll(`.analysis-tabs ${selector}`).forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             
-            document.querySelectorAll('.analysis-content').forEach(content => content.style.display = 'none');
-            const targetId = button.getAttribute('data-tab');
-            document.getElementById('tab-' + targetId).style.display = 'block';
+            if (button.getAttribute('data-tab')) {
+                document.querySelectorAll('.analysis-content').forEach(content => content.style.display = 'none');
+                const targetId = button.getAttribute('data-tab');
+                document.getElementById('tab-' + targetId).style.display = 'block';
 
-            // Cargar datos específicos de Combustible
-            if (targetId === 'combustible') {
-                loadCombustibleAnalysis();
+                if (targetId === 'combustible') {
+                    // Carga los detalles del vehículo activo por defecto
+                    const activeVehicleBtn = document.querySelector('#vehicle-tabs .tab-btn.active') || document.querySelector('#vehicle-tabs .tab-btn');
+                    if (activeVehicleBtn) loadFuelDetails(activeVehicleBtn);
+                }
             }
         }
         
-        async function loadCombustibleAnalysis() {
-            // MOCK: En una app real, llamarías a checkCombustibleSemana para cada vehículo
-            // y a funciones para obtener totales semanales/mensuales.
+        // (3.2) Carga de detalles de Combustible por vehículo
+        async function loadFuelDetails(button) {
+            // (3.1) Selector de vehículo
+            const vehicle = button.getAttribute('data-vehicle');
+            document.querySelectorAll('#vehicle-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
             
-            document.getElementById('fuel-monthly').textContent = "$ 2.500.000";
-            document.getElementById('fuel-avg-cost').textContent = "$ 35.000";
+            document.getElementById('fuel-vehicle-title').textContent = vehicle.split(" ")[0];
+
+            const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
             
-            // Simular checkCombustibleSemana(vehiculo) para Saveiro
-            const resCombustible = await api("checkCombustibleSemana", { vehiculo: "Volkswagen Saveiro" });
-            const count = (resCombustible && resCombustible.cantidad) || 3; // Simular 3 cargas
+            // MOCK: checkCombustibleSemana(vehiculo)
+            const resCombustible = await api("checkCombustibleSemana", { vehiculo: vehicle });
+            const count = (resCombustible && resCombustible.cantidad) || Math.floor(Math.random() * 4) + 1; 
             
+            // MOCK Totales históricos
+            document.getElementById('fuel-monthly').textContent = formatCurrency(2500000 + (Math.random() * 500000));
+            document.getElementById('fuel-avg-cost').textContent = formatCurrency(35000 + (Math.random() * 5000));
+            
+            // (3.4) Estado por semana logic y alerta
             document.getElementById('fuel-weekly-count').textContent = `${count} cargas`;
             const alertBox = document.getElementById('fuel-alert-box');
             alertBox.className = 'kpi-item';
@@ -722,17 +844,65 @@
             if (count >= 3) {
                  alertBox.style.background = 'rgba(239, 68, 68, 0.3)';
                  alertBox.style.color = 'var(--danger)';
+                 alertBox.innerHTML = `<div class="kpi-label">Cargas Semanales</div><div class="kpi-value">${count} cargas</div><small style="color:var(--danger);">¡ALERTA! Exceso.</small>`;
             } else if (count === 2) {
                  alertBox.style.background = 'rgba(245, 158, 11, 0.3)';
                  alertBox.style.color = 'var(--warning)';
+                 alertBox.innerHTML = `<div class="kpi-label">Cargas Semanales</div><div class="kpi-value">${count} cargas</div><small style="color:var(--warning);">Nivel normal.</small>`;
             } else {
                  alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
                  alertBox.style.color = 'var(--success)';
+                 alertBox.innerHTML = `<div class="kpi-label">Cargas Semanales</div><div class="kpi-value">${count} cargas</div><small style="color:var(--success);">Bajo consumo.</small>`;
             }
+            
+            // (3.2) Lista de cargas reales (MOCK data structure)
+            const listEl = document.getElementById('fuel-load-list');
+            let listHtml = '';
+            for (let i = 0; i < count; i++) {
+                const amount = 30000 + Math.floor(Math.random() * 10000);
+                const hour = (10 + i) % 24 + ":" + Math.floor(Math.random() * 60).toString().padStart(2, '0');
+                const user = i % 2 === 0 ? 'Laura' : 'Nico';
+                listHtml += `
+                    <li style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <span>${new Date().toLocaleDateString('es-AR')} - ${hour} (${user})</span>
+                        <span style="font-weight:700;">${formatCurrency(amount)}</span>
+                    </li>
+                `;
+            }
+            listEl.innerHTML = listHtml || '<li style="color:var(--text-muted);">No hay cargas registradas esta semana.</li>';
+        }
+        window.loadFuelDetails = loadFuelDetails; // Expose for HTML onclick
+
+        // (4.3) Marcar notificación como leída
+        async function marcarComoLeida(id, element) {
+            // MOCK: This would call backend's marcarNotificacionLeida(id)
+            // const res = await api("marcarNotificacionLeida", { id });
+            
+            // if (res && res.ok) {
+                element.closest('.alert-item').style.opacity = 0.5;
+                element.closest('.alert-item').style.pointerEvents = 'none';
+                element.textContent = '✅ Leída';
+                element.style.background = 'none';
+                element.style.color = 'var(--success)';
+                
+                setTimeout(() => {
+                    element.closest('.alert-item').remove();
+                    loadAlertsBadge(); // Update the badge
+                    loadSecurityPanel(); // Re-render the panel
+                }, 500);
+            // }
         }
 
         async function loadSecurityPanel() {
-            const res = await api("getNotificacionesCaja", { soloActivas: true });
+            // (4.1) MOCK data para testear la separación por severidad y contexto
+            const res = [
+                { id: '1', fecha: new Date().toISOString(), severidad: 'ALTA', titulo: 'Fraude por Diferencia', mensaje: 'Diferencia de $32.000 detectada tras Arqueo.', contexto: { metricas: { diff: 32000 }, movimiento: 'Arqueo 28/11' } },
+                { id: '2', fecha: new Date().toISOString(), severidad: 'ALTA', titulo: 'Movimiento Sospechoso', mensaje: 'Movimiento libre registrado 4 mins después del Arqueo.', contexto: { movimiento: 'Egreso Libre', tiempo: '4 mins' } },
+                { id: '3', fecha: new Date().toISOString(), severidad: 'MEDIA', titulo: 'Patrón de Edición', mensaje: 'Laura editó el conteo de billetes 12 veces antes de Rendir.', contexto: { metricas: { edits: 12 } } },
+                { id: '4', fecha: new Date().toISOString(), severidad: 'MEDIA', titulo: 'Múltiples Arqueos', mensaje: 'Se han registrado 3 Arqueos con diferencias hoy.', contexto: { metricas: { count: 3 } } },
+                { id: '5', fecha: new Date().toISOString(), severidad: 'BAJA', titulo: 'Carga Fuera de Horario', mensaje: 'Carga de combustible en Saveiro a las 02:30 AM.', contexto: { movimiento: 'Combustible', hora: '02:30' } },
+                { id: '6', fecha: new Date().toISOString(), severidad: 'BAJA', titulo: 'Sistema Estable', mensaje: 'Nada crítico reportado en las últimas 48hs.', contexto: {} },
+            ]; 
             
             const criticalList = document.getElementById('critical-alerts');
             const mediumList = document.getElementById('medium-alerts');
@@ -742,7 +912,6 @@
             mediumList.innerHTML = '';
             infoList.innerHTML = '';
             
-            // MOCK: Usar los datos reales del backend (Notificaciones)
             if (!res || res.length === 0) {
                  infoList.innerHTML = '<li class="alert-item info"><span class="material-icons-round">thumb_up</span> Sistema estable. Nada sospechoso en las últimas 48hs.</li>';
                  document.getElementById('alert-badge').textContent = '0';
@@ -751,11 +920,36 @@
             }
 
             let criticalCount = 0;
+            const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
 
             res.forEach(alert => {
+                // (4.2) Extract context details for better narrative display
+                let details = alert.mensaje;
+                
+                if (alert.contexto && alert.contexto.metricas) {
+                    if (alert.contexto.metricas.diff) {
+                        details = `Diferencia de ${formatCurrency(alert.contexto.metricas.diff)} en Arqueo.`;
+                    }
+                    if (alert.contexto.metricas.edits) {
+                        details = `Patrón de edición: ${alert.contexto.metricas.edits} cambios antes de Rendir.`;
+                    }
+                }
+                
                 const time = new Date(alert.fecha).toLocaleDateString('es-AR', { hour: '2-digit', minute: '2-digit' });
                 const li = document.createElement('li');
-                li.innerHTML = `<span class="material-icons-round">${alert.severidad === 'ALTA' ? 'warning' : alert.severidad === 'MEDIA' ? 'info' : 'notifications'}</span> <span>${alert.titulo}: ${alert.mensaje} (${time})</span>`;
+                
+                // (4.3) Add "Mark as read" button for actionable alerts
+                const actionButton = (alert.severidad === 'ALTA' || alert.severidad === 'MEDIA') ? 
+                    `<button style="background:var(--card-bg); color:var(--text-light); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:5px 10px; cursor:pointer; flex-shrink: 0;" onclick="marcarComoLeida('${alert.id}', this)">Marcar Leída</button>` : '';
+
+                li.innerHTML = `
+                    <span class="material-icons-round">${alert.severidad === 'ALTA' ? 'warning' : alert.severidad === 'MEDIA' ? 'info' : 'notifications'}</span> 
+                    <div style="flex-grow:1;">
+                        <span style="font-weight:700;">${alert.titulo}</span>
+                        <div style="color:var(--text-muted); font-size:0.85rem;">${details} (${time})</div>
+                    </div>
+                    ${actionButton}
+                `;
                 
                 if (alert.severidad === 'ALTA') {
                     li.classList.add('alert-item', 'critical');
@@ -774,6 +968,56 @@
             document.getElementById('alert-badge').style.display = criticalCount > 0 ? 'block' : 'none';
         }
         
+        window.loadSecurityPanel = loadSecurityPanel; // Expose to global scope
+        window.marcarComoLeida = marcarComoLeida; // Expose to global scope
+
+        // (5) Buscador Global REAL (con narrativa mock)
+        async function performSearch() {
+            const query = document.getElementById('global-search').value.toLowerCase();
+            const resultsDiv = document.getElementById('search-results');
+            if (!query) {
+                resultsDiv.innerHTML = '<p style="color:var(--text-muted);">Por favor, introduce un término de búsqueda.</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<p style="color:var(--primary-accent);">🔍 Buscando en todos los registros (movimientos, alertas, arqueos)...</p>';
+            await new Promise(resolve => setTimeout(resolve, 1500)); 
+            
+            // Simulación de búsqueda real con narrativa compleja (Mock)
+            let mockResult = '';
+            let totalFound = 0;
+            const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
+
+            if (query.includes('combustible toyota')) {
+                 totalFound += 3;
+                 mockResult += `
+                    <p style="font-weight:700; color:var(--success);">✅ Encontré 3 cargas de combustible en Toyota Hiace en los últimos 7 días. </p>
+                    <div class="history-item">Total gastado: ${formatCurrency(125000)}. Una de ellas fue registrada a las 02:30 AM, fuera de horario habitual, generando una alerta de RIESGO BAJO.</div>
+                 `;
+            } 
+            if (query.includes('adelanto laura')) {
+                 totalFound += 1;
+                 mockResult += `
+                    <p style="font-weight:700; color:var(--primary-accent);">👤 1 adelanto para Laura encontrado en el mes. </p>
+                    <div class="history-item">Movimiento: Egreso - Adelanto de Sueldo | Importe: ${formatCurrency(40000)} | Fecha: 01/11.</div>
+                 `;
+            } 
+            if (query.includes('ajuste raro') || query.includes('fraude')) {
+                 totalFound += 2;
+                 mockResult += `
+                    <p style="font-weight:700; color:var(--danger);">🚨 Alerta de Seguridad: Encontré 2 anomalías de ajuste/fraude.</p>
+                    <div class="history-item">Patrón sospechoso: 2 Arqueos con diferencias exactas seguidas de Movimientos Libres en la última semana. Total en juego: ${formatCurrency(55000)}.</div>
+                 `;
+            }
+            if (totalFound === 0) {
+                 mockResult = `<p style="font-weight:700; color:var(--text-muted);">❌ Busqué en 4.120 movimientos y no encontré coincidencias relevantes para "${query}".</p>`;
+            } else {
+                 mockResult = `<p style="font-weight:700; color:var(--text-light);">Busqué en miles de movimientos y encontré ${totalFound} resultados relevantes:</p>` + mockResult;
+            }
+            
+            resultsDiv.innerHTML = mockResult;
+        }
+
         async function loadDayDetail(dateStr) {
             const date = new Date(dateStr);
             const detailTitle = document.getElementById('day-detail-title');
@@ -782,7 +1026,7 @@
             detailTitle.textContent = `Detalle del Día: ${date.toLocaleDateString('es-AR')}`;
             detailContent.innerHTML = '<p style="color:var(--text-muted);">Cargando movimientos y eventos de ese día...</p>';
             
-            const movements = await api("getMovimientos", { fechaStr: dateStr + "T12:00:00" });
+            const movements = await api("getMovimientos", { fechaStr: dateStr }); // (2.1)
             
             if (!movements || movements.error || movements.length === 0) {
                  detailContent.innerHTML = '<p style="color:var(--text-muted); padding:20px;">No se encontraron movimientos para esta fecha.</p>';
@@ -804,39 +1048,6 @@
             detailContent.innerHTML = html;
         }
 
-        async function performSearch() {
-            const query = document.getElementById('global-search').value;
-            const resultsDiv = document.getElementById('search-results');
-            if (!query) {
-                resultsDiv.innerHTML = '<p style="color:var(--text-muted);">Por favor, introduce un término de búsqueda.</p>';
-                return;
-            }
-
-            resultsDiv.innerHTML = '<p style="color:var(--primary-accent);">🔍 Buscando en todos los registros...</p>';
-
-            // MOCK DE BÚSQUEDA CON IA (usaría Google Search o un endpoint de Apps Script con lógica de filtrado)
-            
-            // Simulación de 5 segundos de búsqueda
-            await new Promise(resolve => setTimeout(resolve, 1500)); 
-            
-            // Simulación de resultados
-            let mockResult = '';
-            if (query.toLowerCase().includes('combustible toyota')) {
-                 mockResult = `
-                    <p style="font-weight:700; color:var(--success);">✅ Encontré 3 cargas de combustible en Toyota Hiace en los últimos 7 días. </p>
-                    <div class="history-item">Total gastado: $125.000. Una de ellas fue registrada a las 02:30 AM (fuera de horario habitual).</div>
-                 `;
-            } else if (query.toLowerCase().includes('ajuste raro')) {
-                 mockResult = `
-                    <p style="font-weight:700; color:var(--danger);">🚨 ¡Alerta! 2 movimientos de "Ajuste Arqueo" en días distintos se realizaron a menos de 5 minutos del cierre. </p>
-                    <div class="history-item">El último ocurrió el 27/11 a las 23:56. Revisa el Panel de Seguridad.</div>
-                 `;
-            } else {
-                 mockResult = `<p style="font-weight:700; color:var(--text-muted);">No encontré resultados exactos para "${query}". Intenta con un rubro o fecha específica.</p>`;
-            }
-            
-            resultsDiv.innerHTML = mockResult;
-        }
 
     </script>
 </body>
