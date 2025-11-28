@@ -20,12 +20,12 @@
     
     <style>
         /* =========================================
-           ESTILOS V4.1: FUN, VISUAL & READABLE
+           ESTILOS V4.2: FUN, VISUAL & READABLE
            ========================================= */
         :root {
             /* Paleta */
             --bg-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-            --glass-bg: rgba(255, 255, 255, 0.85); /* Un poco más opaco para lectura */
+            --glass-bg: rgba(255, 255, 255, 0.90); /* Más opaco para mejor contraste */
             --glass-border: rgba(255, 255, 255, 0.6);
             --primary: #6C63FF;      
             --primary-dark: #4834d4;
@@ -54,7 +54,7 @@
         /* --- FONDO ANIMADO --- */
         .background-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to top right, #dfe9f3 0%, #ffffff 100%); /* Fondo más limpio */
+            background: linear-gradient(to top right, #dfe9f3 0%, #ffffff 100%);
             z-index: -1; overflow: hidden;
         }
         .shape {
@@ -146,18 +146,32 @@
         .btn-success { background: linear-gradient(45deg, #00b894, #00cec9); box-shadow: 0 8px 20px rgba(0, 184, 148, 0.3); }
         .btn-orange { background: linear-gradient(45deg, #e17055, #d63031); box-shadow: 0 8px 20px rgba(225, 112, 85, 0.3); }
 
-        /* --- CONTADOR BILLETES --- */
-        .billetes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        /* --- CONTADOR BILLETES (GIGANTE) --- */
+        .billetes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .billete-item { 
-            background: white; border-radius: 16px; padding: 5px; text-align: center; 
+            background: white; border-radius: 20px; padding: 15px; text-align: center; 
             border: 1px solid #dfe6e9; position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            transition: transform 0.1s;
         }
-        .billete-label { font-size: 0.7rem; color: var(--text-light); font-weight: 700; margin-top: 5px;}
+        .billete-item:active { transform: scale(0.98); }
+        
+        /* AQUI ESTA EL CAMBIO: TAMAÑO GIGANTE */
+        .billete-label { 
+            font-size: 1.5rem; /* Antes 0.7rem -> Ahora DOBLE+ */
+            color: var(--primary-dark); 
+            font-weight: 800; 
+            margin-bottom: 5px;
+            line-height: 1.2;
+        }
+        
         .billete-input { 
             width: 100%; border: none; text-align: center; 
             font-size: 2rem; font-weight: 800; color: var(--text-main); 
             outline: none; background: transparent; padding: 0;
+            border-bottom: 2px solid transparent;
         }
+        .billete-input:focus { border-bottom-color: var(--primary); }
         .billete-input::placeholder { color: #eee; }
 
         /* --- ARQUEO VISUAL MEJORADO --- */
@@ -168,14 +182,12 @@
             padding: 20px; border-radius: 20px; text-align: center; position: relative;
         }
         
-        /* Caja Sistema (Azul) */
         .box-sistema {
             background: #e3f2fd; border: 2px solid #90caf9; color: var(--sistema-color);
         }
         .box-sistema .label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
         .box-sistema .value { font-size: 2.5rem; font-weight: 900; margin-top: 5px; }
 
-        /* Caja Físico (Naranja Vibrante) */
         .box-fisico {
             background: #ffeaa7; border: 2px solid #fdcb6e; color: #d35400;
             box-shadow: 0 10px 20px rgba(253, 203, 110, 0.3);
@@ -275,7 +287,7 @@
 
             <div class="form-group">
                 <select id="mov-categoria" class="form-control">
-                    <option value="" disabled selected>-- ¿Cuál es el motivo? --</option>
+                    <option value="" disabled selected>-- ¿Ingresa el motivo? --</option>
                 </select>
             </div>
 
@@ -290,17 +302,18 @@
                     <option value="" disabled selected>Seleccionar Vehículo</option>
                     <option value="Volkswagen Saveiro">🛻 Volkswagen Saveiro</option>
                     <option value="Toyota Hiace">🚐 Toyota Hiace</option>
-                    <option value="Fiat 1 Cargo">🚗 Fiat 1 Cargo</option>
+                    <option value="Fiat 1 Cargo">🚗 Fiat Uno Cargo</option>
                 </select>
                 
                 <!-- Empleados -->
                 <select id="mov-empleado" class="form-control" style="display:none; margin-bottom:10px;">
                     <option value="" disabled selected>Seleccionar Empleado (Obligatorio)</option>
+                    <option value="Otro">👤 Laura</option>
                     <option value="Nico">👤 Nico</option>
                     <option value="Martin">👤 Martín</option>
-                    <option value="Fede">👤 Fede</option>
-                    <option value="Facu">👤 Facu</option>
-                    <option value="Otro">👤 Otro</option>
+                    <option value="Fede">👤 Tomas</option>
+                    <option value="Facu">👤 Ariel</option>
+                    <option value="Otro">👤 Lucas</option>
                 </select>
 
                 <!-- Cheques (Nuevo) -->
@@ -316,7 +329,7 @@
             </div>
 
             <div class="form-group">
-                <input type="text" id="mov-obs" class="form-control" placeholder="📝 Observación (opcional)">
+                <input type="text" id="mov-obs" class="form-control" placeholder="📝 Descripcion (opcional)">
             </div>
 
             <button class="btn-main" onclick="registrarMovimiento()">
@@ -395,7 +408,7 @@
 
                 <!-- Caja Sistema (Azul y Clara) -->
                 <div class="arqueo-box box-sistema">
-                    <div class="label">Esperado por Sistema</div>
+                    <div class="label">Total esperado por Sistema</div>
                     <div id="arqueo-sistema" class="value">$ ...</div>
                 </div>
             </div>
