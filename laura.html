@@ -20,20 +20,20 @@
     
     <style>
         /* =========================================
-           ESTILOS V5.0: FORMATO & BILLETES
+           ESTILOS V6.4: Interacción y Limpieza
            ========================================= */
         :root {
             --bg-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-            --glass-bg: rgba(255, 255, 255, 0.95); 
+            --glass-bg: rgba(255, 255, 255, 0.95); 
             --glass-border: rgba(255, 255, 255, 0.6);
-            --primary: #6C63FF;      
+            --primary: #6C63FF;      
             --primary-dark: #4834d4;
-            --accent: #FF6584;       
-            --success: #00B894;      
+            --accent: #FF6584;       
+            --success: #00B894;      
             --text-main: #2D3436;
             --text-light: #636E72;
-            --fisico-color: #e17055; 
-            --sistema-color: #0984e3; 
+            --fisico-color: #e17055; 
+            --sistema-color: #0984e3; 
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -41,7 +41,7 @@
         body {
             margin: 0; padding: 0;
             font-family: 'Quicksand', sans-serif;
-            background: #f0f2f5; 
+            background: #f0f2f5; 
             color: var(--text-main);
             padding-bottom: 110px;
             overflow-x: hidden;
@@ -117,8 +117,22 @@
         .form-group { margin-bottom: 15px; }
         .form-control { width: 100%; padding: 16px; border: 2px solid #dfe6e9; border-radius: 16px; font-size: 1rem; font-family: 'Quicksand'; outline: none; transition: all 0.3s; background: white; color: var(--text-main); font-weight: 700; }
         .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.1); }
-        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        #mov-importe { font-size: 2.2rem; text-align: center; color: var(--primary); border: 2px dashed var(--primary); }
+        
+        /* Controles de movimiento principales (tipo, pago, categoría) */
+        .mov-controls-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); 
+            gap: 12px; 
+            margin-bottom: 15px; 
+        }
+        
+        /* Importe */
+        #mov-importe { 
+            font-size: 2.2rem; 
+            text-align: center; 
+            color: var(--primary); 
+            border: 2px dashed var(--primary); 
+        }
 
         /* --- BUTTONS --- */
         .btn-main { width: 100%; padding: 18px; border: none; border-radius: 18px; font-size: 1.1rem; font-weight: 800; color: white; cursor: pointer; background: linear-gradient(45deg, #6C63FF, #4834d4); box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
@@ -156,9 +170,36 @@
         .screen { display: none; animation: fadeIn 0.4s; }
         .screen.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .history-controls { display: flex; gap: 10px; margin-bottom: 10px; }
-        .date-picker { background: transparent; border: 1px solid #ccc; padding: 5px; border-radius: 8px; font-family: 'Quicksand'; font-weight: 700;}
-        .mov-item { padding: 12px; background: white; border-radius: 12px; margin-bottom: 10px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .history-controls { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .date-picker { background: transparent; border: 1px solid #ccc; padding: 5px; border-radius: 8px; font-family: 'Quicksand'; font-weight: 700; width: 120px; }
+        
+        /* Estilo de un movimiento en la lista */
+        .mov-item { 
+            padding: 12px; 
+            background: white; 
+            border-radius: 12px; 
+            margin-bottom: 10px; 
+            border: 1px solid #eee; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            /* Hacemos el item clickeable con efecto */
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        /* Nueva animación/detalle al hacer click */
+        .mov-item:active {
+            transform: scale(0.98);
+            box-shadow: 0 5px 15px rgba(108, 99, 255, 0.15);
+            border-color: var(--primary);
+        }
+
+        .mov-info { flex-grow: 1; min-width: 60%; }
+        .mov-title { font-weight: 800; display: block; }
+        .mov-sub { font-size: 0.85rem; color: var(--text-light); display: block; margin-top: 3px; }
+        .mov-actions { margin-top: 5px; }
+
         .amount-in { color: var(--success); font-weight: 800; }
         .amount-out { color: var(--accent); font-weight: 800; }
 
@@ -171,11 +212,11 @@
 
         /* --- MODAL PERSONALIZADO --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 5000; display: none; justify-content: center; align-items: center; animation: fadeIn 0.3s; }
-        .modal-card { background: white; width: 90%; max-width: 350px; border-radius: 24px; padding: 25px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.9); animation: scaleUp 0.3s forwards; }
+        .modal-card { background: white; width: 90%; max-width: 450px; border-radius: 24px; padding: 25px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.9); animation: scaleUp 0.3s forwards; }
         @keyframes scaleUp { to { transform: scale(1); } }
         .modal-icon { font-size: 50px; margin-bottom: 15px; color: var(--primary); }
         .modal-title { font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin-bottom: 10px; }
-        .modal-msg { font-size: 0.95rem; color: var(--text-light); margin-bottom: 25px; line-height: 1.5; }
+        .modal-msg { font-size: 0.95rem; color: var(--text-light); margin-bottom: 25px; line-height: 1.5; text-align: center; }
         .modal-actions { display: flex; gap: 10px; justify-content: center; }
         .btn-modal { padding: 12px 20px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; flex: 1; }
         .btn-cancel { background: #f1f2f6; color: var(--text-light); }
@@ -202,7 +243,7 @@
             <span class="material-icons-round modal-icon" id="modal-icon">info</span>
             <div class="modal-title" id="modal-title">Título</div>
             <div class="modal-msg" id="modal-msg">Mensaje</div>
-            <div class="modal-actions">
+            <div class="modal-actions" id="modal-actions-container">
                 <button class="btn-modal btn-cancel" onclick="closeModal()">Cancelar</button>
                 <button class="btn-modal btn-confirm" id="btn-modal-confirm">Confirmar</button>
             </div>
@@ -224,23 +265,23 @@
                 <div class="circle-deco c1"></div>
                 <div class="circle-deco c2"></div>
                 <div class="balance-label">Efectivo en Caja</div>
-                <div class="balance-amount" id="big-balance">...</div>
-                <div class="balance-status" id="last-update">Actualizado ahora</div>
+                <div class="balance-amount" id="big-balance">Cargando...</div>
+                <div class="balance-status" id="last-update">...</div>
             </div>
         </div>
 
         <div class="card">
             <div class="section-title"><span class="material-icons-round">edit_note</span> Registrar Movimiento</div>
             
-            <div class="row-2">
+            <div class="mov-controls-grid">
                 <div class="form-group">
-                    <select id="mov-tipo" class="form-control" onchange="actualizarCategorias()">
+                    <select id="mov-tipo" class="form-control">
                         <option value="Egreso">🔻 Egreso (-)</option>
                         <option value="Ingreso">🟢 Ingreso (+)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <select id="mov-pago" class="form-control" onchange="checkChequeFields()">
+                    <select id="mov-pago" class="form-control">
                         <option value="Efectivo">💵 Efectivo</option>
                         <option value="Cheque">🧾 Cheque</option>
                         <option value="Banco">🏦 Banco</option>
@@ -280,9 +321,9 @@
             </div>
 
             <div class="form-group">
-                <!-- Se cambió type="number" a type="text" e inputmode="numeric" para formateo manual -->
                 <input type="text" inputmode="numeric" id="mov-importe" class="form-control" placeholder="$ 0" oninput="formatearImporte(this)">
             </div>
+            
             <div class="form-group">
                 <input type="text" id="mov-obs" class="form-control" placeholder="📝 Descripcion (opcional)">
             </div>
@@ -296,10 +337,10 @@
             <div class="section-title"><span class="material-icons-round">history</span> Movimientos</div>
             <div class="history-controls">
                 <input type="date" id="fecha-historial" class="date-picker" onchange="cargarMovimientos()">
-                <button style="background:var(--primary); color:white; border:none; padding:5px 10px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="setFechaHoy()">HOY</button>
+                <button style="background:var(--primary); color:white; border:none; padding:5px 10px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="setFechaHoy(true)">HOY</button>
             </div>
             <ul class="mov-list" id="lista-movimientos" style="list-style:none; padding:0;">
-                <li style="text-align:center; color:#aaa;">Cargando...</li>
+                <li style="text-align:center; color:#aaa; padding: 20px;">Cargando...</li>
             </ul>
         </div>
     </div>
@@ -406,11 +447,12 @@
     </div>
 
     <script>
+        // --- CONFIG API ---
         const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
         const USUARIO_APP = "Laura";
         let saldoSistema = 0;
-        let datosRendicion = null; 
-
+        let datosRendicion = null; 
+        
         // DETECTOR DE COMPORTAMIENTO (MONITOR)
         class SuspicionTracker {
             constructor() { this.reset(); }
@@ -424,14 +466,20 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             initApp();
+            // Asignación de eventos a elementos con IDs específicos
             document.getElementById('mov-categoria').addEventListener('change', checkCamposExtra);
+            document.getElementById('mov-tipo').addEventListener('change', actualizarCategorias);
+            document.getElementById('mov-pago').addEventListener('change', checkChequeFields);
         });
 
         function initApp() {
-            setFechaHoy(false); 
+            // 1. Inicializar fecha y cargar categorías y movimientos
+            setFechaHoy(false); 
             actualizarCategorias();
             cargarMovimientos();
-            actualizarSaldoHeader(); // Llama al inicio
+            
+            // 2. Cargar saldos y buscar rendición
+            actualizarSaldoHeader(); 
             buscarRendicionAutomatica();
         }
 
@@ -444,7 +492,10 @@
 
         function showToast(msg, success) {
             const t = document.getElementById('toast');
-            t.className = 'toast show'; 
+            t.className = 'toast show'; 
+            // Resetear clases
+            t.classList.remove('toast-success', 'toast-error', 'toast-warning');
+            
             if (success) {
                 t.classList.add('toast-success');
                 document.getElementById('toast-icon').textContent = 'check_circle';
@@ -458,17 +509,26 @@
                 }
             }
             document.getElementById('toast-msg').textContent = msg;
-            setTimeout(() => t.className = 'toast', 4000); 
+            setTimeout(() => t.className = 'toast', 4000); 
         }
 
-        function showModal(title, msg, icon, color, onConfirm) {
+        function showModal(title, msg, icon, color, onConfirm, cancelText = "Cancelar", confirmText = "Confirmar") {
             const m = document.getElementById('custom-modal');
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-msg').innerHTML = msg;
             document.getElementById('modal-icon').innerText = icon;
             document.getElementById('modal-icon').style.color = color;
-            document.getElementById('btn-modal-confirm').style.background = color;
-            document.getElementById('btn-modal-confirm').onclick = () => { closeModal(); onConfirm(); };
+            
+            const btnConfirm = document.getElementById('btn-modal-confirm');
+            const btnCancel = document.querySelector('.btn-modal.btn-cancel');
+            
+            btnConfirm.style.background = color;
+            btnConfirm.innerText = confirmText;
+            btnCancel.innerText = cancelText;
+
+            btnConfirm.onclick = () => { closeModal(); onConfirm(); };
+            btnConfirm.style.display = 'inline-block'; // Asegurar que el botón de confirmar se muestre
+
             m.style.display = 'flex';
         }
         function closeModal() { document.getElementById('custom-modal').style.display = 'none'; }
@@ -487,12 +547,11 @@
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-' + id).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            el.classList.add('active');
+            if(el) el.classList.add('active');
             
             if (id === 'arqueo') {
                 monitor.reset(); // Reiniciar monitor al entrar a arqueo
                 
-                // UX MEJORADA: Mostrar que estamos calculando
                 document.getElementById('arqueo-sistema').innerHTML = '<span style="font-size:1.5rem; color:#aaa;">🔄 Calculando...</span>';
                 
                 actualizarSaldoHeader(); // Forzar actualización para tener el dato REAL
@@ -512,7 +571,7 @@
                 opt.value = cat; opt.textContent = cat;
                 select.appendChild(opt);
             });
-            checkCamposExtra();
+            checkCamposExtra(); 
         }
 
         function checkCamposExtra() {
@@ -521,33 +580,52 @@
             const inpProv = document.getElementById('mov-proveedor');
             const selVeh = document.getElementById('mov-vehiculo');
             const selEmp = document.getElementById('mov-empleado');
+            const chequeVisible = document.getElementById('mov-pago').value === 'Cheque';
 
-            extraContainer.style.display = 'none';
-            inpProv.style.display = 'none';
-            selVeh.style.display = 'none';
-            selEmp.style.display = 'none';
+            // 1. LIMPIEZA / RESET (Ocultar y limpiar si no son necesarios)
+            if (!cat || !cat.includes("Proveedor")) {
+                inpProv.style.display = 'none'; inpProv.value = "";
+            }
+            if (!cat || (!cat.includes("Combustible") && !cat.includes("Mantenimiento"))) {
+                selVeh.style.display = 'none'; selVeh.value = "";
+            }
+            if (!cat || (!cat.includes("Sueldo") && !cat.includes("Haberes") && !cat.includes("Adelanto"))) {
+                selEmp.style.display = 'none'; selEmp.value = "";
+            }
 
-            if (!cat) return;
-            let show = false;
-            if (cat.includes("Proveedor")) { inpProv.style.display = 'block'; show = true; }
-            if (cat.includes("Combustible") || cat.includes("Mantenimiento")) { selVeh.style.display = 'block'; show = true; }
-            if (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto")) { selEmp.style.display = 'block'; show = true; }
-            checkChequeFields(); 
-            if (show || document.getElementById('cheque-fields').style.display === 'block') { extraContainer.style.display = 'block'; }
+            checkChequeFields(false); // No forzamos el update del contenedor aquí
+            
+            // 2. RE-EVALUACIÓN Y MUESTRA
+            let needsExtra = false;
+            
+            if (cat) {
+                if (cat.includes("Proveedor")) { inpProv.style.display = 'block'; needsExtra = true; }
+                if (cat.includes("Combustible") || cat.includes("Mantenimiento")) { selVeh.style.display = 'block'; needsExtra = true; }
+                if (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto")) { selEmp.style.display = 'block'; needsExtra = true; }
+            }
+
+            if (needsExtra || chequeVisible) { 
+                extraContainer.style.display = 'block'; 
+            } else { 
+                extraContainer.style.display = 'none'; 
+            }
         }
 
-        function checkChequeFields() {
+        function checkChequeFields(updateExtra = true) {
             const pago = document.getElementById('mov-pago').value;
             const chequeDiv = document.getElementById('cheque-fields');
-            const extraContainer = document.getElementById('extra-fields-container');
+            
             if (pago === 'Cheque') {
-                chequeDiv.style.display = 'block'; extraContainer.style.display = 'block';
+                chequeDiv.style.display = 'block'; 
             } else {
                 chequeDiv.style.display = 'none';
-                const cat = document.getElementById('mov-categoria').value || "";
-                if (!cat.includes("Proveedor") && !cat.includes("Combustible") && !cat.includes("Sueldo")) {
-                    extraContainer.style.display = 'none';
-                }
+                // Limpiar campos del cheque al cambiar de método de pago
+                document.getElementById('mov-banco').value = "";
+                document.getElementById('mov-cheque-nro').value = "";
+            }
+            
+            if (updateExtra) {
+                checkCamposExtra(); 
             }
         }
 
@@ -561,7 +639,6 @@
             });
             const totalFmt = "$ " + total.toLocaleString('es-AR');
             
-            // Monitorizar cambios
             monitor.logEdit(total);
 
             if (tipo === 'rend') {
@@ -586,66 +663,115 @@
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ fn, params })
                 });
-                return await res.json();
+                // Implementación de reintento con backoff exponencial
+                const maxRetries = 3;
+                let lastError = null;
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        const response = await fetch(API_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify({ fn, params })
+                        });
+
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                        return await response.json();
+
+                    } catch (error) {
+                        lastError = error;
+                        if (i < maxRetries - 1) {
+                            await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000)); // Espera 1s, 2s, 4s
+                        }
+                    }
+                }
+
+                console.error("Error en API externa después de reintentos:", lastError);
+                return null;
             } catch (e) {
-                console.error(e);
+                console.error("Error fatal en API externa:", e);
                 return null;
             }
         }
 
         async function cargarMovimientos() {
-            let fechaInput = document.getElementById('fecha-historial').value;
-            const fechaApi = fechaInput + "T12:00:00"; 
+            // LÓGICA DE FECHAS CORREGIDA: Aseguramos que la fecha se interprete al mediodía UTC
+            let fechaInput = document.getElementById('fecha-historial').value; 
+            const fechaApi = fechaInput + "T12:00:00";  // <-- Corrección de zona horaria
             const lista = document.getElementById('lista-movimientos');
             lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Cargando...</li>';
+            
+            if (!fechaInput) {
+                 lista.innerHTML = `<li style="text-align:center; padding:20px; color:#aaa;">Selecciona una fecha.</li>`;
+                 return;
+            }
+
             const res = await api("getMovimientos", { fechaStr: fechaApi });
+            
             lista.innerHTML = "";
-            if (!res || res.length === 0) { lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Nada por aquí hoy 🦗</li>'; return; }
-            res.forEach(m => {
+            
+            if (!res || res.error || res.length === 0) { 
+                const fechaMostrar = new Date(fechaApi).toLocaleDateString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric'});
+                lista.innerHTML = `<li style="text-align:center; padding:20px; color:#aaa;">Nada por aquí el ${fechaMostrar} 🦗</li>`; 
+                if (res && res.error) console.error("Error al cargar movimientos:", res.error);
+                return; 
+            }
+            
+            res.forEach((m, index) => {
                 const esIngreso = m.tipo === 'Ingreso';
                 const color = esIngreso ? 'amount-in' : 'amount-out';
                 const signo = esIngreso ? '+' : '-';
+                
+                const observacionFinal = m.observacion || `<span style="font-style:italic;">(Sin observación)</span>`;
+
                 const html = `
-                    <li class="mov-item">
+                    <li class="mov-item" onclick="mostrarDetalleMovimiento(${m.id}, '${m.categoria.replace(/'/g, "\\'")}', '${m.observacion.replace(/'/g, "\\'")}', '${signo} $ ${parseInt(m.importe).toLocaleString('es-AR')}')">
                         <div class="mov-info">
                             <span class="mov-title">${m.categoria}</span>
-                            <span class="mov-sub">${m.hora} • ${m.formaPago} <br> ${m.observacion ? m.observacion : ''}</span>
+                            <span class="mov-sub">${m.hora} • ${m.formaPago} <br> ${observacionFinal}</span>
                         </div>
-                        <div class="mov-amount ${color}">${signo} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
+                        <div class="mov-actions">
+                            <div class="mov-amount ${color}">${signo} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
+                        </div>
                     </li>`;
                 lista.innerHTML += html;
             });
         }
+        
+        // Función para mostrar un detalle simple al hacer clic en el movimiento
+        function mostrarDetalleMovimiento(id, categoria, observacion, importe) {
+            showToast(`Detalle: ${categoria} (${importe}). Obs: ${observacion.substring(0, 50)}...`, false);
+        }
 
         async function actualizarSaldoHeader() {
             const res = await api("getEstadoCaja");
+            const bigBalanceEl = document.getElementById('big-balance');
+            const lastUpdateEl = document.getElementById('last-update');
+            const arqueoSistemaEl = document.getElementById('arqueo-sistema');
+
             if (res) {
-                // CORRECCION V4.8:
-                // Ahora el saldoSistema es SIEMPRE el efectivo físico esperado.
-                saldoSistema = res.efectivo; 
+                saldoSistema = res.efectivo; 
                 
-                // En la tarjeta gigante mostramos SOLO EFECTIVO (antes mostrábamos el total con bancos)
-                // Esto elimina la confusión visual.
-                document.getElementById('big-balance').textContent = "$ " + parseInt(res.efectivo).toLocaleString('es-AR');
+                bigBalanceEl.textContent = "$ " + parseInt(res.efectivo).toLocaleString('es-AR');
                 
-                // Actualizar hora
                 const now = new Date();
                 const hora = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
-                document.getElementById('last-update').textContent = 'Actualizado ' + hora;
+                lastUpdateEl.textContent = 'Actualizado ' + hora;
                 
-                // Si estamos en la pantalla de Arqueo, actualizar también ahí con el dato fresco
                 if(document.getElementById('screen-arqueo').classList.contains('active')){
-                     document.getElementById('arqueo-sistema').innerText = "$ " + saldoSistema.toLocaleString('es-AR');
+                    arqueoSistemaEl.innerText = "$ " + saldoSistema.toLocaleString('es-AR');
                 }
+            } else {
+                bigBalanceEl.textContent = "Error";
+                lastUpdateEl.textContent = "Conexión fallida";
+                arqueoSistemaEl.innerHTML = '<span style="font-size:1.5rem; color:var(--accent);">❌ Error de conexión</span>';
             }
         }
 
         /* --- NUEVA FUNCIÓN DE FORMATO --- */
         function formatearImporte(input) {
-            // Eliminar cualquier caracter que no sea número
             let valor = input.value.replace(/\D/g, "");
             
-            // Si hay valor, formatear con puntos de miles
             if (valor) {
                 valor = parseInt(valor).toLocaleString('es-AR');
                 input.value = valor;
@@ -659,9 +785,8 @@
             const pago = document.getElementById('mov-pago').value;
             const cat = document.getElementById('mov-categoria').value;
             
-            // OBTENER IMPORTE LIMPIO (sin puntos)
             const impRaw = document.getElementById('mov-importe').value;
-            const imp = impRaw.replace(/\./g, ''); // Quitamos los puntos para enviar a la API
+            const imp = impRaw.replace(/\./g, ''); 
 
             const obs = document.getElementById('mov-obs').value;
             let detalle = obs;
@@ -673,59 +798,104 @@
 
             if (!cat) return showToast("⚠️ Falta seleccionar el motivo", false);
             if (!imp || imp <= 0) return showToast("⚠️ Ingrese un importe válido", false);
-            if (cat.includes("Sueldo") || cat.includes("Haberes")) {
-                if (!emp) return showToast("⚠️ Debes seleccionar un EMPLEADO", false);
-                detalle = `[${emp}] ` + detalle; 
-            }
-            if (prov) detalle = `[${prov}] ` + detalle;
+            
             let catFinal = cat;
-            if (veh) catFinal = cat + " " + veh;
+
+            // 1. EMPLEADO (Sueldos/Adelantos/Haberes)
+            if (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto")) {
+                if (!emp && document.getElementById('mov-empleado').style.display !== 'none') return showToast("⚠️ Debes seleccionar un EMPLEADO", false);
+                if (emp) detalle = `[${emp}] ` + detalle;
+            }
+            
+            // 2. PROVEEDOR (Pago a Proveedor)
+            if (cat.includes("Proveedor")) { 
+                if (!prov && document.getElementById('mov-proveedor').style.display !== 'none') return showToast("⚠️ Debes ingresar el nombre del PROVEEDOR", false);
+                if (prov) detalle = `[${prov}] ` + detalle;
+            }
+
+            // 3. VEHÍCULO (Combustible / Mantenimiento)
+            if (cat.includes("Combustible") || cat.includes("Mantenimiento")) { 
+                if (!veh && document.getElementById('mov-vehiculo').style.display !== 'none') return showToast("⚠️ Debes seleccionar un VEHÍCULO", false);
+                if (veh) catFinal = cat + " " + veh;
+            }
+            
+            // 4. CHEQUE
             if (pago === "Cheque") {
                 if(!banco || !nroCheque) return showToast("⚠️ Completa datos del cheque", false);
                 detalle += ` (Cheque: ${banco} #${nroCheque})`;
             }
 
             showLoading("Guardando...");
-            const res = await api("registrarMovimientoCaja", { tipo, formaPago: pago, importe: imp, categoria: catFinal, usuario: USUARIO_APP, observacion: detalle, banco: banco, nroCheque: nroCheque });
+            const res = await api("registrarMovimientoCaja", { 
+                tipo, 
+                formaPago: pago, 
+                importe: imp, 
+                categoria: catFinal, 
+                usuario: USUARIO_APP, 
+                observacion: detalle,
+                banco: banco, 
+                nroCheque: nroCheque 
+            });
             hideLoading();
 
             if (res && res.ok) {
                 showToast("✅ Guardado correctamente", true);
+                
+                // Limpiar todos los campos del formulario
                 document.getElementById('mov-importe').value = "";
                 document.getElementById('mov-obs').value = "";
                 document.getElementById('mov-proveedor').value = "";
+                document.getElementById('mov-vehiculo').value = ""; 
+                document.getElementById('mov-empleado').value = "";
                 document.getElementById('mov-banco').value = "";
                 document.getElementById('mov-cheque-nro').value = "";
-                checkCamposExtra(); 
-                const hoyStr = new Date().toISOString().split('T')[0];
-                if(document.getElementById('fecha-historial').value === hoyStr) cargarMovimientos();
+                document.getElementById('mov-categoria').value = ""; 
+                
+                actualizarCategorias();
+                
+                // Forzar la recarga de movimientos y saldo
+                cargarMovimientos();
                 actualizarSaldoHeader();
             } else { showToast("❌ Error al guardar", false); }
         }
 
         async function buscarRendicionAutomatica() {
             const statusBox = document.getElementById('rendicion-status-box');
-            const hoyStr = new Date().toISOString().split('T')[0];
-            const res = await api("getDatosRendicionEsperada", { fechaStr: hoyStr, turno: "Mañana", repartidor: "Nico" });
+            
+            const res = await api("getRendicionDelDia", { turno: "Mañana", repartidor: "Nico" });
+            
             if (res && res.ok) {
                 datosRendicion = res;
                 statusBox.style.color = "var(--primary)";
                 statusBox.innerHTML = `<span class="material-icons-round" style="vertical-align:middle;">assignment_ind</span> Planilla detectada: <b>${res.repartidor}</b> (Turno ${res.turno})`;
                 document.getElementById('card-rendicion-confirm').style.display = 'block';
                 document.getElementById('rendicion-esperado').textContent = "$ " + res.efectivoEsperado.toLocaleString('es-AR');
-            } else { statusBox.textContent = "💤 Esperando planillas de reparto... (Revisa cada 5 min)"; }
+                // Forzar la actualización de la diferencia al cargar
+                const inputs = document.querySelectorAll('#screen-rendicion .billete-input');
+                let total = 0;
+                inputs.forEach(i => total += (parseInt(i.value)||0) * parseInt(i.getAttribute('data-val')));
+                actualizarDiferenciaRendicion(total);
+
+            } else { 
+                datosRendicion = null;
+                document.getElementById('card-rendicion-confirm').style.display = 'none';
+                statusBox.textContent = "💤 Esperando planillas de reparto... (Revisa cada 5 min)"; 
+            }
         }
 
         function actualizarDiferenciaRendicion(totalContado) {
             if (!datosRendicion) return;
             const dif = totalContado - datosRendicion.efectivoEsperado;
             const divContainer = document.getElementById('rendicion-diferencia-container');
+            
+            divContainer.innerHTML = '';
+
             if (dif === 0) {
-                divContainer.innerHTML = '<div style="color:var(--success); font-weight:800; font-size:1.2rem;">✨ ¡EXACTO! ✨</div>';
+                divContainer.innerHTML = '<div style="color:var(--success); font-weight:800; font-size:1.2rem; margin-bottom:15px;">✨ ¡EXACTO! ✨</div>';
             } else if (dif > 0) {
                 divContainer.innerHTML = `<div class="mensaje-zen"><b>¡Tranquila! Sobran $ ${dif.toLocaleString('es-AR')}</b><br>El sistema creará un ingreso automático.</div>`;
             } else {
-                divContainer.innerHTML = `<div style="color:var(--accent); font-weight:700; margin-bottom:10px;">⚠️ FALTAN: -$ ${Math.abs(dif).toLocaleString('es-AR')}</div>`;
+                divContainer.innerHTML = `<div style="color:var(--accent); font-weight:700; margin-bottom:15px;">⚠️ FALTAN: -$ ${Math.abs(dif).toLocaleString('es-AR')}</div>`;
             }
         }
 
@@ -738,38 +908,50 @@
             if (total === 0) { showToast("Contá los billetes primero", false); monitor.logAttempt(); return; }
 
             const dif = total - datosRendicion.efectivoEsperado;
+            
             let msg = "El monto coincide perfectamente con el sistema.";
             let color = "var(--success)";
-            if (dif !== 0) { msg = `Hay una diferencia de <b>$ ${dif.toLocaleString('es-AR')}</b>. El sistema ajustará la caja.`; color = "var(--primary)"; }
+            
+            if (dif !== 0) { 
+                const tipoDif = dif > 0 ? 'Sobrante' : 'Faltante';
+                msg = `Hay un **${tipoDif}** de <b>$ ${Math.abs(dif).toLocaleString('es-AR')}</b>. El sistema ajustará la caja.`; 
+                color = "var(--fisico-color)"; 
+            }
+            monitor.logAttempt();
 
             showModal("¿Confirmar Rendición?", msg, "verified", color, async () => {
                 showLoading("Procesando rendición...");
+                
                 const res = await api("procesarRendicionDesdeRecibo", {
                     fechaStr: datosRendicion.fecha,
                     turno: datosRendicion.turno,
                     repartidor: datosRendicion.repartidor,
-                    efectivoEsperado: datosRendicion.efectivoEsperado,
-                    efectivoContado: total,
+                    efectivoEsperado: datosRendicion.efectivoEsperado, 
+                    efectivoContado: total, 
                     usuario: USUARIO_APP,
-                    monitorData: monitor.getReport()
+                    monitorData: monitor.getReport() 
                 });
+                
                 hideLoading();
+                
                 if (res && res.ok) {
                     showToast("🚀 Rendición procesada con éxito", true);
-                    document.getElementById('screen-rendicion').innerHTML = '<div style="text-align:center; padding:40px;"><h3>✨ Todo listo por hoy ✨</h3><p>Rendición guardada.</p></div>';
+                    document.getElementById('screen-rendicion').innerHTML = '<div style="text-align:center; padding:40px;"><h3>✨ Rendición del día guardada ✨</h3><p>Puedes volver a la Caja o al Arqueo.</p></div>';
                     cargarMovimientos();
                     actualizarSaldoHeader();
-                } else { showToast(res.error || "Error al procesar", false); }
+                    limpiarBilletes('rend');
+                } else { 
+                    console.error("Error al procesar rendición:", res.error);
+                    showToast(res.error || "Error al procesar", false); 
+                }
             });
         }
 
         // --- ARQUEO CON MODAL Y DEBUG ---
         function intentarArqueo() {
-            // Usamos el input hidden que se llena con calcBilletes
             const fisico = parseFloat(document.getElementById('arqueo-fisico').value) || 0;
             
             if (fisico === 0) {
-                // Doble check por si acaso
                 showModal("¿Caja en cero?", "Estás por cerrar la caja con <b>$ 0</b>. ¿Segura?", "warning", "var(--accent)", () => procederArqueo(0));
                 return;
             }
@@ -785,68 +967,38 @@
 
         async function procederArqueo(fisico) {
             showLoading("Cerrando caja...");
+            monitor.logAttempt();
             
-            // 1. Registramos el Arqueo en el Backend
-            // Esto solo guarda el registro en la hoja Arqueos, NO mueve el saldo.
-            const res = await api("registrarArqueo", { 
-                usuario: USUARIO_APP, 
+            const res = await api("registrarArqueo", { 
+                usuario: USUARIO_APP, 
                 efectivoFisico: fisico,
                 monitorData: monitor.getReport()
             });
 
-            // =================================================================
-            // 🔥 LOGICA AUTOMÁTICA DE AJUSTE DE SALDO (V4.7)
-            // =================================================================
-            // Si hay diferencia, creamos automáticamente el movimiento de ajuste
-            // para que el saldo del sistema quede IGUAL al físico para el día siguiente.
-            
             if (res && (res.idArqueo || res.resultado)) {
-                
-                const diferencia = res.diferencia || 0;
-                
-                if (diferencia !== 0) {
-                    // Si sobra plata (diferencia positiva), hay que ingresarla.
-                    // Si falta plata (diferencia negativa), hay que sacarla.
-                    const tipoMov = diferencia > 0 ? "Ingreso" : "Egreso";
-                    const importeAjuste = Math.abs(diferencia);
-                    
-                    showLoading(`Ajustando saldo ($${diferencia})...`);
-                    
-                    await api("registrarMovimientoCaja", { 
-                        tipo: tipoMov, 
-                        formaPago: "Efectivo", 
-                        importe: importeAjuste, 
-                        categoria: "Ajuste Arqueo", 
-                        usuario: "Sistema", 
-                        observacion: `🤖 Ajuste automático para coincidir con el recuento físico (Cierre #${res.idArqueo || 'N/D'})`
-                    });
-                }
-                
                 hideLoading();
 
                 let msg = "Caja cerrada y ajustada.";
                 let isSuccess = true;
                 
                 if (res.resultado === 'OK') msg += " ✨ Exacto.";
-                else if (res.resultado === 'Sobrante') { msg += ` ⚠️ Sobrante ajustado.`; isSuccess = true; } 
-                else { msg += ` 🚨 Faltante ajustado.`; isSuccess = true; } // Es Success porque el sistema corrigió el error
+                else if (res.resultado === 'Sobrante') { msg += ` ⚠️ Sobrante ajustado.`; isSuccess = true; } 
+                else { msg += ` 🚨 Faltante ajustado.`; isSuccess = true; } 
                 
                 showToast(msg, isSuccess);
 
-                // Limpiar billetes y actualizar todo en vivo
                 setTimeout(() => {
                     limpiarBilletes('arq');
-                    showScreen('caja', document.querySelector('.nav-item')); // Volver a caja
-                    actualizarSaldoHeader(); // Actualizar saldo nuevo
-                    cargarMovimientos();     // Mostrar el ajuste en la lista
+                    showScreen('caja', document.querySelector('.nav-item')); 
+                    actualizarSaldoHeader(); 
+                    cargarMovimientos();     
                 }, 2000);
 
             } else {
                 hideLoading();
                 console.error("Error respuesta Arqueo:", res);
                 const errorMsg = (res && res.error) ? res.error : "Error desconocido";
-                alert("Error técnico: " + errorMsg);
-                showToast("❌ Error al cerrar caja", false);
+                showToast("❌ Error al cerrar caja: " + errorMsg, false);
             }
         }
     </script>
