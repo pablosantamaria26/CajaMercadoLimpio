@@ -20,7 +20,7 @@
     
     <style>
         /* =========================================
-           ESTILOS V4.6: STABLE
+           ESTILOS V4.7: DUO-TONE & LIVE BALANCE
            ========================================= */
         :root {
             --bg-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
@@ -82,9 +82,32 @@
         @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(30px, 50px) rotate(10deg); } 100% { transform: translate(0, 0) rotate(0deg); } }
 
         /* --- HEADER --- */
-        .app-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.5); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 50; }
-        .app-title { font-size: 1.3rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
-        .balance-pill { background: var(--primary); padding: 8px 16px; border-radius: 50px; font-weight: 800; color: white; box-shadow: 0 4px 10px rgba(108, 99, 255, 0.3); }
+        .app-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .app-title { font-size: 1.2rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+        .user-badge { font-size: 0.8rem; background: #eee; padding: 4px 10px; border-radius: 20px; font-weight: 700; color: #555; }
+
+        /* --- NEW BALANCE CARD (DUO TONO) --- */
+        .balance-card-container { padding: 0 15px; margin-top: 15px; }
+        .balance-card {
+            background: linear-gradient(135deg, #6C63FF 0%, #4834d4 100%);
+            border-radius: 24px;
+            padding: 25px;
+            color: white;
+            box-shadow: 0 10px 25px rgba(108, 99, 255, 0.4);
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .balance-card:active { transform: scale(0.98); }
+        /* Círculos decorativos en el fondo de la tarjeta */
+        .circle-deco { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.1); }
+        .c1 { width: 100px; height: 100px; top: -30px; left: -30px; }
+        .c2 { width: 150px; height: 150px; bottom: -50px; right: -20px; }
+        
+        .balance-label { font-size: 0.9rem; font-weight: 600; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .balance-amount { font-size: 3rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .balance-status { font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; display: inline-block; margin-top: 10px; backdrop-filter: blur(5px); }
 
         /* --- CARDS --- */
         .card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 24px; padding: 20px; margin: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
@@ -189,11 +212,23 @@
     <!-- HEADER -->
     <header class="app-header">
         <div class="app-title"><span style="font-size:1.5rem;">🍋</span> Mercado Limpio</div>
-        <div class="balance-pill" id="header-balance">...</div>
+        <div class="user-badge"><span class="material-icons-round" style="font-size:14px; vertical-align:middle;">person</span> Laura</div>
     </header>
 
     <!-- 1. CAJA -->
     <div id="screen-caja" class="screen active">
+        
+        <!-- SALDO VIVO DUO-TONE -->
+        <div class="balance-card-container">
+            <div class="balance-card" onclick="actualizarSaldoHeader()">
+                <div class="circle-deco c1"></div>
+                <div class="circle-deco c2"></div>
+                <div class="balance-label">Saldo en Caja</div>
+                <div class="balance-amount" id="big-balance">...</div>
+                <div class="balance-status" id="last-update">Actualizado ahora</div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="section-title"><span class="material-icons-round">edit_note</span> Registrar Movimiento</div>
             
@@ -391,7 +426,7 @@
             setFechaHoy(false); 
             actualizarCategorias();
             cargarMovimientos();
-            actualizarSaldoHeader();
+            actualizarSaldoHeader(); // Llama al inicio
             buscarRendicionAutomatica();
         }
 
@@ -409,9 +444,9 @@
                 t.classList.add('toast-success');
                 document.getElementById('toast-icon').textContent = 'check_circle';
             } else {
-                if (msg.includes("Sobrante")) {
+                if (msg.includes("Sobrante") || msg.includes("Ajustado")) {
                     t.classList.add('toast-warning');
-                    document.getElementById('toast-icon').textContent = 'warning';
+                    document.getElementById('toast-icon').textContent = 'info';
                 } else {
                     t.classList.add('toast-error');
                     document.getElementById('toast-icon').textContent = 'error';
@@ -450,6 +485,7 @@
             el.classList.add('active');
             if (id === 'arqueo') {
                 monitor.reset(); // Reiniciar monitor al entrar a arqueo
+                actualizarSaldoHeader(); // Asegura tener el saldo más reciente
                 document.getElementById('arqueo-sistema').innerText = "$ " + saldoSistema.toLocaleString('es-AR');
             }
         };
@@ -576,7 +612,15 @@
             const res = await api("getEstadoCaja");
             if (res) {
                 saldoSistema = res.efectivo; 
-                document.getElementById('header-balance').textContent = "$ " + parseInt(res.total).toLocaleString('es-AR');
+                document.getElementById('big-balance').textContent = "$ " + parseInt(res.total).toLocaleString('es-AR');
+                // Actualizar hora
+                const now = new Date();
+                const hora = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+                document.getElementById('last-update').textContent = 'Actualizado ' + hora;
+                // Si estamos en la pantalla de Arqueo, actualizar también ahí
+                if(document.getElementById('screen-arqueo').classList.contains('active')){
+                     document.getElementById('arqueo-sistema').innerText = "$ " + saldoSistema.toLocaleString('es-AR');
+                }
             }
         }
 
@@ -698,7 +742,7 @@
 
             showModal(
                 "Cierre Final de Caja",
-                `Se registrará un efectivo físico de <b>$ ${fisico.toLocaleString('es-AR')}</b>.<br>Esta acción es irreversible.`,
+                `Se registrará un efectivo físico de <b>$ ${fisico.toLocaleString('es-AR')}</b>.<br>Esta acción ajustará el sistema.`,
                 "lock",
                 "var(--fisico-color)",
                 () => procederArqueo(fisico)
@@ -708,33 +752,66 @@
         async function procederArqueo(fisico) {
             showLoading("Cerrando caja...");
             
-            // Enviamos el arqueo
+            // 1. Registramos el Arqueo en el Backend
+            // Esto solo guarda el registro en la hoja Arqueos, NO mueve el saldo.
             const res = await api("registrarArqueo", { 
                 usuario: USUARIO_APP, 
                 efectivoFisico: fisico,
                 monitorData: monitor.getReport()
             });
 
-            hideLoading();
-
-            // ==========================================
-            // 🔥 CORRECCIÓN CLAVE V4.6
-            // ==========================================
-            // Aceptamos si devuelve "idArqueo" (Backend nuevo) O si devuelve "resultado" (Backend actual)
+            // =================================================================
+            // 🔥 LOGICA AUTOMÁTICA DE AJUSTE DE SALDO (V4.7)
+            // =================================================================
+            // Si hay diferencia, creamos automáticamente el movimiento de ajuste
+            // para que el saldo del sistema quede IGUAL al físico para el día siguiente.
+            
             if (res && (res.idArqueo || res.resultado)) {
-                let msg = "Caja cerrada.";
+                
+                const diferencia = res.diferencia || 0;
+                
+                if (diferencia !== 0) {
+                    // Si sobra plata (diferencia positiva), hay que ingresarla.
+                    // Si falta plata (diferencia negativa), hay que sacarla.
+                    const tipoMov = diferencia > 0 ? "Ingreso" : "Egreso";
+                    const importeAjuste = Math.abs(diferencia);
+                    
+                    showLoading(`Ajustando saldo ($${diferencia})...`);
+                    
+                    await api("registrarMovimientoCaja", { 
+                        tipo: tipoMov, 
+                        formaPago: "Efectivo", 
+                        importe: importeAjuste, 
+                        categoria: "Ajuste Arqueo", 
+                        usuario: "Sistema", 
+                        observacion: `Ajuste automático cierre caja (ID Arqueo: ${res.idArqueo || 'N/D'})`
+                    });
+                }
+                
+                hideLoading();
+
+                let msg = "Caja cerrada y ajustada.";
                 let isSuccess = true;
                 
-                if (res.resultado === 'OK') msg += " ✨ Perfecto.";
-                else if (res.resultado === 'Sobrante') { msg += ` ⚠️ Sobran $${(res.diferencia || 0).toLocaleString()}`; isSuccess = false; }
-                else { msg += ` 🚨 Faltan $${Math.abs(res.diferencia || 0).toLocaleString()}`; isSuccess = false; }
+                if (res.resultado === 'OK') msg += " ✨ Exacto.";
+                else if (res.resultado === 'Sobrante') { msg += ` ⚠️ Sobrante ajustado.`; isSuccess = true; } 
+                else { msg += ` 🚨 Faltante ajustado.`; isSuccess = true; } // Es Success porque el sistema corrigió el error
                 
                 showToast(msg, isSuccess);
-                setTimeout(() => location.reload(), 3500); 
+
+                // Limpiar billetes y actualizar todo en vivo
+                setTimeout(() => {
+                    limpiarBilletes('arq');
+                    showScreen('caja', document.querySelector('.nav-item')); // Volver a caja
+                    actualizarSaldoHeader(); // Actualizar saldo nuevo
+                    cargarMovimientos();     // Mostrar el ajuste en la lista
+                }, 2000);
+
             } else {
+                hideLoading();
                 console.error("Error respuesta Arqueo:", res);
                 const errorMsg = (res && res.error) ? res.error : "Error desconocido";
-                alert("Error técnico: " + errorMsg + "\n\n(Revisa la consola si persiste)");
+                alert("Error técnico: " + errorMsg);
                 showToast("❌ Error al cerrar caja", false);
             }
         }
