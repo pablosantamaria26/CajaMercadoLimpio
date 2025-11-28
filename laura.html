@@ -20,7 +20,7 @@
     
     <style>
         /* =========================================
-           ESTILOS V4.4: LOADING & FEEDBACK
+           ESTILOS V4.6: STABLE
            ========================================= */
         :root {
             --bg-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
@@ -32,8 +32,6 @@
             --success: #00B894;      
             --text-main: #2D3436;
             --text-light: #636E72;
-            
-            /* Colores Arqueo */
             --fisico-color: #e17055; 
             --sistema-color: #0984e3; 
         }
@@ -50,13 +48,13 @@
             min-height: 100vh;
         }
 
-        /* --- LOADING OVERLAY (NUEVO) --- */
+        /* --- LOADING OVERLAY --- */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(4px);
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
             z-index: 10000;
-            display: none; /* Se activa con JS */
+            display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
@@ -72,86 +70,44 @@
             animation: spin 1s linear infinite;
             margin-bottom: 20px;
         }
-        .loading-text {
-            font-weight: 800; color: var(--primary); font-size: 1.2rem;
-            animation: pulse 1.5s infinite;
-        }
-
+        .loading-text { font-weight: 800; color: var(--primary); font-size: 1.2rem; animation: pulse 1.5s infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
         /* --- FONDO ANIMADO --- */
-        .background-container {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to top right, #dfe9f3 0%, #ffffff 100%);
-            z-index: -1; overflow: hidden;
-        }
-        .shape {
-            position: absolute;
-            filter: blur(60px);
-            opacity: 0.5;
-            animation: float 12s infinite ease-in-out;
-        }
+        .background-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; background: linear-gradient(to top right, #dfe9f3 0%, #ffffff 100%); }
+        .shape { position: absolute; filter: blur(60px); opacity: 0.5; animation: float 12s infinite ease-in-out; }
         .shape-1 { width: 350px; height: 350px; background: #81ecec; top: -100px; left: -50px; border-radius: 50%; }
         .shape-2 { width: 300px; height: 300px; background: #fab1a0; bottom: -50px; right: -50px; border-radius: 50%; animation-delay: 2s; }
         @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(30px, 50px) rotate(10deg); } 100% { transform: translate(0, 0) rotate(0deg); } }
 
         /* --- HEADER --- */
-        .app-header {
-            padding: 20px; display: flex; justify-content: space-between; align-items: center;
-            background: rgba(255,255,255,0.5); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 50;
-        }
+        .app-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.5); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 50; }
         .app-title { font-size: 1.3rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
-        .balance-pill { 
-            background: var(--primary); padding: 8px 16px; border-radius: 50px;
-            font-weight: 800; color: white; box-shadow: 0 4px 10px rgba(108, 99, 255, 0.3);
-        }
+        .balance-pill { background: var(--primary); padding: 8px 16px; border-radius: 50px; font-weight: 800; color: white; box-shadow: 0 4px 10px rgba(108, 99, 255, 0.3); }
 
         /* --- CARDS --- */
-        .card { 
-            background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 24px; 
-            padding: 20px; margin: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        }
-        .section-title { 
-            font-size: 0.95rem; color: var(--text-light); font-weight: 800; 
-            margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;
-            display: flex; align-items: center; gap: 8px;
-        }
+        .card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 24px; padding: 20px; margin: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .section-title { font-size: 0.95rem; color: var(--text-light); font-weight: 800; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
 
         /* --- FORMS --- */
         .form-group { margin-bottom: 15px; }
-        .form-control {
-            width: 100%; padding: 16px; border: 2px solid #dfe6e9; border-radius: 16px;
-            font-size: 1rem; font-family: 'Quicksand'; outline: none; transition: all 0.3s;
-            background: white; color: var(--text-main); font-weight: 700;
-        }
+        .form-control { width: 100%; padding: 16px; border: 2px solid #dfe6e9; border-radius: 16px; font-size: 1rem; font-family: 'Quicksand'; outline: none; transition: all 0.3s; background: white; color: var(--text-main); font-weight: 700; }
         .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.1); }
         .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         #mov-importe { font-size: 2.2rem; text-align: center; color: var(--primary); border: 2px dashed var(--primary); }
 
         /* --- BUTTONS --- */
-        .btn-main {
-            width: 100%; padding: 18px; border: none; border-radius: 18px;
-            font-size: 1.1rem; font-weight: 800; color: white; cursor: pointer;
-            background: linear-gradient(45deg, #6C63FF, #4834d4);
-            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; 
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-        }
+        .btn-main { width: 100%; padding: 18px; border: none; border-radius: 18px; font-size: 1.1rem; font-weight: 800; color: white; cursor: pointer; background: linear-gradient(45deg, #6C63FF, #4834d4); box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .btn-main:active { transform: scale(0.96); }
         .btn-success { background: linear-gradient(45deg, #00b894, #00cec9); box-shadow: 0 8px 20px rgba(0, 184, 148, 0.3); }
         .btn-orange { background: linear-gradient(45deg, #e17055, #d63031); box-shadow: 0 8px 20px rgba(225, 112, 85, 0.3); }
 
         /* --- BILLETES --- */
         .billetes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .billete-item { 
-            background: white; border-radius: 20px; padding: 15px; text-align: center; 
-            border: 1px solid #dfe6e9; box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-        }
+        .billete-item { background: white; border-radius: 20px; padding: 15px; text-align: center; border: 1px solid #dfe6e9; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
         .billete-label { font-size: 1.5rem; color: var(--primary-dark); font-weight: 800; margin-bottom: 5px; line-height: 1.2; }
-        .billete-input { 
-            width: 100%; border: none; text-align: center; font-size: 2rem; font-weight: 800; 
-            color: var(--text-main); outline: none; background: transparent; padding: 0;
-        }
+        .billete-input { width: 100%; border: none; text-align: center; font-size: 2rem; font-weight: 800; color: var(--text-main); outline: none; background: transparent; padding: 0; }
         .billete-input::placeholder { color: #eee; }
 
         /* --- ARQUEO --- */
@@ -161,30 +117,15 @@
         .box-sistema .label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
         .box-sistema .value { font-size: 2.5rem; font-weight: 900; margin-top: 5px; }
 
-        .box-fisico {
-            background: #ffeaa7; border: 2px solid #fdcb6e; color: #d35400;
-            box-shadow: 0 10px 20px rgba(253, 203, 110, 0.3); animation: pulseSoft 3s infinite;
-        }
+        .box-fisico { background: #ffeaa7; border: 2px solid #fdcb6e; color: #d35400; box-shadow: 0 10px 20px rgba(253, 203, 110, 0.3); animation: pulseSoft 3s infinite; }
         .box-fisico .label { font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
         .box-fisico .value { font-size: 3rem; font-weight: 900; margin-top: 5px; text-shadow: 1px 1px 0px rgba(255,255,255,0.5); }
         @keyframes pulseSoft { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-
-        .mensaje-zen {
-            background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 12px;
-            font-size: 0.9rem; line-height: 1.4; border-left: 5px solid #00b894; margin-bottom: 15px;
-        }
+        .mensaje-zen { background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 12px; font-size: 0.9rem; line-height: 1.4; border-left: 5px solid #00b894; margin-bottom: 15px; }
 
         /* --- NAV --- */
-        .bottom-nav {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px;
-            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-radius: 24px;
-            display: flex; justify-content: space-around; padding: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            z-index: 100; border: 1px solid rgba(255,255,255,1);
-        }
-        .nav-item {
-            display: flex; flex-direction: column; align-items: center; color: #b2bec3; text-decoration: none;
-            font-size: 0.7rem; font-weight: 600; transition: all 0.3s; padding: 5px; border-radius: 12px;
-        }
+        .bottom-nav { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-radius: 24px; display: flex; justify-content: space-around; padding: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); z-index: 100; border: 1px solid rgba(255,255,255,1); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #b2bec3; text-decoration: none; font-size: 0.7rem; font-weight: 600; transition: all 0.3s; padding: 5px; border-radius: 12px; }
         .nav-item.active { color: var(--primary); background: #ecebff; transform: translateY(-5px); }
         .nav-icon { font-size: 26px; margin-bottom: 2px; }
 
@@ -192,7 +133,6 @@
         .screen { display: none; animation: fadeIn 0.4s; }
         .screen.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
         .history-controls { display: flex; gap: 10px; margin-bottom: 10px; }
         .date-picker { background: transparent; border: 1px solid #ccc; padding: 5px; border-radius: 8px; font-family: 'Quicksand'; font-weight: 700;}
         .mov-item { padding: 12px; background: white; border-radius: 12px; margin-bottom: 10px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
@@ -200,43 +140,59 @@
         .amount-out { color: var(--accent); font-weight: 800; }
 
         /* --- TOAST --- */
-        .toast {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background: #2D3436; color: white; padding: 12px 24px; border-radius: 50px;
-            font-weight: 600; z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s;
-            display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-            width: max-content; max-width: 90%;
-        }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #2D3436; color: white; padding: 12px 24px; border-radius: 50px; font-weight: 600; z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); width: max-content; max-width: 90%; }
         .toast.show { opacity: 1; top: 40px; }
         .toast-success { background: var(--success); }
         .toast-error { background: var(--accent); }
         .toast-warning { background: var(--fisico-color); }
 
+        /* --- MODAL PERSONALIZADO --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 5000; display: none; justify-content: center; align-items: center; animation: fadeIn 0.3s; }
+        .modal-card { background: white; width: 90%; max-width: 350px; border-radius: 24px; padding: 25px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.9); animation: scaleUp 0.3s forwards; }
+        @keyframes scaleUp { to { transform: scale(1); } }
+        .modal-icon { font-size: 50px; margin-bottom: 15px; color: var(--primary); }
+        .modal-title { font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin-bottom: 10px; }
+        .modal-msg { font-size: 0.95rem; color: var(--text-light); margin-bottom: 25px; line-height: 1.5; }
+        .modal-actions { display: flex; gap: 10px; justify-content: center; }
+        .btn-modal { padding: 12px 20px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; flex: 1; }
+        .btn-cancel { background: #f1f2f6; color: var(--text-light); }
+        .btn-confirm { background: var(--primary); color: white; }
+
     </style>
 </head>
 <body>
 
-    <!-- FONDO -->
     <div class="background-container">
         <div class="shape shape-1"></div>
         <div class="shape shape-2"></div>
     </div>
 
-    <!-- PANTALLA DE CARGA (BLOCKING) -->
+    <!-- LOADING -->
     <div id="loading-overlay">
         <div class="spinner"></div>
         <div class="loading-text" id="loading-text">Procesando...</div>
     </div>
 
+    <!-- MODAL CUSTOM -->
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-card">
+            <span class="material-icons-round modal-icon" id="modal-icon">info</span>
+            <div class="modal-title" id="modal-title">Título</div>
+            <div class="modal-msg" id="modal-msg">Mensaje</div>
+            <div class="modal-actions">
+                <button class="btn-modal btn-cancel" onclick="closeModal()">Cancelar</button>
+                <button class="btn-modal btn-confirm" id="btn-modal-confirm">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- HEADER -->
     <header class="app-header">
-        <div class="app-title">
-            <span style="font-size:1.5rem;">🍋</span> Mercado Limpio
-        </div>
+        <div class="app-title"><span style="font-size:1.5rem;">🍋</span> Mercado Limpio</div>
         <div class="balance-pill" id="header-balance">...</div>
     </header>
 
-    <!-- 1. PANTALLA CAJA -->
+    <!-- 1. CAJA -->
     <div id="screen-caja" class="screen active">
         <div class="card">
             <div class="section-title"><span class="material-icons-round">edit_note</span> Registrar Movimiento</div>
@@ -263,21 +219,15 @@
                 </select>
             </div>
 
-            <!-- Campos Extra (CORREGIDOS) -->
+            <!-- Campos Extra -->
             <div id="extra-fields-container" style="display:none; background:#f1f2f6; padding:15px; border-radius:16px; margin-bottom:15px;">
-                
-                <!-- Proveedor -->
                 <input type="text" id="mov-proveedor" class="form-control" placeholder="🏢 Nombre del Proveedor" style="display:none; margin-bottom:10px;">
-                
-                <!-- Vehículos (Flota Actualizada) -->
                 <select id="mov-vehiculo" class="form-control" style="display:none; margin-bottom:10px;">
                     <option value="" disabled selected>Seleccionar Vehículo</option>
                     <option value="Volkswagen Saveiro">🛻 Volkswagen Saveiro</option>
                     <option value="Toyota Hiace">🚐 Toyota Hiace</option>
                     <option value="Fiat 1 Cargo">🚗 Fiat Uno Cargo</option>
                 </select>
-                
-                <!-- Empleados Actualizados -->
                 <select id="mov-empleado" class="form-control" style="display:none; margin-bottom:10px;">
                     <option value="" disabled selected>Seleccionar Empleado (Obligatorio)</option>
                     <option value="Laura">👤 Laura</option>
@@ -287,8 +237,6 @@
                     <option value="Ariel">👤 Ariel</option>
                     <option value="Lucas">👤 Lucas</option>
                 </select>
-
-                <!-- Cheques -->
                 <div id="cheque-fields" style="display:none;">
                     <div style="font-size:0.8rem; font-weight:700; color:var(--text-light); margin-bottom:5px;">Datos del Cheque</div>
                     <input type="text" id="mov-banco" class="form-control" placeholder="🏦 Banco Emisor" style="margin-bottom:10px;">
@@ -299,7 +247,6 @@
             <div class="form-group">
                 <input type="number" id="mov-importe" class="form-control" placeholder="$ 0" >
             </div>
-
             <div class="form-group">
                 <input type="text" id="mov-obs" class="form-control" placeholder="📝 Descripcion (opcional)">
             </div>
@@ -309,7 +256,6 @@
             </button>
         </div>
 
-        <!-- HISTORIAL -->
         <div class="card">
             <div class="section-title"><span class="material-icons-round">history</span> Movimientos</div>
             <div class="history-controls">
@@ -322,12 +268,11 @@
         </div>
     </div>
 
-    <!-- 2. PANTALLA RENDICIÓN -->
+    <!-- 2. RENDICIÓN -->
     <div id="screen-rendicion" class="screen">
         <div id="rendicion-status-box" style="text-align:center; margin-bottom:20px; font-weight:800; color:var(--text-light);">
             🔍 Buscando novedades...
         </div>
-
         <div class="card" id="card-rendicion-confirm" style="display:none; text-align:center;">
             <div style="background:white; padding:15px; border-radius:16px; margin-bottom:20px; border:2px solid #eee;">
                 <div style="font-size:0.8rem; color:var(--text-light); font-weight:700;">TOTAL PLANILLA (Sistema)</div>
@@ -338,11 +283,10 @@
                 <div id="rendicion-contado-display" style="font-size:2rem; font-weight:800; color:var(--text-main);">$ 0</div>
             </div>
             <div id="rendicion-diferencia-container"></div>
-            <button class="btn-main btn-success" onclick="enviarRendicion()">
+            <button class="btn-main btn-success" onclick="intentarRendicion()">
                 <span class="material-icons-round">verified</span> CONFIRMAR RENDICIÓN
             </button>
         </div>
-
         <div class="card">
             <div class="section-title" style="justify-content:space-between;">
                 <span><span class="material-icons-round">payments</span> Billetes</span>
@@ -361,7 +305,7 @@
         </div>
     </div>
 
-    <!-- 3. PANTALLA ARQUEO -->
+    <!-- 3. ARQUEO -->
     <div id="screen-arqueo" class="screen">
         <div class="card">
             <div class="arqueo-comparison">
@@ -395,7 +339,7 @@
             <input type="hidden" id="arqueo-fisico">
 
             <div style="margin-top:25px;">
-                <button class="btn-main btn-orange" onclick="enviarArqueo()">
+                <button class="btn-main btn-orange" onclick="intentarArqueo()">
                     <span class="material-icons-round">lock_person</span> CERRAR CAJA
                 </button>
             </div>
@@ -405,16 +349,13 @@
     <!-- NAV -->
     <nav class="bottom-nav">
         <a href="#" class="nav-item active" onclick="showScreen('caja', this)">
-            <span class="material-icons-round nav-icon">storefront</span>
-            <span>Caja</span>
+            <span class="material-icons-round nav-icon">storefront</span> <span>Caja</span>
         </a>
         <a href="#" class="nav-item" onclick="showScreen('rendicion', this)">
-            <span class="material-icons-round nav-icon">fact_check</span>
-            <span>Rendición</span>
+            <span class="material-icons-round nav-icon">fact_check</span> <span>Rendición</span>
         </a>
         <a href="#" class="nav-item" onclick="showScreen('arqueo', this)">
-            <span class="material-icons-round nav-icon">account_balance_wallet</span>
-            <span>Arqueo</span>
+            <span class="material-icons-round nav-icon">account_balance_wallet</span> <span>Arqueo</span>
         </a>
     </nav>
 
@@ -426,8 +367,20 @@
 
     <script>
         const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
+        const USUARIO_APP = "Laura";
         let saldoSistema = 0;
         let datosRendicion = null; 
+
+        // DETECTOR DE COMPORTAMIENTO (MONITOR)
+        class SuspicionTracker {
+            constructor() { this.reset(); }
+            reset() { this.data = { startTime: Date.now(), edits: 0, deletes: 0, submitAttempts: 0, valuesTried: [] }; }
+            logEdit(val) { this.data.edits++; if(val) this.data.valuesTried.push(val); }
+            logDelete() { this.data.deletes++; }
+            logAttempt() { this.data.submitAttempts++; }
+            getReport() { return { ...this.data, durationSeconds: Math.floor((Date.now() - this.data.startTime) / 1000) }; }
+        }
+        const monitor = new SuspicionTracker();
 
         document.addEventListener("DOMContentLoaded", () => {
             initApp();
@@ -442,14 +395,12 @@
             buscarRendicionAutomatica();
         }
 
-        // --- FUNCIONES DE LOADING & TOAST ---
+        // --- FUNCIONES UI ---
         function showLoading(msg) {
             document.getElementById('loading-text').innerText = msg;
             document.getElementById('loading-overlay').classList.add('active');
         }
-        function hideLoading() {
-            document.getElementById('loading-overlay').classList.remove('active');
-        }
+        function hideLoading() { document.getElementById('loading-overlay').classList.remove('active'); }
 
         function showToast(msg, success) {
             const t = document.getElementById('toast');
@@ -470,6 +421,18 @@
             setTimeout(() => t.className = 'toast', 4000); 
         }
 
+        function showModal(title, msg, icon, color, onConfirm) {
+            const m = document.getElementById('custom-modal');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-msg').innerHTML = msg;
+            document.getElementById('modal-icon').innerText = icon;
+            document.getElementById('modal-icon').style.color = color;
+            document.getElementById('btn-modal-confirm').style.background = color;
+            document.getElementById('btn-modal-confirm').onclick = () => { closeModal(); onConfirm(); };
+            m.style.display = 'flex';
+        }
+        function closeModal() { document.getElementById('custom-modal').style.display = 'none'; }
+
         function setFechaHoy(reload = true) {
             const d = new Date();
             const yyyy = d.getFullYear();
@@ -485,14 +448,13 @@
             document.getElementById('screen-' + id).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             el.classList.add('active');
-            if (id === 'arqueo') document.getElementById('arqueo-sistema').innerText = "$ " + saldoSistema.toLocaleString('es-AR');
+            if (id === 'arqueo') {
+                monitor.reset(); // Reiniciar monitor al entrar a arqueo
+                document.getElementById('arqueo-sistema').innerText = "$ " + saldoSistema.toLocaleString('es-AR');
+            }
         };
 
-        const categoriasEgreso = [
-            "Pago Proveedor", "Combustible", "Adelanto de Sueldo", "Pago de Haberes", 
-            "Gastos de Limpieza", "Gastos de Mantenimiento", "Retiro de Efectivo (Pablo)", 
-            "Pago Servicios", "Varios"
-        ];
+        const categoriasEgreso = [ "Pago Proveedor", "Combustible", "Adelanto de Sueldo", "Pago de Haberes", "Gastos de Limpieza", "Gastos de Mantenimiento", "Retiro de Efectivo (Pablo)", "Pago Servicios", "Varios" ];
         const categoriasIngreso = ["Venta Local", "Ingreso Varios", "Aporte de Capital"];
 
         function actualizarCategorias() {
@@ -502,8 +464,7 @@
             const lista = tipo === 'Egreso' ? categoriasEgreso : categoriasIngreso;
             lista.forEach(cat => {
                 const opt = document.createElement('option');
-                opt.value = cat;
-                opt.textContent = cat;
+                opt.value = cat; opt.textContent = cat;
                 select.appendChild(opt);
             });
             checkCamposExtra();
@@ -522,31 +483,24 @@
             selEmp.style.display = 'none';
 
             if (!cat) return;
-
             let show = false;
             if (cat.includes("Proveedor")) { inpProv.style.display = 'block'; show = true; }
             if (cat.includes("Combustible") || cat.includes("Mantenimiento")) { selVeh.style.display = 'block'; show = true; }
             if (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto")) { selEmp.style.display = 'block'; show = true; }
-            
             checkChequeFields(); 
-            
-            if (show || document.getElementById('cheque-fields').style.display === 'block') {
-                extraContainer.style.display = 'block';
-            }
+            if (show || document.getElementById('cheque-fields').style.display === 'block') { extraContainer.style.display = 'block'; }
         }
 
         function checkChequeFields() {
             const pago = document.getElementById('mov-pago').value;
             const chequeDiv = document.getElementById('cheque-fields');
             const extraContainer = document.getElementById('extra-fields-container');
-            
             if (pago === 'Cheque') {
-                chequeDiv.style.display = 'block';
-                extraContainer.style.display = 'block';
+                chequeDiv.style.display = 'block'; extraContainer.style.display = 'block';
             } else {
                 chequeDiv.style.display = 'none';
                 const cat = document.getElementById('mov-categoria').value || "";
-                if (!cat.includes("Proveedor") && !cat.includes("Combustible") && !cat.includes("Sueldo") && !cat.includes("Adelanto")) {
+                if (!cat.includes("Proveedor") && !cat.includes("Combustible") && !cat.includes("Sueldo")) {
                     extraContainer.style.display = 'none';
                 }
             }
@@ -561,6 +515,10 @@
                 total += val * denom;
             });
             const totalFmt = "$ " + total.toLocaleString('es-AR');
+            
+            // Monitorizar cambios
+            monitor.logEdit(total);
+
             if (tipo === 'rend') {
                 document.getElementById('rendicion-contado-display').textContent = totalFmt;
                 actualizarDiferenciaRendicion(total);
@@ -573,6 +531,7 @@
         window.limpiarBilletes = (tipo) => {
             document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`).forEach(i => i.value = '');
             calcBilletes(tipo);
+            monitor.logDelete();
         }
 
         async function api(fn, params = {}) {
@@ -592,15 +551,11 @@
         async function cargarMovimientos() {
             let fechaInput = document.getElementById('fecha-historial').value;
             const fechaApi = fechaInput + "T12:00:00"; 
-            
             const lista = document.getElementById('lista-movimientos');
             lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Cargando...</li>';
             const res = await api("getMovimientos", { fechaStr: fechaApi });
             lista.innerHTML = "";
-            if (!res || res.length === 0) {
-                lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Nada por aquí hoy 🦗</li>';
-                return;
-            }
+            if (!res || res.length === 0) { lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Nada por aquí hoy 🦗</li>'; return; }
             res.forEach(m => {
                 const esIngreso = m.tipo === 'Ingreso';
                 const color = esIngreso ? 'amount-in' : 'amount-out';
@@ -612,8 +567,7 @@
                             <span class="mov-sub">${m.hora} • ${m.formaPago} <br> ${m.observacion ? m.observacion : ''}</span>
                         </div>
                         <div class="mov-amount ${color}">${signo} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
-                    </li>
-                `;
+                    </li>`;
                 lista.innerHTML += html;
             });
         }
@@ -632,39 +586,29 @@
             const cat = document.getElementById('mov-categoria').value;
             const imp = document.getElementById('mov-importe').value;
             const obs = document.getElementById('mov-obs').value;
-            
             let detalle = obs;
             const prov = document.getElementById('mov-proveedor').value;
             const veh = document.getElementById('mov-vehiculo').value;
             const emp = document.getElementById('mov-empleado').value;
-            
             const banco = document.getElementById('mov-banco').value;
             const nroCheque = document.getElementById('mov-cheque-nro').value;
 
             if (!cat) return showToast("⚠️ Falta seleccionar el motivo", false);
             if (!imp || imp <= 0) return showToast("⚠️ Ingrese un importe válido", false);
-
-            if (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto")) {
+            if (cat.includes("Sueldo") || cat.includes("Haberes")) {
                 if (!emp) return showToast("⚠️ Debes seleccionar un EMPLEADO", false);
                 detalle = `[${emp}] ` + detalle; 
             }
             if (prov) detalle = `[${prov}] ` + detalle;
             let catFinal = cat;
             if (veh) catFinal = cat + " " + veh;
-
             if (pago === "Cheque") {
                 if(!banco || !nroCheque) return showToast("⚠️ Completa datos del cheque", false);
                 detalle += ` (Cheque: ${banco} #${nroCheque})`;
             }
 
             showLoading("Guardando...");
-
-            const res = await api("registrarMovimientoCaja", {
-                tipo, formaPago: pago, importe: imp, categoria: catFinal,
-                usuario: "Laura", observacion: detalle,
-                banco: banco, nroCheque: nroCheque
-            });
-
+            const res = await api("registrarMovimientoCaja", { tipo, formaPago: pago, importe: imp, categoria: catFinal, usuario: USUARIO_APP, observacion: detalle, banco: banco, nroCheque: nroCheque });
             hideLoading();
 
             if (res && res.ok) {
@@ -675,112 +619,123 @@
                 document.getElementById('mov-banco').value = "";
                 document.getElementById('mov-cheque-nro').value = "";
                 checkCamposExtra(); 
-                
                 const hoyStr = new Date().toISOString().split('T')[0];
                 if(document.getElementById('fecha-historial').value === hoyStr) cargarMovimientos();
                 actualizarSaldoHeader();
-            } else {
-                showToast("❌ Error al guardar", false);
-            }
+            } else { showToast("❌ Error al guardar", false); }
         }
 
         async function buscarRendicionAutomatica() {
             const statusBox = document.getElementById('rendicion-status-box');
             const hoyStr = new Date().toISOString().split('T')[0];
             const res = await api("getDatosRendicionEsperada", { fechaStr: hoyStr, turno: "Mañana", repartidor: "Nico" });
-
             if (res && res.ok) {
                 datosRendicion = res;
                 statusBox.style.color = "var(--primary)";
-                statusBox.innerHTML = `
-                    <span class="material-icons-round" style="vertical-align:middle;">assignment_ind</span>
-                    Planilla detectada: <b>${res.repartidor}</b> (Turno ${res.turno})
-                `;
+                statusBox.innerHTML = `<span class="material-icons-round" style="vertical-align:middle;">assignment_ind</span> Planilla detectada: <b>${res.repartidor}</b> (Turno ${res.turno})`;
                 document.getElementById('card-rendicion-confirm').style.display = 'block';
                 document.getElementById('rendicion-esperado').textContent = "$ " + res.efectivoEsperado.toLocaleString('es-AR');
-            } else {
-                statusBox.textContent = "💤 Esperando planillas de reparto... (Revisa cada 5 min)";
-            }
+            } else { statusBox.textContent = "💤 Esperando planillas de reparto... (Revisa cada 5 min)"; }
         }
 
         function actualizarDiferenciaRendicion(totalContado) {
             if (!datosRendicion) return;
             const dif = totalContado - datosRendicion.efectivoEsperado;
             const divContainer = document.getElementById('rendicion-diferencia-container');
-            
             if (dif === 0) {
                 divContainer.innerHTML = '<div style="color:var(--success); font-weight:800; font-size:1.2rem;">✨ ¡EXACTO! ✨</div>';
             } else if (dif > 0) {
-                divContainer.innerHTML = `
-                    <div class="mensaje-zen">
-                        <b>¡Tranquila! Sobran $ ${dif.toLocaleString('es-AR')}</b><br>
-                        El sistema creará un ingreso automático para que la caja coincida con la realidad.
-                    </div>`;
+                divContainer.innerHTML = `<div class="mensaje-zen"><b>¡Tranquila! Sobran $ ${dif.toLocaleString('es-AR')}</b><br>El sistema creará un ingreso automático.</div>`;
             } else {
-                divContainer.innerHTML = `
-                    <div style="color:var(--accent); font-weight:700; margin-bottom:10px;">
-                        ⚠️ FALTAN: -$ ${Math.abs(dif).toLocaleString('es-AR')}
-                    </div>`;
+                divContainer.innerHTML = `<div style="color:var(--accent); font-weight:700; margin-bottom:10px;">⚠️ FALTAN: -$ ${Math.abs(dif).toLocaleString('es-AR')}</div>`;
             }
         }
 
-        async function enviarRendicion() {
+        function intentarRendicion() {
             if (!datosRendicion) return;
             const inputs = document.querySelectorAll('#screen-rendicion .billete-input');
             let total = 0;
             inputs.forEach(i => total += (parseInt(i.value)||0) * parseInt(i.getAttribute('data-val')));
 
-            if (total === 0 && !confirm("¿Confirmar rendición en $0?")) return;
+            if (total === 0) { showToast("Contá los billetes primero", false); monitor.logAttempt(); return; }
 
-            showLoading("Procesando rendición...");
+            const dif = total - datosRendicion.efectivoEsperado;
+            let msg = "El monto coincide perfectamente con el sistema.";
+            let color = "var(--success)";
+            if (dif !== 0) { msg = `Hay una diferencia de <b>$ ${dif.toLocaleString('es-AR')}</b>. El sistema ajustará la caja.`; color = "var(--primary)"; }
 
-            const res = await api("procesarRendicionDesdeRecibo", {
-                fechaStr: datosRendicion.fecha,
-                turno: datosRendicion.turno,
-                repartidor: datosRendicion.repartidor,
-                efectivoEsperado: datosRendicion.efectivoEsperado,
-                efectivoContado: total,
-                usuario: "Laura"
+            showModal("¿Confirmar Rendición?", msg, "verified", color, async () => {
+                showLoading("Procesando rendición...");
+                const res = await api("procesarRendicionDesdeRecibo", {
+                    fechaStr: datosRendicion.fecha,
+                    turno: datosRendicion.turno,
+                    repartidor: datosRendicion.repartidor,
+                    efectivoEsperado: datosRendicion.efectivoEsperado,
+                    efectivoContado: total,
+                    usuario: USUARIO_APP,
+                    monitorData: monitor.getReport()
+                });
+                hideLoading();
+                if (res && res.ok) {
+                    showToast("🚀 Rendición procesada con éxito", true);
+                    document.getElementById('screen-rendicion').innerHTML = '<div style="text-align:center; padding:40px;"><h3>✨ Todo listo por hoy ✨</h3><p>Rendición guardada.</p></div>';
+                    cargarMovimientos();
+                    actualizarSaldoHeader();
+                } else { showToast(res.error || "Error al procesar", false); }
+            });
+        }
+
+        // --- ARQUEO CON MODAL Y DEBUG ---
+        function intentarArqueo() {
+            // Usamos el input hidden que se llena con calcBilletes
+            const fisico = parseFloat(document.getElementById('arqueo-fisico').value) || 0;
+            
+            if (fisico === 0) {
+                // Doble check por si acaso
+                showModal("¿Caja en cero?", "Estás por cerrar la caja con <b>$ 0</b>. ¿Segura?", "warning", "var(--accent)", () => procederArqueo(0));
+                return;
+            }
+
+            showModal(
+                "Cierre Final de Caja",
+                `Se registrará un efectivo físico de <b>$ ${fisico.toLocaleString('es-AR')}</b>.<br>Esta acción es irreversible.`,
+                "lock",
+                "var(--fisico-color)",
+                () => procederArqueo(fisico)
+            );
+        }
+
+        async function procederArqueo(fisico) {
+            showLoading("Cerrando caja...");
+            
+            // Enviamos el arqueo
+            const res = await api("registrarArqueo", { 
+                usuario: USUARIO_APP, 
+                efectivoFisico: fisico,
+                monitorData: monitor.getReport()
             });
 
             hideLoading();
 
-            if (res && res.ok) {
-                showToast("🚀 Rendición procesada con éxito", true);
-                document.getElementById('screen-rendicion').innerHTML = '<div style="text-align:center; padding:40px;"><h3>✨ Todo listo por hoy ✨</h3><p>Rendición guardada.</p></div>';
-                cargarMovimientos();
-                actualizarSaldoHeader();
-            } else {
-                showToast(res.error || "Error al procesar", false);
-            }
-        }
-
-        async function enviarArqueo() {
-            const fisico = parseFloat(document.getElementById('arqueo-fisico').value) || 0;
-            if (fisico === 0 && !confirm("¿Cerrar caja en $0 físicos?")) return;
-
-            showLoading("Cerrando caja...");
-
-            const res = await api("registrarArqueo", { usuario: "Laura", efectivoFisico: fisico });
-
-            hideLoading();
-
-            if (res && res.idArqueo) {
+            // ==========================================
+            // 🔥 CORRECCIÓN CLAVE V4.6
+            // ==========================================
+            // Aceptamos si devuelve "idArqueo" (Backend nuevo) O si devuelve "resultado" (Backend actual)
+            if (res && (res.idArqueo || res.resultado)) {
                 let msg = "Caja cerrada.";
                 let isSuccess = true;
                 
                 if (res.resultado === 'OK') msg += " ✨ Perfecto.";
-                else if (res.resultado === 'Sobrante') { msg += ` ⚠️ Sobran $${res.diferencia}`; isSuccess = false; }
-                else { msg += ` 🚨 Faltan $${Math.abs(res.diferencia)}`; isSuccess = false; }
+                else if (res.resultado === 'Sobrante') { msg += ` ⚠️ Sobran $${(res.diferencia || 0).toLocaleString()}`; isSuccess = false; }
+                else { msg += ` 🚨 Faltan $${Math.abs(res.diferencia || 0).toLocaleString()}`; isSuccess = false; }
                 
                 showToast(msg, isSuccess);
-                
-                // REINICIA LA APP DESPUÉS DE 3 SEGUNDOS
-                setTimeout(() => location.reload(), 3000); 
+                setTimeout(() => location.reload(), 3500); 
             } else {
-                // Manejo de errores mejorado
-                const errorMsg = (res && res.error) ? res.error : "Error desconocido al cerrar caja";
-                showToast("❌ " + errorMsg, false);
+                console.error("Error respuesta Arqueo:", res);
+                const errorMsg = (res && res.error) ? res.error : "Error desconocido";
+                alert("Error técnico: " + errorMsg + "\n\n(Revisa la consola si persiste)");
+                showToast("❌ Error al cerrar caja", false);
             }
         }
     </script>
