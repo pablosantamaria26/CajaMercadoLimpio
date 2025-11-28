@@ -12,7 +12,7 @@
     
     <style>
         /* =========================================
-           ESTILOS V9.0: VIVID DUO-TONE & FUN
+           ESTILOS V9.5: ALERTAS INTELIGENTES
            ========================================= */
         :root {
             /* Paleta Base */
@@ -211,6 +211,12 @@
         .confetti { position: fixed; width: 10px; height: 10px; background-color: #f00; animation: fall linear forwards; z-index: 9999; top: -10px; }
         @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
 
+        /* ESTILOS PARA LA TABLA DE DEUDAS */
+        .deuda-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .deuda-table th { text-align: left; color: var(--text-light); font-size: 0.8rem; padding-bottom: 5px; border-bottom: 1px solid #eee; }
+        .deuda-table td { padding: 8px 0; font-weight: 700; color: var(--text-main); border-bottom: 1px solid #f9f9f9; }
+        .deuda-amount { color: var(--accent); text-align: right; }
+
     </style>
 </head>
 <body>
@@ -233,8 +239,8 @@
             <div class="modal-title" id="modal-title" style="font-size: 1.4rem; font-weight: 800; margin-bottom: 5px; color: var(--text-main);">Título</div>
             <div class="modal-msg" id="modal-msg" style="color: var(--text-light); line-height: 1.5;">Mensaje</div>
             <div class="modal-actions">
-                <button class="btn-modal" style="background:#f1f2f6; color:#636e72;" onclick="closeModal()">Cancelar</button>
-                <button class="btn-modal" id="btn-modal-confirm" style="background:var(--primary); color:white;">Confirmar</button>
+                <button class="btn-modal" style="background:#f1f2f6; color:#636e72;" onclick="closeModal()">Cerrar</button>
+                <button class="btn-modal" id="btn-modal-confirm" style="background:var(--primary); color:white;">Entendido</button>
             </div>
         </div>
     </div>
@@ -446,8 +452,6 @@
         const USUARIO_APP = "Laura";
         
         // 🚨 PARAMETROS DE RENDICIÓN
-        // IMPORTANTE: En V3.0 el backend ya tiene la inteligencia de prioridad. 
-        // Estos params son referenciales para el log, pero el backend prioriza la caché.
         const RENDICION_REPARTIDOR = 'Nico'; 
         const RENDICION_TURNO_DEFECTO = 'Mañana';
         
@@ -473,7 +477,12 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             initApp();
-            document.getElementById('mov-categoria').addEventListener('change', checkCamposExtra);
+            document.getElementById('mov-categoria').addEventListener('change', (e) => {
+                checkCamposExtra();
+                if(e.target.value === "Pago de Haberes") {
+                    verificarAdelantosSemana(); // 🔥 MAGIA AQUÍ
+                }
+            });
             document.getElementById('mov-tipo').addEventListener('change', actualizarCategorias);
             document.getElementById('mov-pago').addEventListener('change', checkChequeFields);
             initSelects(); 
@@ -518,14 +527,18 @@
             
             const btnConfirm = document.getElementById('btn-modal-confirm');
             btnConfirm.style.background = color;
-            btnConfirm.onclick = () => { closeModal(); onConfirm(); };
+            
+            // Reemplazo el clon para limpiar eventos anteriores
+            const newBtn = btnConfirm.cloneNode(true);
+            btnConfirm.parentNode.replaceChild(newBtn, btnConfirm);
+            
+            newBtn.onclick = () => { closeModal(); if(onConfirm) onConfirm(); };
             m.style.display = 'flex';
         }
         function closeModal() { document.getElementById('custom-modal').style.display = 'none'; }
 
         function setFechaHoy(reload = true) {
             const d = new Date();
-            // Truco: Usar formato local para el input date
             const yyyy = d.getFullYear();
             const mm = String(d.getMonth() + 1).padStart(2, '0');
             const dd = String(d.getDate()).padStart(2, '0');
@@ -543,7 +556,7 @@
             if (id === 'arqueo') {
                 monitor.reset(); 
                 actualizarSaldoHeader(); 
-                calcBilletes('arq'); // Refrescar vista
+                calcBilletes('arq'); 
             } else if (id === 'rendicion') {
                 monitor.reset();
                 buscarRendicionPendiente();
@@ -650,15 +663,86 @@
             }
         }
 
+        // --- FUNCION NUEVA: VERIFICAR ADELANTOS SEMANALES ---
+        async function verificarAdelantosSemana() {
+            showLoading("Buscando adelantos de la semana...");
+            
+            // 1. Calcular fechas desde el Lunes hasta Hoy
+            const hoy = new Date();
+            const diaSemana = hoy.getDay(); // 0 Dom, 1 Lun, ...
+            const diffLunes = hoy.getDate() - diaSemana + (diaSemana == 0 ? -6 : 1);
+            const lunes = new Date(hoy.setDate(diffLunes));
+            
+            const fechas = [];
+            // Recorremos desde el Lunes hasta hoy (o Viernes)
+            for (let d = new Date(lunes); d <= new Date(); d.setDate(d.getDate() + 1)) {
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                fechas.push(`${yyyy}-${mm}-${dd}`);
+            }
+
+            const deudas = {}; // { "Tomás": 30000, "Martín": 10000 }
+
+            // 2. Consultar movimientos por día (Frontend Loop para no tocar backend)
+            for (const f of fechas) {
+                const res = await api("getMovimientos", { fechaStr: f + "T12:00:00" });
+                if (res && res.length > 0) {
+                    res.forEach(m => {
+                        // Filtramos solo Adelantos
+                        if (m.categoria && m.categoria.includes("Adelanto de Sueldo")) {
+                            // Extraemos nombre entre corchetes [Nombre] de la observación
+                            // El formato estándar es "[Nombre] Adelanto..."
+                            const match = m.observacion.match(/\[(.*?)\]/);
+                            if (match && match[1]) {
+                                const nombre = match[1];
+                                const monto = parseInt(m.importe) || 0;
+                                if (!deudas[nombre]) deudas[nombre] = 0;
+                                deudas[nombre] += monto;
+                            }
+                        }
+                    });
+                }
+            }
+            
+            hideLoading();
+
+            // 3. Mostrar Modal si hay deudas
+            const nombres = Object.keys(deudas);
+            if (nombres.length > 0) {
+                let html = `
+                    <div style="background:#fff3e0; padding:10px; border-radius:8px; margin-bottom:10px; border-left:4px solid var(--accent); color:#d35400; font-size:0.9rem;">
+                        <b>⚠️ Atención Laura:</b> Recuerda descontar estos adelantos antes de pagar.
+                    </div>
+                    <table class="deuda-table">
+                        <tr><th>Empleado</th><th style="text-align:right;">Retiró</th></tr>
+                `;
+                
+                let totalGral = 0;
+                nombres.forEach(n => {
+                    html += `<tr><td>${n}</td><td class="deuda-amount">$ ${deudas[n].toLocaleString('es-AR')}</td></tr>`;
+                    totalGral += deudas[n];
+                });
+                
+                html += `
+                    <tr style="border-top:2px solid #ddd;">
+                        <td style="padding-top:10px;"><b>TOTAL</b></td>
+                        <td style="padding-top:10px; text-align:right; color:var(--text-main);"><b>$ ${totalGral.toLocaleString('es-AR')}</b></td>
+                    </tr>
+                    </table>
+                `;
+
+                showModal("Adelantos de la Semana", html, "warning", "var(--accent)", null);
+            } else {
+                showToast("✅ No hay adelantos registrados esta semana.", true);
+            }
+        }
+
         // --- LÓGICA DE RENDICIÓN ---
         function parseFechaLocal(fechaStr) {
-            // El backend V3 manda 'yyyy-MM-dd'.
-            // Para evitar problemas de timezone (que "2023-11-28" sea leído como 27 a la noche),
-            // lo parseamos manualmente como string local.
             if(!fechaStr) return new Date();
             const parts = fechaStr.split('-'); 
             if(parts.length === 3) {
-                // new Date(año, mes-1, dia) crea fecha local
                 return new Date(parts[0], parts[1]-1, parts[2]);
             }
             return new Date(fechaStr);
@@ -677,18 +761,15 @@
             document.getElementById('card-billetes-rendicion').style.display = 'none';
             rendicionPendiente = null;
             
-            // Backend V3.0 ya prioriza. Pedimos lo que tenga.
             const res = await api("getDatosRendicionEsperada", { repartidor: RENDICION_REPARTIDOR, turno: RENDICION_TURNO_DEFECTO }); 
             
             loadingCard.style.display = 'none';
 
             if (res && res.ok) {
-                // HAY RENDICIÓN
                 rendicionPendiente = res;
                 dataCard.style.display = 'block';
                 document.getElementById('card-billetes-rendicion').style.display = 'block';
                 
-                // Parseo de Fecha Seguro (Evita "antes de ayer")
                 const fechaObj = parseFechaLocal(res.fecha);
                 const fechaFmt = fechaObj.toLocaleDateString('es-AR', {day: 'numeric', month: 'long'});
                 
@@ -701,7 +782,6 @@
                 calcBilletes('rend'); 
 
             } else { 
-                // NADA PENDIENTE (ZEN)
                 content.style.display = 'none';
                 zenState.style.display = 'block';
             }
@@ -745,9 +825,9 @@
                 
                 if (res && res.ok) {
                     showToast("✅ Rendición Exitosa", true);
-                    lanzarConfeti(); // Celebración visual
+                    lanzarConfeti(); 
                     limpiarBilletes('rend');
-                    buscarRendicionPendiente(); // Vuelve a Zen
+                    buscarRendicionPendiente(); 
                     actualizarSaldoHeader();
                 } else {
                     showToast(res.error || "Error", false);
@@ -770,7 +850,6 @@
                 hideLoading();
                 
                 if (res && res.ok) {
-                    // 🎉 ANIMACIÓN DE REINICIO
                     lanzarConfeti();
                     document.getElementById('screen-arqueo').innerHTML = `
                         <div style="height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center; animation:popIn 0.5s;">
@@ -779,11 +858,7 @@
                             <p style="color:var(--text-light);">Reiniciando sistema...</p>
                         </div>
                     `;
-                    
-                    // RESET FLUIDO
-                    setTimeout(() => {
-                        window.location.reload(); // Recarga limpia para reiniciar estado
-                    }, 2500);
+                    setTimeout(() => { window.location.reload(); }, 2500);
                 } else {
                     showToast("Error al cerrar", false);
                 }
@@ -811,7 +886,6 @@
             const lista = document.getElementById('lista-movimientos');
             lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Cargando...</li>';
             
-            // Fix fecha para API
             const res = await api("getMovimientos", { fechaStr: fechaStr + "T12:00:00" });
             lista.innerHTML = "";
             
@@ -843,13 +917,20 @@
             const imp = parseInt(document.getElementById('mov-importe').getAttribute('data-clean-value')) || 0;
             let obs = document.getElementById('mov-obs').value;
 
-            // Extra fields logic simplified for brevity...
             const prov = document.getElementById('mov-proveedor').value;
-            if(prov) obs = `[${prov}] ` + obs;
+            const veh = document.getElementById('mov-vehiculo').value;
+            const emp = document.getElementById('mov-empleado').value;
+            const banco = document.getElementById('mov-banco').value;
+            const nroCheque = document.getElementById('mov-cheque-nro').value;
             
             if(!cat || imp<=0) { hideLoading(); btn.disabled=false; return showToast("Datos incompletos", false); }
 
-            const res = await api("registrarMovimientoCaja", { tipo, formaPago: pago, importe: imp, categoria: cat, usuario: USUARIO_APP, observacion: obs });
+            const res = await api("registrarMovimientoCaja", { 
+                tipo, formaPago: pago, importe: imp, categoria: cat, 
+                usuario: USUARIO_APP, observacion: obs, 
+                proveedor: prov, vehiculo: veh, empleado: emp, // Enviamos explícitamente para el backend (aunque el backend viejo use obs)
+                banco: banco, nroCheque: nroCheque 
+            });
             hideLoading(); btn.disabled = false;
             
             if(res && res.ok) {
