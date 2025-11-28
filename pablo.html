@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <link rel="manifest" href="manifest-pablo.json">
-<meta name="theme-color" content="#1F2937">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- PWA Config Pablo -->
+    <link rel="manifest" href="manifest-pablo.json">
+    <meta name="theme-color" content="#1F2937">
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+      }
+    </script>
+
     <title>Tablero de Control - Pablo</title>
     
     <!-- Fuentes e Iconos -->
@@ -20,7 +22,7 @@
 
     <style>
         /* =========================================
-           STYLE PABLO.CSS (Estilo Ejecutivo Dark)
+           STYLE PABLO.CSS (Estilo Ejecutivo Dark V2)
            ========================================= */
         :root {
             --bg-dark: #101827;
@@ -40,7 +42,7 @@
             font-family: 'Montserrat', sans-serif;
             background-color: var(--bg-dark);
             color: var(--text-main);
-            padding-bottom: 80px; /* Espacio para nav si hubiera */
+            padding-bottom: 90px;
         }
 
         /* HEADER */
@@ -48,9 +50,10 @@
             padding: 20px;
             background: linear-gradient(180deg, rgba(31,41,55,1) 0%, rgba(16,24,39,0) 100%);
             display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100; backdrop-filter: blur(5px);
         }
-        .admin-title { font-size: 1.2rem; font-weight: 800; letter-spacing: 1px; color: var(--primary); }
-        .refresh-btn { background: none; border: none; color: var(--text-main); cursor: pointer; }
+        .admin-title { font-size: 1.2rem; font-weight: 800; letter-spacing: 1px; color: var(--primary); text-transform: uppercase; }
+        .refresh-btn { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 5px; }
 
         /* NARRATIVA / ASISTENTE */
         .narrative-card {
@@ -58,84 +61,105 @@
             margin: 15px; padding: 20px; border-radius: 20px;
             box-shadow: 0 10px 25px rgba(37, 99, 235, 0.2);
             position: relative; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .narrative-card::after {
             content: ''; position: absolute; top: -50px; right: -50px;
             width: 150px; height: 150px; background: rgba(255,255,255,0.1);
             border-radius: 50%; pointer-events: none;
         }
-        .assistant-face { font-size: 40px; margin-bottom: 10px; display: block; }
-        .assistant-text { font-size: 1.1rem; line-height: 1.5; font-weight: 500; }
-        .assistant-highlight { font-weight: 800; color: #FFD700; }
+        .assistant-face { font-size: 40px; margin-bottom: 10px; display: block; animation: float 3s ease-in-out infinite; }
+        .assistant-text { font-size: 1rem; line-height: 1.5; font-weight: 500; }
+        .assistant-highlight { font-weight: 800; color: #FFD700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
 
-        /* KPI CARDS (SALUD FINANCIERA) */
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+
+        /* KPI CARDS */
         .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 0 15px; margin-bottom: 20px; }
         .kpi-card {
             background: var(--card-bg); padding: 15px; border-radius: 16px;
             text-align: center; border: 1px solid rgba(255,255,255,0.05);
+            transition: transform 0.2s;
         }
-        .kpi-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
-        .kpi-value { font-size: 1.4rem; font-weight: 800; margin-top: 5px; }
+        .kpi-card:active { transform: scale(0.98); }
+        .kpi-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;}
+        .kpi-value { font-size: 1.3rem; font-weight: 800; }
         .kpi-value.ingreso { color: var(--success); }
         .kpi-value.egreso { color: var(--danger); }
 
-        /* SECCIONES */
-        .section-title {
-            padding: 0 20px; margin-top: 30px; margin-bottom: 10px;
-            font-size: 1rem; font-weight: 700; color: var(--text-muted);
-            display: flex; align-items: center; gap: 8px;
+        /* BUSCADOR */
+        .search-container { padding: 0 15px; margin-bottom: 20px; }
+        .search-input {
+            width: 100%; background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px 15px; border-radius: 12px; color: white; font-family: 'Montserrat';
+            font-size: 1rem; outline: none; transition: border-color 0.3s;
         }
+        .search-input:focus { border-color: var(--primary); }
+
+        /* RANKING PODIO */
+        .podium-container { 
+            display: flex; justify-content: center; align-items: flex-end; gap: 10px; 
+            padding: 20px 15px; margin: 0 15px 20px; background: var(--card-bg); border-radius: 16px;
+        }
+        .podium-step { 
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end; 
+            text-align: center; width: 33%;
+        }
+        .podium-bar { 
+            width: 100%; border-radius: 8px 8px 0 0; margin-top: 5px; 
+            display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px;
+            font-weight: 800; color: rgba(0,0,0,0.6); font-size: 1.2rem;
+        }
+        .podium-name { font-size: 0.8rem; margin-top: 5px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .podium-amount { font-size: 0.7rem; color: var(--text-muted); }
+        
+        .rank-1 .podium-bar { height: 100px; background: linear-gradient(to top, #F59E0B, #FFD700); box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); }
+        .rank-2 .podium-bar { height: 70px; background: linear-gradient(to top, #9CA3AF, #D1D5DB); }
+        .rank-3 .podium-bar { height: 50px; background: linear-gradient(to top, #78350F, #B45309); }
 
         /* GRÁFICO DONA */
         .chart-container {
             margin: 0 15px; padding: 20px; background: var(--card-bg);
-            border-radius: 20px; position: relative; height: 300px;
+            border-radius: 20px; position: relative; height: 280px;
             display: flex; align-items: center; justify-content: center;
         }
 
-        /* LISTAS DE DETALLE (ACORDEÓN) */
-        .detail-card {
-            background: var(--card-bg); margin: 0 15px 10px; border-radius: 12px;
-            overflow: hidden;
-        }
-        .detail-header {
-            padding: 15px; display: flex; justify-content: space-between; align-items: center;
-            cursor: pointer; background: rgba(255,255,255,0.02);
-        }
-        .detail-title { font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        /* LISTAS DE DETALLE */
+        .section-title { padding: 0 20px; margin-top: 30px; margin-bottom: 10px; font-size: 0.9rem; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .detail-card { background: var(--card-bg); margin: 0 15px 10px; border-radius: 12px; overflow: hidden; }
+        .detail-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: rgba(255,255,255,0.02); }
+        .detail-title { font-weight: 600; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
         .detail-total { font-weight: 700; color: var(--text-main); }
-        .detail-content {
-            display: none; padding: 10px 15px; border-top: 1px solid rgba(255,255,255,0.05);
-            background: rgba(0,0,0,0.2);
-        }
+        
+        .detail-content { display: none; padding: 0; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); }
         .detail-content.show { display: block; animation: slideDown 0.3s; }
         
-        .detail-row {
-            display: flex; justify-content: space-between; padding: 8px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem;
+        .mov-item { 
+            padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); 
+            display: flex; justify-content: space-between; align-items: center; 
         }
-        .detail-row:last-child { border-bottom: none; }
-        .detail-sub { font-size: 0.75rem; color: var(--text-muted); }
+        .mov-item:last-child { border-bottom: none; }
+        .mov-info { display: flex; flex-direction: column; gap: 2px; }
+        .mov-cat { font-size: 0.9rem; font-weight: 500; color: #E5E7EB; }
+        .mov-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; }
+        .mov-amount { font-weight: 700; font-size: 0.95rem; }
+        .amount-in { color: var(--success); }
+        .amount-out { color: var(--danger); }
 
-        /* ALERTAS DE FRAUDE */
+        /* ALERTAS */
         .alert-feed { padding: 0 15px; }
-        .alert-card {
-            background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger);
-            padding: 15px; border-radius: 8px; margin-bottom: 10px;
-        }
+        .alert-card { background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 15px; border-radius: 8px; margin-bottom: 10px; }
         .alert-title { color: var(--danger); font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;}
         .alert-msg { font-size: 0.85rem; color: #FECACA; line-height: 1.4; }
         .alert-time { font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 5px; text-align: right; }
         
-        .empty-state { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.9rem; }
+        .empty-state { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.9rem; font-style: italic;}
 
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         
         /* Loading */
-        #loading-overlay {
-            position: fixed; inset: 0; background: var(--bg-dark); z-index: 1000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
+        #loading-overlay { position: fixed; inset: 0; background: var(--bg-dark); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .spinner { width: 40px; height: 40px; border: 4px solid rgba(59, 130, 246, 0.3); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -146,13 +170,13 @@
     <!-- Loading Screen -->
     <div id="loading-overlay">
         <div class="spinner"></div>
-        <p style="margin-top:15px; font-size:0.9rem; color:var(--text-muted);">Analizando finanzas...</p>
+        <p style="margin-top:15px; font-size:0.9rem; color:var(--text-muted); letter-spacing: 1px;">CARGANDO INTELIGENCIA...</p>
     </div>
 
     <!-- Header -->
     <header class="admin-header">
-        <div class="admin-title">PABLO ADMIN</div>
-        <button class="refresh-btn" onclick="cargarDashboard()"><span class="material-icons-round">refresh</span></button>
+        <div class="admin-title">PABLO ADMIN <span style="font-size:0.7em; opacity:0.5;">V2.0</span></div>
+        <button class="refresh-btn" onclick="location.reload()"><span class="material-icons-round">refresh</span></button>
     </header>
 
     <!-- 1. El Asesor Virtual -->
@@ -160,67 +184,90 @@
         <div class="narrative-card">
             <span class="assistant-face">🤖</span>
             <div id="narrativa-texto" class="assistant-text">
-                Analizando los movimientos de la semana...
+                Analizando el flujo de caja...
             </div>
         </div>
     </section>
 
-    <!-- 2. Salud Financiera -->
+    <!-- 2. KPIs Salud -->
     <section>
-        <div class="section-title"><span class="material-icons-round">insights</span> Salud Semanal</div>
+        <div class="section-title"><span class="material-icons-round">insights</span> Resumen Semanal</div>
         <div class="kpi-grid">
             <div class="kpi-card">
                 <div class="kpi-label">Ingresos</div>
-                <div id="kpi-ingresos" class="kpi-value ingreso">$ 0</div>
+                <div id="kpi-ingresos" class="kpi-value ingreso">...</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">Egresos</div>
-                <div id="kpi-egresos" class="kpi-value egreso">$ 0</div>
+                <div id="kpi-egresos" class="kpi-value egreso">...</div>
             </div>
         </div>
         <!-- Barra de Salud -->
         <div style="padding:0 15px; margin-bottom:20px;">
             <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:5px; color:var(--text-muted);">
-                <span>Flujo de Caja</span>
+                <span>Nivel de Gasto</span>
                 <span id="health-percentage">0%</span>
             </div>
-            <div style="height:8px; background:#374151; border-radius:4px; overflow:hidden;">
+            <div style="height:6px; background:#374151; border-radius:4px; overflow:hidden;">
                 <div id="health-bar" style="width:0%; height:100%; background:var(--success); transition: width 1s;"></div>
             </div>
         </div>
     </section>
 
-    <!-- 3. Distribución de Gastos (Gráfico) -->
+    <!-- 3. NUEVO: Hall of Fame (Ranking Repartidores) -->
+    <section id="section-ranking" style="display:none;">
+        <div class="section-title"><span class="material-icons-round">emoji_events</span> Top Repartidores (Ingresos)</div>
+        <div class="podium-container" id="podium-container">
+            <!-- Se llena con JS -->
+        </div>
+    </section>
+
+    <!-- 4. Gráfico Gastos -->
     <section>
-        <div class="section-title"><span class="material-icons-round">pie_chart</span> ¿En qué gastamos?</div>
+        <div class="section-title"><span class="material-icons-round">pie_chart</span> Distribución de Gastos</div>
         <div class="chart-container">
             <canvas id="expensesChart"></canvas>
         </div>
     </section>
 
-    <!-- 4. Detalles Desplegables -->
+    <!-- 5. NUEVO: Buscador Global -->
+    <section>
+        <div class="section-title"><span class="material-icons-round">search</span> Lupa Financiera</div>
+        <div class="search-container">
+            <input type="text" id="search-input" class="search-input" placeholder="Buscar gasto, proveedor, repartidor..." onkeyup="filtrarMovimientos()">
+        </div>
+    </section>
+
+    <!-- 6. Listado Detallado (o Resultados de Búsqueda) -->
     <section id="details-container">
         <!-- Se llenan con JS -->
     </section>
+    
+    <section id="search-results-container" style="display:none;">
+        <div class="section-title">Resultados de Búsqueda</div>
+        <div class="detail-card">
+            <div id="search-results-list" class="detail-content show"></div>
+        </div>
+    </section>
 
-    <!-- 5. Monitor de Seguridad -->
+    <!-- 7. Monitor Seguridad -->
     <section>
         <div class="section-title" style="color:var(--danger); margin-top:40px;">
             <span class="material-icons-round">security</span> Alertas de Fraude
         </div>
         <div id="fraud-monitor-feed" class="alert-feed">
-            <div class="empty-state">Todo tranquilo por ahora.</div>
+            <div class="empty-state">Escaneando sistema...</div>
         </div>
     </section>
 
     <script>
         /* =========================================
-           APP PABLO.JS (Lógica de Negocio)
+           APP PABLO.JS V2.0 (Lógica Avanzada)
            ========================================= */
         
-        // URL del Backend (Mismo script que Laura)
         const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/"; 
         let myChart = null;
+        let globalMovimientos = []; // Guardamos todo aquí para el buscador local
 
         document.addEventListener("DOMContentLoaded", () => {
             cargarDashboard();
@@ -236,19 +283,17 @@
         }
 
         async function cargarDashboard() {
-            document.getElementById('loading-overlay').style.display = 'flex';
-            
-            // 1. Obtener datos (Simulamos "Semana" pidiendo los últimos 7 días)
-            const hoy = new Date();
-            const movimientosSemana = await fetchMovimientosUltimosDias(7);
+            // 1. Fetch Datos (Últimos 15 días para tener más contexto)
+            globalMovimientos = await fetchMovimientosUltimosDias(15);
             const notificaciones = await api("getNotificacionesCaja", { soloActivas: true });
 
-            // 2. Procesar Datos
-            const metricas = procesarMetricas(movimientosSemana);
+            // 2. Procesar Métricas
+            const metricas = procesarMetricas(globalMovimientos);
 
-            // 3. Renderizar UI
+            // 3. Renderizar
             renderNarrativa(metricas);
             renderKPIs(metricas);
+            renderRanking(globalMovimientos); // Nuevo
             renderGrafico(metricas);
             renderDetalles(metricas);
             renderMonitorSeguridad(notificaciones);
@@ -256,10 +301,7 @@
             document.getElementById('loading-overlay').style.display = 'none';
         }
 
-        // --- Helpers de Datos ---
         async function fetchMovimientosUltimosDias(dias) {
-            // Como la API trae por día específico, hacemos un Promise.all para traer la semana
-            // Esto es un "truco" frontend para no modificar el backend complejo
             const promesas = [];
             for (let i = 0; i < dias; i++) {
                 const d = new Date();
@@ -268,10 +310,22 @@
                 promesas.push(api("getMovimientos", { fechaStr }));
             }
             const resultados = await Promise.all(promesas);
-            return resultados.flat().filter(m => m && m.id); // Aplanar y limpiar
+            // Aplanar, limpiar y ordenar por fecha (más reciente primero)
+            return resultados.flat()
+                .filter(m => m && m.id)
+                .sort((a,b) => b.id - a.id); 
         }
 
         function procesarMetricas(movs) {
+            // Filtramos solo los de los últimos 7 días para los KPIs principales
+            const hace7dias = new Date();
+            hace7dias.setDate(hace7dias.getDate() - 7);
+            
+            const movsSemana = movs.filter(m => {
+                const [d, M, y] = m.fecha.split('/');
+                return new Date(`${y}-${M}-${d}`) >= hace7dias;
+            });
+
             let ingresos = 0;
             let egresosTotal = 0;
             const categorias = {
@@ -281,20 +335,18 @@
                 otros: { total: 0, items: [] }
             };
 
-            movs.forEach(m => {
+            movsSemana.forEach(m => {
                 const imp = parseFloat(m.importe) || 0;
                 if (m.tipo === "Ingreso") {
                     ingresos += imp;
                 } else {
                     egresosTotal += imp;
                     const catLower = (m.categoria || "").toLowerCase();
-                    const obsLower = (m.observacion || "").toLowerCase();
                     
-                    // Clasificación inteligente
                     if (catLower.includes("combustible")) {
                         categorias.combustible.total += imp;
                         categorias.combustible.items.push(m);
-                    } else if (catLower.includes("adelanto") || catLower.includes("haber")) {
+                    } else if (catLower.includes("adelanto") || catLower.includes("haber") || catLower.includes("sueldo")) {
                         categorias.sueldos.total += imp;
                         categorias.sueldos.items.push(m);
                     } else if (catLower.includes("proveedor")) {
@@ -307,7 +359,7 @@
                 }
             });
 
-            return { ingresos, egresosTotal, categorias, totalMovs: movs.length };
+            return { ingresos, egresosTotal, categorias, totalMovs: movsSemana.length };
         }
 
         // --- Render UI ---
@@ -317,21 +369,26 @@
 
         function renderNarrativa(data) {
             const saldo = data.ingresos - data.egresosTotal;
-            const ratio = data.ingresos > 0 ? (data.egresosTotal / data.ingresos) * 100 : 100;
+            const ratio = data.ingresos > 0 ? (data.egresosTotal / data.ingresos) * 100 : 0;
+            
+            // Proyección Simple (El Oráculo)
+            const promedioDiarioIngreso = data.ingresos / 7;
+            const proyeccionMes = promedioDiarioIngreso * 30;
+
             let mensaje = "";
             let emoji = "";
 
             if (data.totalMovs === 0) {
-                mensaje = "Hola Pablo. Aún no hay movimientos esta semana para analizar.";
+                mensaje = "Hola Pablo. Esperando movimientos de la semana...";
                 emoji = "💤";
             } else if (ratio < 50) {
-                mensaje = `¡Excelente semana Pablo! <br>Los ingresos son sólidos y los gastos están controlados. <span class="assistant-highlight">Tenemos un superávit de ${formatoMoneda(saldo)}.</span>`;
+                mensaje = `¡Semana sólida Pablo! <br>El negocio es rentable. A este ritmo, proyectamos ingresos mensuales de <span class="assistant-highlight">${formatoMoneda(proyeccionMes)}</span>.`;
                 emoji = "🚀";
             } else if (ratio < 85) {
-                mensaje = `Semana estable. <br>Estamos gastando, pero ingresa dinero. Ojo con el combustible, llevamos <span class="assistant-highlight">${formatoMoneda(data.categorias.combustible.total)}</span> gastados.`;
+                mensaje = `Semana operativa. <br>Estamos moviendo caja. Hemos gastado <span class="assistant-highlight">${formatoMoneda(data.categorias.combustible.total)}</span> en combustible esta semana.`;
                 emoji = "📊";
             } else {
-                mensaje = `⚠️ <b>Atención Pablo.</b> <br>Los gastos están comiendo casi todo el ingreso (${ratio.toFixed(0)}%). Revisa los pagos a proveedores y adelantos.`;
+                mensaje = `⚠️ <b>Alerta Financiera.</b> <br>El nivel de gastos está al ${ratio.toFixed(0)}% de los ingresos. Revisa los adelantos y proveedores.`;
                 emoji = "🧐";
             }
 
@@ -343,61 +400,123 @@
             document.getElementById('kpi-ingresos').textContent = formatoMoneda(data.ingresos);
             document.getElementById('kpi-egresos').textContent = formatoMoneda(data.egresosTotal);
             
-            // Barra de Salud (Egresos sobre Ingresos)
-            const porcentajeGasto = data.ingresos > 0 ? (data.egresosTotal / data.ingresos) * 100 : 100;
-            const porcentajeBarra = Math.min(porcentajeGasto, 100);
-            
+            const porcentajeGasto = data.ingresos > 0 ? (data.egresosTotal / data.ingresos) * 100 : 0;
             const bar = document.getElementById('health-bar');
             const label = document.getElementById('health-percentage');
             
-            bar.style.width = `${porcentajeBarra}%`;
+            // Animación barra
+            setTimeout(() => { bar.style.width = `${Math.min(porcentajeGasto, 100)}%`; }, 100);
+            
             label.textContent = `${porcentajeGasto.toFixed(1)}% Gastado`;
 
-            if(porcentajeGasto > 80) { bar.style.background = "#EF4444"; label.style.color="#EF4444"; }
-            else if(porcentajeGasto > 50) { bar.style.background = "#F59E0B"; label.style.color="#F59E0B"; }
+            if(porcentajeGasto > 85) { bar.style.background = "#EF4444"; label.style.color="#EF4444"; }
+            else if(porcentajeGasto > 60) { bar.style.background = "#F59E0B"; label.style.color="#F59E0B"; }
             else { bar.style.background = "#10B981"; label.style.color="#10B981"; }
+        }
+
+        // --- NUEVO: RANKING ---
+        function renderRanking(movs) {
+            // Filtramos Rendiciones de los últimos 7 días
+            const hace7dias = new Date(); hace7dias.setDate(hace7dias.getDate() - 7);
+            
+            // Agrupar por repartidor
+            const rankingMap = {};
+            movs.forEach(m => {
+                const [d, M, y] = m.fecha.split('/');
+                if (new Date(`${y}-${M}-${d}`) < hace7dias) return;
+                
+                // Buscamos movimientos que sean "Ingreso" y parezcan rendiciones (usamos una lógica flexible)
+                if (m.tipo === "Ingreso" && (m.categoria.toLowerCase().includes("rendi") || m.observacion.toLowerCase().includes("rendi"))) {
+                    // Extraer nombre del observacion o categoria si es posible, o usar un default si tuvieramos el campo
+                    // Como en tu sistema guardamos el nombre en "observacion" a veces como "Rendición Nico (Mañana)"
+                    // Intentamos parsear o usamos la columna repartidor si viniera en la API.
+                    // Nota: Tu API devuelve m.categoria y m.observacion. Tu backend NO devolvía columna 'repartidor' en getMovimientos.
+                    // TRUCO: Vamos a intentar adivinar el nombre del texto.
+                    
+                    let nombre = "N/D";
+                    const texto = (m.observacion + " " + m.categoria).toLowerCase();
+                    if(texto.includes("nico")) nombre = "Nico";
+                    else if(texto.includes("martin")) nombre = "Martin";
+                    else if(texto.includes("fede")) nombre = "Fede";
+                    else if(texto.includes("facu")) nombre = "Facu";
+                    else return; // Si no identificamos nombre, saltamos (o agrupar en 'Otros')
+
+                    if(!rankingMap[nombre]) rankingMap[nombre] = 0;
+                    rankingMap[nombre] += parseFloat(m.importe);
+                }
+            });
+
+            const sortedRanking = Object.entries(rankingMap)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 3); // Top 3
+
+            const container = document.getElementById('podium-container');
+            const section = document.getElementById('section-ranking');
+
+            if (sortedRanking.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            container.innerHTML = "";
+
+            // Orden visual: 2do - 1ro - 3ro
+            const order = [1, 0, 2]; 
+            
+            order.forEach(idx => {
+                if (!sortedRanking[idx]) return;
+                const [name, amount] = sortedRanking[idx];
+                const rankClass = `rank-${idx + 1}`;
+                const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+                
+                container.innerHTML += `
+                    <div class="podium-step ${rankClass}">
+                        <div class="podium-name">${medal} ${name}</div>
+                        <div class="podium-amount">${formatoMoneda(amount).split(',')[0]}</div>
+                        <div class="podium-bar">${idx + 1}</div>
+                    </div>
+                `;
+            });
         }
 
         function renderGrafico(data) {
             const ctx = document.getElementById('expensesChart').getContext('2d');
-            
             if (myChart) myChart.destroy();
 
             const cats = data.categorias;
             const valores = [cats.combustible.total, cats.sueldos.total, cats.proveedores.total, cats.otros.total];
-            const labels = ['Combustible', 'Sueldos', 'Proveedores', 'Otros'];
-            const colors = ['#F59E0B', '#3B82F6', '#10B981', '#6B7280'];
-
-            // Si todo es 0, mostrar vacío
+            
             if (valores.reduce((a,b)=>a+b, 0) === 0) return;
 
             myChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: labels,
+                    labels: ['Combustible', 'Sueldos', 'Proveedores', 'Otros'],
                     datasets: [{
                         data: valores,
-                        backgroundColor: colors,
-                        borderWidth: 0,
-                        hoverOffset: 4
+                        backgroundColor: ['#F59E0B', '#3B82F6', '#10B981', '#6B7280'],
+                        borderWidth: 0
                     }]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'bottom', labels: { color: '#9CA3AF', font: {family:'Montserrat'} } }
+                        legend: { position: 'right', labels: { color: '#9CA3AF', font: {family:'Montserrat', size:10}, boxWidth: 10 } }
                     },
-                    cutout: '70%'
+                    cutout: '75%'
                 }
             });
         }
 
         function renderDetalles(data) {
             const container = document.getElementById('details-container');
-            container.innerHTML = ""; // Limpiar
+            container.innerHTML = ""; 
 
-            const createSection = (title, icon, color, catData) => {
-                if (catData.total === 0) return; // No mostrar si está vacío
+            const createSection = (title, icon, color, items) => {
+                if (items.length === 0) return;
+                const total = items.reduce((sum, i) => sum + parseFloat(i.importe), 0);
 
                 const html = `
                     <div class="detail-card">
@@ -405,28 +524,69 @@
                             <div class="detail-title" style="color:${color}">
                                 <span class="material-icons-round">${icon}</span> ${title}
                             </div>
-                            <div class="detail-total">${formatoMoneda(catData.total)}</div>
+                            <div class="detail-total">${formatoMoneda(total)}</div>
                         </div>
                         <div class="detail-content">
-                            ${catData.items.map(m => `
-                                <div class="detail-row">
-                                    <div>
-                                        <div>${m.categoria}</div>
-                                        <div class="detail-sub">${m.observacion || '-'}</div>
-                                    </div>
-                                    <div style="font-weight:600;">$ ${parseInt(m.importe).toLocaleString()}</div>
-                                </div>
-                            `).join('')}
+                            ${items.map(m => renderMovimientoItem(m)).join('')}
                         </div>
                     </div>
                 `;
                 container.innerHTML += html;
             };
 
-            createSection("Combustible", "local_gas_station", "#F59E0B", data.categorias.combustible);
-            createSection("Sueldos y Adelantos", "groups", "#3B82F6", data.categorias.sueldos);
-            createSection("Proveedores", "local_shipping", "#10B981", data.categorias.proveedores);
-            createSection("Otros Gastos", "receipt_long", "#9CA3AF", data.categorias.otros);
+            createSection("Combustible", "local_gas_station", "#F59E0B", data.categorias.combustible.items);
+            createSection("Sueldos", "groups", "#3B82F6", data.categorias.sueldos.items);
+            createSection("Proveedores", "local_shipping", "#10B981", data.categorias.proveedores.items);
+            createSection("Otros", "receipt_long", "#9CA3AF", data.categorias.otros.items);
+        }
+
+        function renderMovimientoItem(m) {
+            const isIngreso = m.tipo === 'Ingreso';
+            const colorClass = isIngreso ? 'amount-in' : 'amount-out';
+            const sign = isIngreso ? '+' : '-';
+            
+            return `
+                <div class="mov-item">
+                    <div class="mov-info">
+                        <div class="mov-cat">${m.categoria}</div>
+                        <div class="mov-meta">
+                            <span>${m.fecha} ${m.hora}</span>
+                            <span>•</span>
+                            <span>${m.observacion || ''}</span>
+                        </div>
+                    </div>
+                    <div class="mov-amount ${colorClass}">${sign} ${formatoMoneda(m.importe).replace('$ ','')}</div>
+                </div>
+            `;
+        }
+
+        // --- NUEVO: BUSCADOR ---
+        function filtrarMovimientos() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            const resultsContainer = document.getElementById('search-results-container');
+            const detailsContainer = document.getElementById('details-container');
+            const list = document.getElementById('search-results-list');
+
+            if (term.length < 2) {
+                resultsContainer.style.display = 'none';
+                detailsContainer.style.display = 'block';
+                return;
+            }
+
+            detailsContainer.style.display = 'none';
+            resultsContainer.style.display = 'block';
+
+            const filtrados = globalMovimientos.filter(m => 
+                (m.categoria && m.categoria.toLowerCase().includes(term)) ||
+                (m.observacion && m.observacion.toLowerCase().includes(term)) ||
+                (m.tipo && m.tipo.toLowerCase().includes(term))
+            );
+
+            if (filtrados.length === 0) {
+                list.innerHTML = '<div style="padding:20px; text-align:center; color:#6B7280;">No se encontraron resultados.</div>';
+            } else {
+                list.innerHTML = filtrados.map(m => renderMovimientoItem(m)).join('');
+            }
         }
 
         window.toggleDetail = function(el) {
@@ -437,24 +597,21 @@
         function renderMonitorSeguridad(notificaciones) {
             const feed = document.getElementById('fraud-monitor-feed');
             
-            // Filtramos solo las de tipo ANOMALIA_CAJA y que sean recientes
-            // Como la API getNotificacionesCaja devuelve array...
-            if (!notificaciones || !Array.isArray(notificaciones) || notificaciones.length === 0) {
-                feed.innerHTML = '<div class="empty-state">✅ Sin alertas de seguridad recientes.</div>';
+            if (!notificaciones || notificaciones.length === 0) {
+                feed.innerHTML = '<div class="empty-state">✅ Sin alertas recientes.</div>';
                 return;
             }
 
             const anomalias = notificaciones.filter(n => n.tipo === "ANOMALIA_CAJA");
-
             if (anomalias.length === 0) {
-                feed.innerHTML = '<div class="empty-state">✅ Sin alertas de seguridad recientes.</div>';
+                feed.innerHTML = '<div class="empty-state">✅ Sistema seguro.</div>';
                 return;
             }
 
             feed.innerHTML = "";
             anomalias.slice(0, 5).forEach(n => {
                 const date = new Date(n.fecha);
-                const timeStr = date.toLocaleDateString() + ' ' + (n.hora || '');
+                const timeStr = date.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'}) + ' ' + (n.hora || '');
                 
                 feed.innerHTML += `
                     <div class="alert-card">
@@ -467,7 +624,6 @@
                 `;
             });
         }
-
     </script>
 </body>
 </html>
