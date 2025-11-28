@@ -2,1052 +2,830 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Control Mercado Limpio - Dueño</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Dueño - Mercado Limpio</title>
     
     <!-- Fuentes e Iconos -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Markdown Parser para respuestas bonitas de la IA -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <style>
         /* =========================================
-           ESTILOS V1.1: DARK EXECUTIVE & RESPONSIVE
+           ESTILOS V4.0: IA INTEGRATION
            ========================================= */
         :root {
-            --bg-dark: #1F2937; 
-            --card-bg: #374151; 
-            --text-light: #F9FAFB;
-            --text-muted: #D1D5DB;
-            --primary-accent: #3B82F6; 
-            --success: #10B981; 
-            --warning: #F59E0B; 
-            --danger: #EF4444; 
-            --alert-critical: #991B1B;
-            --alert-medium: #FCD34D;
-            --kpi-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            --bg-body: #0f172a;       
+            --bg-card: #1e293b;       
+            --bg-header: rgba(15, 23, 42, 0.98);
+            
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            
+            --primary: #3b82f6;       
+            --success: #10b981;       
+            --danger: #ef4444;        
+            --warning: #f59e0b;       
+            --purple: #8b5cf6;        
+            --ai-color: #8B5CF6; /* Color para IA */
+            
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
         body {
             margin: 0; padding: 0;
-            font-family: 'Roboto', sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-light);
-            padding-bottom: 90px;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            padding-top: calc(70px + var(--safe-top)); 
+            padding-bottom: calc(80px + var(--safe-bottom));
             min-height: 100vh;
-            overflow-x: hidden;
         }
 
         /* --- HEADER --- */
-        .app-header { 
-            padding: 15px 20px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            background: rgba(31, 41, 55, 0.95);
-            backdrop-filter: blur(8px); 
-            position: sticky; 
-            top: 0; 
-            z-index: 50; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
-            gap: 10px; /* NEW: Added gap */
-        }
-        .app-title { font-size: 1.3rem; font-weight: 900; color: var(--primary-accent); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .header-actions { display: flex; align-items: center; gap: 15px; }
-
-        .date-display { font-size: 0.9rem; font-weight: 400; color: var(--text-muted); flex-shrink: 0; }
-        .notification-icon { position: relative; cursor: pointer; color: var(--text-light); }
-        .badge { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; font-weight: 700; line-height: 1; }
-        
-        /* NEW: KPI box in header for quick glance (Ingreso Neto) */
-        .header-net-kpi {
-            font-size: 0.9rem;
-            font-weight: 700;
-            padding: 4px 10px;
-            border-radius: 8px;
-            transition: all 0.3s;
-            flex-grow: 1;
-            text-align: center;
-        }
-
-
-        /* --- CARDS & LAYOUT --- */
-        .content-container { padding: 15px; }
-        .card { 
-            background: var(--card-bg); 
-            border-radius: 16px; 
-            padding: 20px; 
-            margin-bottom: 20px; 
-            box-shadow: var(--kpi-shadow); 
-            transition: padding 0.2s; /* Added for responsive transition */
-        }
-        .section-title { 
-            font-size: 1.1rem; 
-            color: var(--text-light); 
-            font-weight: 700; 
-            margin-bottom: 15px; 
-            border-bottom: 2px solid rgba(255,255,255,0.05);
-            padding-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        /* --- KPI GRIDS --- */
-        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .kpi-item {
-            padding: 15px;
-            border-radius: 12px;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        }
-        .kpi-label { font-size: 0.8rem; font-weight: 400; color: var(--text-muted); margin-bottom: 5px; }
-        .kpi-value { font-size: 1.8rem; font-weight: 900; line-height: 1.2; transition: font-size 0.2s; } /* Added transition for responsive font */
-        
-        .kpi-ingreso { background: rgba(16, 185, 129, 0.15); color: var(--success); }
-        .kpi-egreso { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-        .kpi-neto-pos { background: rgba(59, 130, 246, 0.15); color: var(--primary-accent); }
-        .kpi-neto-neg { background: rgba(239, 68, 68, 0.3); color: var(--danger); }
-        
-        /* --- NARRATIVA INTELIGENTE --- */
-        .narrativa-box {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
-            border-radius: 12px;
-            margin-top: 20px;
-            border-left: 4px solid var(--primary-accent);
-            line-height: 1.5;
-            font-size: 0.95rem;
-            transition: line-height 0.2s; /* Added for responsive text */
-        }
-        .narrativa-title { font-weight: 700; color: var(--primary-accent); margin-bottom: 5px; }
-        .highlight-green { color: var(--success); font-weight: 700; }
-        .highlight-red { color: var(--danger); font-weight: 700; }
-
-        /* --- METRICA RIESGO (FLAG) --- */
-        .risk-flag-container { 
-            padding: 20px; 
-            border-radius: 16px; 
-            text-align: center; 
-            margin-bottom: 20px; 
-        }
-        .risk-flag-container h3 { margin: 0 0 5px; font-size: 1.1rem; }
-        .risk-flag-container .ratio { font-size: 2.5rem; font-weight: 900; margin-bottom: 5px; }
-        
-        .risk-green { background: rgba(16, 185, 129, 0.2); border: 2px solid var(--success); color: var(--success); }
-        .risk-yellow { background: rgba(245, 158, 11, 0.2); border: 2px solid var(--warning); color: var(--warning); }
-        .risk-red { background: rgba(239, 68, 68, 0.2); border: 2px solid var(--danger); color: var(--danger); }
-
-        /* --- GRAFICOS (MOCK) --- */
-        .chart-mock {
-            height: 150px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-muted);
-            font-size: 0.8rem;
+        .header-fixed {
+            position: fixed; top: 0; left: 0; width: 100%;
+            background: var(--bg-header);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            z-index: 1000;
+            padding-top: var(--safe-top);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
         
-        /* --- ANALISIS RÁPIDO (TABS) --- */
-        .analysis-tabs { display: flex; overflow-x: auto; padding-bottom: 10px; gap: 10px; margin-bottom: 15px; }
-        .tab-btn {
-            background: var(--card-bg);
-            color: var(--text-muted);
-            border: none;
+        .header-content {
             padding: 10px 15px;
-            border-radius: 10px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .tab-btn.active {
-            background: var(--primary-accent);
-            color: var(--text-light);
-            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
-        }
-        .analysis-content { animation: fadeIn 0.4s; }
-
-        /* --- SEGURIDAD / ALERTS --- */
-        .alert-list { list-style: none; padding: 0; }
-        .alert-item {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            font-size: 0.9rem;
-            opacity: 1; /* For "Mark as read" effect */
-            transition: opacity 0.3s;
-        }
-        .alert-item.critical { background: var(--alert-critical); border-left: 5px solid var(--danger); }
-        .alert-item.medium { background: rgba(245, 158, 11, 0.2); border-left: 5px solid var(--warning); color: var(--warning); }
-        .alert-item.info { background: rgba(59, 130, 246, 0.1); border-left: 5px solid var(--primary-accent); color: var(--text-muted); }
-
-        /* --- BUSCADOR --- */
-        #global-search { 
-            width: 100%; 
-            padding: 15px; 
-            border-radius: 12px; 
-            border: 2px solid var(--card-bg); 
-            background: var(--bg-dark); 
-            color: var(--text-light); 
-            font-size: 1rem; 
-            margin-bottom: 15px;
+            display: flex; flex-direction: column; gap: 12px;
         }
 
-        /* --- NAV --- */
-        .bottom-nav { 
-            position: fixed; 
-            bottom: 0; 
-            left: 0; 
-            width: 100%; 
-            background: rgba(31, 41, 55, 0.95); 
-            backdrop-filter: blur(8px); 
-            display: flex; 
-            justify-content: space-around; 
-            padding: 10px 0; 
-            box-shadow: 0 -4px 12px rgba(0,0,0,0.3); 
-            z-index: 100; 
+        .top-row {
+            display: flex; justify-content: space-between; align-items: center;
         }
-        .nav-item { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            color: var(--text-muted); 
-            text-decoration: none; 
-            font-size: 0.75rem; 
-            font-weight: 700; 
-            transition: color 0.2s, background 0.2s; 
-            padding: 8px 10px;
-            border-radius: 8px;
+        .app-logo { 
+            font-size: 1.2rem; font-weight: 800; color: var(--text-main); 
+            display: flex; align-items: center; gap: 8px; 
+            letter-spacing: -0.5px;
         }
-        .nav-item.active { 
-            color: var(--primary-accent); 
-            background: rgba(59, 130, 246, 0.1); 
+        
+        /* DATE CONTROLS */
+        .date-navigator {
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(255,255,255,0.07);
+            border-radius: 14px;
+            padding: 4px;
+            border: 1px solid rgba(255,255,255,0.05);
         }
-        .nav-icon { font-size: 24px; margin-bottom: 2px; }
+        .date-btn {
+            background: transparent; border: none; color: var(--text-main);
+            width: 44px; height: 40px; border-radius: 10px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .date-btn:active { background: rgba(255,255,255,0.15); }
+        
+        .date-display-container {
+            flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+            position: relative; height: 40px;
+        }
+        .date-text { font-weight: 700; font-size: 1rem; }
+        
+        #date-picker {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; cursor: pointer; z-index: 10;
+        }
+        .calendar-icon { color: var(--primary); font-size: 20px; }
 
-        /* --- UTILS --- */
-        .screen { display: none; animation: fadeIn 0.4s; }
+        /* --- TABS --- */
+        .tabs-scroller {
+            display: flex; gap: 8px; overflow-x: auto; padding: 0 15px 12px 15px;
+            scrollbar-width: none; 
+        }
+        .tabs-scroller::-webkit-scrollbar { display: none; }
+        
+        .tab-chip {
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid rgba(255,255,255,0.05);
+            color: var(--text-muted);
+            padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+            white-space: nowrap; transition: all 0.2s;
+        }
+        .tab-chip.active {
+            background: var(--primary); color: white; border-color: var(--primary);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        /* --- SCREEN CONTAINER --- */
+        .screen { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
         .screen.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* --- AUXILIAR SIMULACION (PARA LA HISTORIA) --- */
-        .history-item { 
-            background: rgba(255, 255, 255, 0.05);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            border-left: 4px solid var(--primary-accent);
+        /* --- CARDS --- */
+        .card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.03);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+            position: relative; overflow: hidden;
         }
-        .history-item-title { font-weight: 700; margin-bottom: 5px; }
+        .card-title {
+            font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 0.8px; margin-bottom: 15px; font-weight: 700;
+            display: flex; justify-content: space-between; align-items: center;
+        }
 
-        /* =========================================
-           RESPONSIVE AJUSTES (iPhone 14)
-           ========================================= */
-        @media (max-width: 400px) {
-            .app-header { padding: 10px 15px; }
-            .app-title { font-size: 1.1rem; }
-            .date-display { display: none; } /* Sacamos la fecha para ahorrar espacio */
-            .header-net-kpi { font-size: 0.8rem; padding: 2px 6px; } /* (6.2) Smaller header KPI */
-            
-            .kpi-value { font-size: 1.5rem; } /* (6.1) KPI font slightly smaller */
-            .content-container { padding: 10px; } /* (6.3) Reduced card padding */
-            .card { padding: 15px; } /* (6.3) Reduced card padding */
-            .narrativa-box { line-height: 1.4; font-size: 0.9rem; } /* (6.5) Adjusted narrative line height */
-            .nav-item { padding: 8px 5px; } /* (6.4) Slightly adjusted nav padding */
+        /* --- DASHBOARD KPIS --- */
+        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+        .kpi-box { 
+            background: rgba(255,255,255,0.03); padding: 16px; border-radius: 16px; text-align: center; 
+            border: 1px solid rgba(255,255,255,0.02);
         }
+        .kpi-val { 
+            font-size: 1.5rem; font-weight: 800; color: var(--text-main); 
+            line-height: 1.3; padding: 2px 0;
+        }
+        .kpi-lbl { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
+        
+        .text-green { color: var(--success); }
+        .text-red { color: var(--danger); }
+        
+        .balance-hero { text-align: center; padding: 15px 0 25px 0; }
+        .balance-amount { 
+            font-size: 3rem; font-weight: 800; letter-spacing: -1.5px; 
+            line-height: 1.2; padding: 5px 0;
+            text-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .balance-subtitle { 
+            color: var(--text-muted); font-size: 0.95rem; font-weight: 500;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+
+        /* --- LISTAS --- */
+        .list-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .list-row:last-child { border-bottom: none; }
+        
+        .row-icon {
+            width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.05);
+            display: flex; align-items: center; justify-content: center; margin-right: 14px;
+            font-size: 22px; flex-shrink: 0;
+        }
+        .row-info { flex-grow: 1; min-width: 0; }
+        .row-title { font-weight: 600; font-size: 1rem; color: var(--text-main); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .row-sub { font-size: 0.8rem; color: var(--text-muted); }
+        .row-amount { font-weight: 700; font-size: 1rem; white-space: nowrap; }
+
+        /* --- COMBUSTIBLE CARDS --- */
+        .fuel-vehicle-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%);
+            border-radius: 16px; padding: 18px; margin-bottom: 12px;
+            display: flex; align-items: center; justify-content: space-between;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .fuel-name { font-weight: 700; font-size: 1.1rem; }
+        .fuel-total { color: var(--warning); font-weight: 800; font-size: 1.2rem; line-height: 1.2; }
+        
+        /* --- UTILS --- */
+        .empty-state { 
+            text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 0.95rem; 
+            background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1);
+        }
+        .spin { animation: spin 1s infinite linear; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Floating Buttons */
+        .fab-container {
+            position: fixed; bottom: 30px; right: 20px; z-index: 900;
+            display: flex; flex-direction: column; gap: 15px; align-items: center;
+        }
+
+        .fab {
+            width: 56px; height: 56px; border-radius: 50%;
+            border: none; color: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.2s; cursor: pointer;
+        }
+        .fab:active { transform: scale(0.95); }
+        
+        .fab-refresh { background: var(--bg-card); color: var(--text-muted); width: 48px; height: 48px; }
+        .fab-ai { 
+            background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); 
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+            animation: pulse-glow 3s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(139, 92, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+        }
+
+        /* --- CHAT MODAL --- */
+        .chat-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+            z-index: 2000; display: none; align-items: flex-end; justify-content: center;
+        }
+        .chat-modal.active { display: flex; animation: fadeIn 0.3s; }
+        
+        .chat-container {
+            width: 100%; max-width: 500px; height: 85vh;
+            background: var(--bg-body);
+            border-top-left-radius: 24px; border-top-right-radius: 24px;
+            display: flex; flex-direction: column;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .chat-modal.active .chat-container { transform: translateY(0); }
+
+        .chat-header {
+            padding: 20px; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .chat-title { font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
+        .chat-close { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+
+        .chat-messages {
+            flex-grow: 1; padding: 20px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+
+        .chat-bubble {
+            max-width: 85%; padding: 12px 16px; border-radius: 18px;
+            font-size: 0.95rem; line-height: 1.5;
+        }
+        .bubble-ai {
+            background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2);
+            color: #e0d7fe; align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .bubble-user {
+            background: var(--primary); color: white; align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-input-area {
+            padding: 15px 20px 30px 20px; /* Safe area bottom */
+            background: var(--bg-header);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex; gap: 10px;
+        }
+        .chat-input {
+            flex-grow: 1; background: rgba(255,255,255,0.05); border: none;
+            border-radius: 24px; padding: 12px 20px; color: white;
+            font-family: 'Inter', sans-serif; font-size: 1rem;
+        }
+        .chat-input:focus { outline: 2px solid var(--primary); }
+        .chat-send {
+            background: var(--ai-color); border: none; width: 46px; height: 46px; border-radius: 50%;
+            color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+
+        /* Markdown Styles in Chat */
+        .chat-bubble p { margin: 0 0 8px 0; }
+        .chat-bubble p:last-child { margin: 0; }
+        .chat-bubble strong { color: white; font-weight: 700; }
+        .chat-bubble ul { margin: 5px 0; padding-left: 20px; }
+
+        .btn-ai-generate {
+            width: 100%; padding: 12px;
+            background: linear-gradient(90deg, #8B5CF6 0%, #6366F1 100%);
+            border: none; border-radius: 12px;
+            color: white; font-weight: 700; font-size: 0.9rem;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            cursor: pointer; margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+            transition: transform 0.2s;
+        }
+        .btn-ai-generate:active { transform: scale(0.98); }
+
     </style>
 </head>
 <body>
 
-    <!-- HEADER -->
-    <header class="app-header">
-        <div class="app-title"><span class="material-icons-round">analytics</span> Dueño</div>
-        <div class="header-net-kpi" id="header-net-kpi">--</div>
-        <div class="header-actions">
-            <!-- La fecha se oculta en mobile por CSS para ahorrar espacio -->
-            <div class="date-display" id="current-date">Cargando...</div>
-            <div class="notification-icon" onclick="showScreen('seguridad', document.querySelector('.nav-item[data-screen=\'seguridad\']'))">
-                <span class="material-icons-round">notifications</span>
-                <span class="badge" id="alert-badge">0</span>
-            </div>
-            <span class="material-icons-round" style="cursor:pointer;" onclick="fetchDashboardData()">refresh</span>
-        </div>
-    </header>
-
-    <div class="content-container">
-
-        <!-- 1. DASHBOARD DIARIO INTELIGENTE (INICIO) -->
-        <div id="screen-inicio" class="screen active">
-            
-            <div class="risk-flag-container" id="risk-flag">
-                <h3 id="risk-title">Calculando Métrica...</h3>
-                <div class="ratio" id="risk-ratio">--%</div>
-                <p id="risk-message" style="font-size:0.9rem; margin: 0;"></p>
-            </div>
-
-            <div class="card">
-                <div class="section-title"><span class="material-icons-round">insights</span> Pulso de Hoy</div>
-                <div class="kpi-grid">
-                    <div class="kpi-item kpi-ingreso">
-                        <div class="kpi-label">Ingreso Total</div>
-                        <div class="kpi-value" id="kpi-ingreso">--</div>
-                    </div>
-                    <div class="kpi-item kpi-egreso">
-                        <div class="kpi-label">Egreso Total</div>
-                        <div class="kpi-value" id="kpi-egreso">--</div>
-                    </div>
-                    <div class="kpi-item kpi-neto-pos" id="kpi-neto-box">
-                        <div class="kpi-label">Resultado Neto</div>
-                        <div class="kpi-value" id="kpi-neto">--</div>
-                    </div>
-                    <div class="kpi-item" style="background:rgba(255,255,255,0.05);">
-                        <div class="kpi-label">Proyección Mensual</div>
-                        <div class="kpi-value" style="color:var(--text-light); font-size:1.5rem;" id="kpi-proyeccion">--</div>
-                    </div>
+    <!-- HEADER FIJO -->
+    <div class="header-fixed">
+        <div class="header-content">
+            <div class="top-row">
+                <div class="app-logo">
+                    <span class="material-icons-round" style="color:var(--primary)">analytics</span> 
+                    Control Dueño
                 </div>
-
-                <!-- NARRATIVA INTELIGENTE -->
-                <div class="narrativa-box">
-                    <div class="narrativa-title">Análisis Rápido</div>
-                    <div id="narrativa-diaria">Cargando...</div>
+                <div style="font-size:0.75rem; font-weight:700; color:var(--success); background:rgba(16,185,129,0.15); padding:6px 10px; border-radius:20px; display:flex; align-items:center; gap:4px;">
+                    <span style="font-size:8px;">●</span> ONLINE
                 </div>
-            </div>
-
-            <div class="card">
-                <div class="section-title"><span class="material-icons-round">pie_chart</span> Ranking de Gastos (Hoy)</div>
-                <div class="chart-mock" id="gasto-ranking">
-                     
-                </div>
-                <ul id="ranking-list" style="list-style:none; padding:0; font-size:0.9rem;">
-                    <!-- Se rellena con JS -->
-                </ul>
             </div>
             
-            <div class="card">
-                <div class="section-title"><span class="material-icons-round">bolt</span> Día Crítico (Resumen)</div>
-                <div id="dia-critico-resumen">
-                    <!-- Módulo Día Crítico -->
-                    <p style="color:var(--text-muted);">Cargando ítems clave:</p>
-                    <ul id="critical-items" style="list-style:none; padding:0;">
-                        <!-- Se rellena con JS -->
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- 2. DIAS ANTERIORES + VISTA DETALLADA -->
-        <div id="screen-dias" class="screen">
-            <div class="card">
-                <div class="section-title"><span class="material-icons-round">calendar_today</span> Selección de Fecha</div>
-                <input type="date" id="date-selector" class="form-control" onchange="loadDayDetail(this.value)" style="width:100%; margin-bottom:15px; padding:10px;">
-                <div class="section-title" id="day-detail-title">Detalle del Día Seleccionado</div>
-                <div class="chart-mock" style="height:200px; margin-bottom:15px;">
-                    
-                </div>
-                <div id="day-detail-content">
-                    <p style="color:var(--text-muted);">Selecciona una fecha para ver el detalle de movimientos, rendiciones y ajustes.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- 3. ANÁLISIS (Combustible, Sueldos, Proveedores) -->
-        <div id="screen-analisis" class="screen">
-            <div class="section-title"><span class="material-icons-round">data_usage</span> Análisis por Rubro</div>
-
-            <div class="analysis-tabs">
-                <button class="tab-btn active" data-tab="combustible" onclick="switchAnalysisTab(this)">🔥 Combustible</button>
-                <button class="tab-btn" data-tab="empleados" onclick="switchAnalysisTab(this)">👥 Empleados</button>
-                <button class="tab-btn" data-tab="proveedores" onclick="switchAnalysisTab(this)">🚚 Proveedores</button>
-            </div>
-
-            <div class="analysis-content active" id="tab-combustible">
-                <div class="card">
-                    <div class="section-title"><span class="material-icons-round">local_gas_station</span> Informe Combustible</div>
-                    
-                    <!-- (3.1) Selector de vehículo -->
-                    <div class="analysis-tabs" id="vehicle-tabs">
-                        <button class="tab-btn active" data-vehicle="Volkswagen Saveiro" onclick="loadFuelDetails(this)">Saveiro 🚚</button>
-                        <button class="tab-btn" data-vehicle="Toyota Hiace" onclick="loadFuelDetails(this)">Toyota 🚐</button>
-                        <button class="tab-btn" data-vehicle="Fiat 1 Cargo" onclick="loadFuelDetails(this)">Uno Cargo 🛻</button>
-                    </div>
-
-                    <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
-                        <div class="kpi-item" style="background:rgba(255,255,255,0.05);">
-                            <div class="kpi-label">Total Mensual</div>
-                            <div class="kpi-value" id="fuel-monthly">--</div>
-                        </div>
-                        <div class="kpi-item" style="background:rgba(255,255,255,0.05);">
-                            <div class="kpi-label">Costo Promedio</div>
-                            <div class="kpi-value" id="fuel-avg-cost">--</div>
-                        </div>
-                        <div class="kpi-item" id="fuel-alert-box">
-                            <div class="kpi-label">Cargas Semanales</div>
-                            <div class="kpi-value" id="fuel-weekly-count">--</div>
-                        </div>
-                    </div>
-                    <div class="chart-mock" style="margin-top:15px;">
-                        
-                    </div>
-                     <!-- (3.2) Lista de cargas reales -->
-                    <div style="margin-top:20px;">
-                        <h4 style="margin-bottom:10px; color:var(--primary-accent);">Cargas Recientes (<span id="fuel-vehicle-title">Saveiro</span>)</h4>
-                        <ul id="fuel-load-list" style="list-style:none; padding:0; font-size:0.9rem;">
-                            <li style="color:var(--text-muted);">Cargando detalles...</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <div class="analysis-content" id="tab-empleados" style="display:none;">
-                <div class="card">
-                    <div class="section-title"><span class="material-icons-round">payments</span> Sueldos y Adelantos</div>
-                    <p>Adelantos realizados este mes:</p>
-                    <ul id="adelantos-list" style="list-style:disc; padding-left:20px; font-size:0.9rem; color:var(--text-muted);">
-                        <li>Laura: $40.000</li>
-                        <li>Nico: $10.000</li>
-                    </ul>
-                    <div class="chart-mock" style="height:120px; margin-top:15px;">
-                         
-                    </div>
-                </div>
-            </div>
-
-            <div class="analysis-content" id="tab-proveedores" style="display:none;">
-                <div class="card">
-                    <div class="section-title"><span class="material-icons-round">inventory_2</span> Ranking de Proveedores</div>
-                    <p>Top 3 gastos (Últimas 4 semanas):</p>
-                    <ol id="proveedor-ranking" style="padding-left:20px; font-size:0.9rem;">
-                        <li>Romyl: $1.2M <span class="highlight-red">(-5% vs Sem. Ant.)</span></li>
-                        <li>Distribuidora: $850K <span class="highlight-green">(+12% vs Sem. Ant.)</span></li>
-                        <li>Proveedor X: $320K</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
-
-        <!-- 4. SEGURIDAD / ANTI-FRAUDE -->
-        <div id="screen-seguridad" class="screen">
-            <div class="section-title"><span class="material-icons-round">security</span> Panel Anti-Fraude (La Joya)</div>
-            <div class="card">
-                <h3 style="color:var(--danger); margin-top:0;">🔴 ALERTAS CRÍTICAS</h3>
-                <ul class="alert-list" id="critical-alerts">
-                    <li class="alert-item critical">
-                        <span class="material-icons-round">warning</span> 
-                        Diferencia elevada de $32.000 en el último Arqueo.
-                    </li>
-                    <li class="alert-item critical">
-                        <span class="material-icons-round">visibility_off</span> 
-                        Movimiento libre registrado 4 mins después del Arqueo.
-                    </li>
-                </ul>
-
-                <h3 style="color:var(--warning);">🟡 RIESGO MODERADO</h3>
-                <ul class="alert-list" id="medium-alerts">
-                    <li class="alert-item medium">
-                        <span class="material-icons-round">info</span> 
-                        Se han registrado 3 Arqueos con diferencias hoy.
-                    </li>
-                    <li class="alert-item medium">
-                        <span class="material-icons-round">edit</span> 
-                        Laura editó el conteo de billetes 12 veces antes de Rendir.
-                    </li>
-                </ul>
-
-                <h3 style="color:var(--primary-accent);">🟢 INFORMACIÓN</h3>
-                <ul class="alert-list" id="info-alerts">
-                    <li class="alert-item info">
-                        <span class="material-icons-round">lock</span> 
-                        Sistema estable. Nada sospechoso en las últimas 48hs.
-                    </li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- 5. BUSCADOR GLOBAL -->
-        <div id="screen-buscador" class="screen">
-            <div class="section-title"><span class="material-icons-round">travel_explore</span> Buscador Global con IA</div>
-            <input type="text" id="global-search" placeholder="Ej: combustible toyota, adelanto laura, ajuste raro...">
-            <button class="tab-btn active" onclick="performSearch()" style="width:100%;">BUSCAR</button>
-            <div class="card" style="margin-top:15px;">
-                <div class="section-title">Resultados con Narrativa</div>
-                <div id="search-results">
-                    <p style="color:var(--text-muted);">Escribe tu consulta arriba para buscar en todos los movimientos, rendiciones y alertas.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- 6. AUDITORÍAS SEMANALES -->
-        <div id="screen-auditorias" class="screen">
-            <div class="section-title"><span class="material-icons-round">checklist</span> Historial de Auditorías Semanales</div>
-            <div class="card">
-                <h3 style="color:var(--text-light); margin-top:0;">Auditoría de la semana (Lunes 25/11 - Hoy)</h3>
-                <ul id="auditoria-current" style="list-style:none; padding:0; font-size:0.9rem;">
-                    <li style="margin-bottom:5px;">Ingresos: <span class="highlight-green">$ 4.5M</span></li>
-                    <li style="margin-bottom:5px;">Egresos: <span class="highlight-red">$ 2.2M</span></li>
-                    <li style="margin-bottom:5px;">Riesgo (Gastos/Ingresos): <span class="highlight-green">48.9%</span></li>
-                    <li style="margin-bottom:5px; font-weight:700;">Movimiento Libre: <span class="highlight-red">$ 120.000</span> (Revisar)</li>
-                </ul>
+            <!-- SELECTOR DE FECHA -->
+            <div class="date-navigator">
+                <button class="date-btn" onclick="changeDate(-1)">
+                    <span class="material-icons-round">chevron_left</span>
+                </button>
                 
-                <div style="margin-top:20px;">
-                    <h3 style="color:var(--text-muted);">Historial de las 10 últimas</h3>
-                    <div id="auditoria-historial">
-                        <div class="history-item">
-                            <div class="history-item-title">Semana 18 Nov - 22 Nov</div>
-                            <span class="highlight-green">Riesgo: 42% (OK)</span>
-                        </div>
-                        <div class="history-item">
-                            <div class="history-item-title">Semana 11 Nov - 15 Nov</div>
-                            <span class="highlight-yellow">Riesgo: 65% (Precaución)</span>
-                        </div>
-                    </div>
+                <div class="date-display-container">
+                    <span class="material-icons-round calendar-icon">calendar_today</span>
+                    <span id="date-label" class="date-text">Hoy</span>
+                    <input type="date" id="date-picker" onchange="onDatePick(this.value)">
                 </div>
+
+                <button class="date-btn" onclick="changeDate(1)">
+                    <span class="material-icons-round">chevron_right</span>
+                </button>
             </div>
         </div>
 
+        <!-- TABS -->
+        <div class="tabs-scroller">
+            <div class="tab-chip active" onclick="showScreen('resumen', this)">📊 Resumen</div>
+            <div class="tab-chip" onclick="showScreen('movimientos', this)">📝 Movimientos</div>
+            <div class="tab-chip" onclick="showScreen('combustible', this)">⛽ Combustible</div>
+            <div class="tab-chip" onclick="showScreen('proveedores', this)">🚚 Proveedores</div>
+            <div class="tab-chip" onclick="showScreen('alertas', this)">🚨 Alertas</div>
+        </div>
     </div>
 
-    <!-- NAV -->
-    <nav class="bottom-nav">
-        <a href="#" class="nav-item active" data-screen="inicio" onclick="showScreen('inicio', this)">
-            <span class="material-icons-round nav-icon">dashboard</span> <span>Inicio</span>
-        </a>
-        <a href="#" class="nav-item" data-screen="dias" onclick="showScreen('dias', this)">
-            <span class="material-icons-round nav-icon">event_note</span> <span>Días</span>
-        </a>
-        <a href="#" class="nav-item" data-screen="analisis" onclick="showScreen('analisis', this)">
-            <span class="material-icons-round nav-icon">bar_chart</span> <span>Análisis</span>
-        </a>
-        <a href="#" class="nav-item" data-screen="seguridad" onclick="showScreen('seguridad', this)">
-            <span class="material-icons-round nav-icon">lock</span> <span>Seguridad</span>
-        </a>
-        <a href="#" class="nav-item" data-screen="buscador" onclick="showScreen('buscador', this)">
-            <span class="material-icons-round nav-icon">search</span> <span>Buscar</span>
-        </a>
-        <a href="#" class="nav-item" data-screen="auditorias" onclick="showScreen('auditorias', this)">
-            <span class="material-icons-round nav-icon">history_toggle_off</span> <span>Auditorías</span>
-        </a>
-    </nav>
+    <!-- 1. PANTALLA RESUMEN -->
+    <div id="screen-resumen" class="screen active">
+        <div class="card">
+            <div class="balance-hero">
+                <div class="balance-subtitle">Resultado Operativo (Día)</div>
+                <div class="balance-amount" id="kpi-neto">--</div>
+            </div>
+            <div class="kpi-grid">
+                <div class="kpi-box">
+                    <div class="kpi-val text-green" id="kpi-ingreso">--</div>
+                    <div class="kpi-lbl">Ingresos</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kpi-val text-red" id="kpi-egreso">--</div>
+                    <div class="kpi-lbl">Egresos</div>
+                </div>
+            </div>
+            
+            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px; text-align:center; margin-top:10px;">
+                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Caja Física Actual (Real)</div>
+                <div style="font-size:1.4rem; font-weight:800; color:var(--text-main);" id="kpi-caja-actual">--</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>Resumen Inteligente</span>
+                <span class="material-icons-round" style="font-size:16px; color:var(--ai-color);">auto_awesome</span>
+            </div>
+            <div id="smart-summary-content">
+                <p id="smart-summary-text" style="font-size:0.95rem; line-height:1.6; color:var(--text-muted);">
+                    Analizando datos básicos...
+                </p>
+            </div>
+            <button class="btn-ai-generate" onclick="generateAiSummary()">
+                <span class="material-icons-round">psychology</span> Analizar a fondo con IA
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. PANTALLA MOVIMIENTOS -->
+    <div id="screen-movimientos" class="screen">
+        <div class="card">
+            <div class="card-title">
+                <span>Historial del Día</span>
+                <span id="mov-count" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:6px; font-size:0.75rem;">0</span>
+            </div>
+            <div id="movimientos-list">
+                <div class="empty-state">
+                    <span class="material-icons-round" style="font-size:40px; color:rgba(255,255,255,0.2); display:block; margin-bottom:10px;">receipt_long</span>
+                    No hay movimientos.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. PANTALLA COMBUSTIBLE -->
+    <div id="screen-combustible" class="screen">
+        <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border:none;">
+            <div style="color:white; opacity:0.9; font-size:0.8rem; font-weight:700; margin-bottom:5px;">TOTAL COMBUSTIBLE (DÍA)</div>
+            <div style="color:white; font-size:2.8rem; font-weight:800; line-height:1.1;" id="fuel-day-total">$ 0</div>
+        </div>
+        <div class="card-title" style="padding:0 10px; margin-top:10px;">DESGLOSE POR VEHÍCULO</div>
+        <div id="fuel-container">
+            <div class="empty-state">Sin gastos de combustible hoy.</div>
+        </div>
+    </div>
+
+    <!-- 4. PANTALLA PROVEEDORES -->
+    <div id="screen-proveedores" class="screen">
+        <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); border:none;">
+            <div style="color:white; opacity:0.9; font-size:0.8rem; font-weight:700; margin-bottom:5px;">PAGOS PROVEEDORES (DÍA)</div>
+            <div style="color:white; font-size:2.8rem; font-weight:800; line-height:1.1;" id="prov-day-total">$ 0</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Detalle de Pagos</div>
+            <div id="prov-list">
+                <div class="empty-state">No hay pagos a proveedores hoy.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. PANTALLA ALERTAS -->
+    <div id="screen-alertas" class="screen">
+        <div class="card">
+            <div class="card-title">Centro de Seguridad</div>
+            <div id="alerts-list">
+                <div class="empty-state">✅ Todo normal. Sin alertas.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTONES FLOTANTES -->
+    <div class="fab-container">
+        <button class="fab fab-refresh" onclick="forceRefresh()" title="Actualizar datos">
+            <span class="material-icons-round" style="font-size:24px;">sync</span>
+        </button>
+        <button class="fab fab-ai" onclick="openChat()" title="Asistente IA">
+            <span class="material-icons-round" style="font-size:28px;">auto_awesome</span>
+        </button>
+    </div>
+
+    <!-- CHAT MODAL -->
+    <div id="chat-modal" class="chat-modal">
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <span class="material-icons-round" style="color:var(--ai-color);">psychology</span>
+                    Asistente Financiero
+                </div>
+                <button class="chat-close" onclick="closeChat()">
+                    <span class="material-icons-round" style="font-size:28px;">expand_more</span>
+                </button>
+            </div>
+            
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-bubble bubble-ai">
+                    👋 Hola. Soy la IA de Mercado Limpio.
+                    <br>He analizado los datos de hoy. ¿Qué necesitas saber sobre la caja, gastos o seguridad?
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" class="chat-input" placeholder="Pregúntale a los datos..." onkeypress="handleChatKey(event)">
+                <button class="chat-send" onclick="sendChatMessage()">
+                    <span class="material-icons-round">send</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
-        // La URL de tu API del backend de Apps Script (es la misma)
+        // CONFIGURACIÓN API
         const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
-        const USUARIO_APP = "Pablo (Dueño)";
-
+        const apiKey = ""; // La clave se proporciona en tiempo de ejecución
+        
+        // ESTADO GLOBAL
+        let currentDateStr = ""; // ISO YYYY-MM-DD
+        let currentMovs = [];
+        
+        // --- INICIALIZACIÓN ---
         document.addEventListener("DOMContentLoaded", () => {
-            initApp();
+            const today = new Date();
+            const offset = today.getTimezoneOffset() * 60000;
+            const localIso = new Date(today.getTime() - offset).toISOString().split('T')[0];
+            setDate(localIso);
+            fetchStatusCaja(); 
         });
 
-        function initApp() {
-            setInitialDate();
-            fetchDashboardData();
-            loadAlertsBadge();
-        }
-        
-        // --- UTILS ---
-        function setInitialDate() {
-            const now = new Date();
-            const yyyy = now.getFullYear();
-            const mm = String(now.getMonth() + 1).padStart(2, '0');
-            const dd = String(now.getDate()).padStart(2, '0');
-            const todayFmt = `${dd}/${mm}/${yyyy}`;
-            document.getElementById('current-date').textContent = todayFmt;
-            document.getElementById('date-selector').value = `${yyyy}-${mm}-${dd}`;
-        }
-        
-        // (1.1) Actualizar saldo y datos al cambiar de pantalla
-        window.showScreen = (id, el) => {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById('screen-' + id).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            el.classList.add('active');
+        // --- GESTIÓN DE FECHAS ---
+        function setDate(isoDate) {
+            currentDateStr = isoDate;
+            const picker = document.getElementById('date-picker');
+            if(picker) picker.value = isoDate;
             
-            // Refresh data on screen change
-            fetchDashboardData(); 
+            const d = new Date(isoDate + "T12:00:00"); 
+            const today = new Date();
+            today.setHours(12,0,0,0);
             
-            // Recargar datos específicos si se cambia a Análisis/Seguridad
-            if (id === 'analisis') {
-                switchAnalysisTab(document.querySelector('.tab-btn[data-tab="combustible"]') || document.querySelector('.tab-btn[data-tab]')); 
-            }
-            if (id === 'seguridad') {
-                loadSecurityPanel();
-            }
-        };
+            const diffDays = Math.round((d - today) / (1000 * 60 * 60 * 24));
+            
+            let label = d.toLocaleDateString('es-AR', {day:'numeric', month:'short'});
+            if(diffDays === 0) label = "Hoy";
+            else if(diffDays === -1) label = "Ayer";
+            else if(diffDays === 1) label = "Mañana";
+            
+            if(d.getFullYear() !== today.getFullYear()) label += ` ${d.getFullYear()}`;
 
-        // --- API & DATA FETCHING ---
+            document.getElementById('date-label').textContent = label;
+            fetchDataForDate(currentDateStr);
+            
+            // Limpiar chat al cambiar de fecha para no confundir contexto
+            document.getElementById('chat-messages').innerHTML = `
+                <div class="chat-bubble bubble-ai">
+                    📅 Has cambiado al <b>${label}</b>.
+                    <br>Estoy lista para analizar los datos de esta fecha.
+                </div>
+            `;
+        }
+
+        function changeDate(delta) {
+            const current = new Date(currentDateStr + "T12:00:00");
+            current.setDate(current.getDate() + delta);
+            setDate(current.toISOString().split('T')[0]);
+        }
+
+        function onDatePick(val) { if(val) setDate(val); }
+
+        function forceRefresh() {
+            const icon = document.querySelector('.fab-refresh span');
+            icon.classList.add('spin');
+            fetchStatusCaja();
+            fetchDataForDate(currentDateStr).then(() => {
+                setTimeout(() => icon.classList.remove('spin'), 500);
+            });
+        }
+
+        // --- API DATA ---
         async function api(fn, params = {}) {
             try {
                 const res = await fetch(API_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ fn, params })
+                    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+                    body: JSON.stringify({fn, params})
                 });
                 return await res.json();
             } catch (e) {
-                console.error("Error en la llamada a la API:", e);
+                console.error(e);
                 return null;
             }
         }
-        
-        async function loadAlertsBadge() {
-            // MOCK data to ensure visual representation
-            const res = [
-                { id: '1', severidad: 'ALTA', titulo: 'Fraude', mensaje: 'Diff $32k', fecha: new Date().toISOString() },
-                { id: '2', severidad: 'MEDIA', titulo: 'Ediciones', mensaje: '12 edits', fecha: new Date().toISOString() },
-            ];
-            const count = (res && res.filter(a => a.severidad === 'ALTA').length) || 0; // Solo ALTA en el badge
-            document.getElementById('alert-badge').textContent = count;
-            document.getElementById('alert-badge').style.display = count > 0 ? 'block' : 'none';
-        }
 
-        // (1.3) Colorear el saldo en el header
-        function updateHeaderKPI(neto) {
-            const kpiEl = document.getElementById('header-net-kpi');
-            const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
-
-            kpiEl.textContent = formatCurrency(neto);
-            kpiEl.style.color = 'white'; 
-
-            if (neto > 100000) {
-                kpiEl.style.backgroundColor = 'var(--success)';
-            } else if (neto >= 0) {
-                kpiEl.style.backgroundColor = 'var(--warning)';
-                kpiEl.style.color = 'var(--bg-dark)'; // Dark text on yellow
-            } else {
-                kpiEl.style.backgroundColor = 'var(--danger)';
+        async function fetchStatusCaja() {
+            const res = await api("getEstadoCaja");
+            if(res) {
+                const val = res.efectivo !== undefined ? res.efectivo : res.total; 
+                document.getElementById('kpi-caja-actual').textContent = formatMoney(val);
             }
         }
 
-        async function fetchDashboardData() {
-            const today = new Date();
-            const todayStr = today.toISOString().split('T')[0];
-            // (2.1) Usando solo la fecha, la API ya lo maneja
-            const movements = await api("getMovimientos", { fechaStr: todayStr });
+        async function fetchDataForDate(dateStr) {
+            document.getElementById('smart-summary-text').innerHTML = '<span class="spin material-icons-round" style="font-size:1rem; vertical-align:text-bottom;">sync</span> Obteniendo datos...';
+            document.getElementById('movimientos-list').style.opacity = '0.5';
 
-            if (!movements || movements.error) {
-                console.error("No se pudieron cargar los movimientos diarios.");
-                // Usar valores de fallback
-                const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
-                document.getElementById('kpi-ingreso').textContent = formatCurrency(0);
-                document.getElementById('kpi-egreso').textContent = formatCurrency(0);
-                document.getElementById('kpi-neto').textContent = formatCurrency(0);
-                document.getElementById('narrativa-diaria').innerHTML = '❌ Error al cargar datos. Revisa la API.';
-                updateHeaderKPI(0);
-                return;
-            }
-
-            // --- 1. CÁLCULO DE KPIs REAL ---
-            let ingresos = 0;
-            let egresos = 0;
-            let totalEgreso = 0;
-            const gastosPorCategoria = {};
-            const MOVIMIENTOS_CRITICOS = [];
+            const fechaSegura = dateStr + "T12:00:00";
+            const res = await api("getMovimientos", { fechaStr: fechaSegura });
             
-            movements.forEach(m => {
-                const importe = m.importe;
-                if (m.tipo === 'Ingreso') {
-                    ingresos += importe;
-                } else {
-                    egresos += importe;
-                    totalEgreso += importe;
-                    
-                    const cat = m.categoria.split(" ")[0]; // Simplificar categoría para el ranking
-                    gastosPorCategoria[cat] = (gastosPorCategoria[cat] || 0) + importe;
-                }
+            document.getElementById('movimientos-list').style.opacity = '1';
+
+            if(Array.isArray(res)) {
+                currentMovs = res;
+                processData();
+            } else {
+                currentMovs = [];
+                processData();
+            }
+        }
+
+        function processData() {
+            let ingresos = 0, egresos = 0;
+            const fuelMap = { total: 0, vehicles: {} };
+            const provMap = { total: 0, list: [] };
+            const alerts = [];
+
+            currentMovs.forEach(m => {
+                const imp = Number(m.importe) || 0;
+                const cat = (m.categoria || "").toLowerCase();
+                const obs = (m.observacion || "").toLowerCase();
                 
-                // MÓDULO DÍA CRÍTICO - Identificación de eventos clave (2.2, 2.3)
-                // Se consideran rendiciones, ajustes, combustible, y cualquier gasto > $50k (valor arbitrario para "fuerte")
-                if (m.categoria.includes('Rendición') || m.categoria.includes('Ajuste') || m.categoria.includes('Combustible') || importe > 50000) {
-                    MOVIMIENTOS_CRITICOS.push({
-                        type: m.categoria,
-                        amount: m.importe,
-                        time: m.hora,
-                        obs: m.observacion
-                    });
+                if(m.tipo === 'Ingreso') ingresos += imp; else egresos += imp;
+
+                // Combustible
+                if(cat.includes('combustible')) {
+                    fuelMap.total += imp;
+                    let veh = "Otros";
+                    if(cat.includes('saveiro') || obs.includes('saveiro')) veh = "Saveiro";
+                    else if(cat.includes('toyota') || obs.includes('toyota') || cat.includes('hiace')) veh = "Toyota Hiace";
+                    else if(cat.includes('fiat') || cat.includes('uno') || obs.includes('uno')) veh = "Fiat Uno";
+                    
+                    if(!fuelMap.vehicles[veh]) fuelMap.vehicles[veh] = { count: 0, total: 0 };
+                    fuelMap.vehicles[veh].count++;
+                    fuelMap.vehicles[veh].total += imp;
+                }
+
+                // Proveedores
+                if(cat.includes('proveedor')) {
+                    provMap.total += imp;
+                    let name = obs.replace('pago a ', '').trim() || m.categoria;
+                    name = name.charAt(0).toUpperCase() + name.slice(1);
+                    provMap.list.push({ name, amount: imp, time: m.hora });
+                }
+
+                // Alertas
+                if(cat.includes('diferencia') || obs.includes('faltante') || obs.includes('sobrante')) {
+                    if(imp > 1000) alerts.push({ type: 'danger', title: 'Ajuste de Caja', msg: `${m.categoria}: ${formatMoney(imp)}` });
+                }
+                if(imp > 100000 && (cat.includes('varios') || cat.includes('libre'))) {
+                    alerts.push({ type: 'warning', title: 'Gasto Elevado', msg: `Salida de ${formatMoney(imp)} en Varios.` });
                 }
             });
 
             const neto = ingresos - egresos;
-            const riesgo = ingresos > 0 ? (egresos / ingresos) * 100 : 100;
 
-            // --- 2. DISPLAY DE KPIS ---
-            const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
-            
-            document.getElementById('kpi-ingreso').textContent = formatCurrency(ingresos);
-            document.getElementById('kpi-egreso').textContent = formatCurrency(egresos);
-            document.getElementById('kpi-neto').textContent = formatCurrency(neto);
-            
-            const netoBox = document.getElementById('kpi-neto-box');
-            netoBox.className = 'kpi-item ' + (neto >= 0 ? 'kpi-neto-pos' : 'kpi-neto-neg');
-            
-            updateHeaderKPI(neto); // (1.3) Actualiza el header
+            // Render KPIs
+            document.getElementById('kpi-ingreso').textContent = formatMoney(ingresos);
+            document.getElementById('kpi-egreso').textContent = formatMoney(egresos);
+            const netoEl = document.getElementById('kpi-neto');
+            netoEl.textContent = formatMoney(neto);
+            netoEl.style.color = neto >= 0 ? 'var(--success)' : 'var(--danger)';
 
-            // --- 3. METRICA DE RIESGO ---
-            // Lógica de bandera (Verde, Amarillo, Rojo)
-            const flagContainer = document.getElementById('risk-flag');
-            flagContainer.className = 'risk-flag-container';
-            let flagMsg, flagTitle;
+            // Resumen Básico (Placeholder antes de IA)
+            let summary = currentMovs.length === 0 ? "Sin actividad." : `<b>${currentMovs.length} movimientos</b>. `;
+            if(currentMovs.length > 0) summary += neto > 0 ? `Balance positivo.` : `Gastos superiores.`;
+            document.getElementById('smart-summary-text').innerHTML = summary;
 
-            if (riesgo <= 55) {
-                flagContainer.classList.add('risk-green');
-                flagTitle = '🟢 BANDERA VERDE';
-                flagMsg = 'Gastos bajo control. La rentabilidad de hoy es excelente.';
-            } else if (riesgo <= 75) {
-                flagContainer.classList.add('risk-yellow');
-                flagTitle = '🟡 BANDERA AMARILLA';
-                flagMsg = 'Precaución: Gastos en ascenso. Monitorea los egresos de la tarde.';
-            } else {
-                flagContainer.classList.add('risk-red');
-                flagTitle = '🔴 BANDERA ROJA';
-                flagMsg = '¡Alerta! Los egresos superan o igualan el 75% de tus ingresos.';
-            }
+            // Listas
+            renderMovsList(currentMovs);
+            renderFuel(fuelMap);
+            renderProv(provMap);
+            renderAlerts(alerts);
+        }
 
-            document.getElementById('risk-title').textContent = flagTitle;
-            document.getElementById('risk-ratio').textContent = `${riesgo.toFixed(1)}%`;
-            document.getElementById('risk-message').textContent = flagMsg;
-            
-            // --- 4. PROYECCIÓN MENSUAL ---
-            const daysInMonth = 30; // Simplificación
-            const projNeto = (neto * daysInMonth);
-            document.getElementById('kpi-proyeccion').textContent = formatCurrency(projNeto);
-            document.getElementById('kpi-proyeccion').style.color = projNeto >= 0 ? 'var(--success)' : 'var(--danger)';
-
-            // --- 5. NARRATIVA INTELIGENTE ---
-            const sortedGastos = Object.entries(gastosPorCategoria)
-                .sort(([, a], [, b]) => b - a);
-            
-            let narrativa = '';
-            if (egresos === 0) {
-                narrativa += '¡Excelente! Hoy no hay egresos, solo ingresos. ';
-            } else {
-                const topGasto = sortedGastos[0];
-                const topGastoPercent = (topGasto[1] / totalEgreso) * 100;
-                
-                narrativa += `Hoy estás gastando un <span class="${neto >= 0 ? 'highlight-green' : 'highlight-red'}">${riesgo.toFixed(1)}%</span> de lo que entra. `;
-                narrativa += `<br><br>El rubro de **${topGasto[0]}** representa el <span class="highlight-red">${topGastoPercent.toFixed(1)}%</span> del egreso del día.`;
-            }
-            // Simular un chequeo de fraude basado en el backend
-            const fraudAlert = (await api("getNotificacionesCaja", { soloActivas: true })).find(a => a.severidad === 'ALTA');
-            if (fraudAlert) {
-                narrativa += `<br><br>🚨 **ALERTA DE SEGURIDAD**: Se detectó un patrón de ${fraudAlert.titulo} (${fraudAlert.mensaje}). Revisa el panel de Seguridad.`;
-            }
-            
-            document.getElementById('narrativa-diaria').innerHTML = narrativa;
-            
-            // --- 6. RANKING DE GASTOS ---
-            const rankingList = document.getElementById('ranking-list');
-            rankingList.innerHTML = '';
-            sortedGastos.slice(0, 4).forEach(([cat, amount]) => {
-                const percent = (amount / totalEgreso) * 100;
-                rankingList.innerHTML += `
-                    <li style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <span>${cat}</span>
-                        <span>${percent.toFixed(1)}% (${formatCurrency(amount)})</span>
-                    </li>
-                `;
+        // --- RENDERERS AUXILIARES ---
+        function renderMovsList(list) {
+            const container = document.getElementById('movimientos-list');
+            document.getElementById('mov-count').textContent = list.length;
+            if(list.length === 0) { container.innerHTML = '<div class="empty-state">Sin movimientos.</div>'; return; }
+            let html = '';
+            list.forEach(m => {
+                const isIng = m.tipo === 'Ingreso';
+                const color = isIng ? 'text-green' : 'text-red';
+                const sign = isIng ? '+' : '-';
+                const icon = getIconForCategory(m.categoria);
+                html += `<div class="list-row"><div class="row-icon"><span class="material-icons-round" style="color:${isIng?'var(--success)':'var(--text-muted)'}">${icon}</span></div><div class="row-info"><div class="row-title">${m.categoria}</div><div class="row-sub">${(m.hora||"").substring(0,5)} hs • ${m.formaPago}</div></div><div class="row-amount ${color}">${sign} ${formatMoney(m.importe).replace('$ ','')}</div></div>`;
             });
+            container.innerHTML = html;
+        }
 
-            // --- 7. DÍA CRÍTICO (2.3) - Conexión Real a Movimientos clave ---
-            const criticalList = document.getElementById('critical-items');
-            criticalList.innerHTML = '';
-            
-            const rendicion = movements.find(m => m.categoria.includes('Rendición'));
-            const arqueoAjuste = movements.find(m => m.categoria.includes('Ajuste Arqueo'));
-            
-            if (rendicion) {
-                const rendDiff = rendicion.observacion.includes("Sobrante") || rendicion.observacion.includes("Faltante") ? '⚠️ Diferencia' : '✅ Exacta';
-                criticalList.innerHTML += `
-                    <li style="margin-bottom:8px; border-bottom:1px dashed rgba(255,255,255,0.05); padding-bottom:5px;">
-                        <span class="material-icons-round" style="font-size:1rem; vertical-align:middle; color:var(--success);">verified</span>
-                        <b>Rendición detectada:</b> a las ${rendicion.hora}. Resultado: ${rendDiff}.
-                    </li>
-                `;
+        function renderFuel(map) {
+            document.getElementById('fuel-day-total').textContent = formatMoney(map.total);
+            const container = document.getElementById('fuel-container');
+            if(map.total === 0) { container.innerHTML = '<div class="empty-state">Sin gastos.</div>'; return; }
+            let html = '';
+            for (const [v, data] of Object.entries(map.vehicles)) {
+                html += `<div class="fuel-vehicle-card"><div class="fuel-name"><span class="material-icons-round" style="vertical-align:middle; margin-right:5px; color:var(--warning);">local_shipping</span> ${v}</div><div style="text-align:right;"><div class="fuel-total">${formatMoney(data.total)}</div><div style="font-size:0.75rem; color:var(--text-muted);">${data.count} carga(s)</div></div></div>`;
             }
+            container.innerHTML = html;
+        }
 
-            if (arqueoAjuste) {
-                const diffType = arqueoAjuste.tipo === 'Ingreso' ? 'Sobrante' : 'Faltante';
-                 criticalList.innerHTML += `
-                    <li style="margin-bottom:8px; border-bottom:1px dashed rgba(255,255,255,0.05); padding-bottom:5px;">
-                        <span class="material-icons-round" style="font-size:1rem; vertical-align:middle; color:var(--danger);">error</span>
-                        <b>Ajuste Arqueo:</b> ${diffType} de ${formatCurrency(arqueoAjuste.importe)}.
-                    </li>
-                `;
-            }
-            
-            MOVIMIENTOS_CRITICOS.filter(item => !(item.type.includes('Rendición') || item.type.includes('Ajuste'))).forEach(item => {
-                 criticalList.innerHTML += `
-                    <li style="margin-bottom:8px; border-bottom:1px dashed rgba(255,255,255,0.05); padding-bottom:5px;">
-                        <span class="material-icons-round" style="font-size:1rem; vertical-align:middle; color:var(--warning);">check_circle</span>
-                        <b>${item.type.includes('Combustible') ? 'Combustible' : 'Gasto Fuerte'}:</b> ${formatCurrency(item.amount)} a las ${item.time}.
-                    </li>
-                `;
+        function renderProv(map) {
+            document.getElementById('prov-day-total').textContent = formatMoney(map.total);
+            const container = document.getElementById('prov-list');
+            if(map.list.length === 0) { container.innerHTML = '<div class="empty-state">Sin pagos.</div>'; return; }
+            let html = '';
+            map.list.forEach(p => {
+                html += `<div class="list-row"><div class="row-icon" style="color:var(--purple); background:rgba(139, 92, 246, 0.1);"><span class="material-icons-round">inventory_2</span></div><div class="row-info"><div class="row-title">${p.name}</div><div class="row-sub">${p.time}</div></div><div class="row-amount text-red">- ${formatMoney(p.amount)}</div></div>`;
             });
-            if (criticalList.children.length === 0) {
-                 criticalList.innerHTML = '<li style="color:var(--success);">Día sin eventos críticos o gastos fuertes.</li>';
-            }
-        }
-        
-        // --- VISTAS SECUNDARIAS ---
-        
-        function switchAnalysisTab(button) {
-            // Desactiva solo los botones de vehículo si estás en Combustible, sino desactiva todos
-            const selector = button.getAttribute('data-tab') ? '[data-tab]' : '[data-vehicle]';
-            document.querySelectorAll(`.analysis-tabs ${selector}`).forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            
-            if (button.getAttribute('data-tab')) {
-                document.querySelectorAll('.analysis-content').forEach(content => content.style.display = 'none');
-                const targetId = button.getAttribute('data-tab');
-                document.getElementById('tab-' + targetId).style.display = 'block';
-
-                if (targetId === 'combustible') {
-                    // Carga los detalles del vehículo activo por defecto
-                    const activeVehicleBtn = document.querySelector('#vehicle-tabs .tab-btn.active') || document.querySelector('#vehicle-tabs .tab-btn');
-                    if (activeVehicleBtn) loadFuelDetails(activeVehicleBtn);
-                }
-            }
-        }
-        
-        // (3.2) Carga de detalles de Combustible por vehículo
-        async function loadFuelDetails(button) {
-            // (3.1) Selector de vehículo
-            const vehicle = button.getAttribute('data-vehicle');
-            document.querySelectorAll('#vehicle-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            
-            document.getElementById('fuel-vehicle-title').textContent = vehicle.split(" ")[0];
-
-            const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
-            
-            // MOCK: checkCombustibleSemana(vehiculo)
-            const resCombustible = await api("checkCombustibleSemana", { vehiculo: vehicle });
-            const count = (resCombustible && resCombustible.cantidad) || Math.floor(Math.random() * 4) + 1; 
-            
-            // MOCK Totales históricos
-            document.getElementById('fuel-monthly').textContent = formatCurrency(2500000 + (Math.random() * 500000));
-            document.getElementById('fuel-avg-cost').textContent = formatCurrency(35000 + (Math.random() * 5000));
-            
-            // (3.4) Estado por semana logic y alerta
-            document.getElementById('fuel-weekly-count').textContent = `${count} cargas`;
-            const alertBox = document.getElementById('fuel-alert-box');
-            alertBox.className = 'kpi-item';
-            
-            if (count >= 3) {
-                 alertBox.style.background = 'rgba(239, 68, 68, 0.3)';
-                 alertBox.style.color = 'var(--danger)';
-                 alertBox.innerHTML = `<div class="kpi-label">Cargas Semanales</div><div class="kpi-value">${count} cargas</div><small style="color:var(--danger);">¡ALERTA! Exceso.</small>`;
-            } else if (count === 2) {
-                 alertBox.style.background = 'rgba(245, 158, 11, 0.3)';
-                 alertBox.style.color = 'var(--warning)';
-                 alertBox.innerHTML = `<div class="kpi-label">Cargas Semanales</div><div class="kpi-value">${count} cargas</div><small style="color:var(--warning);">Nivel normal.</small>`;
-            } else {
-                 alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
-                 alertBox.style.color = 'var(--success)';
-                 alertBox.innerHTML = `<div class="kpi-label">Cargas Semanales</div><div class="kpi-value">${count} cargas</div><small style="color:var(--success);">Bajo consumo.</small>`;
-            }
-            
-            // (3.2) Lista de cargas reales (MOCK data structure)
-            const listEl = document.getElementById('fuel-load-list');
-            let listHtml = '';
-            for (let i = 0; i < count; i++) {
-                const amount = 30000 + Math.floor(Math.random() * 10000);
-                const hour = (10 + i) % 24 + ":" + Math.floor(Math.random() * 60).toString().padStart(2, '0');
-                const user = i % 2 === 0 ? 'Laura' : 'Nico';
-                listHtml += `
-                    <li style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                        <span>${new Date().toLocaleDateString('es-AR')} - ${hour} (${user})</span>
-                        <span style="font-weight:700;">${formatCurrency(amount)}</span>
-                    </li>
-                `;
-            }
-            listEl.innerHTML = listHtml || '<li style="color:var(--text-muted);">No hay cargas registradas esta semana.</li>';
-        }
-        window.loadFuelDetails = loadFuelDetails; // Expose for HTML onclick
-
-        // (4.3) Marcar notificación como leída
-        async function marcarComoLeida(id, element) {
-            // MOCK: This would call backend's marcarNotificacionLeida(id)
-            // const res = await api("marcarNotificacionLeida", { id });
-            
-            // if (res && res.ok) {
-                element.closest('.alert-item').style.opacity = 0.5;
-                element.closest('.alert-item').style.pointerEvents = 'none';
-                element.textContent = '✅ Leída';
-                element.style.background = 'none';
-                element.style.color = 'var(--success)';
-                
-                setTimeout(() => {
-                    element.closest('.alert-item').remove();
-                    loadAlertsBadge(); // Update the badge
-                    loadSecurityPanel(); // Re-render the panel
-                }, 500);
-            // }
+            container.innerHTML = html;
         }
 
-        async function loadSecurityPanel() {
-            // (4.1) MOCK data para testear la separación por severidad y contexto
-            const res = [
-                { id: '1', fecha: new Date().toISOString(), severidad: 'ALTA', titulo: 'Fraude por Diferencia', mensaje: 'Diferencia de $32.000 detectada tras Arqueo.', contexto: { metricas: { diff: 32000 }, movimiento: 'Arqueo 28/11' } },
-                { id: '2', fecha: new Date().toISOString(), severidad: 'ALTA', titulo: 'Movimiento Sospechoso', mensaje: 'Movimiento libre registrado 4 mins después del Arqueo.', contexto: { movimiento: 'Egreso Libre', tiempo: '4 mins' } },
-                { id: '3', fecha: new Date().toISOString(), severidad: 'MEDIA', titulo: 'Patrón de Edición', mensaje: 'Laura editó el conteo de billetes 12 veces antes de Rendir.', contexto: { metricas: { edits: 12 } } },
-                { id: '4', fecha: new Date().toISOString(), severidad: 'MEDIA', titulo: 'Múltiples Arqueos', mensaje: 'Se han registrado 3 Arqueos con diferencias hoy.', contexto: { metricas: { count: 3 } } },
-                { id: '5', fecha: new Date().toISOString(), severidad: 'BAJA', titulo: 'Carga Fuera de Horario', mensaje: 'Carga de combustible en Saveiro a las 02:30 AM.', contexto: { movimiento: 'Combustible', hora: '02:30' } },
-                { id: '6', fecha: new Date().toISOString(), severidad: 'BAJA', titulo: 'Sistema Estable', mensaje: 'Nada crítico reportado en las últimas 48hs.', contexto: {} },
-            ]; 
-            
-            const criticalList = document.getElementById('critical-alerts');
-            const mediumList = document.getElementById('medium-alerts');
-            const infoList = document.getElementById('info-alerts');
-            
-            criticalList.innerHTML = '';
-            mediumList.innerHTML = '';
-            infoList.innerHTML = '';
-            
-            if (!res || res.length === 0) {
-                 infoList.innerHTML = '<li class="alert-item info"><span class="material-icons-round">thumb_up</span> Sistema estable. Nada sospechoso en las últimas 48hs.</li>';
-                 document.getElementById('alert-badge').textContent = '0';
-                 document.getElementById('alert-badge').style.display = 'none';
-                 return;
-            }
-
-            let criticalCount = 0;
-            const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
-
-            res.forEach(alert => {
-                // (4.2) Extract context details for better narrative display
-                let details = alert.mensaje;
-                
-                if (alert.contexto && alert.contexto.metricas) {
-                    if (alert.contexto.metricas.diff) {
-                        details = `Diferencia de ${formatCurrency(alert.contexto.metricas.diff)} en Arqueo.`;
-                    }
-                    if (alert.contexto.metricas.edits) {
-                        details = `Patrón de edición: ${alert.contexto.metricas.edits} cambios antes de Rendir.`;
-                    }
-                }
-                
-                const time = new Date(alert.fecha).toLocaleDateString('es-AR', { hour: '2-digit', minute: '2-digit' });
-                const li = document.createElement('li');
-                
-                // (4.3) Add "Mark as read" button for actionable alerts
-                const actionButton = (alert.severidad === 'ALTA' || alert.severidad === 'MEDIA') ? 
-                    `<button style="background:var(--card-bg); color:var(--text-light); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:5px 10px; cursor:pointer; flex-shrink: 0;" onclick="marcarComoLeida('${alert.id}', this)">Marcar Leída</button>` : '';
-
-                li.innerHTML = `
-                    <span class="material-icons-round">${alert.severidad === 'ALTA' ? 'warning' : alert.severidad === 'MEDIA' ? 'info' : 'notifications'}</span> 
-                    <div style="flex-grow:1;">
-                        <span style="font-weight:700;">${alert.titulo}</span>
-                        <div style="color:var(--text-muted); font-size:0.85rem;">${details} (${time})</div>
-                    </div>
-                    ${actionButton}
-                `;
-                
-                if (alert.severidad === 'ALTA') {
-                    li.classList.add('alert-item', 'critical');
-                    criticalCount++;
-                    criticalList.appendChild(li);
-                } else if (alert.severidad === 'MEDIA') {
-                    li.classList.add('alert-item', 'medium');
-                    mediumList.appendChild(li);
-                } else {
-                    li.classList.add('alert-item', 'info');
-                    infoList.appendChild(li);
-                }
+        function renderAlerts(alerts) {
+            const container = document.getElementById('alerts-list');
+            if(alerts.length === 0) { container.innerHTML = '<div class="empty-state">✅ Todo normal.</div>'; return; }
+            let html = '';
+            alerts.forEach(a => {
+                const color = a.type === 'danger' ? 'var(--danger)' : 'var(--warning)';
+                const bg = a.type === 'danger' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)';
+                html += `<div style="background:${bg}; border-left:4px solid ${color}; padding:15px; border-radius:12px; margin-bottom:10px;"><div style="font-weight:700; color:${color}; margin-bottom:4px; font-size:0.95rem;">${a.title}</div><div style="font-size:0.9rem; color:var(--text-muted);">${a.msg}</div></div>`;
             });
-            
-            document.getElementById('alert-badge').textContent = criticalCount;
-            document.getElementById('alert-badge').style.display = criticalCount > 0 ? 'block' : 'none';
-        }
-        
-        window.loadSecurityPanel = loadSecurityPanel; // Expose to global scope
-        window.marcarComoLeida = marcarComoLeida; // Expose to global scope
-
-        // (5) Buscador Global REAL (con narrativa mock)
-        async function performSearch() {
-            const query = document.getElementById('global-search').value.toLowerCase();
-            const resultsDiv = document.getElementById('search-results');
-            if (!query) {
-                resultsDiv.innerHTML = '<p style="color:var(--text-muted);">Por favor, introduce un término de búsqueda.</p>';
-                return;
-            }
-
-            resultsDiv.innerHTML = '<p style="color:var(--primary-accent);">🔍 Buscando en todos los registros (movimientos, alertas, arqueos)...</p>';
-            await new Promise(resolve => setTimeout(resolve, 1500)); 
-            
-            // Simulación de búsqueda real con narrativa compleja (Mock)
-            let mockResult = '';
-            let totalFound = 0;
-            const formatCurrency = (num) => "$ " + parseInt(num).toLocaleString('es-AR');
-
-            if (query.includes('combustible toyota')) {
-                 totalFound += 3;
-                 mockResult += `
-                    <p style="font-weight:700; color:var(--success);">✅ Encontré 3 cargas de combustible en Toyota Hiace en los últimos 7 días. </p>
-                    <div class="history-item">Total gastado: ${formatCurrency(125000)}. Una de ellas fue registrada a las 02:30 AM, fuera de horario habitual, generando una alerta de RIESGO BAJO.</div>
-                 `;
-            } 
-            if (query.includes('adelanto laura')) {
-                 totalFound += 1;
-                 mockResult += `
-                    <p style="font-weight:700; color:var(--primary-accent);">👤 1 adelanto para Laura encontrado en el mes. </p>
-                    <div class="history-item">Movimiento: Egreso - Adelanto de Sueldo | Importe: ${formatCurrency(40000)} | Fecha: 01/11.</div>
-                 `;
-            } 
-            if (query.includes('ajuste raro') || query.includes('fraude')) {
-                 totalFound += 2;
-                 mockResult += `
-                    <p style="font-weight:700; color:var(--danger);">🚨 Alerta de Seguridad: Encontré 2 anomalías de ajuste/fraude.</p>
-                    <div class="history-item">Patrón sospechoso: 2 Arqueos con diferencias exactas seguidas de Movimientos Libres en la última semana. Total en juego: ${formatCurrency(55000)}.</div>
-                 `;
-            }
-            if (totalFound === 0) {
-                 mockResult = `<p style="font-weight:700; color:var(--text-muted);">❌ Busqué en 4.120 movimientos y no encontré coincidencias relevantes para "${query}".</p>`;
-            } else {
-                 mockResult = `<p style="font-weight:700; color:var(--text-light);">Busqué en miles de movimientos y encontré ${totalFound} resultados relevantes:</p>` + mockResult;
-            }
-            
-            resultsDiv.innerHTML = mockResult;
+            container.innerHTML = html;
         }
 
-        async function loadDayDetail(dateStr) {
-            const date = new Date(dateStr);
-            const detailTitle = document.getElementById('day-detail-title');
-            const detailContent = document.getElementById('day-detail-content');
-            
-            detailTitle.textContent = `Detalle del Día: ${date.toLocaleDateString('es-AR')}`;
-            detailContent.innerHTML = '<p style="color:var(--text-muted);">Cargando movimientos y eventos de ese día...</p>';
-            
-            const movements = await api("getMovimientos", { fechaStr: dateStr }); // (2.1)
-            
-            if (!movements || movements.error || movements.length === 0) {
-                 detailContent.innerHTML = '<p style="color:var(--text-muted); padding:20px;">No se encontraron movimientos para esta fecha.</p>';
-                 return;
+        // --- GEMINI AI INTEGRATION ---
+
+        async function callGemini(promptText) {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }]
+                    })
+                });
+                const data = await response.json();
+                return data.candidates?.[0]?.content?.parts?.[0]?.text || "No se pudo generar respuesta.";
+            } catch (e) {
+                console.error("AI Error:", e);
+                return "Error de conexión con la IA.";
             }
-            
-            let html = '<h4>Movimientos (Hora)</h4><ul style="list-style:none; padding:0;">';
-            movements.forEach(m => {
-                 const sign = m.tipo === 'Ingreso' ? '+' : '-';
-                 const color = m.tipo === 'Ingreso' ? 'var(--success)' : 'var(--danger)';
-                 html += `
-                    <li style="margin-bottom:8px; border-bottom:1px dashed rgba(255,255,255,0.05); padding-bottom:5px;">
-                        <span style="font-weight:700;">${m.hora}</span> - ${m.categoria} <br>
-                        <span style="color:${color}; font-weight:700; font-size:1.1rem;">${sign} ${m.importe.toLocaleString('es-AR')}</span> | Obs: ${m.observacion || 'N/D'}
-                    </li>
-                 `;
-            });
-            html += '</ul>';
-            detailContent.innerHTML = html;
         }
 
+        async function generateAiSummary() {
+            const btn = document.querySelector('.btn-ai-generate');
+            const output = document.getElementById('smart-summary-text');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spin material-icons-round">sync</span> Analizando...';
+            
+            // Preparar contexto reducido para ahorrar tokens
+            const contextData = JSON.stringify(currentMovs.map(m => ({
+                t: m.tipo, c: m.categoria, i: m.importe, o: m.observacion
+            })));
+
+            const prompt = `Actúa como un analista financiero experto para "Mercado Limpio". Analiza estos movimientos del día: ${contextData}. 
+            Genera un resumen ejecutivo breve (máximo 3 párrafos).
+            1. Evalúa el balance (bueno/malo).
+            2. Identifica el gasto más fuerte o inusual.
+            3. Detecta anomalías de seguridad si las hay.
+            Usa formato Markdown con negritas para cifras clave. Tono profesional pero directo.`;
+
+            const text = await callGemini(prompt);
+            
+            // Parsear Markdown simple a HTML
+            output.innerHTML = marked.parse(text);
+            
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-icons-round">psychology</span> Regenerar Análisis';
+        }
+
+        // --- CHATBOT ---
+
+        function openChat() {
+            document.getElementById('chat-modal').classList.add('active');
+            setTimeout(() => document.getElementById('chat-input').focus(), 300);
+        }
+        function closeChat() { document.getElementById('chat-modal').classList.remove('active'); }
+
+        function handleChatKey(e) { if(e.key === 'Enter') sendChatMessage(); }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if(!msg) return;
+
+            // Add User Bubble
+            addChatBubble(msg, 'user');
+            input.value = '';
+
+            // Loading bubble
+            const loadingId = addChatBubble('Pensando...', 'ai', true);
+
+            // Context
+            const contextData = JSON.stringify(currentMovs.map(m => ({
+                t: m.tipo, c: m.categoria, i: m.importe, o: m.observacion, h: m.hora
+            })));
+
+            const prompt = `Eres el Asistente Financiero de Mercado Limpio.
+            Datos del día: ${contextData}.
+            Usuario pregunta: "${msg}".
+            Responde brevemente basándote SOLO en los datos provistos. Si no hay datos sobre la pregunta, dilo.
+            Si pregunta totales, súmalos.`;
+
+            const reply = await callGemini(prompt);
+            
+            // Remove loading and add reply
+            document.getElementById(loadingId).remove();
+            addChatBubble(reply, 'ai');
+        }
+
+        function addChatBubble(text, type, isLoading = false) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = `chat-bubble bubble-${type}`;
+            div.innerHTML = isLoading ? '<span class="spin material-icons-round">sync</span> ...' : marked.parse(text);
+            
+            const id = 'msg-' + Date.now();
+            div.id = id;
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        }
+
+        // --- UTILS ---
+        function formatMoney(num) {
+            if(num === undefined || num === null) return "$ 0";
+            return "$ " + Number(num).toLocaleString('es-AR');
+        }
+        function getIconForCategory(cat) {
+            cat = (cat||"").toLowerCase();
+            if(cat.includes('combustible')) return 'local_gas_station';
+            if(cat.includes('proveedor')) return 'local_shipping';
+            if(cat.includes('sueldo')) return 'badge';
+            if(cat.includes('ajuste')) return 'tune';
+            return 'paid';
+        }
+        function showScreen(id, tabEl) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-' + id).classList.add('active');
+            if(tabEl) {
+                document.querySelectorAll('.tab-chip').forEach(t => t.classList.remove('active'));
+                tabEl.classList.add('active');
+                tabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        }
 
     </script>
 </body>
