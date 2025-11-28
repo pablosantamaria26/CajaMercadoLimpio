@@ -20,7 +20,7 @@
     
     <style>
         /* =========================================
-           ESTILOS V4.8: SYNC & CASH FOCUS
+           ESTILOS V4.9: TEXTO AMIGABLE
            ========================================= */
         :root {
             --bg-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
@@ -795,7 +795,7 @@
                         importe: importeAjuste, 
                         categoria: "Ajuste Arqueo", 
                         usuario: "Sistema", 
-                        observacion: `Ajuste automático cierre caja (ID Arqueo: ${res.idArqueo || 'N/D'})`
+                        observacion: `🤖 Ajuste automático para coincidir con el recuento físico (Cierre #${res.idArqueo || 'N/D'})`
                     });
                 }
                 
