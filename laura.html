@@ -20,12 +20,12 @@
     
     <style>
         /* =========================================
-           ESTILOS V4.2: FUN, VISUAL & READABLE
+           ESTILOS V4.3: FUN, VISUAL & READABLE
            ========================================= */
         :root {
             /* Paleta */
             --bg-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-            --glass-bg: rgba(255, 255, 255, 0.90); /* Más opaco para mejor contraste */
+            --glass-bg: rgba(255, 255, 255, 0.95); 
             --glass-border: rgba(255, 255, 255, 0.6);
             --primary: #6C63FF;      
             --primary-dark: #4834d4;
@@ -35,8 +35,8 @@
             --text-light: #636E72;
             
             /* Colores específicos Arqueo */
-            --fisico-color: #e17055; /* Naranja fuerte */
-            --sistema-color: #0984e3; /* Azul fuerte */
+            --fisico-color: #e17055; 
+            --sistema-color: #0984e3; 
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -78,6 +78,36 @@
             50% { transform: translate(30px, 50px) rotate(10deg); }
             100% { transform: translate(0, 0) rotate(0deg); }
         }
+
+        /* --- LOADING OVERLAY (NUEVO) --- */
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 9999;
+            display: none; /* Se activa con JS */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.3s;
+        }
+        .loading-overlay.active { display: flex; }
+        
+        .spinner {
+            width: 50px; height: 50px;
+            border: 6px solid #dfe6e9;
+            border-top: 6px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        .loading-text {
+            font-weight: 800; color: var(--primary); font-size: 1.2rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
         /* --- HEADER --- */
         .app-header {
@@ -156,9 +186,8 @@
         }
         .billete-item:active { transform: scale(0.98); }
         
-        /* AQUI ESTA EL CAMBIO: TAMAÑO GIGANTE */
         .billete-label { 
-            font-size: 1.5rem; /* Antes 0.7rem -> Ahora DOBLE+ */
+            font-size: 1.5rem; 
             color: var(--primary-dark); 
             font-weight: 800; 
             margin-bottom: 5px;
@@ -174,17 +203,14 @@
         .billete-input:focus { border-bottom-color: var(--primary); }
         .billete-input::placeholder { color: #eee; }
 
-        /* --- ARQUEO VISUAL MEJORADO --- */
+        /* --- ARQUEO VISUAL --- */
         .arqueo-comparison {
             display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px;
         }
         .arqueo-box {
             padding: 20px; border-radius: 20px; text-align: center; position: relative;
         }
-        
-        .box-sistema {
-            background: #e3f2fd; border: 2px solid #90caf9; color: var(--sistema-color);
-        }
+        .box-sistema { background: #e3f2fd; border: 2px solid #90caf9; color: var(--sistema-color); }
         .box-sistema .label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
         .box-sistema .value { font-size: 2.5rem; font-weight: 900; margin-top: 5px; }
 
@@ -198,7 +224,7 @@
 
         @keyframes pulseSoft { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
 
-        /* --- MENSAJE TRANQUILIZADOR --- */
+        /* --- MENSAJE ZEN --- */
         .mensaje-zen {
             background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 12px;
             font-size: 0.9rem; line-height: 1.4; border-left: 5px solid #00b894;
@@ -245,6 +271,7 @@
         .toast.show { opacity: 1; top: 30px; }
         .toast-success { background: var(--success); }
         .toast-error { background: var(--accent); }
+        .toast-warning { background: var(--fisico-color); }
 
     </style>
 </head>
@@ -254,6 +281,12 @@
     <div class="background-container">
         <div class="shape shape-1"></div>
         <div class="shape shape-2"></div>
+    </div>
+
+    <!-- PANTALLA DE CARGA (BLOCKING) -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loading-text">Procesando...</div>
     </div>
 
     <!-- HEADER -->
@@ -287,7 +320,7 @@
 
             <div class="form-group">
                 <select id="mov-categoria" class="form-control">
-                    <option value="" disabled selected>-- ¿Ingresa el motivo? --</option>
+                    <option value="" disabled selected>-- ¿Cuál es el motivo? --</option>
                 </select>
             </div>
 
@@ -305,15 +338,16 @@
                     <option value="Fiat 1 Cargo">🚗 Fiat Uno Cargo</option>
                 </select>
                 
-                <!-- Empleados -->
+                <!-- Empleados Actualizados -->
                 <select id="mov-empleado" class="form-control" style="display:none; margin-bottom:10px;">
                     <option value="" disabled selected>Seleccionar Empleado (Obligatorio)</option>
-                    <option value="Otro">👤 Laura</option>
+                    <option value="Laura">👤 Laura</option>
                     <option value="Nico">👤 Nico</option>
                     <option value="Martin">👤 Martín</option>
-                    <option value="Fede">👤 Tomas</option>
-                    <option value="Facu">👤 Ariel</option>
-                    <option value="Otro">👤 Lucas</option>
+                    <option value="Tomas">👤 Tomas</option>
+                    <option value="Ariel">👤 Ariel</option>
+                    <option value="Lucas">👤 Lucas</option>
+                    <option value="Otro">👤 Otro</option>
                 </select>
 
                 <!-- Cheques (Nuevo) -->
@@ -329,7 +363,7 @@
             </div>
 
             <div class="form-group">
-                <input type="text" id="mov-obs" class="form-control" placeholder="📝 Descripcion (opcional)">
+                <input type="text" id="mov-obs" class="form-control" placeholder="📝 Observación (opcional)">
             </div>
 
             <button class="btn-main" onclick="registrarMovimiento()">
@@ -408,7 +442,7 @@
 
                 <!-- Caja Sistema (Azul y Clara) -->
                 <div class="arqueo-box box-sistema">
-                    <div class="label">Total esperado por Sistema</div>
+                    <div class="label">Esperado por Sistema</div>
                     <div id="arqueo-sistema" class="value">$ ...</div>
                 </div>
             </div>
@@ -479,6 +513,15 @@
             actualizarSaldoHeader();
             buscarRendicionAutomatica();
         }
+        
+        // --- LOADING HELPERS ---
+        function showLoading(msg) {
+            document.getElementById('loading-text').innerText = msg;
+            document.getElementById('loading-overlay').classList.add('active');
+        }
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.remove('active');
+        }
 
         function setFechaHoy(reload = true) {
             const d = new Date();
@@ -538,10 +581,8 @@
             if (cat.includes("Combustible") || cat.includes("Mantenimiento")) { selVeh.style.display = 'block'; show = true; }
             if (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto")) { selEmp.style.display = 'block'; show = true; }
             
-            // Revisa si el cheque también está activo
             checkChequeFields(); 
             
-            // Si hay algo visible o es cheque, mostramos contenedor
             if (show || document.getElementById('cheque-fields').style.display === 'block') {
                 extraContainer.style.display = 'block';
             }
@@ -557,7 +598,6 @@
                 extraContainer.style.display = 'block';
             } else {
                 chequeDiv.style.display = 'none';
-                // Ocultar contenedor solo si no hay categoria extra visible
                 const cat = document.getElementById('mov-categoria').value || "";
                 if (!cat.includes("Proveedor") && !cat.includes("Combustible") && !cat.includes("Sueldo") && !cat.includes("Adelanto")) {
                     extraContainer.style.display = 'none';
@@ -651,7 +691,6 @@
             const veh = document.getElementById('mov-vehiculo').value;
             const emp = document.getElementById('mov-empleado').value;
             
-            // Cheques
             const banco = document.getElementById('mov-banco').value;
             const nroCheque = document.getElementById('mov-cheque-nro').value;
 
@@ -671,9 +710,7 @@
                 detalle += ` (Cheque: ${banco} #${nroCheque})`;
             }
 
-            const btn = document.querySelector('.btn-main');
-            btn.innerHTML = '⏳ Guardando...';
-            btn.disabled = true;
+            showLoading("Guardando movimiento...");
 
             const res = await api("registrarMovimientoCaja", {
                 tipo, formaPago: pago, importe: imp, categoria: catFinal,
@@ -681,8 +718,7 @@
                 banco: banco, nroCheque: nroCheque
             });
 
-            btn.innerHTML = '<span class="material-icons-round">send</span> REGISTRAR';
-            btn.disabled = false;
+            hideLoading();
 
             if (res && res.ok) {
                 showToast("✅ Guardado correctamente", true);
@@ -709,7 +745,6 @@
             if (res && res.ok) {
                 datosRendicion = res;
                 statusBox.style.color = "var(--primary)";
-                // Narrativa clara
                 statusBox.innerHTML = `
                     <span class="material-icons-round" style="vertical-align:middle;">assignment_ind</span>
                     Planilla detectada: <b>${res.repartidor}</b> (Turno ${res.turno})
@@ -729,7 +764,6 @@
             if (dif === 0) {
                 divContainer.innerHTML = '<div style="color:var(--success); font-weight:800; font-size:1.2rem;">✨ ¡EXACTO! ✨</div>';
             } else if (dif > 0) {
-                // Mensaje Zen
                 divContainer.innerHTML = `
                     <div class="mensaje-zen">
                         <b>¡Tranquila! Sobran $ ${dif.toLocaleString('es-AR')}</b><br>
@@ -751,6 +785,8 @@
 
             if (total === 0 && !confirm("¿Confirmar rendición en $0?")) return;
 
+            showLoading("Procesando rendición...");
+
             const res = await api("procesarRendicionDesdeRecibo", {
                 fechaStr: datosRendicion.fecha,
                 turno: datosRendicion.turno,
@@ -759,6 +795,8 @@
                 efectivoContado: total,
                 usuario: "Laura"
             });
+
+            hideLoading();
 
             if (res && res.ok) {
                 showToast("🚀 Rendición procesada con éxito", true);
@@ -774,32 +812,52 @@
             const fisico = parseFloat(document.getElementById('arqueo-fisico').value) || 0;
             if (fisico === 0 && !confirm("¿Cerrar caja en $0 físicos?")) return;
 
-            const btn = document.querySelector('#screen-arqueo .btn-orange');
-            btn.innerHTML = "🔐 Cerrando...";
-            btn.disabled = true;
+            showLoading("Cerrando caja...");
 
             const res = await api("registrarArqueo", { usuario: "Laura", efectivoFisico: fisico });
 
+            hideLoading();
+
             if (res && res.idArqueo) {
                 let msg = "Caja cerrada.";
+                let type = 'success';
+                
                 if (res.resultado === 'OK') msg += " ✨ Perfecto.";
-                else if (res.resultado === 'Sobrante') msg += ` ⚠️ Sobran $${res.diferencia}`;
-                else msg += ` 🚨 Faltan $${Math.abs(res.diferencia)}`;
-                alert(msg);
-                location.reload(); 
+                else if (res.resultado === 'Sobrante') { msg += ` ⚠️ Sobran $${res.diferencia}`; type = 'warning'; }
+                else { msg += ` 🚨 Faltan $${Math.abs(res.diferencia)}`; type = 'error'; }
+                
+                showToast(msg, type === 'success');
+                
+                // Esperar 3 segundos para que lea el toast y recargar
+                setTimeout(() => location.reload(), 3000); 
             } else {
-                showToast("Error al cerrar caja", false);
-                btn.disabled = false;
-                btn.innerHTML = '<span class="material-icons-round">lock_person</span> CERRAR CAJA';
+                // Muestra el error real si viene del backend, sino genérico
+                const errorMsg = (res && res.error) ? res.error : "Error al cerrar caja (Sin ID)";
+                showToast("❌ " + errorMsg, false);
             }
         }
 
         function showToast(msg, success) {
             const t = document.getElementById('toast');
-            t.className = `toast show ${success ? 'toast-success' : 'toast-error'}`;
+            // Reset clases
+            t.className = 'toast show'; 
+            
+            if (success) {
+                t.classList.add('toast-success');
+                document.getElementById('toast-icon').textContent = 'check_circle';
+            } else {
+                // Si el mensaje contiene "Sobran", usamos warning (color naranja)
+                if (msg.includes("Sobran")) {
+                    t.classList.add('toast-warning');
+                    document.getElementById('toast-icon').textContent = 'warning';
+                } else {
+                    t.classList.add('toast-error');
+                    document.getElementById('toast-icon').textContent = 'error';
+                }
+            }
+            
             document.getElementById('toast-msg').textContent = msg;
-            document.getElementById('toast-icon').textContent = success ? 'check_circle' : 'error';
-            setTimeout(() => t.className = 'toast', 3000);
+            setTimeout(() => t.className = 'toast', 4000); // 4 seg visible
         }
     </script>
 </body>
