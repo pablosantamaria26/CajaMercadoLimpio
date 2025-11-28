@@ -20,7 +20,7 @@
     
     <style>
         /* =========================================
-           ESTILOS V6.4: Interacción y Limpieza
+           ESTILOS V6.5: Fix Duplicados
            ========================================= */
         :root {
             --bg-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
@@ -103,7 +103,7 @@
         /* Círculos decorativos en el fondo de la tarjeta */
         .circle-deco { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.1); }
         .c1 { width: 100px; height: 100px; top: -30px; left: -30px; }
-        .c2 { width: 150px; height: 150px; bottom: -50px; right: -20px; }
+        .c2 { width: 150px; height: 150px; bottom: -50px; right: -20px; border-radius: 50%; animation-delay: 2s; }
         
         .balance-label { font-size: 0.9rem; font-weight: 600; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
         .balance-amount { font-size: 3rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 5px rgba(0,0,0,0.2); }
@@ -136,7 +136,9 @@
 
         /* --- BUTTONS --- */
         .btn-main { width: 100%; padding: 18px; border: none; border-radius: 18px; font-size: 1.1rem; font-weight: 800; color: white; cursor: pointer; background: linear-gradient(45deg, #6C63FF, #4834d4); box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .btn-main:active { transform: scale(0.96); }
+        .btn-main:active:not(:disabled) { transform: scale(0.96); } /* Solo aplica si NO está deshabilitado */
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; } /* Estilo para deshabilitado */
+
         .btn-success { background: linear-gradient(45deg, #00b894, #00cec9); box-shadow: 0 8px 20px rgba(0, 184, 148, 0.3); }
         .btn-orange { background: linear-gradient(45deg, #e17055, #d63031); box-shadow: 0 8px 20px rgba(225, 112, 85, 0.3); }
 
@@ -328,7 +330,8 @@
                 <input type="text" id="mov-obs" class="form-control" placeholder="📝 Descripcion (opcional)">
             </div>
 
-            <button class="btn-main" onclick="registrarMovimiento()">
+            <!-- BOTÓN CON ID PARA DESHABILITAR -->
+            <button class="btn-main" id="btn-registrar" onclick="registrarMovimiento()">
                 <span class="material-icons-round">send</span> REGISTRAR
             </button>
         </div>
@@ -658,11 +661,6 @@
 
         async function api(fn, params = {}) {
             try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ fn, params })
-                });
                 // Implementación de reintento con backoff exponencial
                 const maxRetries = 3;
                 let lastError = null;
@@ -781,6 +779,14 @@
         }
 
         async function registrarMovimiento() {
+            const btn = document.getElementById('btn-registrar');
+            
+            // 1. PREVENCIÓN DE DOBLE CLIC: Deshabilitar el botón y mostrar el loading
+            if (btn.disabled) return;
+            btn.disabled = true;
+            showLoading("Guardando...");
+
+
             const tipo = document.getElementById('mov-tipo').value;
             const pago = document.getElementById('mov-pago').value;
             const cat = document.getElementById('mov-categoria').value;
@@ -796,36 +802,59 @@
             const banco = document.getElementById('mov-banco').value;
             const nroCheque = document.getElementById('mov-cheque-nro').value;
 
-            if (!cat) return showToast("⚠️ Falta seleccionar el motivo", false);
-            if (!imp || imp <= 0) return showToast("⚠️ Ingrese un importe válido", false);
+            if (!cat) {
+                hideLoading();
+                btn.disabled = false; // Habilitar en caso de error de validación
+                return showToast("⚠️ Falta seleccionar el motivo", false);
+            }
+            if (!imp || imp <= 0) {
+                hideLoading();
+                btn.disabled = false; // Habilitar en caso de error de validación
+                return showToast("⚠️ Ingrese un importe válido", false);
+            }
             
             let catFinal = cat;
 
             // 1. EMPLEADO (Sueldos/Adelantos/Haberes)
             if (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto")) {
-                if (!emp && document.getElementById('mov-empleado').style.display !== 'none') return showToast("⚠️ Debes seleccionar un EMPLEADO", false);
+                if (!emp && document.getElementById('mov-empleado').style.display !== 'none') {
+                    hideLoading();
+                    btn.disabled = false; 
+                    return showToast("⚠️ Debes seleccionar un EMPLEADO", false);
+                }
                 if (emp) detalle = `[${emp}] ` + detalle;
             }
             
             // 2. PROVEEDOR (Pago a Proveedor)
             if (cat.includes("Proveedor")) { 
-                if (!prov && document.getElementById('mov-proveedor').style.display !== 'none') return showToast("⚠️ Debes ingresar el nombre del PROVEEDOR", false);
+                if (!prov && document.getElementById('mov-proveedor').style.display !== 'none') {
+                    hideLoading();
+                    btn.disabled = false; 
+                    return showToast("⚠️ Debes ingresar el nombre del PROVEEDOR", false);
+                }
                 if (prov) detalle = `[${prov}] ` + detalle;
             }
 
             // 3. VEHÍCULO (Combustible / Mantenimiento)
             if (cat.includes("Combustible") || cat.includes("Mantenimiento")) { 
-                if (!veh && document.getElementById('mov-vehiculo').style.display !== 'none') return showToast("⚠️ Debes seleccionar un VEHÍCULO", false);
+                if (!veh && document.getElementById('mov-vehiculo').style.display !== 'none') {
+                    hideLoading();
+                    btn.disabled = false; 
+                    return showToast("⚠️ Debes seleccionar un VEHÍCULO", false);
+                }
                 if (veh) catFinal = cat + " " + veh;
             }
             
             // 4. CHEQUE
             if (pago === "Cheque") {
-                if(!banco || !nroCheque) return showToast("⚠️ Completa datos del cheque", false);
+                if(!banco || !nroCheque) {
+                    hideLoading();
+                    btn.disabled = false; 
+                    return showToast("⚠️ Completa datos del cheque", false);
+                }
                 detalle += ` (Cheque: ${banco} #${nroCheque})`;
             }
 
-            showLoading("Guardando...");
             const res = await api("registrarMovimientoCaja", { 
                 tipo, 
                 formaPago: pago, 
@@ -836,7 +865,10 @@
                 banco: banco, 
                 nroCheque: nroCheque 
             });
+
+            // 2. DESBLOQUEO y OCULTAR LOADING
             hideLoading();
+            btn.disabled = false;
 
             if (res && res.ok) {
                 showToast("✅ Guardado correctamente", true);
@@ -856,7 +888,9 @@
                 // Forzar la recarga de movimientos y saldo
                 cargarMovimientos();
                 actualizarSaldoHeader();
-            } else { showToast("❌ Error al guardar", false); }
+            } else { 
+                showToast("❌ Error al guardar", false); 
+            }
         }
 
         async function buscarRendicionAutomatica() {
