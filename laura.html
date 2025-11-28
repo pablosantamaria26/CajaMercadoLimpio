@@ -20,7 +20,7 @@
     
     <style>
         /* =========================================
-           ESTILOS V4.7: DUO-TONE & LIVE BALANCE
+           ESTILOS V4.8: SYNC & CASH FOCUS
            ========================================= */
         :root {
             --bg-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
@@ -223,7 +223,7 @@
             <div class="balance-card" onclick="actualizarSaldoHeader()">
                 <div class="circle-deco c1"></div>
                 <div class="circle-deco c2"></div>
-                <div class="balance-label">Saldo en Caja</div>
+                <div class="balance-label">Efectivo en Caja</div>
                 <div class="balance-amount" id="big-balance">...</div>
                 <div class="balance-status" id="last-update">Actualizado ahora</div>
             </div>
@@ -350,7 +350,7 @@
                 </div>
                 <div class="arqueo-box box-sistema">
                     <div class="label">Total esperado por Sistema</div>
-                    <div id="arqueo-sistema" class="value">$ ...</div>
+                    <div id="arqueo-sistema" class="value" style="font-size:2rem; padding-top:10px;">🔄</div>
                 </div>
             </div>
             
@@ -483,10 +483,14 @@
             document.getElementById('screen-' + id).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             el.classList.add('active');
+            
             if (id === 'arqueo') {
                 monitor.reset(); // Reiniciar monitor al entrar a arqueo
-                actualizarSaldoHeader(); // Asegura tener el saldo más reciente
-                document.getElementById('arqueo-sistema').innerText = "$ " + saldoSistema.toLocaleString('es-AR');
+                
+                // UX MEJORADA: Mostrar que estamos calculando
+                document.getElementById('arqueo-sistema').innerHTML = '<span style="font-size:1.5rem; color:#aaa;">🔄 Calculando...</span>';
+                
+                actualizarSaldoHeader(); // Forzar actualización para tener el dato REAL
             }
         };
 
@@ -611,13 +615,20 @@
         async function actualizarSaldoHeader() {
             const res = await api("getEstadoCaja");
             if (res) {
+                // CORRECCION V4.8:
+                // Ahora el saldoSistema es SIEMPRE el efectivo físico esperado.
                 saldoSistema = res.efectivo; 
-                document.getElementById('big-balance').textContent = "$ " + parseInt(res.total).toLocaleString('es-AR');
+                
+                // En la tarjeta gigante mostramos SOLO EFECTIVO (antes mostrábamos el total con bancos)
+                // Esto elimina la confusión visual.
+                document.getElementById('big-balance').textContent = "$ " + parseInt(res.efectivo).toLocaleString('es-AR');
+                
                 // Actualizar hora
                 const now = new Date();
                 const hora = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
                 document.getElementById('last-update').textContent = 'Actualizado ' + hora;
-                // Si estamos en la pantalla de Arqueo, actualizar también ahí
+                
+                // Si estamos en la pantalla de Arqueo, actualizar también ahí con el dato fresco
                 if(document.getElementById('screen-arqueo').classList.contains('active')){
                      document.getElementById('arqueo-sistema').innerText = "$ " + saldoSistema.toLocaleString('es-AR');
                 }
