@@ -20,7 +20,7 @@
     
     <style>
         /* =========================================
-           ESTILOS PREMIUM V3.1 (Laura)
+           ESTILOS PREMIUM V3.2
            ========================================= */
         :root {
             --primary: #1565C0;
@@ -32,7 +32,7 @@
             --card-white: #FFFFFF;
             --text-dark: #1F2937;
             --text-muted: #6B7280;
-            /* Nuevos colores Arqueo */
+            /* Colores Arqueo */
             --arqueo-grad-1: #FF512F;
             --arqueo-grad-2: #F09819;
         }
@@ -44,7 +44,7 @@
             font-family: 'Poppins', sans-serif;
             background-color: var(--bg-light);
             color: var(--text-dark);
-            padding-bottom: 80px; /* Espacio para navbar */
+            padding-bottom: 90px; /* Espacio extra para navbar */
         }
 
         /* HEADER */
@@ -63,7 +63,7 @@
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; width: 100%;
             background: white; border-top: 1px solid #E5E7EB;
-            display: flex; justify-content: space-around; padding: 10px 0;
+            display: flex; justify-content: space-around; padding: 12px 0;
             z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         }
         .nav-item {
@@ -72,17 +72,18 @@
             transition: color 0.3s;
         }
         .nav-item.active { color: var(--primary); font-weight: 600; }
-        .nav-icon { font-size: 24px; margin-bottom: 2px; }
+        .nav-icon { font-size: 26px; margin-bottom: 4px; }
 
         /* CONTENEDORES DE PANTALLA */
         .screen { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
         .screen.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* CARDS Y FORMULARIOS */
+        /* CARDS */
         .card { background: var(--card-white); border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.03); }
         .section-title { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
 
+        /* FORMULARIOS */
         .form-group { margin-bottom: 15px; }
         .form-control {
             width: 100%; padding: 14px; border: 2px solid #E5E7EB; border-radius: 12px;
@@ -101,17 +102,36 @@
             transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
         }
         .btn-main:active { transform: scale(0.98); }
-        
         .btn-success { background: var(--success); box-shadow: 0 4px 12px rgba(46, 125, 50, 0.4); }
         .btn-orange { background: var(--arqueo-grad-2); box-shadow: 0 4px 12px rgba(240, 152, 25, 0.4); }
 
-        /* CONTADOR BILLETES */
-        .billetes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .billete-item { background: white; border: 1px solid #E5E7EB; border-radius: 10px; padding: 5px; text-align: center; }
-        .billete-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; margin-bottom: 2px; }
-        .billete-input { width: 100%; border: none; text-align: center; font-size: 1.2rem; font-weight: 700; color: var(--text-dark); outline: none; background: transparent; padding: 5px 0; }
+        /* CONTADOR BILLETES (GIGANTE) */
+        .billetes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .billete-item { background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 8px; text-align: center; }
+        .billete-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 5px; }
+        /* Aumentado a más del doble */
+        .billete-input { 
+            width: 100%; border: none; text-align: center; 
+            font-size: 2.5rem; /* GIGANTE */
+            font-weight: 800; color: var(--text-dark); 
+            outline: none; background: transparent; padding: 0; 
+            line-height: 1.1;
+        }
+        .billete-input::placeholder { color: #E5E7EB; }
 
-        /* BARRA TOTAL ARQUEO (NUEVO DUO TONO) */
+        /* ARQUEO MEJORADO */
+        .arqueo-system-box {
+            background: #E3F2FD; /* Azul clarito */
+            border: 2px dashed var(--primary);
+            color: var(--primary-dark);
+            padding: 15px;
+            border-radius: 14px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .arqueo-system-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;}
+        .arqueo-system-value { font-size: 2rem; font-weight: 800; }
+
         .arqueo-total-bar {
             background: linear-gradient(135deg, var(--arqueo-grad-1) 0%, var(--arqueo-grad-2) 100%);
             color: white; padding: 20px; border-radius: 16px;
@@ -120,7 +140,7 @@
             animation: pulseOrange 3s infinite;
         }
         .arqueo-label { font-size: 0.9rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
-        .arqueo-amount { font-size: 2.2rem; font-weight: 800; margin-top: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .arqueo-amount { font-size: 2.5rem; font-weight: 800; margin-top: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
         @keyframes pulseOrange {
             0% { box-shadow: 0 0 0 0 rgba(240, 152, 25, 0.4); }
@@ -128,20 +148,44 @@
             100% { box-shadow: 0 0 0 0 rgba(240, 152, 25, 0); }
         }
 
+        /* CONTROLES HISTORIAL (Calendario + Botón Hoy) */
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .history-controls { display: flex; gap: 10px; }
+        .date-picker {
+            border: 1px solid #E5E7EB; background: #F9FAFB; padding: 8px 12px;
+            border-radius: 8px; font-family: 'Poppins'; color: var(--text-dark);
+            font-size: 0.9rem; outline: none;
+        }
+        .btn-today-small {
+            background: var(--primary); color: white; border: none; padding: 8px 15px;
+            border-radius: 8px; font-weight: 600; font-size: 0.8rem; cursor: pointer;
+            display: flex; align-items: center; gap: 5px;
+        }
+
+        /* LISTA MOVIMIENTOS DETALLADA */
+        .mov-list { list-style: none; padding: 0; margin: 0; }
+        .mov-item { 
+            display: flex; justify-content: space-between; align-items: flex-start; 
+            padding: 15px 0; border-bottom: 1px solid #F3F4F6; cursor: pointer;
+        }
+        .mov-info { display: flex; flex-direction: column; flex: 1; padding-right: 10px; }
+        .mov-title { font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+        .mov-sub { 
+            font-size: 0.8rem; color: var(--text-muted); 
+            line-height: 1.4;
+            /* Por defecto muestra poco, click para expandir */
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .mov-item.expanded .mov-sub { -webkit-line-clamp: unset; overflow: visible; }
+        
+        .mov-amount { font-weight: 700; font-size: 1.1rem; white-space: nowrap; }
+        .amount-in { color: var(--success); }
+        .amount-out { color: var(--danger); }
+
         /* ESTADOS DE RENDICIÓN */
         .rendicion-status { padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: center; font-size: 0.9rem; font-weight: 600; }
         .status-searching { background: #E3F2FD; color: #1565C0; border: 1px dashed #1565C0; }
         .status-found { background: #E8F5E9; color: #2E7D32; border: 1px solid #2E7D32; }
-
-        /* LISTA MOVIMIENTOS */
-        .mov-list { list-style: none; padding: 0; margin: 0; }
-        .mov-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #F3F4F6; }
-        .mov-info { display: flex; flex-direction: column; }
-        .mov-title { font-weight: 600; font-size: 0.95rem; }
-        .mov-sub { font-size: 0.75rem; color: var(--text-muted); }
-        .mov-amount { font-weight: 700; font-size: 0.95rem; }
-        .amount-in { color: var(--success); }
-        .amount-out { color: var(--danger); }
 
         /* TOAST */
         .toast {
@@ -225,8 +269,18 @@
             </button>
         </div>
 
+        <!-- HISTORIAL CON FILTRO DE FECHA -->
         <div class="card">
-            <div class="section-title">Historial Hoy</div>
+            <div class="history-header">
+                <div class="section-title" style="margin:0;">Movimientos</div>
+                <div class="history-controls">
+                    <input type="date" id="fecha-historial" class="date-picker" onchange="cargarMovimientos()">
+                    <button class="btn-today-small" onclick="setFechaHoy()">
+                        <span class="material-icons-round" style="font-size:16px;">today</span> HOY
+                    </button>
+                </div>
+            </div>
+            
             <ul class="mov-list" id="lista-movimientos">
                 <!-- Se llena con JS -->
                 <li style="text-align:center; color:#999; padding:10px;">Cargando...</li>
@@ -312,20 +366,20 @@
     <!-- PANTALLA 3: ARQUEO -->
     <div id="screen-arqueo" class="screen">
         
-        <!-- NUEVA BARRA ANIMADA ARQUEO -->
+        <!-- TOTAL FÍSICO (Naranja Vibrante) -->
         <div class="arqueo-total-bar">
             <div class="arqueo-label">Total Efectivo Físico</div>
             <div id="arqueo-total-display" class="arqueo-amount">$ 0</div>
         </div>
 
         <div class="card">
-            <div class="section-title">Resumen Sistema</div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                <span>Efectivo Esperado:</span>
-                <span id="arqueo-sistema" style="font-weight:700;">$ ...</span>
+            <!-- TOTAL SISTEMA (DESTACADO GRANDE) -->
+            <div class="arqueo-system-box">
+                <div class="arqueo-system-label">Esperado por Sistema</div>
+                <div id="arqueo-sistema" class="arqueo-system-value">$ ...</div>
             </div>
             
-            <!-- Contador de Billetes para Arqueo (Nuevo) -->
+            <!-- Contador de Billetes para Arqueo -->
              <div style="margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
                 <div class="section-title" style="display:flex; justify-content:space-between;">
                     <span>Contar Billetes</span>
@@ -378,7 +432,7 @@
 
     <script>
         /* =========================================
-           LOGICA APP V3.1
+           LOGICA APP V3.2
            ========================================= */
         const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
         
@@ -392,10 +446,23 @@
         });
 
         function initApp() {
+            setFechaHoy(false); // Inicializa input de fecha con HOY
             actualizarCategorias();
             cargarMovimientos();
             actualizarSaldoHeader();
             buscarRendicionAutomatica();
+        }
+
+        // --- Manejo de Fechas ---
+        function setFechaHoy(reload = true) {
+            const d = new Date();
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const hoyFmt = `${yyyy}-${mm}-${dd}`;
+            
+            document.getElementById('fecha-historial').value = hoyFmt;
+            if(reload) cargarMovimientos();
         }
 
         // --- Navegación ---
@@ -439,7 +506,7 @@
             const extraDiv = document.getElementById('extra-fields');
             const inpProv = document.getElementById('mov-proveedor');
             const selVeh = document.getElementById('mov-vehiculo');
-            const selEmp = document.getElementById('mov-empleado'); // NUEVO
+            const selEmp = document.getElementById('mov-empleado');
 
             // Reset display
             extraDiv.style.display = 'none';
@@ -459,7 +526,6 @@
                 selVeh.style.display = 'block';
                 showContainer = true;
             }
-            // NUEVO: Validación visual para empleados
             if (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto")) {
                 selEmp.style.display = 'block';
                 showContainer = true;
@@ -468,9 +534,8 @@
             if (showContainer) extraDiv.style.display = 'block';
         }
 
-        // --- Calculadora de Billetes (Genérica para Rendición y Arqueo) ---
+        // --- Calculadora de Billetes ---
         window.calcBilletes = (tipo) => {
-            // tipo puede ser 'rend' o 'arq'
             const inputs = document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`);
             let total = 0;
             inputs.forEach(inp => {
@@ -485,7 +550,6 @@
                 document.getElementById('rendicion-contado-display').textContent = totalFmt;
                 actualizarDiferenciaRendicion(total);
             } else {
-                // Actualiza la barra animada del arqueo
                 document.getElementById('arqueo-total-display').textContent = totalFmt;
                 document.getElementById('arqueo-fisico').value = total;
             }
@@ -514,21 +578,18 @@
         }
 
         async function cargarMovimientos() {
-            const hoyStr = new Date().toLocaleDateString('es-AR');
-            // Como la API getMovimientos espera fecha YYYY-MM-DD
-            const d = new Date();
-            const yyyy = d.getFullYear();
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            const fechaApi = `${yyyy}-${mm}-${dd}`;
+            // Obtenemos la fecha del input (YYYY-MM-DD)
+            const fechaApi = document.getElementById('fecha-historial').value;
+            
+            const lista = document.getElementById('lista-movimientos');
+            lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Cargando...</li>';
 
             const res = await api("getMovimientos", { fechaStr: fechaApi });
             
-            const lista = document.getElementById('lista-movimientos');
             lista.innerHTML = "";
 
             if (!res || res.length === 0) {
-                lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Sin movimientos hoy</li>';
+                lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Sin movimientos para esta fecha</li>';
                 return;
             }
 
@@ -537,12 +598,12 @@
                 const color = esIngreso ? 'amount-in' : 'amount-out';
                 const signo = esIngreso ? '+' : '-';
                 
-                // Formato lindo
+                // Onclick para expandir detalles
                 const html = `
-                    <li class="mov-item">
+                    <li class="mov-item" onclick="this.classList.toggle('expanded')">
                         <div class="mov-info">
                             <span class="mov-title">${m.categoria}</span>
-                            <span class="mov-sub">${m.hora} • ${m.formaPago} ${m.observacion ? '• ' + m.observacion : ''}</span>
+                            <span class="mov-sub">${m.hora} • ${m.formaPago} <br> ${m.observacion ? m.observacion : ''}</span>
                         </div>
                         <div class="mov-amount ${color}">${signo} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
                     </li>
@@ -577,10 +638,9 @@
             if (!cat) return showToast("Falta seleccionar el motivo", false);
             if (!imp || imp <= 0) return showToast("Ingrese un importe válido", false);
 
-            // NUEVA VALIDACIÓN DE EMPLEADO OBLIGATORIO
             if (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto")) {
                 if (!emp) return showToast("⚠️ Debes seleccionar un EMPLEADO para este movimiento", false);
-                detalle = `[${emp}] ` + detalle; // Agregamos el nombre al detalle
+                detalle = `[${emp}] ` + detalle; 
             }
 
             if (prov) detalle = `[${prov}] ` + detalle;
@@ -600,12 +660,17 @@
 
             if (res && res.ok) {
                 showToast("Guardado correctamente", true);
-                // Limpiar
                 document.getElementById('mov-importe').value = "";
                 document.getElementById('mov-obs').value = "";
                 document.getElementById('mov-proveedor').value = "";
-                checkCamposExtra(); // Reset extra fields
-                cargarMovimientos();
+                checkCamposExtra(); 
+                
+                // Recargar historial si estamos en HOY
+                const hoyStr = new Date().toISOString().split('T')[0];
+                if(document.getElementById('fecha-historial').value === hoyStr) {
+                    cargarMovimientos();
+                }
+                
                 actualizarSaldoHeader();
             } else {
                 showToast("Error al guardar", false);
@@ -615,16 +680,6 @@
         // --- RENDICIÓN AUTOMÁTICA ---
         async function buscarRendicionAutomatica() {
             const statusBox = document.getElementById('rendicion-status-box');
-            
-            // Buscamos si hay algo en caché del sistema (Trigger corre en background)
-            // Simulamos datos para Nico Mañana (hardcoded logic in backend would fetch real file)
-            // Aquí pedimos al backend si tiene algo
-            
-            // Truco: pedimos getDatosRendicionEsperada con fecha hoy.
-            // Si el backend tuviera una función "checkNovedades", sería ideal.
-            // Usaremos una lógica de reintento simple o caché local si quisiéramos.
-            // Por ahora, asumimos que el backend la encuentra si existe.
-            
             const hoyStr = new Date().toISOString().split('T')[0];
             const res = await api("getDatosRendicionEsperada", { fechaStr: hoyStr, turno: "Mañana", repartidor: "Nico" });
 
@@ -632,7 +687,6 @@
                 datosRendicion = res;
                 statusBox.className = "rendicion-status status-found";
                 
-                // NUEVA NARRATIVA
                 statusBox.innerHTML = `
                     <span class="material-icons-round" style="vertical-align:middle;">check_circle</span>
                     Rendición del reparto turno ${res.turno.toLowerCase()} del repartidor ${res.repartidor}
@@ -712,7 +766,7 @@
                 else msg += ` 🚨 Faltan $${Math.abs(res.diferencia)}`;
 
                 alert(msg);
-                location.reload(); // Reiniciar para limpiar todo
+                location.reload(); 
             } else {
                 showToast("Error al cerrar caja", false);
                 btn.disabled = false;
@@ -720,7 +774,6 @@
             }
         }
 
-        // --- UI Utils ---
         function showToast(msg, success) {
             const t = document.getElementById('toast');
             t.className = `toast show ${success ? 'toast-success' : 'toast-error'}`;
