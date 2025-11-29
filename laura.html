@@ -12,7 +12,7 @@
     
     <style>
         /* =========================================
-           ESTILOS V10.1: PROVEEDORES & FIXES
+           ESTILOS V10.2: GESTIÓN DE CHEQUES
            ========================================= */
         :root {
             --primary: #6C63FF;        
@@ -198,6 +198,14 @@
         .form-control:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.1); }
         .mov-controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0; }
         #mov-importe { font-size: 2rem; text-align: center; color: var(--primary); border: 2px dashed var(--primary); background: rgba(108, 99, 255, 0.03); }
+        
+        /* ESTILO PARA CUANDO EL IMPORTE ESTÁ BLOQUEADO POR CHEQUE */
+        .importe-cheque-lock {
+            background-color: #e8f5e9 !important; /* Verde muy claro */
+            color: var(--success) !important;
+            border-color: var(--success) !important;
+            font-weight: 900 !important;
+        }
 
         /* --- BOTONES --- */
         .btn-main { 
@@ -381,6 +389,15 @@
                 <select id="mov-empleado" class="form-control" style="display:none;">
                     <option value="" disabled selected>Empleado</option>
                 </select>
+
+                <!-- 🔥 SELECCION DE CHEQUES EN CARTERA (NUEVO) 🔥 -->
+                <div id="selector-cheque-wrapper" style="display:none; margin-bottom:15px;">
+                     <label style="font-size:0.8rem; color:var(--primary); font-weight:700; margin-left:5px; margin-bottom:5px; display:block;">Seleccionar Cheque en Cartera:</label>
+                     <select id="mov-cheque-cartera" class="form-control" style="border: 2px solid var(--accent); background:#fff0f3;">
+                         <option value="" disabled selected>Cargando cheques...</option>
+                     </select>
+                </div>
+
                 <div id="cheque-fields" style="display:none;">
                     <input type="text" id="mov-banco" class="form-control" placeholder="🏦 Banco Emisor">
                     <input type="text" id="mov-cheque-nro" class="form-control" placeholder="#️⃣ N° Cheque">
@@ -532,6 +549,10 @@
         let rendicionPendiente = null; 
         let configEmpleadosGlobal = [];
         let deudasSemanalGlobal = {};
+        
+        // 🔥 GLOBAL: CHEQUES CARTERA 🔥
+        let chequesCarteraGlobal = [];
+        let idChequeSeleccionado = null; // Para guardar el ID y enviarlo al backend
 
         // LISTAS DE CONFIGURACIÓN
         const CATEGORIAS_EGRESO = [ "Pago a Proveedor", "Combustible", "Adelanto de Sueldo", "Pago de Haberes", "Gastos de Limpieza", "Gastos de Mantenimiento (Vehiculos)", "Retiro de Efectivo (Pablo)", "Gastos de Jardineria", "Movimiento Libre (Varios)" ];
@@ -563,6 +584,9 @@
             document.getElementById('mov-tipo').addEventListener('change', actualizarCategorias);
             document.getElementById('mov-pago').addEventListener('change', checkChequeFields);
             document.getElementById('mov-empleado').addEventListener('change', calcularPagoHaberes);
+
+            // Listener para selección de cheque en cartera
+            document.getElementById('mov-cheque-cartera').addEventListener('change', seleccionarChequeCartera);
 
             initSelects(); 
             
@@ -757,7 +781,7 @@
             if (fechaInput === hoyInput) {
                 const elCheques = document.getElementById('val-cheques');
                 if(elCheques && elCheques.innerText === "$ 0" && chequesDelDia > 0) {
-                     elCheques.innerText = "$ " + chequesDelDia.toLocaleString('es-AR');
+                      elCheques.innerText = "$ " + chequesDelDia.toLocaleString('es-AR');
                 }
             }
         }
@@ -782,22 +806,42 @@
 
             if (cat === "Adelanto de Sueldo" && emp) obs = `[${emp}] Adelanto de Sueldo. ${obs}`;
 
-            const res = await api("registrarMovimientoCaja", { 
+            // Preparamos payload
+            const payload = { 
                 tipo, formaPago: pago, importe: imp, categoria: cat, 
                 usuario: USUARIO_APP, observacion: obs, 
                 proveedor: prov, vehiculo: veh, empleado: emp, 
-                banco: banco, nroCheque: nroCheque 
-            });
+                banco: banco, nroCheque: nroCheque
+            };
+
+            // 🔥 Si es pago con cheque de cartera, añadimos el ID para darlo de baja
+            if(tipo === 'Egreso' && pago === 'Cheque' && idChequeSeleccionado) {
+                payload.idChequeOrigen = idChequeSeleccionado;
+            }
+
+            const res = await api("registrarMovimientoCaja", payload);
             hideLoading(); btn.disabled = false;
             
             if(res && res.ok) {
                 showToast("Guardado", true);
-                if (cat === "Pago de Haberes" || cat.includes("Sueldo")) {
-                    document.getElementById('mov-importe').value = ""; document.getElementById('mov-importe').setAttribute('data-clean-value', '0'); document.getElementById('mov-obs').value = ""; document.getElementById('mov-empleado').value = "";
-                } else {
-                    document.getElementById('mov-importe').value = ""; document.getElementById('mov-importe').setAttribute('data-clean-value', '0'); document.getElementById('mov-obs').value = ""; document.getElementById('mov-categoria').value = ""; document.getElementById('mov-proveedor').value = "";
-                    checkCamposExtra();
-                }
+                
+                // Reseteamos campos
+                document.getElementById('mov-importe').value = ""; 
+                document.getElementById('mov-importe').setAttribute('data-clean-value', '0');
+                
+                // Quitamos el bloqueo verde de cheque
+                const inpImp = document.getElementById('mov-importe');
+                inpImp.classList.remove('importe-cheque-lock');
+                inpImp.disabled = false;
+                idChequeSeleccionado = null;
+
+                document.getElementById('mov-obs').value = ""; 
+                document.getElementById('mov-categoria').value = ""; 
+                document.getElementById('mov-proveedor').value = "";
+                document.getElementById('mov-banco').value = "";
+                document.getElementById('mov-cheque-nro').value = "";
+                
+                checkCamposExtra();
                 actualizarSaldoHeader();
                 cargarMovimientos();
             } else { showToast("Error al guardar", false); }
@@ -806,33 +850,111 @@
         // --- AUXILIARES ---
         function actualizarCategorias() {
             const tipo = document.getElementById('mov-tipo').value;
-            const select = document.getElementById('mov-categoria');
-            select.innerHTML = '<option value="" disabled selected>-- Motivo --</option>';
+            const select = document.getElementById('mov-categoria').value;
+            const selectEl = document.getElementById('mov-categoria');
+            selectEl.innerHTML = '<option value="" disabled selected>-- Motivo --</option>';
             const lista = tipo === 'Egreso' ? CATEGORIAS_EGRESO : CATEGORIAS_INGRESO;
             lista.forEach(cat => {
                 const opt = document.createElement('option');
                 opt.value = cat; opt.textContent = cat;
-                select.appendChild(opt);
+                selectEl.appendChild(opt);
             });
             checkCamposExtra(); 
         }
 
+        // 🔥 MODIFICADA PARA DETECTAR CHEQUES CARTERA 🔥
         function checkCamposExtra() {
+            const tipo = document.getElementById('mov-tipo').value;
+            const pago = document.getElementById('mov-pago').value;
             const cat = document.getElementById('mov-categoria').value;
             const extraContainer = document.getElementById('extra-fields-container');
+            
             const showProv = cat && cat.includes("Proveedor");
             const showVeh = cat && (cat.includes("Combustible") || cat.includes("Mantenimiento"));
             const showEmp = cat && (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto"));
-            const chequeVisible = document.getElementById('mov-pago').value === 'Cheque';
+            const chequeVisible = pago === 'Cheque';
 
             document.getElementById('proveedor-wrapper').style.display = showProv ? 'block' : 'none';
             document.getElementById('mov-vehiculo').style.display = showVeh ? 'block' : 'none';
             document.getElementById('mov-empleado').style.display = showEmp ? 'block' : 'none';
             document.getElementById('cheque-fields').style.display = chequeVisible ? 'block' : 'none';
             
+            // 🔥 LOGICA NUEVA CHEQUES CARTERA 🔥
+            const selectorCheque = document.getElementById('selector-cheque-wrapper');
+            if (tipo === 'Egreso' && pago === 'Cheque') {
+                 selectorCheque.style.display = 'block';
+                 // Cargar cheques disponibles desde la API si aún no se hizo o si cambió algo
+                 cargarChequesCartera();
+            } else {
+                 selectorCheque.style.display = 'none';
+                 // Liberar input de importe si cambiamos de opción
+                 const inpImp = document.getElementById('mov-importe');
+                 if(inpImp.classList.contains('importe-cheque-lock')) {
+                     inpImp.classList.remove('importe-cheque-lock');
+                     inpImp.disabled = false;
+                     inpImp.value = "";
+                     idChequeSeleccionado = null;
+                 }
+            }
+            
             if(showProv || showVeh || showEmp || chequeVisible) extraContainer.style.display = 'block';
             else extraContainer.style.display = 'none';
         }
+
+        // 🔥 FUNCION NUEVA: CARGAR CHEQUES CARTERA 🔥
+        async function cargarChequesCartera() {
+            const select = document.getElementById('mov-cheque-cartera');
+            // Ponemos loading
+            select.innerHTML = '<option value="" disabled selected>Cargando cartera...</option>';
+            
+            const res = await api('getChequesCartera');
+            
+            if (res && res.ok && res.data && res.data.length > 0) {
+                chequesCarteraGlobal = res.data;
+                select.innerHTML = '<option value="" selected>-- Seleccionar Cheque --</option>';
+                
+                chequesCarteraGlobal.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    // Texto: "Banco Galicia - #1234 - $ 50.000"
+                    const importeFmt = parseInt(c.importe).toLocaleString('es-AR');
+                    opt.textContent = `${c.banco} (#${c.nro}) - $${importeFmt}`;
+                    select.appendChild(opt);
+                });
+            } else {
+                select.innerHTML = '<option value="" disabled selected>No hay cheques en cartera</option>';
+            }
+        }
+
+        // 🔥 FUNCION NUEVA: AL SELECCIONAR UN CHEQUE 🔥
+        function seleccionarChequeCartera() {
+            const id = document.getElementById('mov-cheque-cartera').value;
+            if (!id) return;
+
+            const cheque = chequesCarteraGlobal.find(c => String(c.id) === String(id));
+            if (cheque) {
+                // 1. Llenar importe y bloquearlo visualmente (verde y negrita)
+                const inpImp = document.getElementById('mov-importe');
+                const impVal = parseInt(cheque.importe);
+                
+                inpImp.value = impVal.toLocaleString('es-AR');
+                inpImp.setAttribute('data-clean-value', impVal);
+                
+                // Aplicar estilo de bloqueo
+                inpImp.classList.add('importe-cheque-lock');
+                inpImp.disabled = true; // Para que no editen el monto del cheque físico
+
+                // 2. Llenar campos de banco y número automáticamente
+                document.getElementById('mov-banco').value = cheque.banco;
+                document.getElementById('mov-cheque-nro').value = cheque.nro;
+
+                // 3. Guardar ID globalmente para enviarlo al guardar
+                idChequeSeleccionado = cheque.id;
+                
+                showToast(`Cheque de $${inpImp.value} seleccionado`, true);
+            }
+        }
+
         function checkChequeFields() { checkCamposExtra(); }
 
         function formatearImporte(input) {
