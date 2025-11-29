@@ -12,13 +12,13 @@
     
     <style>
         /* =========================================
-           ESTILOS V9.5: ALERTAS INTELIGENTES
+           ESTILOS V9.7: CORRECCION SUELDOS
            ========================================= */
         :root {
             /* Paleta Base */
             --primary: #6C63FF;        
             --primary-dark: #4834d4;
-            --accent: #FF6584;         
+            --accent: #FF6584;          
             --success: #00B894;        
             --text-main: #2D3436;
             --text-light: #636E72;
@@ -462,7 +462,11 @@
         const CATEGORIAS_EGRESO = [ "Pago a Proveedor", "Combustible", "Adelanto de Sueldo", "Pago de Haberes", "Gastos de Limpieza", "Gastos de Mantenimiento (Vehiculos)", "Retiro de Efectivo (Pablo)", "Gastos de Jardineria", "Movimiento Libre (Varios)" ];
         const CATEGORIAS_INGRESO = ["Venta Local", "Ingreso Varios", "Aporte de Capital"];
         const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
-        const EMPLEADOS = ["Nicolás", "Laura", "Ariel", "Martín", "Lucas", "Tomas"];
+        //const EMPLEADOS = ["Nicolás", "Laura", "Ariel", "Martín", "Lucas", "Tomas"]; // YA NO SE USA HARDCODED
+        
+        // --- ESTADO GLOBAL (NUEVO) ---
+        let configEmpleadosGlobal = []; // Para sueldos base
+        let deudasSemanalGlobal = {};   // Para adelantos calculados
 
         // MONITOR ANTI-FRAUDE
         class SuspicionTracker {
@@ -477,14 +481,20 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             initApp();
+            
+            // Listeners existentes
             document.getElementById('mov-categoria').addEventListener('change', (e) => {
                 checkCamposExtra();
                 if(e.target.value === "Pago de Haberes") {
-                    verificarAdelantosSemana(); // 🔥 MAGIA AQUÍ
+                    verificarAdelantosSemana(); // Se ejecuta silenciosamente
                 }
             });
             document.getElementById('mov-tipo').addEventListener('change', actualizarCategorias);
             document.getElementById('mov-pago').addEventListener('change', checkChequeFields);
+            
+            // 🔥 NUEVO LISTENER: CALCULAR SUELDO AL ELEGIR EMPLEADO
+            document.getElementById('mov-empleado').addEventListener('change', calcularPagoHaberes);
+
             initSelects(); 
         });
 
@@ -494,6 +504,7 @@
             cargarMovimientos();
             actualizarSaldoHeader(); 
             buscarRendicionPendiente();
+            cargarConfigEmpleados(); // <-- NUEVO: Cargar sueldos base al iniciar
         }
 
         // --- HELPERS UI ---
@@ -612,10 +623,11 @@
         function initSelects() {
             const fill = (id, arr) => { 
                 const s = document.getElementById(id); 
+                s.innerHTML = '<option value="" disabled selected>Seleccionar...</option>';
                 arr.forEach(x => { const opt = document.createElement('option'); opt.value = x; opt.textContent = x; s.appendChild(opt); }); 
             };
             fill("mov-vehiculo", VEHICULOS); 
-            fill("mov-empleado", EMPLEADOS);
+            // EMPLEADOS SE LLENA AHORA DINAMICAMENTE EN 'cargarConfigEmpleados'
         }
 
         // --- LOGICA BILLETES ---
@@ -663,18 +675,42 @@
             }
         }
 
-        // --- FUNCION NUEVA: VERIFICAR ADELANTOS SEMANALES ---
-        async function verificarAdelantosSemana() {
-            showLoading("Buscando adelantos de la semana...");
+        // --- LOGICA DE EMPLEADOS Y SUELDOS ---
+
+        async function cargarConfigEmpleados() {
+            // Trae los sueldos base desde el Backend
+            const res = await api("getConfigEmpleados");
+            const select = document.getElementById('mov-empleado');
             
-            // 1. Calcular fechas desde el Lunes hasta Hoy
+            if(res && res.ok && res.data) {
+                configEmpleadosGlobal = res.data; // Guardamos en memoria
+                
+                // Llenar select dinámicamente
+                select.innerHTML = '<option value="" disabled selected>Empleado</option>';
+                configEmpleadosGlobal.forEach(emp => {
+                    const opt = document.createElement('option');
+                    opt.value = emp.nombre;
+                    opt.textContent = emp.nombre;
+                    select.appendChild(opt);
+                });
+            } else {
+                // Fallback si falla la API
+                console.warn("No se pudo cargar config empleados. Usando lista backup.");
+                const BACKUP_EMPS = ["Nicolás", "Laura", "Ariel", "Martín", "Lucas", "Tomas"];
+                select.innerHTML = '<option value="" disabled selected>Empleado</option>';
+                BACKUP_EMPS.forEach(x => { const opt = document.createElement('option'); opt.value = x; opt.textContent = x; select.appendChild(opt); }); 
+            }
+        }
+
+        async function verificarAdelantosSemana() {
+            showLoading("Actualizando Info de Pagos...");
+            
             const hoy = new Date();
-            const diaSemana = hoy.getDay(); // 0 Dom, 1 Lun, ...
+            const diaSemana = hoy.getDay(); 
             const diffLunes = hoy.getDate() - diaSemana + (diaSemana == 0 ? -6 : 1);
             const lunes = new Date(hoy.setDate(diffLunes));
             
             const fechas = [];
-            // Recorremos desde el Lunes hasta hoy (o Viernes)
             for (let d = new Date(lunes); d <= new Date(); d.setDate(d.getDate() + 1)) {
                 const yyyy = d.getFullYear();
                 const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -682,23 +718,20 @@
                 fechas.push(`${yyyy}-${mm}-${dd}`);
             }
 
-            const deudas = {}; // { "Tomás": 30000, "Martín": 10000 }
+            deudasSemanalGlobal = {}; // Reiniciamos contador global
 
-            // 2. Consultar movimientos por día (Frontend Loop para no tocar backend)
             for (const f of fechas) {
                 const res = await api("getMovimientos", { fechaStr: f + "T12:00:00" });
                 if (res && res.length > 0) {
                     res.forEach(m => {
-                        // Filtramos solo Adelantos
                         if (m.categoria && m.categoria.includes("Adelanto de Sueldo")) {
-                            // Extraemos nombre entre corchetes [Nombre] de la observación
-                            // El formato estándar es "[Nombre] Adelanto..."
+                            // Búsqueda flexible del nombre en la observación
                             const match = m.observacion.match(/\[(.*?)\]/);
                             if (match && match[1]) {
-                                const nombre = match[1];
+                                const nombre = match[1].trim(); 
                                 const monto = parseInt(m.importe) || 0;
-                                if (!deudas[nombre]) deudas[nombre] = 0;
-                                deudas[nombre] += monto;
+                                if (!deudasSemanalGlobal[nombre]) deudasSemanalGlobal[nombre] = 0;
+                                deudasSemanalGlobal[nombre] += monto;
                             }
                         }
                     });
@@ -707,34 +740,54 @@
             
             hideLoading();
 
-            // 3. Mostrar Modal si hay deudas
-            const nombres = Object.keys(deudas);
+            const nombres = Object.keys(deudasSemanalGlobal);
             if (nombres.length > 0) {
-                let html = `
-                    <div style="background:#fff3e0; padding:10px; border-radius:8px; margin-bottom:10px; border-left:4px solid var(--accent); color:#d35400; font-size:0.9rem;">
-                        <b>⚠️ Atención Laura:</b> Recuerda descontar estos adelantos antes de pagar.
-                    </div>
-                    <table class="deuda-table">
-                        <tr><th>Empleado</th><th style="text-align:right;">Retiró</th></tr>
-                `;
-                
-                let totalGral = 0;
-                nombres.forEach(n => {
-                    html += `<tr><td>${n}</td><td class="deuda-amount">$ ${deudas[n].toLocaleString('es-AR')}</td></tr>`;
-                    totalGral += deudas[n];
-                });
-                
-                html += `
-                    <tr style="border-top:2px solid #ddd;">
-                        <td style="padding-top:10px;"><b>TOTAL</b></td>
-                        <td style="padding-top:10px; text-align:right; color:var(--text-main);"><b>$ ${totalGral.toLocaleString('es-AR')}</b></td>
-                    </tr>
-                    </table>
-                `;
-
-                showModal("Adelantos de la Semana", html, "warning", "var(--accent)", null);
+                // CAMBIO: No mostramos modal intrusivo, solo notificamos
+                showToast(`ℹ️ Info actualizada: ${nombres.length} empleados con adelantos.`, true);
             } else {
-                showToast("✅ No hay adelantos registrados esta semana.", true);
+                // showToast("✅ No hay adelantos registrados esta semana.", true);
+            }
+        }
+
+        // 🔥 FUNCION MAGICA QUE ACTUALIZA EL INPUT AL ELEGIR EMPLEADO
+        function calcularPagoHaberes() {
+            const cat = document.getElementById('mov-categoria').value;
+            if (cat !== "Pago de Haberes") return;
+
+            const nombreSel = document.getElementById('mov-empleado').value;
+            if (!nombreSel) return;
+
+            // 1. Buscar Sueldo Base
+            const empleadoConfig = configEmpleadosGlobal.find(e => e.nombre.toLowerCase() === nombreSel.toLowerCase());
+            const sueldoBase = empleadoConfig ? empleadoConfig.sueldoBase : 0;
+
+            // 2. Buscar Adelantos (Deudas)
+            // Intentamos buscar exacto o aproximado
+            let adelantos = 0;
+            const keys = Object.keys(deudasSemanalGlobal);
+            const keyMatch = keys.find(k => k.toLowerCase() === nombreSel.toLowerCase());
+            if (keyMatch) adelantos = deudasSemanalGlobal[keyMatch];
+
+            // 3. Calcular Neto
+            const neto = sueldoBase - adelantos;
+
+            // 4. Actualizar UI
+            const inputImporte = document.getElementById('mov-importe');
+            // CORRECCIÓN AQUÍ: Se usaba 'net' que no existía, ahora 'neto'
+            inputImporte.value = neto.toLocaleString('es-AR'); 
+            inputImporte.setAttribute('data-clean-value', neto); // Valor real para lógica
+
+            const inputObs = document.getElementById('mov-obs');
+            if (adelantos > 0) {
+                inputObs.value = `[${nombreSel}] Sueldo Base $${sueldoBase} - Adelantos $${adelantos}`;
+                showToast(`💰 Se descontaron $${adelantos} de adelantos`, true);
+            } else {
+                inputObs.value = `[${nombreSel}] Pago de Haberes Completo`;
+            }
+
+            // Feedback visual
+            if (sueldoBase === 0) {
+                showToast(`⚠️ No hay sueldo base configurado para ${nombreSel}`, false);
             }
         }
 
@@ -924,6 +977,11 @@
             const nroCheque = document.getElementById('mov-cheque-nro').value;
             
             if(!cat || imp<=0) { hideLoading(); btn.disabled=false; return showToast("Datos incompletos", false); }
+
+            // Si es adelanto de sueldo, forzar formato en observación para que el sistema lo detecte luego
+            if (cat === "Adelanto de Sueldo" && emp) {
+                obs = `[${emp}] Adelanto de Sueldo. ${obs}`;
+            }
 
             const res = await api("registrarMovimientoCaja", { 
                 tipo, formaPago: pago, importe: imp, categoria: cat, 
