@@ -12,23 +12,15 @@
     
     <style>
         /* =========================================
-           ESTILOS V9.7: CORRECCION SUELDOS
+           ESTILOS V10.1: PROVEEDORES & FIXES
            ========================================= */
         :root {
-            /* Paleta Base */
             --primary: #6C63FF;        
             --primary-dark: #4834d4;
             --accent: #FF6584;          
             --success: #00B894;        
             --text-main: #2D3436;
             --text-light: #636E72;
-            
-            /* Arqueo Palette (Vivid Duo-Tone) */
-            --arqueo-grad-1: #FF9A9E;
-            --arqueo-grad-2: #FECFEEF;
-            --arqueo-card-bg: rgba(255, 255, 255, 0.95);
-            
-            /* Glassmorphism */
             --glass-bg: rgba(255, 255, 255, 0.92); 
             --glass-border: rgba(255, 255, 255, 0.6);
         }
@@ -45,10 +37,11 @@
             min-height: 100vh;
         }
 
-        /* --- ANIMACIONES GENERALES --- */
+        /* --- ANIMACIONES --- */
         @keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
-        @keyframes pulse-soft { 0% { box-shadow: 0 0 0 0 rgba(108, 99, 255, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(108, 99, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(108, 99, 255, 0); } }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         /* --- FONDO ANIMADO --- */
         .background-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%); }
@@ -66,7 +59,47 @@
         #loading-overlay.active { display: flex; }
         .spinner { width: 50px; height: 50px; border: 5px solid #dfe6e9; border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
         .loading-text { font-weight: 800; color: var(--primary); font-size: 1.1rem; letter-spacing: 1px; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* --- MODAL BIENVENIDA (LAURA) --- */
+        #welcome-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+            z-index: 11000; display: none; justify-content: center; align-items: center;
+        }
+        .welcome-card {
+            background: white; width: 90%; max-width: 450px;
+            border-radius: 30px; padding: 30px 25px;
+            text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative; overflow: hidden;
+            border: 4px solid #fff;
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+        }
+        .welcome-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px;
+            background: linear-gradient(90deg, #FF9A9E, #FECFEF, #a29bfe);
+        }
+        .welcome-icon { font-size: 3rem; margin-bottom: 10px; animation: float 3s infinite ease-in-out; }
+        .welcome-title { font-size: 1.6rem; font-weight: 800; color: var(--primary); margin-bottom: 5px; }
+        .welcome-date { font-size: 0.9rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
+        .welcome-weather { 
+            display: inline-flex; align-items: center; gap: 8px; 
+            background: #f1f2f6; padding: 6px 15px; border-radius: 20px; 
+            font-size: 0.9rem; font-weight: 700; color: var(--text-main); margin-bottom: 20px;
+        }
+        .welcome-msg { 
+            font-size: 1rem; line-height: 1.6; color: #555; 
+            font-weight: 600; font-style: italic;
+            background: rgba(108, 99, 255, 0.05); padding: 15px; border-radius: 15px;
+            border-left: 4px solid var(--accent);
+        }
+        .welcome-close {
+            margin-top: 25px; background: var(--primary); color: white; border: none;
+            padding: 12px 30px; border-radius: 50px; font-weight: 800; font-size: 1rem;
+            cursor: pointer; box-shadow: 0 10px 20px rgba(108, 99, 255, 0.3);
+            transition: transform 0.2s;
+        }
+        .welcome-close:active { transform: scale(0.95); }
 
         /* --- HEADER --- */
         .app-header { 
@@ -85,15 +118,29 @@
             background: var(--glass-bg); border: 1px solid #fff; 
             border-radius: 24px; padding: 20px; margin: 15px; 
             box-shadow: 0 10px 30px rgba(0,0,0,0.06); 
-            position: relative; overflow: hidden;
+            position: relative; overflow: visible; /* Para que el dropdown se vea */
         }
         .section-title { font-size: 0.9rem; color: var(--text-light); font-weight: 800; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+
+        /* --- AUTOCOMPLETE PROVEEDORES --- */
+        #proveedor-wrapper { position: relative; width: 100%; display: none; }
+        .autocomplete-items {
+            position: absolute; border: 1px solid #d4d4d4; border-bottom: none; border-top: none; z-index: 99;
+            top: 100%; left: 0; right: 0; border-radius: 0 0 15px 15px; overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .autocomplete-items div {
+            padding: 12px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #d4d4d4;
+            font-weight: 600; color: #555; font-size: 0.95rem;
+        }
+        .autocomplete-items div:hover { background-color: #e9e9e9; color: var(--primary); }
+        .autocomplete-active { background-color: var(--primary) !important; color: #ffffff !important; }
 
         /* --- CAJA: BALANCE --- */
         .balance-card-container { padding: 0 15px; margin-top: 15px; }
         .balance-card {
             background: linear-gradient(135deg, #6C63FF 0%, #4834d4 100%);
-            border-radius: 28px; padding: 30px 20px; color: white;
+            border-radius: 28px; padding: 25px 20px; color: white;
             box-shadow: 0 15px 35px rgba(108, 99, 255, 0.35);
             text-align: center; position: relative; overflow: hidden;
         }
@@ -105,33 +152,34 @@
         @keyframes rotate { 100% { transform: rotate(360deg); } }
         
         .balance-label { position: relative; font-size: 0.85rem; font-weight: 600; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .balance-amount { position: relative; font-size: 3.2rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 4px 10px rgba(0,0,0,0.2); margin: 5px 0; }
-        .balance-status { position: relative; font-size: 0.75rem; background: rgba(0,0,0,0.2); padding: 5px 12px; border-radius: 20px; display: inline-block; backdrop-filter: blur(5px); }
-
-        /* --- ARQUEO: VIVID STYLE --- */
-        #screen-arqueo .card {
-            background: white; border: none;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.08);
-        }
+        .balance-amount { position: relative; font-size: 3rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 4px 10px rgba(0,0,0,0.2); margin: 0 0 10px 0; }
         
+        .balance-details {
+            position: relative; background: rgba(0,0,0,0.2); border-radius: 16px; padding: 10px;
+            display: flex; justify-content: space-around; backdrop-filter: blur(5px); margin-top: 5px;
+        }
+        .detail-item { display: flex; flex-direction: column; align-items: center; }
+        .detail-val { font-size: 1rem; font-weight: 700; }
+        .detail-lbl { font-size: 0.65rem; text-transform: uppercase; opacity: 0.8; }
+        .detail-divider { width: 1px; background: rgba(255,255,255,0.3); }
+        .balance-status { position: relative; font-size: 0.7rem; margin-top: 10px; opacity: 0.7; }
+
+        /* --- ARQUEO --- */
+        #screen-arqueo .card { background: white; border: none; box-shadow: 0 15px 40px rgba(0,0,0,0.08); }
         .arqueo-header-card {
             background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%);
-            border-radius: 24px; padding: 25px; margin: 15px;
-            text-align: center; color: #fff;
-            box-shadow: 0 10px 25px rgba(255, 154, 158, 0.4);
-            position: relative; overflow: hidden;
+            border-radius: 24px; padding: 25px; margin: 15px; text-align: center; color: #fff;
+            box-shadow: 0 10px 25px rgba(255, 154, 158, 0.4); position: relative; overflow: hidden;
         }
         .arqueo-header-card .label { font-size: 0.9rem; font-weight: 700; color: rgba(0,0,0,0.5); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
         .arqueo-header-card .value { font-size: 3rem; font-weight: 900; color: #D63031; text-shadow: 0 2px 0 rgba(255,255,255,0.5); font-family: 'Quicksand'; }
-        
         .arqueo-sistema-pill {
             background: rgba(255,255,255,0.5); padding: 8px 15px; border-radius: 12px;
             display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
-            font-size: 0.9rem; font-weight: 700; color: #555;
-            backdrop-filter: blur(5px);
+            font-size: 0.9rem; font-weight: 700; color: #555; backdrop-filter: blur(5px);
         }
 
-        /* --- BILLETES GRID --- */
+        /* --- BILLETES --- */
         .billetes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .billete-item { 
             background: #fff; border-radius: 18px; padding: 12px; text-align: center; 
@@ -141,8 +189,7 @@
         .billete-label { font-size: 1.1rem; color: #888; font-weight: 700; margin-bottom: 2px; }
         .billete-input { 
             width: 100%; border: none; text-align: center; font-size: 1.6rem; font-weight: 800; 
-            color: var(--text-main); outline: none; background: transparent; padding: 5px 0; 
-            font-family: 'Quicksand';
+            color: var(--text-main); outline: none; background: transparent; padding: 5px 0; font-family: 'Quicksand';
         }
         .billete-input::placeholder { color: #e0e0e0; }
 
@@ -157,18 +204,30 @@
             width: 100%; padding: 18px; border: none; border-radius: 18px; 
             font-size: 1.1rem; font-weight: 800; color: white; cursor: pointer; 
             background: linear-gradient(45deg, #6C63FF, #4834d4); 
-            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); 
-            transition: transform 0.2s, box-shadow 0.2s; 
+            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s, box-shadow 0.2s; 
             display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px;
         }
         .btn-main:active { transform: scale(0.97); }
         .btn-success { background: linear-gradient(45deg, #00b894, #00cec9); box-shadow: 0 8px 20px rgba(0, 184, 148, 0.3); }
-        
         .btn-arqueo-final {
             background: linear-gradient(45deg, #FF7675, #D63031);
-            box-shadow: 0 10px 25px rgba(214, 48, 49, 0.4);
-            animation: pulse-soft 2s infinite;
+            box-shadow: 0 10px 25px rgba(214, 48, 49, 0.4); animation: pulse-soft 2s infinite;
         }
+        @keyframes pulse-soft { 0% { box-shadow: 0 0 0 0 rgba(108, 99, 255, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(108, 99, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(108, 99, 255, 0); } }
+        
+        /* Boton IA */
+        .btn-ai {
+            width: auto; height: 54px; margin-top:0; padding: 0 20px; border-radius: 16px; 
+            background: white; color: var(--primary); border: 2px solid #eee; box-shadow: none; transition: all 0.2s;
+        }
+        @keyframes jbl-party {
+            0% { box-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000; border-color: #ff0000; transform: scale(1.05); }
+            25% { box-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00; border-color: #00ff00; transform: scale(0.95); }
+            50% { box-shadow: 0 0 10px #0000ff, 0 0 20px #0000ff; border-color: #0000ff; transform: scale(1.05); }
+            75% { box-shadow: 0 0 10px #ffff00, 0 0 20px #ffff00; border-color: #ffff00; transform: scale(0.95); }
+            100% { box-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff; border-color: #ff00ff; transform: scale(1.05); }
+        }
+        .jbl-active { animation: jbl-party 0.4s infinite linear !important; color: var(--text-main) !important; font-weight: 900 !important; }
 
         /* --- HISTORIAL --- */
         .mov-item { padding: 15px; background: white; border-radius: 16px; margin-bottom: 10px; border-bottom: 2px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
@@ -207,16 +266,8 @@
         .modal-actions { display: flex; gap: 10px; margin-top: 25px; }
         .btn-modal { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; }
         
-        /* CONFETTI (Simple CSS) */
         .confetti { position: fixed; width: 10px; height: 10px; background-color: #f00; animation: fall linear forwards; z-index: 9999; top: -10px; }
         @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
-
-        /* ESTILOS PARA LA TABLA DE DEUDAS */
-        .deuda-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .deuda-table th { text-align: left; color: var(--text-light); font-size: 0.8rem; padding-bottom: 5px; border-bottom: 1px solid #eee; }
-        .deuda-table td { padding: 8px 0; font-weight: 700; color: var(--text-main); border-bottom: 1px solid #f9f9f9; }
-        .deuda-amount { color: var(--accent); text-align: right; }
-
     </style>
 </head>
 <body>
@@ -232,7 +283,26 @@
         <div class="loading-text" id="loading-text">Cargando...</div>
     </div>
 
-    <!-- MODAL CUSTOM -->
+    <!-- BIENVENIDA LAURA MODAL -->
+    <div id="welcome-modal">
+        <div class="welcome-card">
+            <div class="welcome-icon">☀️</div>
+            <div class="welcome-title">¡Buenos días, Laura!</div>
+            <div class="welcome-date" id="welcome-date-text">Lunes 28</div>
+            <div class="welcome-weather" id="welcome-weather-box">
+                <span class="material-icons-round" style="font-size:18px;">cloud</span>
+                <span id="welcome-temp">Cargando clima...</span>
+            </div>
+            <div class="welcome-msg">
+                "Cuando manejes esta aplicación y el dinero, no podés estar apurada. 
+                Tiene que ser un trabajo minucioso, tranquilo y bien hecho. 
+                Hacelo con paciencia y amor. 💖"
+            </div>
+            <button class="welcome-close" onclick="closeWelcomeModal()">¡Entendido!</button>
+        </div>
+    </div>
+
+    <!-- MODAL CUSTOM GENERAL -->
     <div id="custom-modal" class="modal-overlay">
         <div class="modal-card">
             <span class="material-icons-round modal-icon" id="modal-icon" style="font-size: 60px; margin-bottom: 10px;">info</span>
@@ -256,9 +326,22 @@
         
         <div class="balance-card-container">
             <div class="balance-card" onclick="actualizarSaldoHeader()">
-                <div class="balance-label">Efectivo en Caja (Sistema)</div>
+                <div class="balance-label">Efectivo en Caja</div>
                 <div class="balance-amount" id="big-balance">...</div>
-                <div class="balance-status" id="last-update">Sincronizando...</div>
+                
+                <div class="balance-details">
+                    <div class="detail-item">
+                        <span class="detail-val" id="val-cheques">$ 0</span>
+                        <span class="detail-lbl">Cheques</span>
+                    </div>
+                    <div class="detail-divider"></div>
+                    <div class="detail-item">
+                        <span class="detail-val" id="val-total-real">$ 0</span>
+                        <span class="detail-lbl">Activo Total</span>
+                    </div>
+                </div>
+
+                <div class="balance-status" id="last-update">Conectando...</div>
             </div>
         </div>
 
@@ -281,9 +364,17 @@
                 <option value="" disabled selected>-- Motivo --</option>
             </select>
 
-            <!-- Campos Extra -->
+            <!-- Campos Extra con Autocomplete para Proveedor -->
             <div id="extra-fields-container" style="display:none; background:#f8f9fa; padding:15px; border-radius:16px; margin-bottom:15px; border:1px dashed #ddd;">
-                <input type="text" id="mov-proveedor" class="form-control" placeholder="🏢 Proveedor" style="display:none;">
+                
+                <!-- PROVEEDOR CON AUTOCOMPLETE -->
+                <div id="proveedor-wrapper" style="display:none;">
+                    <div style="position:relative;">
+                        <input type="text" id="mov-proveedor" class="form-control" placeholder="🏢 Buscar Proveedor..." autocomplete="off">
+                        <div id="proveedor-suggestions" class="autocomplete-items"></div>
+                    </div>
+                </div>
+
                 <select id="mov-vehiculo" class="form-control" style="display:none;">
                     <option value="" disabled selected>Vehículo</option>
                 </select>
@@ -300,7 +391,7 @@
             
             <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
                 <input type="text" id="mov-obs" class="form-control" placeholder="📝 Nota (opcional)" style="flex-grow: 1; margin-bottom:0;">
-                <button class="btn-main" style="width: auto; height: 54px; margin-top:0; padding: 0 20px; border-radius: 16px; background: white; color: var(--primary); border: 2px solid #eee; box-shadow: none;" onclick="generateAiObservation()" title="IA Mágica">
+                <button id="btn-ai-magic" class="btn-main btn-ai" onclick="generateAiObservation()" title="IA Mágica">
                     ✨
                 </button>
             </div>
@@ -325,25 +416,20 @@
 
     <!-- 2. PANTALLA RENDICIÓN -->
     <div id="screen-rendicion" class="screen">
-        
-        <!-- ZEN STATE -->
         <div id="zen-state-container" class="zen-state" style="display:none;">
             <div class="zen-icon">🧘</div>
             <div class="zen-title">Modo Zen Activado</div>
             <div class="zen-msg" id="zen-msg-text" style="color:var(--text-light);">No hay rendiciones pendientes.<br>Disfrutá del día.</div>
         </div>
-
         <div id="rendicion-content" style="display:none;">
             <div class="card" id="rendicion-loading-card" style="text-align:center; padding:40px;">
                 <div class="spinner" style="margin:0 auto 20px auto;"></div>
                 <div style="font-weight:700; color:var(--text-light);">Buscando planillas...</div>
             </div>
-            
             <div id="card-rendicion-data" class="card" style="display:none; border-top: 5px solid var(--primary);">
                 <div style="background:#f0f2ff; padding:15px; border-radius:12px; border-left:4px solid var(--primary); margin-bottom:20px; font-size:0.95rem; line-height:1.5; color:var(--text-main);">
                     <span id="rendicion-narrativa"></span>
                 </div>
-
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <div style="text-align:left;">
                         <div style="font-size:0.75rem; font-weight:700; color:#aaa; text-transform:uppercase;">Esperado</div>
@@ -354,22 +440,17 @@
                         <div id="rendicion-contado-display" data-numeric="0" style="font-size:1.5rem; font-weight:800; color:var(--text-main);">$ 0</div>
                     </div>
                 </div>
-
                 <div id="rendicion-diferencia-container" style="margin-top:15px;"></div>
-                
                 <button class="btn-main btn-success" id="btn-rendicion" onclick="intentarRendicion()" style="margin-top:20px;">
                     <span class="material-icons-round">check_circle</span> CONFIRMAR
                 </button>
             </div>
-
             <div class="card" id="card-billetes-rendicion" style="display:none;">
                 <div class="section-title" style="justify-content:space-between;">
                     <span><span class="material-icons-round" style="color:var(--success);">payments</span> Billetes</span>
                     <span style="color:var(--accent); cursor:pointer; font-size:0.8rem;" onclick="limpiarBilletes('rend')">Borrar</span>
                 </div>
-                <!-- Billetes Grid -->
                 <div class="billetes-grid">
-                    <!-- Generados dinámicamente o estáticos -->
                     <div class="billete-item"><div class="billete-label">$ 20.000</div><input type="number" class="billete-input" data-val="20000" oninput="calcBilletes('rend')" placeholder="0"></div>
                     <div class="billete-item"><div class="billete-label">$ 10.000</div><input type="number" class="billete-input" data-val="10000" oninput="calcBilletes('rend')" placeholder="0"></div>
                     <div class="billete-item"><div class="billete-label">$ 5.000</div><input type="number" class="billete-input" data-val="5000" oninput="calcBilletes('rend')" placeholder="0"></div>
@@ -385,26 +466,21 @@
         </div>
     </div>
 
-    <!-- 3. PANTALLA ARQUEO (FUN & VIVID) -->
+    <!-- 3. PANTALLA ARQUEO -->
     <div id="screen-arqueo" class="screen">
-        
-        <!-- Header Vivo Arqueo -->
         <div class="arqueo-header-card">
             <div class="label" style="color:rgba(255,255,255,0.8);">Total Físico en Caja</div>
             <div id="arqueo-total-display" style="font-size:3.5rem; font-weight:900; margin:5px 0; text-shadow:0 5px 15px rgba(0,0,0,0.2);">$ 0</div>
-            
             <div class="arqueo-sistema-pill">
                 <span class="material-icons-round" style="font-size:16px;">dns</span>
                 Sistema: <span id="arqueo-sistema">...</span>
             </div>
         </div>
-        
         <div class="card">
             <div class="section-title" style="justify-content:space-between;">
                 <span><span class="material-icons-round" style="color:#e17055;">savings</span> Conteo</span>
                 <span style="color:var(--accent); cursor:pointer; font-size:0.8rem;" onclick="limpiarBilletes('arq')">Reiniciar</span>
             </div>
-            
             <div class="billetes-grid">
                 <div class="billete-item"><div class="billete-label">$ 20.000</div><input type="number" class="billete-input" data-val="20000" oninput="calcBilletes('arq')" placeholder="0"></div>
                 <div class="billete-item"><div class="billete-label">$ 10.000</div><input type="number" class="billete-input" data-val="10000" oninput="calcBilletes('arq')" placeholder="0"></div>
@@ -417,9 +493,7 @@
                 <div class="billete-item"><div class="billete-label">$ 50</div><input type="number" class="billete-input" data-val="50" oninput="calcBilletes('arq')" placeholder="0"></div>
                 <div class="billete-item"><div class="billete-label">$ 20</div><input type="number" class="billete-input" data-val="20" oninput="calcBilletes('arq')" placeholder="0"></div>
             </div>
-
             <input type="hidden" id="arqueo-fisico">
-
             <div style="margin-top:30px;">
                 <button class="btn-main btn-arqueo-final" id="btn-arqueo" onclick="intentarArqueo()">
                     <span class="material-icons-round">lock</span> CERRAR CAJA
@@ -448,27 +522,26 @@
         // --- CONFIG API ---
         const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
         const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
-        const API_KEY = ""; // ⚠️ RECORDATORIO: INYECTAR KEY SI ES NECESARIO
+        const API_KEY = ""; // ⚠️ INYECTAR SI ES NECESARIO
         const USUARIO_APP = "Laura";
         
-        // 🚨 PARAMETROS DE RENDICIÓN
         const RENDICION_REPARTIDOR = 'Nico'; 
         const RENDICION_TURNO_DEFECTO = 'Mañana';
         
         let saldoSistema = 0;
         let rendicionPendiente = null; 
+        let configEmpleadosGlobal = [];
+        let deudasSemanalGlobal = {};
 
-        // Listas
+        // LISTAS DE CONFIGURACIÓN
         const CATEGORIAS_EGRESO = [ "Pago a Proveedor", "Combustible", "Adelanto de Sueldo", "Pago de Haberes", "Gastos de Limpieza", "Gastos de Mantenimiento (Vehiculos)", "Retiro de Efectivo (Pablo)", "Gastos de Jardineria", "Movimiento Libre (Varios)" ];
         const CATEGORIAS_INGRESO = ["Venta Local", "Ingreso Varios", "Aporte de Capital"];
         const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
-        //const EMPLEADOS = ["Nicolás", "Laura", "Ariel", "Martín", "Lucas", "Tomas"]; // YA NO SE USA HARDCODED
         
-        // --- ESTADO GLOBAL (NUEVO) ---
-        let configEmpleadosGlobal = []; // Para sueldos base
-        let deudasSemanalGlobal = {};   // Para adelantos calculados
+        // --- LISTA DE PROVEEDORES (NUEVA) ---
+        const PROVEEDORES = ["Marwiplast", "Bio Bag", "Broche plastico", "Bumerang", "Carol", "Colores", "Coolbazar", "Cotton", "Da Silva", "Desesplast", "Diawara", "Emege", "Entresol", "Fedata", "Fibran", "Flexal", "Hechicera", "Infinity import", "K&K", "La Americana", "La gauchita", "Macetex", "Make Fresh", "Matriplaster", "Mis Plast", "Modoplast", "Molmar", "POP", "Rigolleau", "Romyl", "Samantha", "Santamaria", "Sasha", "Soifer", "lumilagro", "Make", "Suka", "Supy", "Tauro", "Tecnomatric", "Yesi", "Durax", "Javi"].sort();
 
-        // MONITOR ANTI-FRAUDE
+        // MONITOR SEGURIDAD
         class SuspicionTracker {
             constructor() { this.reset(); }
             reset() { this.data = { startTime: Date.now(), edits: 0, deletes: 0, submitAttempts: 0, valuesTried: [] }; }
@@ -482,20 +555,19 @@
         document.addEventListener("DOMContentLoaded", () => {
             initApp();
             
-            // Listeners existentes
+            // Listeners Generales
             document.getElementById('mov-categoria').addEventListener('change', (e) => {
                 checkCamposExtra();
-                if(e.target.value === "Pago de Haberes") {
-                    verificarAdelantosSemana(); // Se ejecuta silenciosamente
-                }
+                if(e.target.value === "Pago de Haberes") verificarAdelantosSemana();
             });
             document.getElementById('mov-tipo').addEventListener('change', actualizarCategorias);
             document.getElementById('mov-pago').addEventListener('change', checkChequeFields);
-            
-            // 🔥 NUEVO LISTENER: CALCULAR SUELDO AL ELEGIR EMPLEADO
             document.getElementById('mov-empleado').addEventListener('change', calcularPagoHaberes);
 
             initSelects(); 
+            
+            // 🔥 NUEVO: CHECK BIENVENIDA DIARIA
+            checkWelcomeMessage();
         });
 
         function initApp() {
@@ -504,50 +576,80 @@
             cargarMovimientos();
             actualizarSaldoHeader(); 
             buscarRendicionPendiente();
-            cargarConfigEmpleados(); // <-- NUEVO: Cargar sueldos base al iniciar
+            cargarConfigEmpleados();
         }
 
-        // --- HELPERS UI ---
-        function showLoading(msg) {
-            document.getElementById('loading-text').innerText = msg;
-            document.getElementById('loading-overlay').classList.add('active');
+        // --- WELCOME LAURA LOGIC ---
+        function checkWelcomeMessage() {
+            const lastSeen = localStorage.getItem('lastWelcomeDate');
+            const todayStr = new Date().toDateString(); 
+            if (lastSeen !== todayStr) {
+                showWelcomeModal();
+                localStorage.setItem('lastWelcomeDate', todayStr);
+            }
         }
+        function showWelcomeModal() {
+            const modal = document.getElementById('welcome-modal');
+            const dateEl = document.getElementById('welcome-date-text');
+            const tempEl = document.getElementById('welcome-temp');
+            const opts = { weekday: 'long', day: 'numeric', month: 'long' };
+            const fechaBonita = new Date().toLocaleDateString('es-ES', opts);
+            dateEl.textContent = fechaBonita.charAt(0).toUpperCase() + fechaBonita.slice(1);
+            modal.style.display = 'flex';
+            getWeatherForLaura(tempEl);
+            setTimeout(() => { if(modal.style.display === 'flex') closeWelcomeModal(); }, 7000);
+        }
+        function closeWelcomeModal() {
+            const modal = document.getElementById('welcome-modal');
+            const card = modal.querySelector('.welcome-card');
+            card.style.transform = 'scale(0.9)'; card.style.opacity = '0'; modal.style.opacity = '0'; modal.style.transition = 'all 0.4s';
+            setTimeout(() => { modal.style.display = 'none'; card.style.transform = ''; card.style.opacity = ''; modal.style.opacity = ''; }, 400);
+        }
+        async function getWeatherForLaura(element) {
+            try {
+                const url = "https://api.open-meteo.com/v1/forecast?latitude=-34.61&longitude=-58.38&current_weather=true";
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data && data.current_weather) {
+                    const temp = Math.round(data.current_weather.temperature);
+                    const code = data.current_weather.weathercode;
+                    let icon = "wb_sunny"; let desc = "Soleado";
+                    if(code > 3) { icon = "cloud"; desc = "Nublado"; }
+                    if(code > 50) { icon = "umbrella"; desc = "Lluvioso"; }
+                    if(code > 90) { icon = "thunderstorm"; desc = "Tormenta"; }
+                    document.getElementById('welcome-weather-box').innerHTML = `<span class="material-icons-round" style="font-size:18px; color:var(--primary);">${icon}</span><span>${temp}°C ${desc}</span>`;
+                }
+            } catch (e) { element.textContent = "Clima agradable"; }
+        }
+
+        // --- UI HELPERS ---
+        function showLoading(msg) { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.add('active'); }
         function hideLoading() { document.getElementById('loading-overlay').classList.remove('active'); }
-
         function showToast(msg, isSuccess) {
             const container = document.getElementById("toast-container");
             const div = document.createElement("div");
             div.className = "toast-msg";
-            
             let icon = "info";
             if(isSuccess) { icon = "check_circle"; div.style.borderLeft = "4px solid var(--success)"; }
             else { icon = "error_outline"; div.style.borderLeft = "4px solid var(--accent)"; }
-            
             div.innerHTML = `<span class="material-icons-round" style="color:${isSuccess?'var(--success)':'var(--accent)'}">${icon}</span> <span>${msg}</span>`;
             container.appendChild(div);
-            
             setTimeout(() => { div.style.opacity = '0'; setTimeout(() => div.remove(), 300); }, 3500);
         }
-
         function showModal(title, msg, icon, color, onConfirm) {
             const m = document.getElementById('custom-modal');
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-msg').innerHTML = msg;
             document.getElementById('modal-icon').innerText = icon;
             document.getElementById('modal-icon').style.color = color;
-            
             const btnConfirm = document.getElementById('btn-modal-confirm');
             btnConfirm.style.background = color;
-            
-            // Reemplazo el clon para limpiar eventos anteriores
             const newBtn = btnConfirm.cloneNode(true);
             btnConfirm.parentNode.replaceChild(newBtn, btnConfirm);
-            
             newBtn.onclick = () => { closeModal(); if(onConfirm) onConfirm(); };
             m.style.display = 'flex';
         }
         function closeModal() { document.getElementById('custom-modal').style.display = 'none'; }
-
         function setFechaHoy(reload = true) {
             const d = new Date();
             const yyyy = d.getFullYear();
@@ -556,25 +658,152 @@
             document.getElementById('fecha-historial').value = `${yyyy}-${mm}-${dd}`;
             if(reload) cargarMovimientos();
         }
-
-        // --- NAVEGACION ---
         window.showScreen = (id, el) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-' + id).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             if(el) el.classList.add('active');
-            
-            if (id === 'arqueo') {
-                monitor.reset(); 
-                actualizarSaldoHeader(); 
-                calcBilletes('arq'); 
-            } else if (id === 'rendicion') {
-                monitor.reset();
-                buscarRendicionPendiente();
-            }
+            if (id === 'arqueo') { monitor.reset(); actualizarSaldoHeader(); calcBilletes('arq'); } 
+            else if (id === 'rendicion') { monitor.reset(); buscarRendicionPendiente(); }
         };
 
-        // --- CORE FUNCTIONALITY ---
+        // --- API ---
+        async function api(fn, params = {}) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ fn, params })
+                });
+                return await response.json();
+            } catch (error) {
+                console.error("API Error", error);
+                return { ok: false, error: "Error de conexión" };
+            }
+        }
+
+        // --- 🔥 SALDO HEADER ROBUSTO FIX 🔥 ---
+        async function actualizarSaldoHeader() {
+            const el = document.getElementById('big-balance');
+            const sysEl = document.getElementById('arqueo-sistema');
+            const elCheques = document.getElementById('val-cheques');
+            const elTotalReal = document.getElementById('val-total-real');
+            const statusEl = document.getElementById('last-update');
+            
+            // No cambiamos a "Sincronizando..." si ya tenemos un valor, para evitar parpadeo
+            if(el.innerText === "...") statusEl.innerText = "Sincronizando...";
+            
+            try {
+                const res = await api("getEstadoCaja");
+                // Aceptamos res.efectivo o res.total para máxima compatibilidad
+                if (res && (typeof res.efectivo !== 'undefined' || typeof res.total !== 'undefined')) {
+                    
+                    saldoSistema = parseInt(res.efectivo || res.total || 0);
+                    const efectivoVal = saldoSistema;
+                    const chequesVal = res.cheques ? parseInt(res.cheques) : 0; 
+                    
+                    el.innerText = "$ " + efectivoVal.toLocaleString('es-AR');
+                    sysEl.innerText = "$ " + efectivoVal.toLocaleString('es-AR');
+                    elCheques.innerText = "$ " + chequesVal.toLocaleString('es-AR');
+                    elTotalReal.innerText = "$ " + (efectivoVal + chequesVal).toLocaleString('es-AR');
+                    
+                    statusEl.innerText = 'Actualizado ' + new Date().toLocaleTimeString().slice(0,5);
+                    statusEl.style.color = 'var(--text-light)';
+                } else {
+                    throw new Error("Datos inválidos");
+                }
+            } catch (err) {
+                console.warn("Fallo silencioso al traer saldo:", err);
+                // Si falla, mostramos mensaje sutil pero MANTENEMOS los valores si ya existían
+                if(el.innerText === "...") {
+                    el.innerText = "$ ---"; 
+                    sysEl.innerText = "$ ---";
+                }
+                statusEl.innerText = "Reintentando...";
+                statusEl.style.color = "var(--accent)";
+            }
+        }
+
+        // --- MOVIMIENTOS ---
+        async function cargarMovimientos() {
+            const fechaStr = document.getElementById('fecha-historial').value; 
+            const lista = document.getElementById('lista-movimientos');
+            lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Cargando...</li>';
+            
+            const res = await api("getMovimientos", { fechaStr: fechaStr + "T12:00:00" });
+            lista.innerHTML = "";
+            let chequesDelDia = 0; 
+
+            if (!res || res.length === 0) return lista.innerHTML = `<li style="text-align:center; padding:20px; color:#aaa;">Sin movimientos 🦗</li>`;
+            
+            res.forEach(m => {
+                const color = m.tipo === 'Ingreso' ? 'amount-in' : 'amount-out';
+                const obs = m.observacion ? `<span class="mov-sub" style="font-style:italic;">${m.observacion}</span>` : "";
+                if (m.formaPago === 'Cheque' && m.tipo === 'Ingreso') chequesDelDia += parseInt(m.importe);
+
+                lista.innerHTML += `
+                    <li class="mov-item">
+                        <div class="mov-info">
+                            <span class="mov-title">${m.categoria}</span>
+                            <span class="mov-sub">${m.hora} • ${m.formaPago}</span>
+                            ${obs}
+                        </div>
+                        <div class="${color}">${m.tipo==='Ingreso'?'+':'-'} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
+                    </li>`;
+            });
+            
+            const fechaInput = document.getElementById('fecha-historial').value;
+            const hoyInput = new Date().toISOString().split('T')[0];
+            if (fechaInput === hoyInput) {
+                const elCheques = document.getElementById('val-cheques');
+                if(elCheques && elCheques.innerText === "$ 0" && chequesDelDia > 0) {
+                     elCheques.innerText = "$ " + chequesDelDia.toLocaleString('es-AR');
+                }
+            }
+        }
+
+        async function registrarMovimiento() {
+            const btn = document.getElementById('btn-registrar');
+            btn.disabled = true; showLoading("Registrando...");
+            
+            const tipo = document.getElementById('mov-tipo').value;
+            const pago = document.getElementById('mov-pago').value;
+            const cat = document.getElementById('mov-categoria').value;
+            const imp = parseInt(document.getElementById('mov-importe').getAttribute('data-clean-value')) || 0;
+            let obs = document.getElementById('mov-obs').value;
+
+            const prov = document.getElementById('mov-proveedor').value;
+            const veh = document.getElementById('mov-vehiculo').value;
+            const emp = document.getElementById('mov-empleado').value;
+            const banco = document.getElementById('mov-banco').value;
+            const nroCheque = document.getElementById('mov-cheque-nro').value;
+            
+            if(!cat || imp<=0) { hideLoading(); btn.disabled=false; return showToast("Datos incompletos", false); }
+
+            if (cat === "Adelanto de Sueldo" && emp) obs = `[${emp}] Adelanto de Sueldo. ${obs}`;
+
+            const res = await api("registrarMovimientoCaja", { 
+                tipo, formaPago: pago, importe: imp, categoria: cat, 
+                usuario: USUARIO_APP, observacion: obs, 
+                proveedor: prov, vehiculo: veh, empleado: emp, 
+                banco: banco, nroCheque: nroCheque 
+            });
+            hideLoading(); btn.disabled = false;
+            
+            if(res && res.ok) {
+                showToast("Guardado", true);
+                if (cat === "Pago de Haberes" || cat.includes("Sueldo")) {
+                    document.getElementById('mov-importe').value = ""; document.getElementById('mov-importe').setAttribute('data-clean-value', '0'); document.getElementById('mov-obs').value = ""; document.getElementById('mov-empleado').value = "";
+                } else {
+                    document.getElementById('mov-importe').value = ""; document.getElementById('mov-importe').setAttribute('data-clean-value', '0'); document.getElementById('mov-obs').value = ""; document.getElementById('mov-categoria').value = ""; document.getElementById('mov-proveedor').value = "";
+                    checkCamposExtra();
+                }
+                actualizarSaldoHeader();
+                cargarMovimientos();
+            } else { showToast("Error al guardar", false); }
+        }
+
+        // --- AUXILIARES ---
         function actualizarCategorias() {
             const tipo = document.getElementById('mov-tipo').value;
             const select = document.getElementById('mov-categoria');
@@ -596,30 +825,23 @@
             const showEmp = cat && (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto"));
             const chequeVisible = document.getElementById('mov-pago').value === 'Cheque';
 
-            document.getElementById('mov-proveedor').style.display = showProv ? 'block' : 'none';
+            document.getElementById('proveedor-wrapper').style.display = showProv ? 'block' : 'none';
             document.getElementById('mov-vehiculo').style.display = showVeh ? 'block' : 'none';
             document.getElementById('mov-empleado').style.display = showEmp ? 'block' : 'none';
+            document.getElementById('cheque-fields').style.display = chequeVisible ? 'block' : 'none';
             
             if(showProv || showVeh || showEmp || chequeVisible) extraContainer.style.display = 'block';
             else extraContainer.style.display = 'none';
         }
-
-        function checkChequeFields() {
-            const pago = document.getElementById('mov-pago').value;
-            const div = document.getElementById('cheque-fields');
-            div.style.display = pago === 'Cheque' ? 'block' : 'none';
-            checkCamposExtra();
-        }
+        function checkChequeFields() { checkCamposExtra(); }
 
         function formatearImporte(input) {
             let valor = input.value.replace(/[^0-9]/g, ""); 
-            if (valor) {
-                valor = parseInt(valor).toLocaleString('es-AR');
-                input.value = valor;
-            } else { input.value = ""; }
+            if (valor) { valor = parseInt(valor).toLocaleString('es-AR'); input.value = valor; } else { input.value = ""; }
             input.setAttribute('data-clean-value', parseInt(input.value.replace(/\./g, '')) || 0);
         }
 
+        // 🔥 LÓGICA DE AUTOCOMPLETE Y SELECTS 🔥
         function initSelects() {
             const fill = (id, arr) => { 
                 const s = document.getElementById(id); 
@@ -627,390 +849,179 @@
                 arr.forEach(x => { const opt = document.createElement('option'); opt.value = x; opt.textContent = x; s.appendChild(opt); }); 
             };
             fill("mov-vehiculo", VEHICULOS); 
-            // EMPLEADOS SE LLENA AHORA DINAMICAMENTE EN 'cargarConfigEmpleados'
-        }
 
-        // --- LOGICA BILLETES ---
-        window.calcBilletes = (tipo) => {
-            const inputs = document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`);
-            let total = 0;
-            inputs.forEach(inp => {
-                const val = parseInt(inp.value) || 0;
-                const denom = parseInt(inp.getAttribute('data-val'));
-                total += val * denom;
-            });
-            const totalFmt = "$ " + total.toLocaleString('es-AR');
-            
-            if (tipo === 'rend') {
-                const el = document.getElementById('rendicion-contado-display');
-                el.textContent = totalFmt;
-                el.setAttribute('data-numeric', total);
-                actualizarDiferenciaRendicion(total);
-                monitor.logEdit(total);
-            } else {
-                document.getElementById('arqueo-total-display').textContent = totalFmt;
-                document.getElementById('arqueo-fisico').value = total;
-                monitor.logEdit(total);
-            }
-        };
+            // Autocomplete Proveedor
+            const inp = document.getElementById("mov-proveedor");
+            const box = document.getElementById("proveedor-suggestions");
 
-        window.limpiarBilletes = (tipo) => {
-            document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`).forEach(i => i.value = '');
-            calcBilletes(tipo);
-            monitor.logDelete();
-        }
-
-        // --- API & BACKEND ---
-        async function api(fn, params = {}) {
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ fn, params })
+            inp.addEventListener("input", function() {
+                const val = this.value.toLowerCase();
+                box.innerHTML = "";
+                if(val.length < 1) return;
+                
+                const matches = PROVEEDORES.filter(p => p.toLowerCase().includes(val));
+                matches.forEach(p => {
+                    const div = document.createElement("div");
+                    div.innerText = p;
+                    div.onclick = () => { inp.value = p; box.innerHTML = ""; };
+                    box.appendChild(div);
                 });
-                return await response.json();
-            } catch (error) {
-                console.error("API Error", error);
-                return { ok: false, error: "Error de conexión" };
-            }
+            });
+            
+            // Cerrar lista si hago click fuera
+            document.addEventListener("click", (e) => {
+                if(e.target !== inp) box.innerHTML = "";
+            });
         }
-
-        // --- LOGICA DE EMPLEADOS Y SUELDOS ---
 
         async function cargarConfigEmpleados() {
-            // Trae los sueldos base desde el Backend
             const res = await api("getConfigEmpleados");
             const select = document.getElementById('mov-empleado');
-            
             if(res && res.ok && res.data) {
-                configEmpleadosGlobal = res.data; // Guardamos en memoria
-                
-                // Llenar select dinámicamente
+                configEmpleadosGlobal = res.data;
                 select.innerHTML = '<option value="" disabled selected>Empleado</option>';
                 configEmpleadosGlobal.forEach(emp => {
-                    const opt = document.createElement('option');
-                    opt.value = emp.nombre;
-                    opt.textContent = emp.nombre;
-                    select.appendChild(opt);
+                    const opt = document.createElement('option'); opt.value = emp.nombre; opt.textContent = emp.nombre; select.appendChild(opt);
                 });
             } else {
-                // Fallback si falla la API
-                console.warn("No se pudo cargar config empleados. Usando lista backup.");
                 const BACKUP_EMPS = ["Nicolás", "Laura", "Ariel", "Martín", "Lucas", "Tomas"];
                 select.innerHTML = '<option value="" disabled selected>Empleado</option>';
                 BACKUP_EMPS.forEach(x => { const opt = document.createElement('option'); opt.value = x; opt.textContent = x; select.appendChild(opt); }); 
             }
         }
 
+        // --- CALCULOS SUELDOS ---
         async function verificarAdelantosSemana() {
-            showLoading("Actualizando Info de Pagos...");
-            
+            showLoading("Verificando Pagos...");
             const hoy = new Date();
             const diaSemana = hoy.getDay(); 
             const diffLunes = hoy.getDate() - diaSemana + (diaSemana == 0 ? -6 : 1);
             const lunes = new Date(hoy.setDate(diffLunes));
-            
             const fechas = [];
-            for (let d = new Date(lunes); d <= new Date(); d.setDate(d.getDate() + 1)) {
-                const yyyy = d.getFullYear();
-                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                const dd = String(d.getDate()).padStart(2, '0');
-                fechas.push(`${yyyy}-${mm}-${dd}`);
-            }
-
-            deudasSemanalGlobal = {}; // Reiniciamos contador global
-
+            for (let d = new Date(lunes); d <= new Date(); d.setDate(d.getDate() + 1)) fechas.push(d.toISOString().split('T')[0]);
+            deudasSemanalGlobal = {}; 
             for (const f of fechas) {
                 const res = await api("getMovimientos", { fechaStr: f + "T12:00:00" });
                 if (res && res.length > 0) {
                     res.forEach(m => {
                         if (m.categoria && m.categoria.includes("Adelanto de Sueldo")) {
-                            // Búsqueda flexible del nombre en la observación
                             const match = m.observacion.match(/\[(.*?)\]/);
                             if (match && match[1]) {
-                                const nombre = match[1].trim(); 
-                                const monto = parseInt(m.importe) || 0;
-                                if (!deudasSemanalGlobal[nombre]) deudasSemanalGlobal[nombre] = 0;
-                                deudasSemanalGlobal[nombre] += monto;
+                                const nombre = match[1].trim(); const monto = parseInt(m.importe) || 0;
+                                if (!deudasSemanalGlobal[nombre]) deudasSemanalGlobal[nombre] = 0; deudasSemanalGlobal[nombre] += monto;
                             }
                         }
                     });
                 }
             }
-            
             hideLoading();
-
             const nombres = Object.keys(deudasSemanalGlobal);
-            if (nombres.length > 0) {
-                // CAMBIO: No mostramos modal intrusivo, solo notificamos
-                showToast(`ℹ️ Info actualizada: ${nombres.length} empleados con adelantos.`, true);
-            } else {
-                // showToast("✅ No hay adelantos registrados esta semana.", true);
-            }
+            if (nombres.length > 0) showToast(`ℹ️ ${nombres.length} empleados con adelantos.`, true);
         }
-
-        // 🔥 FUNCION MAGICA QUE ACTUALIZA EL INPUT AL ELEGIR EMPLEADO
         function calcularPagoHaberes() {
             const cat = document.getElementById('mov-categoria').value;
             if (cat !== "Pago de Haberes") return;
-
             const nombreSel = document.getElementById('mov-empleado').value;
             if (!nombreSel) return;
-
-            // 1. Buscar Sueldo Base
             const empleadoConfig = configEmpleadosGlobal.find(e => e.nombre.toLowerCase() === nombreSel.toLowerCase());
             const sueldoBase = empleadoConfig ? empleadoConfig.sueldoBase : 0;
-
-            // 2. Buscar Adelantos (Deudas)
-            // Intentamos buscar exacto o aproximado
             let adelantos = 0;
             const keys = Object.keys(deudasSemanalGlobal);
             const keyMatch = keys.find(k => k.toLowerCase() === nombreSel.toLowerCase());
             if (keyMatch) adelantos = deudasSemanalGlobal[keyMatch];
-
-            // 3. Calcular Neto
             const neto = sueldoBase - adelantos;
-
-            // 4. Actualizar UI
             const inputImporte = document.getElementById('mov-importe');
-            // CORRECCIÓN AQUÍ: Se usaba 'net' que no existía, ahora 'neto'
-            inputImporte.value = neto.toLocaleString('es-AR'); 
-            inputImporte.setAttribute('data-clean-value', neto); // Valor real para lógica
-
+            inputImporte.value = neto.toLocaleString('es-AR'); inputImporte.setAttribute('data-clean-value', neto);
             const inputObs = document.getElementById('mov-obs');
-            if (adelantos > 0) {
-                inputObs.value = `[${nombreSel}] Sueldo Base $${sueldoBase} - Adelantos $${adelantos}`;
-                showToast(`💰 Se descontaron $${adelantos} de adelantos`, true);
+            if (adelantos > 0) { inputObs.value = `[${nombreSel}] Sueldo Base $${sueldoBase} - Adelantos $${adelantos}`; showToast(`💰 Se descontaron $${adelantos}`, true); }
+            else { inputObs.value = `[${nombreSel}] Pago de Haberes Completo`; }
+        }
+
+        // --- IA MAGICA ---
+        async function generateAiObservation() {
+            const btn = document.getElementById('btn-ai-magic');
+            const obsInput = document.getElementById('mov-obs');
+            btn.classList.add('jbl-active');
+            const tipo = document.getElementById('mov-tipo').value;
+            const categoria = document.getElementById('mov-categoria').value;
+            const importe = document.getElementById('mov-importe').value;
+            const extra = document.getElementById('mov-empleado').value || document.getElementById('mov-proveedor').value;
+            if (!categoria) { showToast("Seleccioná un motivo", false); btn.classList.remove('jbl-active'); return; }
+            const prompt = `Genera una observación muy corta (max 8 palabras), natural, para caja. Datos: ${tipo}, ${categoria}, ${importe}, ${extra||''}. Ej: "Pago semanal a Martín", "Compra de lavandina". Solo texto.`;
+            try {
+                const response = await fetch(`${GEMINI_API_URL}${API_KEY}`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await response.json();
+                obsInput.value = data.candidates[0].content.parts[0].text.trim();
+            } catch (error) { obsInput.value = categoria; } finally { btn.classList.remove('jbl-active'); }
+        }
+
+        // --- ARQUEO & RENDICION ---
+        window.calcBilletes = (tipo) => {
+            const inputs = document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`);
+            let total = 0;
+            inputs.forEach(inp => { total += (parseInt(inp.value) || 0) * parseInt(inp.getAttribute('data-val')); });
+            const totalFmt = "$ " + total.toLocaleString('es-AR');
+            if (tipo === 'rend') {
+                const el = document.getElementById('rendicion-contado-display'); el.textContent = totalFmt; el.setAttribute('data-numeric', total); actualizarDiferenciaRendicion(total); monitor.logEdit(total);
             } else {
-                inputObs.value = `[${nombreSel}] Pago de Haberes Completo`;
+                document.getElementById('arqueo-total-display').textContent = totalFmt; document.getElementById('arqueo-fisico').value = total; monitor.logEdit(total);
             }
-
-            // Feedback visual
-            if (sueldoBase === 0) {
-                showToast(`⚠️ No hay sueldo base configurado para ${nombreSel}`, false);
-            }
-        }
-
-        // --- LÓGICA DE RENDICIÓN ---
-        function parseFechaLocal(fechaStr) {
-            if(!fechaStr) return new Date();
-            const parts = fechaStr.split('-'); 
-            if(parts.length === 3) {
-                return new Date(parts[0], parts[1]-1, parts[2]);
-            }
-            return new Date(fechaStr);
-        }
+        };
+        window.limpiarBilletes = (tipo) => { document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`).forEach(i => i.value = ''); calcBilletes(tipo); monitor.logDelete(); }
 
         async function buscarRendicionPendiente() {
-            const zenState = document.getElementById('zen-state-container');
-            const content = document.getElementById('rendicion-content');
-            const loadingCard = document.getElementById('rendicion-loading-card');
-            const dataCard = document.getElementById('card-rendicion-data');
-            
-            zenState.style.display = 'none';
-            content.style.display = 'block';
-            loadingCard.style.display = 'block';
-            dataCard.style.display = 'none';
-            document.getElementById('card-billetes-rendicion').style.display = 'none';
+            const zen = document.getElementById('zen-state-container'); const content = document.getElementById('rendicion-content'); const load = document.getElementById('rendicion-loading-card'); const dataCard = document.getElementById('card-rendicion-data');
+            zen.style.display = 'none'; content.style.display = 'block'; load.style.display = 'block'; dataCard.style.display = 'none'; document.getElementById('card-billetes-rendicion').style.display = 'none';
             rendicionPendiente = null;
-            
             const res = await api("getDatosRendicionEsperada", { repartidor: RENDICION_REPARTIDOR, turno: RENDICION_TURNO_DEFECTO }); 
-            
-            loadingCard.style.display = 'none';
-
+            load.style.display = 'none';
             if (res && res.ok) {
-                rendicionPendiente = res;
-                dataCard.style.display = 'block';
-                document.getElementById('card-billetes-rendicion').style.display = 'block';
-                
-                const fechaObj = parseFechaLocal(res.fecha);
-                const fechaFmt = fechaObj.toLocaleDateString('es-AR', {day: 'numeric', month: 'long'});
-                
-                document.getElementById('rendicion-narrativa').innerHTML = `
-                    Planilla de <b>${res.repartidor}</b><br>
-                    Turno: <b>${res.turno}</b><br>
-                    Fecha: <b>${fechaFmt}</b>
-                `;
+                rendicionPendiente = res; dataCard.style.display = 'block'; document.getElementById('card-billetes-rendicion').style.display = 'block';
+                document.getElementById('rendicion-narrativa').innerHTML = `Planilla de <b>${res.repartidor}</b><br>Turno: <b>${res.turno}</b><br>Fecha: <b>${res.fecha}</b>`;
                 document.getElementById('rendicion-esperado').textContent = "$ " + parseInt(res.efectivoEsperado).toLocaleString('es-AR');
                 calcBilletes('rend'); 
-
-            } else { 
-                content.style.display = 'none';
-                zenState.style.display = 'block';
-            }
+            } else { content.style.display = 'none'; zen.style.display = 'block'; }
         }
-
         function actualizarDiferenciaRendicion(totalContado) {
             const div = document.getElementById('rendicion-diferencia-container');
             if (!rendicionPendiente) return;
             const dif = totalContado - parseInt(rendicionPendiente.efectivoEsperado);
-            
             if (totalContado === 0) { div.innerHTML = ''; return; }
-            
             let color = dif === 0 ? 'var(--success)' : (dif > 0 ? 'var(--primary)' : 'var(--accent)');
             let texto = dif === 0 ? '✨ PERFECTO' : (dif > 0 ? `Sobran $ ${dif.toLocaleString('es-AR')}` : `Faltan $ ${Math.abs(dif).toLocaleString('es-AR')}`);
-            
             div.innerHTML = `<div style="text-align:center; font-weight:800; color:${color}; background:white; padding:10px; border-radius:10px; border:2px solid ${color};">${texto}</div>`;
         }
-
         async function intentarRendicion() {
-            const btn = document.getElementById('btn-rendicion');
-            if(btn.disabled || !rendicionPendiente) return;
-            
+            if(!rendicionPendiente) return;
             const total = parseInt(document.getElementById('rendicion-contado-display').getAttribute('data-numeric')) || 0;
             if (total === 0) return showToast("⚠️ Contá los billetes primero", false);
-            
-            const dif = total - parseInt(rendicionPendiente.efectivoEsperado);
-            let msg = dif === 0 ? "Todo coincide perfecto." : (dif > 0 ? "Hay sobrante que ingresará a caja." : "Hay faltante que ajustará la caja.");
-            
-            showModal("Confirmar Rendición", msg, "verified", "var(--success)", async () => {
+            showModal("Confirmar Rendición", "¿Estás segura?", "verified", "var(--success)", async () => {
                 showLoading("Procesando...");
                 const res = await api("procesarRendicionDesdeRecibo", {
-                    fechaStr: rendicionPendiente.fecha,
-                    turno: rendicionPendiente.turno,
-                    repartidor: rendicionPendiente.repartidor,
-                    efectivoEsperado: rendicionPendiente.efectivoEsperado, 
-                    efectivoContado: total, 
-                    usuario: USUARIO_APP, 
-                    monitorData: monitor.getReport()
+                    fechaStr: rendicionPendiente.fecha, turno: rendicionPendiente.turno, repartidor: rendicionPendiente.repartidor, efectivoEsperado: rendicionPendiente.efectivoEsperado, efectivoContado: total, usuario: USUARIO_APP
                 });
                 hideLoading();
-                
-                if (res && res.ok) {
-                    showToast("✅ Rendición Exitosa", true);
-                    lanzarConfeti(); 
-                    limpiarBilletes('rend');
-                    buscarRendicionPendiente(); 
-                    actualizarSaldoHeader();
-                } else {
-                    showToast(res.error || "Error", false);
-                    if(res.error && res.error.includes("duplicar")) buscarRendicionPendiente();
-                }
+                if (res && res.ok) { showToast("✅ Éxito", true); lanzarConfeti(); setTimeout(() => { showScreen('caja', document.querySelector('.nav-item')); setFechaHoy(true); }, 1500); } 
+                else { showToast(res.error || "Error", false); }
             });
         }
-
-        // --- LOGICA ARQUEO ---
         async function intentarArqueo() {
-            const btn = document.getElementById('btn-arqueo');
-            if (btn.disabled) return;
             const fisico = parseFloat(document.getElementById('arqueo-fisico').value) || 0;
-            
             if (fisico === 0) return showToast("⚠️ Ingresa el efectivo físico", false);
-
             showModal("Cierre de Caja", `Registrar físico: <b>$ ${fisico.toLocaleString('es-AR')}</b>`, "lock", "#D63031", async () => {
                 showLoading("Cerrando caja...");
                 const res = await api("registrarArqueo", { usuario: USUARIO_APP, efectivoFisico: fisico, monitorData: monitor.getReport() });
                 hideLoading();
-                
-                if (res && res.ok) {
-                    lanzarConfeti();
-                    document.getElementById('screen-arqueo').innerHTML = `
-                        <div style="height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center; animation:popIn 0.5s;">
-                            <span class="material-icons-round" style="font-size:80px; color:var(--success);">check_circle</span>
-                            <h1 style="color:var(--text-main);">¡Caja Cerrada!</h1>
-                            <p style="color:var(--text-light);">Reiniciando sistema...</p>
-                        </div>
-                    `;
-                    setTimeout(() => { window.location.reload(); }, 2500);
-                } else {
-                    showToast("Error al cerrar", false);
-                }
+                if (res && res.ok) { lanzarConfeti(); document.getElementById('screen-arqueo').innerHTML = `<div style="height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center;"><span class="material-icons-round" style="font-size:80px; color:var(--success);">check_circle</span><h1>¡Caja Cerrada!</h1></div>`; setTimeout(() => window.location.reload(), 2500); } 
+                else { showToast("Error al cerrar", false); }
             });
         }
-
-        // --- CAJA & HEADER ---
-        async function actualizarSaldoHeader() {
-            const res = await api("getEstadoCaja");
-            const el = document.getElementById('big-balance');
-            const sysEl = document.getElementById('arqueo-sistema');
-            
-            if (res && res.efectivo !== undefined) {
-                saldoSistema = res.efectivo; 
-                el.innerText = "$ " + parseInt(res.efectivo).toLocaleString('es-AR');
-                sysEl.innerText = "$ " + parseInt(res.efectivo).toLocaleString('es-AR');
-                document.getElementById('last-update').innerText = 'Actualizado ' + new Date().toLocaleTimeString().slice(0,5);
-            } else {
-                el.innerText = "---";
-            }
-        }
-
-        async function cargarMovimientos() {
-            const fechaStr = document.getElementById('fecha-historial').value; 
-            const lista = document.getElementById('lista-movimientos');
-            lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Cargando...</li>';
-            
-            const res = await api("getMovimientos", { fechaStr: fechaStr + "T12:00:00" });
-            lista.innerHTML = "";
-            
-            if (!res || res.length === 0) return lista.innerHTML = `<li style="text-align:center; padding:20px; color:#aaa;">Sin movimientos 🦗</li>`;
-            
-            res.forEach(m => {
-                const color = m.tipo === 'Ingreso' ? 'amount-in' : 'amount-out';
-                const obs = m.observacion ? `<span class="mov-sub" style="font-style:italic;">${m.observacion}</span>` : "";
-                lista.innerHTML += `
-                    <li class="mov-item">
-                        <div class="mov-info">
-                            <span class="mov-title">${m.categoria}</span>
-                            <span class="mov-sub">${m.hora} • ${m.formaPago}</span>
-                            ${obs}
-                        </div>
-                        <div class="${color}">${m.tipo==='Ingreso'?'+':'-'} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
-                    </li>`;
-            });
-        }
-
-        async function registrarMovimiento() {
-            const btn = document.getElementById('btn-registrar');
-            btn.disabled = true;
-            showLoading("Registrando...");
-            
-            const tipo = document.getElementById('mov-tipo').value;
-            const pago = document.getElementById('mov-pago').value;
-            const cat = document.getElementById('mov-categoria').value;
-            const imp = parseInt(document.getElementById('mov-importe').getAttribute('data-clean-value')) || 0;
-            let obs = document.getElementById('mov-obs').value;
-
-            const prov = document.getElementById('mov-proveedor').value;
-            const veh = document.getElementById('mov-vehiculo').value;
-            const emp = document.getElementById('mov-empleado').value;
-            const banco = document.getElementById('mov-banco').value;
-            const nroCheque = document.getElementById('mov-cheque-nro').value;
-            
-            if(!cat || imp<=0) { hideLoading(); btn.disabled=false; return showToast("Datos incompletos", false); }
-
-            // Si es adelanto de sueldo, forzar formato en observación para que el sistema lo detecte luego
-            if (cat === "Adelanto de Sueldo" && emp) {
-                obs = `[${emp}] Adelanto de Sueldo. ${obs}`;
-            }
-
-            const res = await api("registrarMovimientoCaja", { 
-                tipo, formaPago: pago, importe: imp, categoria: cat, 
-                usuario: USUARIO_APP, observacion: obs, 
-                proveedor: prov, vehiculo: veh, empleado: emp, // Enviamos explícitamente para el backend (aunque el backend viejo use obs)
-                banco: banco, nroCheque: nroCheque 
-            });
-            hideLoading(); btn.disabled = false;
-            
-            if(res && res.ok) {
-                showToast("Guardado", true);
-                document.getElementById('mov-importe').value = "";
-                document.getElementById('mov-importe').setAttribute('data-clean-value', '0');
-                document.getElementById('mov-obs').value = "";
-                actualizarSaldoHeader();
-                cargarMovimientos();
-            } else { showToast("Error al guardar", false); }
-        }
-
-        // --- EFECTOS VISUALES ---
         function lanzarConfeti() {
             for(let i=0; i<30; i++) {
-                const c = document.createElement('div');
-                c.className = 'confetti';
-                c.style.left = Math.random() * 100 + 'vw';
-                c.style.animationDuration = (Math.random() * 2 + 1) + 's';
-                c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
-                document.body.appendChild(c);
-                setTimeout(() => c.remove(), 3000);
+                const c = document.createElement('div'); c.className = 'confetti'; c.style.left = Math.random() * 100 + 'vw'; c.style.animationDuration = (Math.random() * 2 + 1) + 's'; c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`; document.body.appendChild(c); setTimeout(() => c.remove(), 3000);
             }
         }
     </script>
