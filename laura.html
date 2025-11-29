@@ -12,17 +12,18 @@
     
     <style>
         /* =========================================
-           ESTILOS V11.0: ZEN & ROBUST
-           ========================================= */
+            ESTILOS V11.0: ZEN & ROBUST
+            ========================================= */
         :root {
-            --primary: #6C63FF;        
+            --primary: #6C63FF;     
             --primary-dark: #4834d4;
-            --accent: #FF6584;          
-            --success: #00B894;        
+            --accent: #FF6584;      
+            --success: #00B894;     
             --text-main: #2D3436;
             --text-light: #636E72;
             --glass-bg: rgba(255, 255, 255, 0.92); 
             --glass-border: rgba(255, 255, 255, 0.6);
+            --info: #0984e3;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -292,7 +293,7 @@
         </div>
     </div>
 
-    <!-- MODAL CUSTOM -->
+    <!-- MODAL CUSTOM (Usado para Alerta de Combustible) -->
     <div id="custom-modal" class="modal-overlay">
         <div class="modal-card">
             <span class="material-icons-round modal-icon" id="modal-icon" style="font-size: 60px; margin-bottom: 10px;">info</span>
@@ -368,10 +369,10 @@
 
                 <!-- SELECTOR CHEQUE CARTERA -->
                 <div id="selector-cheque-wrapper" style="display:none; margin-bottom:15px;">
-                     <label style="font-size:0.8rem; color:var(--primary); font-weight:700; margin-left:5px; margin-bottom:5px; display:block;">Seleccionar Cheque en Cartera:</label>
-                     <select id="mov-cheque-cartera" class="form-control" style="border: 2px solid var(--accent); background:#fff0f3;">
-                         <option value="" disabled selected>Cargando cheques...</option>
-                     </select>
+                    <label style="font-size:0.8rem; color:var(--primary); font-weight:700; margin-left:5px; margin-bottom:5px; display:block;">Seleccionar Cheque en Cartera:</label>
+                    <select id="mov-cheque-cartera" class="form-control" style="border: 2px solid var(--accent); background:#fff0f3;">
+                        <option value="" disabled selected>Cargando cheques...</option>
+                    </select>
                 </div>
 
                 <div id="cheque-fields" style="display:none;">
@@ -524,6 +525,7 @@
         // 🔥 GLOBAL: CHEQUES CARTERA 🔥
         let chequesCarteraGlobal = [];
         let idChequeSeleccionado = null; 
+        let fuelWarningBypass = false; // Bandera para omitir la advertencia de combustible una vez
 
         // LISTAS
         const CATEGORIAS_EGRESO = [ "Pago a Proveedor", "Combustible", "Adelanto de Sueldo", "Pago de Haberes", "Gastos de Limpieza", "Gastos de Mantenimiento (Vehiculos)", "Retiro de Efectivo (Pablo)", "Gastos de Jardineria", "Movimiento Libre (Varios)" ];
@@ -548,7 +550,9 @@
             document.getElementById('mov-categoria').addEventListener('change', (e) => {
                 checkCamposExtra();
                 if(e.target.value === "Pago de Haberes") verificarAdelantosSemana();
+                if(e.target.value === "Combustible") checkFuelWarningFlow(); // 🔥 NEW: Check Fuel
             });
+            document.getElementById('mov-vehiculo').addEventListener('change', checkFuelWarningFlow); // 🔥 NEW: Check Fuel
             document.getElementById('mov-tipo').addEventListener('change', actualizarCategorias);
             document.getElementById('mov-pago').addEventListener('change', checkChequeFields);
             document.getElementById('mov-empleado').addEventListener('change', calcularPagoHaberes);
@@ -594,6 +598,7 @@
         }
         async function getWeatherForLaura(element) {
             try {
+                // Buenos Aires coordinates for weather
                 const url = "https://api.open-meteo.com/v1/forecast?latitude=-34.61&longitude=-58.38&current_weather=true";
                 const res = await fetch(url);
                 const data = await res.json();
@@ -618,20 +623,36 @@
             container.appendChild(div);
             setTimeout(() => { div.style.opacity = '0'; setTimeout(() => div.remove(), 300); }, 3500);
         }
-        function showModal(title, msg, icon, color, onConfirm) {
+        
+        // Custom Modal for confirmations (e.g., Fuel Warning)
+        function showModal(title, msg, icon, color, onConfirm, onCancel, confirmText = "Confirmar", cancelText = "Cancelar") {
             const m = document.getElementById('custom-modal');
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-msg').innerHTML = msg;
             document.getElementById('modal-icon').innerText = icon;
             document.getElementById('modal-icon').style.color = color;
+            
             const btnConfirm = document.getElementById('btn-modal-confirm');
+            const btnCancel = m.querySelector('.modal-actions .btn-modal:nth-child(1)');
+
             btnConfirm.style.background = color;
-            const newBtn = btnConfirm.cloneNode(true);
-            btnConfirm.parentNode.replaceChild(newBtn, btnConfirm);
-            newBtn.onclick = () => { closeModal(); if(onConfirm) onConfirm(); };
+            btnConfirm.textContent = confirmText;
+            btnCancel.textContent = cancelText;
+
+            const newBtnConfirm = btnConfirm.cloneNode(true);
+            const newBtnCancel = btnCancel.cloneNode(true);
+            
+            btnConfirm.parentNode.replaceChild(newBtnConfirm, btnConfirm);
+            btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+            
+            newBtnConfirm.onclick = () => { closeModal(); if(onConfirm) onConfirm(); };
+            newBtnCancel.onclick = () => { closeModal(); if(onCancel) onCancel(); };
+
             m.style.display = 'flex';
         }
+
         function closeModal() { document.getElementById('custom-modal').style.display = 'none'; }
+        
         function setFechaHoy(reload = true) {
             const d = new Date();
             document.getElementById('fecha-historial').value = d.toISOString().split('T')[0];
@@ -703,16 +724,51 @@
         }
 
         async function registrarMovimiento() {
+            const tipo = document.getElementById('mov-tipo').value;
+            const cat = document.getElementById('mov-categoria').value;
+            const veh = document.getElementById('mov-vehiculo').value;
+            
+            // 1. Advertencia de combustible (si aplica y no se ha omitido)
+            if (cat === 'Combustible' && veh && !fuelWarningBypass) {
+                const warning = await api("checkCombustibleWarning", { vehiculo: veh });
+                if (warning.ok && warning.isWarning) {
+                    // Muestra Modal de Confirmación
+                    showModal(
+                        "⛽ Alerta de Carga",
+                        `¡Cuidado! Esta sería la **carga N° ${warning.currentLoads + 1}** del ${veh} en la semana. Normalmente solo se hacen 2. ¿Deseas registrar este egreso de todas formas?`,
+                        "local_gas_station",
+                        "var(--accent)", // Rojo/Naranja para advertencia
+                        () => {
+                            // Si confirma, activa la bandera y vuelve a llamar a registrarMovimiento
+                            fuelWarningBypass = true;
+                            registrarMovimiento();
+                        },
+                        // Función de cancelación
+                        () => {
+                            // Resetea la categoría y el vehículo para evitar el ciclo infinito de alerta
+                            document.getElementById('mov-categoria').value = '';
+                            document.getElementById('mov-vehiculo').value = '';
+                            checkCamposExtra();
+                            showToast("Carga cancelada. Revisá el vehículo o la categoría.", false);
+                        },
+                        "Sí, Registrar", // Texto del botón de confirmación
+                        "No, Cancelar" // Texto del botón de cancelación
+                    );
+                    return; // Detener el flujo principal hasta la confirmación
+                }
+            }
+            
+            // Si llegamos aquí, o no es combustible o ya fue confirmado
+            fuelWarningBypass = false; 
+
+            // 2. Proceso de registro normal
             const btn = document.getElementById('btn-registrar');
             btn.disabled = true; showLoading("Registrando...");
             
-            const tipo = document.getElementById('mov-tipo').value;
             const pago = document.getElementById('mov-pago').value;
-            const cat = document.getElementById('mov-categoria').value;
             const imp = parseInt(document.getElementById('mov-importe').getAttribute('data-clean-value')) || 0;
             let obs = document.getElementById('mov-obs').value;
             const prov = document.getElementById('mov-proveedor').value;
-            const veh = document.getElementById('mov-vehiculo').value;
             const emp = document.getElementById('mov-empleado').value;
             const banco = document.getElementById('mov-banco').value;
             const nroCheque = document.getElementById('mov-cheque-nro').value;
@@ -746,7 +802,7 @@
                 cargarChequesCartera();
                 actualizarSaldoHeader();
                 cargarMovimientos();
-            } else { showToast("Error al guardar", false); }
+            } else { showToast(res.error || "Error al guardar", false); }
         }
 
         // --- AUXILIARES ---
@@ -780,21 +836,34 @@
             
             const selectorCheque = document.getElementById('selector-cheque-wrapper');
             if (tipo === 'Egreso' && pago === 'Cheque') {
-                 selectorCheque.style.display = 'block';
-                 const tieneOpciones = document.getElementById('mov-cheque-cartera').options.length > 1;
-                 if(!tieneOpciones) cargarChequesCartera();
+                selectorCheque.style.display = 'block';
+                const tieneOpciones = document.getElementById('mov-cheque-cartera').options.length > 1;
+                if(!tieneOpciones) cargarChequesCartera();
             } else {
-                 selectorCheque.style.display = 'none';
-                 const inpImp = document.getElementById('mov-importe');
-                 if(inpImp.classList.contains('importe-cheque-lock')) {
-                     inpImp.classList.remove('importe-cheque-lock');
-                     inpImp.disabled = false;
-                     inpImp.value = "";
-                     idChequeSeleccionado = null;
-                 }
+                selectorCheque.style.display = 'none';
+                const inpImp = document.getElementById('mov-importe');
+                if(inpImp.classList.contains('importe-cheque-lock')) {
+                    inpImp.classList.remove('importe-cheque-lock');
+                    inpImp.disabled = false;
+                    inpImp.value = "";
+                    idChequeSeleccionado = null;
+                }
             }
             if(showProv || showVeh || showEmp || chequeVisible) extraContainer.style.display = 'block';
             else extraContainer.style.display = 'none';
+        }
+        
+        async function checkFuelWarningFlow() {
+            const cat = document.getElementById('mov-categoria').value;
+            const veh = document.getElementById('mov-vehiculo').value;
+            
+            if (cat === 'Combustible' && veh) {
+                const warning = await api("checkCombustibleWarning", { vehiculo: veh });
+                if (warning.ok && warning.isWarning) {
+                    // Muestra un toast suave para que el usuario esté advertido antes de pulsar Registrar
+                    showToast(warning.message.replace('¡ALERTA!', '⛽ Atención:'), false);
+                }
+            }
         }
 
         async function cargarChequesCartera() {
@@ -983,8 +1052,31 @@
             const dif = totalContado - parseInt(rendicionPendiente.efectivoEsperado);
             if (totalContado === 0) { div.innerHTML = ''; return; }
             let color = dif === 0 ? 'var(--success)' : (dif > 0 ? 'var(--primary)' : 'var(--accent)');
-            let texto = dif === 0 ? '✨ PERFECTO' : (dif > 0 ? `Sobran $ ${dif.toLocaleString('es-AR')}` : `Faltan $ ${Math.abs(dif).toLocaleString('es-AR')}`);
-            div.innerHTML = `<div style="text-align:center; font-weight:800; color:${color}; background:white; padding:10px; border-radius:10px; border:2px solid ${color};">${texto}</div>`;
+            let texto;
+
+            if (dif > 0) {
+                // 🔥 MENSAJE DE TRANQUILIDAD PARA SOBRANTE 🔥
+                color = 'var(--success)';
+                texto = `
+                    <div style="font-size:0.95rem; line-height:1.4; color:var(--text-main);">
+                        <span style="font-weight:900; color:${color};">SOBRAN $ ${dif.toLocaleString('es-AR')}.</span>
+                        <br>
+                        <span style="font-weight:600; font-size:0.9rem;">Tranquila, cargá el conteo tal cual está. El sistema automáticamente registrará el ajuste (Positivo) para que la caja cuadre perfectamente con el dinero físico.</span>
+                    </div>
+                `;
+                div.innerHTML = `<div style="text-align:center; background:#e8f5e9; padding:10px; border-radius:10px; border:2px solid ${color};">${texto}</div>`;
+                return;
+            } else if (dif < 0) {
+                texto = `FALTAN $ ${Math.abs(dif).toLocaleString('es-AR')}`;
+                color = 'var(--accent)';
+                div.innerHTML = `<div style="text-align:center; font-weight:800; color:${color}; background:#fff0f3; padding:10px; border-radius:10px; border:2px solid ${color};">FALTAN $ ${Math.abs(dif).toLocaleString('es-AR')}</div>`;
+                return;
+            } else {
+                texto = '✨ PERFECTO';
+                color = 'var(--success)';
+                div.innerHTML = `<div style="text-align:center; font-weight:800; color:${color}; background:#e8f5e9; padding:10px; border-radius:10px; border:2px solid ${color};">${texto}</div>`;
+                return;
+            }
         }
 
         // 🔥 FUNCION CLAVE: MANEJA LA RESPUESTA CORRECTAMENTE 🔥
@@ -994,13 +1086,14 @@
             if (total === 0) return showToast("⚠️ Contá los billetes primero", false);
             showModal("Confirmar Rendición", "¿Estás segura?", "verified", "var(--success)", async () => {
                 showLoading("Procesando...");
+                // Se envía el Efectivo Contado (físico) para que el backend haga el ajuste (Esperado + Diferencia = Contado)
                 const res = await api("procesarRendicionDesdeRecibo", {
                     fechaStr: rendicionPendiente.fecha, turno: rendicionPendiente.turno, repartidor: rendicionPendiente.repartidor, efectivoEsperado: rendicionPendiente.efectivoEsperado, efectivoContado: total, usuario: USUARIO_APP
                 });
                 hideLoading();
                 
                 if (res && res.ok) { 
-                    showToast(res.mensaje || "✅ Éxito", true); 
+                    showToast(res.mensaje || "✅ Éxito: Rendición procesada", true); 
                     lanzarConfeti(); 
                     
                     // 1. UPDATE BALANCE (MONEY CAME IN)
@@ -1011,16 +1104,16 @@
                     limpiarBilletes('rend');
                     buscarRendicionPendiente(); 
                     
-                    // 3. OPTIONAL: Redirect to Caja after delay?
+                    // 3. Optional: Redirect to Caja after delay?
                     setTimeout(() => { 
-                         // Optional: if Zen Mode is active, maybe go to Caja
-                         if(document.getElementById('zen-state-container').style.display !== 'none') {
-                             showScreen('caja', document.querySelector('.nav-item')); 
-                             setFechaHoy(true); 
-                         }
+                             // Optional: if Zen Mode is active, maybe go to Caja
+                             if(document.getElementById('zen-state-container').style.display !== 'none') {
+                                 showScreen('caja', document.querySelector('.nav-item')); 
+                                 setFechaHoy(true); 
+                             }
                     }, 2500); 
                 } 
-                else { showToast(res.error || "Error", false); }
+                else { showToast(res.error || "Error al procesar la rendición", false); }
             });
         }
 
@@ -1032,7 +1125,7 @@
                 const res = await api("registrarArqueo", { usuario: USUARIO_APP, efectivoFisico: fisico, monitorData: monitor.getReport() });
                 hideLoading();
                 if (res && res.ok) { lanzarConfeti(); document.getElementById('screen-arqueo').innerHTML = `<div style="height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center;"><span class="material-icons-round" style="font-size:80px; color:var(--success);">check_circle</span><h1>¡Caja Cerrada!</h1></div>`; setTimeout(() => window.location.reload(), 2500); } 
-                else { showToast("Error al cerrar", false); }
+                else { showToast(res.error || "Error al cerrar", false); }
             });
         }
 
