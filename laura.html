@@ -791,15 +791,49 @@
             
             if(res && res.ok) {
                 showToast("Guardado", true);
-                document.getElementById('mov-importe').value = ""; 
-                document.getElementById('mov-importe').setAttribute('data-clean-value', '0');
-                const inpImp = document.getElementById('mov-importe');
-                inpImp.classList.remove('importe-cheque-lock');
-                inpImp.disabled = false;
-                idChequeSeleccionado = null;
-                document.getElementById('mov-obs').value = ""; 
-                document.getElementById('mov-cheque-cartera').value = ""; 
-                cargarChequesCartera();
+                
+                // 🔥 LÓGICA DE RESETEO SELECTIVO (NEW) 🔥
+                const inputImporte = document.getElementById('mov-importe');
+                const inputObs = document.getElementById('mov-obs');
+                const selectCat = document.getElementById('mov-categoria');
+                const selectEmp = document.getElementById('mov-empleado');
+                const selectChequeCartera = document.getElementById('mov-cheque-cartera');
+
+                inputImporte.value = ""; 
+                inputImporte.setAttribute('data-clean-value', '0');
+                inputObs.value = ""; 
+
+                // Resetear campos de Cheque
+                document.getElementById('mov-banco').value = '';
+                document.getElementById('mov-cheque-nro').value = '';
+
+                // Si fue Pago de Haberes, NO resetear Categoría y mantener el Tipo de Movimiento (Egreso)
+                if (cat !== "Pago de Haberes") {
+                    selectCat.value = ''; // Resetear Categoría
+                    // Resetear Tipo de Movimiento a Egreso (Default)
+                    document.getElementById('mov-tipo').value = 'Egreso'; 
+                } else {
+                    // Si fue Pago de Haberes, solo se resetea el Empleado a "Seleccionar..."
+                    if (selectEmp) selectEmp.value = '';
+                }
+
+                // Resetear campos dependientes (Proveedor/Vehículo/Cheque)
+                document.getElementById('mov-proveedor').value = '';
+                if (document.getElementById('mov-vehiculo')) document.getElementById('mov-vehiculo').value = '';
+                
+                // Lógica de reseteo de Cheque Cartera
+                if (inputImporte.classList.contains('importe-cheque-lock')) {
+                    inputImporte.classList.remove('importe-cheque-lock');
+                    inputImporte.disabled = false;
+                    idChequeSeleccionado = null;
+                    if (selectChequeCartera) selectChequeCartera.value = '';
+                }
+
+                // Llamar a actualizarCategorias y checkCamposExtra para limpiar la UI
+                actualizarCategorias(); 
+                checkCamposExtra(); 
+                
+                // 3. Finalizar
                 actualizarSaldoHeader();
                 cargarMovimientos();
             } else { showToast(res.error || "Error al guardar", false); }
@@ -809,6 +843,8 @@
         function actualizarCategorias() {
             const tipo = document.getElementById('mov-tipo').value;
             const selectEl = document.getElementById('mov-categoria');
+            const catActual = selectEl.value; // Guardar valor actual para no resetear si es Pago de Haberes
+            
             selectEl.innerHTML = '<option value="" disabled selected>-- Motivo --</option>';
             const lista = tipo === 'Egreso' ? CATEGORIAS_EGRESO : CATEGORIAS_INGRESO;
             lista.forEach(cat => {
@@ -816,6 +852,12 @@
                 opt.value = cat; opt.textContent = cat;
                 selectEl.appendChild(opt);
             });
+
+            // Si la categoría actual era "Pago de Haberes", la mantenemos seleccionada
+            if (catActual === "Pago de Haberes" && tipo === 'Egreso') {
+                selectEl.value = 'Pago de Haberes';
+            }
+            
             checkCamposExtra(); 
         }
 
