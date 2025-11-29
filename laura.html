@@ -24,6 +24,7 @@
             --glass-bg: rgba(255, 255, 255, 0.92); 
             --glass-border: rgba(255, 255, 255, 0.6);
             --info: #0984e3;
+            --warning: #ff9f43; /* Nuevo color para alertas importantes */
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -43,6 +44,7 @@
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 159, 67, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0); } }
 
         /* 🔥 ANIMACIÓN HOLOGRÁFICA SELECTOR CHEQUE 🔥 */
         @keyframes holograma {
@@ -76,44 +78,88 @@
         .spinner { width: 50px; height: 50px; border: 5px solid #dfe6e9; border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
         .loading-text { font-weight: 800; color: var(--primary); font-size: 1.1rem; letter-spacing: 1px; }
 
-        /* --- MODAL BIENVENIDA --- */
-        #welcome-modal {
+        /* --- MODALES GENERALES --- */
+        #welcome-modal, #custom-modal, #arqueo-reminder-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
             z-index: 11000; display: none; justify-content: center; align-items: center;
         }
-        .welcome-card {
+
+        .welcome-card, .modal-card {
             background: white; width: 90%; max-width: 450px;
             border-radius: 30px; padding: 30px 25px; text-align: center;
             box-shadow: 0 20px 60px rgba(0,0,0,0.15); animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
             position: relative; overflow: hidden; border: 4px solid #fff;
             background: linear-gradient(145deg, #ffffff, #f0f0f0);
         }
-        .welcome-card::before {
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px;
-            background: linear-gradient(90deg, #FF9A9E, #FECFEF, #a29bfe);
-        }
+        /* Estilos específicos para Modal de Bienvenida */
+        .welcome-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: linear-gradient(90deg, #FF9A9E, #FECFEF, #a29bfe); }
         .welcome-icon { font-size: 3rem; margin-bottom: 10px; animation: float 3s infinite ease-in-out; }
         .welcome-title { font-size: 1.6rem; font-weight: 800; color: var(--primary); margin-bottom: 5px; }
         .welcome-date { font-size: 0.9rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
-        .welcome-weather { 
-            display: inline-flex; align-items: center; gap: 8px; 
-            background: #f1f2f6; padding: 6px 15px; border-radius: 20px; 
-            font-size: 0.9rem; font-weight: 700; color: var(--text-main); margin-bottom: 20px;
-        }
-        .welcome-msg { 
-            font-size: 1rem; line-height: 1.6; color: #555; 
-            font-weight: 600; font-style: italic;
-            background: rgba(108, 99, 255, 0.05); padding: 15px; border-radius: 15px;
-            border-left: 4px solid var(--accent);
-        }
-        .welcome-close {
-            margin-top: 25px; background: var(--primary); color: white; border: none;
-            padding: 12px 30px; border-radius: 50px; font-weight: 800; font-size: 1rem;
-            cursor: pointer; box-shadow: 0 10px 20px rgba(108, 99, 255, 0.3);
-            transition: transform 0.2s;
-        }
+        .welcome-msg { font-size: 1rem; line-height: 1.6; color: #555; font-weight: 600; font-style: italic; background: rgba(108, 99, 255, 0.05); padding: 15px; border-radius: 15px; border-left: 4px solid var(--accent); }
+        .welcome-close { margin-top: 25px; background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 800; font-size: 1rem; cursor: pointer; box-shadow: 0 10px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; }
         .welcome-close:active { transform: scale(0.95); }
+
+        /* --- MODAL ARQUEO REMINDER (PROFESIONAL) --- */
+        #arqueo-reminder-modal .modal-card {
+            background: linear-gradient(150deg, #fefefe 0%, #fffcfa 100%);
+            border: 4px solid var(--warning);
+            box-shadow: 0 25px 80px rgba(255, 159, 67, 0.3);
+            padding: 40px 30px 30px 30px;
+        }
+        .reminder-icon {
+            font-size: 3.5rem; 
+            color: var(--warning); 
+            margin-bottom: 15px; 
+            animation: pulse 2s infinite, float 4s infinite ease-in-out;
+            border: 5px solid rgba(255, 159, 67, 0.1);
+            padding: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .reminder-title {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+        .reminder-time {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 20px;
+            background: #fff0f3;
+            padding: 5px 15px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        .reminder-msg {
+            text-align: left;
+            font-size: 1rem;
+            line-height: 1.7;
+            color: #555;
+            font-weight: 600;
+            background: rgba(255, 159, 67, 0.05);
+            padding: 15px;
+            border-radius: 15px;
+            border-left: 5px solid var(--warning);
+        }
+        .reminder-msg b { font-weight: 800; color: var(--primary-dark); }
+        .btn-reminder-action {
+            margin-top: 25px; 
+            background: linear-gradient(45deg, var(--warning), #f1c40f); 
+            color: var(--text-main); 
+            border: none;
+            padding: 14px 35px; 
+            border-radius: 50px; 
+            font-weight: 800; 
+            font-size: 1.1rem;
+            cursor: pointer; 
+            box-shadow: 0 10px 30px rgba(255, 159, 67, 0.4);
+            transition: transform 0.2s, box-shadow 0.3s;
+        }
+        .btn-reminder-action:active { transform: scale(0.95); box-shadow: 0 5px 15px rgba(255, 159, 67, 0.6); }
 
         /* --- HEADER --- */
         .app-header { 
@@ -263,7 +309,7 @@
         @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
     </style>
 </head>
-<body>
+<body onload="checkArqueoReminder()"> <!-- Añadimos el chequeo del recordatorio al cargar -->
 
     <div class="background-container">
         <div class="shape shape-1"></div>
@@ -290,6 +336,23 @@
                 Hacelo con paciencia y amor. 💖"
             </div>
             <button class="welcome-close" onclick="closeWelcomeModal()">¡Entendido!</button>
+        </div>
+    </div>
+
+    <!-- MODAL ARQUEO REMINDER (NUEVO) -->
+    <div id="arqueo-reminder-modal">
+        <div class="modal-card">
+            <span class="material-icons-round reminder-icon">alarm_on</span>
+            <div class="reminder-title">Hora de Cierre de Caja</div>
+            <div class="reminder-time">15:30 hs.</div>
+            <div class="reminder-msg">
+                Es momento de realizar el **Arqueo Final** del día. 
+                <br>
+                Hacelo con calma y **contá los billetes físicamente** antes de ingresar el total. El sistema se ajustará al saldo real.
+            </div>
+            <button class="btn-reminder-action" onclick="goToArqueoAndClose()">
+                <span class="material-icons-round">pie_chart</span> IR A ARQUEO
+            </button>
         </div>
     </div>
 
@@ -609,6 +672,52 @@
             } catch (e) { element.textContent = "Clima agradable"; }
         }
 
+        // 🔥 FUNCIONES DE RECORDATORIO DE ARQUEO 🔥
+        function checkArqueoReminder() {
+            const now = new Date();
+            const day = now.getDay(); // 0 (Dom) - 6 (Sab)
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const todayStr = now.toDateString(); 
+            const lastReminder = localStorage.getItem('lastArqueoReminder');
+
+            // 1. Días de Lunes (1) a Viernes (5)
+            const isWeekday = day >= 1 && day <= 5;
+
+            // 2. Horario: 15:30 (3:30 PM) a 15:34 PM (Damos 5 minutos de ventana)
+            const isTime = (hours === 15 && minutes >= 30 && minutes <= 34);
+
+            // 3. Mostrar solo si es el día/hora correcta Y no se mostró hoy
+            if (isWeekday && isTime && lastReminder !== todayStr) {
+                showArqueoReminderModal();
+                localStorage.setItem('lastArqueoReminder', todayStr);
+            }
+        }
+        
+        function showArqueoReminderModal() {
+            const modal = document.getElementById('arqueo-reminder-modal');
+            modal.style.display = 'flex';
+
+            // Auto-cierre después de 4 segundos
+            setTimeout(() => {
+                if (modal.style.display === 'flex') {
+                    goToArqueoAndClose();
+                }
+            }, 4000); 
+        }
+
+        function goToArqueoAndClose() {
+            const modal = document.getElementById('arqueo-reminder-modal');
+            modal.style.opacity = '0';
+            setTimeout(() => {
+                modal.style.display = 'none';
+                modal.style.opacity = '1';
+                // Navegar a la pantalla de Arqueo
+                const arqueoNav = document.querySelector('.bottom-nav a:nth-child(3)');
+                if(arqueoNav) showScreen('arqueo', arqueoNav);
+            }, 300);
+        }
+
         // --- UI HELPERS ---
         function showLoading(msg) { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.add('active'); }
         function hideLoading() { document.getElementById('loading-overlay').classList.remove('active'); }
@@ -792,7 +901,7 @@
             if(res && res.ok) {
                 showToast("Guardado", true);
                 
-                // 🔥 LÓGICA DE RESETEO SELECTIVO (NEW) 🔥
+                // 🔥 LÓGICA DE RESETEO SELECTIVO 🔥
                 const inputImporte = document.getElementById('mov-importe');
                 const inputObs = document.getElementById('mov-obs');
                 const selectCat = document.getElementById('mov-categoria');
