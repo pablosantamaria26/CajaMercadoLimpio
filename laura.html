@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Caja Mercado Limpio</title>
+    <title>Caja Mercado Limpio V3</title>
     <meta name="theme-color" content="#6C63FF">
 
     <!-- Fuentes e Iconos -->
@@ -12,7 +12,7 @@
     
     <style>
         /* =========================================
-           ESTILOS V10.6: CLEAN & ROBUST
+           ESTILOS V11.0: ZEN & ROBUST
            ========================================= */
         :root {
             --primary: #6C63FF;        
@@ -968,7 +968,8 @@
             rendicionPendiente = null;
             const res = await api("getDatosRendicionEsperada", { repartidor: RENDICION_REPARTIDOR, turno: RENDICION_TURNO_DEFECTO }); 
             load.style.display = 'none';
-            if (res && res.ok) {
+            // V3 LOGIC CHANGE: Check for hayPendiente explicitly
+            if (res && res.ok && res.hayPendiente) {
                 rendicionPendiente = res; dataCard.style.display = 'block'; document.getElementById('card-billetes-rendicion').style.display = 'block';
                 document.getElementById('rendicion-narrativa').innerHTML = `Planilla de <b>${res.repartidor}</b><br>Turno: <b>${res.turno}</b><br>Fecha: <b>${res.fecha}</b>`;
                 document.getElementById('rendicion-esperado').textContent = "$ " + parseInt(res.efectivoEsperado).toLocaleString('es-AR');
@@ -999,18 +1000,25 @@
                 hideLoading();
                 
                 if (res && res.ok) { 
-                    // Mostramos el mensaje específico (ej: "Planilla ya sincronizada") o "Éxito" por defecto
                     showToast(res.mensaje || "✅ Éxito", true); 
                     lanzarConfeti(); 
                     
-                    // Pequeña demora para que vea el confeti
+                    // 1. UPDATE BALANCE (MONEY CAME IN)
+                    actualizarSaldoHeader();
+                    
+                    // 2. RESET UI & CHECK FOR NEXT OR ZEN
+                    monitor.reset(); 
+                    limpiarBilletes('rend');
+                    buscarRendicionPendiente(); 
+                    
+                    // 3. OPTIONAL: Redirect to Caja after delay?
                     setTimeout(() => { 
-                        showScreen('caja', document.querySelector('.nav-item')); 
-                        setFechaHoy(true); 
-                        // Forzamos reseteo del monitor y recarga de rendición para que muestre modo Zen
-                        monitor.reset(); 
-                        buscarRendicionPendiente(); 
-                    }, 1500); 
+                         // Optional: if Zen Mode is active, maybe go to Caja
+                         if(document.getElementById('zen-state-container').style.display !== 'none') {
+                             showScreen('caja', document.querySelector('.nav-item')); 
+                             setFechaHoy(true); 
+                         }
+                    }, 2500); 
                 } 
                 else { showToast(res.error || "Error", false); }
             });
