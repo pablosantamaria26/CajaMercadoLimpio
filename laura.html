@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> Rejistro de Caja Mercado Limpio </title>
+    <title>Caja Mercado Limpio V3</title>
     <meta name="theme-color" content="#6C63FF">
+
+    <!-- PWA: Enlace al Manifiesto (NECESARIO PARA EL BOTÓN DE INSTALAR) -->
+    <link rel="manifest" href="manifest.json">
 
     <!-- Fuentes e Iconos -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -723,6 +726,19 @@
 
     <!-- TOAST -->
     <div id="toast-container"></div>
+
+    <!-- PWA: SCRIPT DE REGISTRO DEL SERVICE WORKER (NECESARIO PARA INSTALACION) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./sw.js').then(function(registration) {
+                    console.log('ServiceWorker registrado con éxito: ', registration.scope);
+                }, function(err) {
+                    console.log('ServiceWorker falló: ', err);
+                });
+            });
+        }
+    </script>
 
     <script>
         // --- CONFIGURACIÓN ---
