@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Registro Caja Mercado Limpio </title>
+    <title>Caja Mercado Limpio V3</title>
     <meta name="theme-color" content="#6C63FF">
 
     <!-- PWA: Enlace al Manifiesto (NECESARIO PARA EL BOTÓN DE INSTALAR) -->
@@ -796,6 +796,10 @@
 
             initSelects(); 
             checkWelcomeMessage();
+            
+            // 🔥 REVISIÓN AUTOMÁTICA CADA MINUTO 🔥
+            // Esto asegura que el aviso salte aunque la página ya esté abierta
+            setInterval(checkArqueoReminder, 60000); 
         });
 
         function initApp() {
