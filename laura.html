@@ -79,7 +79,7 @@
         .loading-text { font-weight: 800; color: var(--primary); font-size: 1.1rem; letter-spacing: 1px; }
 
         /* --- MODALES GENERALES --- */
-        #welcome-modal, #custom-modal, #arqueo-reminder-modal {
+        #welcome-modal, #custom-modal, #arqueo-reminder-modal, #confirm-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
             z-index: 11000; display: none; justify-content: center; align-items: center;
@@ -100,6 +100,126 @@
         .welcome-msg { font-size: 1rem; line-height: 1.6; color: #555; font-weight: 600; font-style: italic; background: rgba(108, 99, 255, 0.05); padding: 15px; border-radius: 15px; border-left: 4px solid var(--accent); }
         .welcome-close { margin-top: 25px; background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 800; font-size: 1rem; cursor: pointer; box-shadow: 0 10px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; }
         .welcome-close:active { transform: scale(0.95); }
+
+        /* --- MODAL CONFIRMACION PARTY BOX (NUEVO) --- */
+        @keyframes rotateParty { 100% { transform: rotate(1turn); } }
+
+        .party-card-wrapper {
+            position: relative;
+            z-index: 0;
+            width: 90%;
+            max-width: 420px;
+            border-radius: 30px;
+            overflow: hidden;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            padding: 3px; /* Grosor del borde sutil */
+            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+        }
+        
+        .party-card-wrapper::before {
+            content: '';
+            position: absolute;
+            z-index: -2;
+            left: -50%;
+            top: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(
+                #ff6b6b, 
+                #feca57, 
+                #48dbfb, 
+                #ff9ff3, 
+                #54a0ff, 
+                #5f27cd, 
+                #ff6b6b
+            );
+            animation: rotateParty 4s linear infinite;
+        }
+
+        .party-content {
+            background: #ffffff;
+            border-radius: 27px; /* Un poco menos que el wrapper */
+            padding: 35px 25px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .party-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-light);
+            margin-bottom: 5px;
+        }
+
+        .party-highlight {
+            color: var(--primary);
+            font-weight: 900;
+        }
+
+        .party-amount {
+            font-size: 3.2rem;
+            font-weight: 900;
+            margin: 15px 0;
+            color: var(--text-main);
+            letter-spacing: -1px;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.05);
+        }
+
+        .party-details {
+            background: #f8f9fa;
+            border-radius: 18px;
+            padding: 15px;
+            margin-bottom: 25px;
+            border: 1px dashed #dcdde1;
+            text-align: left;
+        }
+
+        .party-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            color: #555;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        .party-detail-row:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+        
+        .party-detail-label { 
+            font-weight: 600; color: #888; 
+            display: flex; align-items: center; gap: 6px;
+        }
+        .party-detail-val { font-weight: 800; color: var(--text-main); text-align: right; }
+
+        .party-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .btn-party {
+            flex: 1;
+            padding: 16px;
+            border-radius: 50px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .btn-party:active { transform: scale(0.90); }
+
+        .btn-party-cancel {
+            background: #f1f2f6;
+            color: #a4b0be;
+        }
+        .btn-party-confirm {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.4);
+        }
 
         /* --- MODAL ARQUEO REMINDER (PROFESIONAL) --- */
         #arqueo-reminder-modal .modal-card {
@@ -369,6 +489,40 @@
         </div>
     </div>
 
+    <!-- NUEVO MODAL DE CONFIRMACION PARTY BOX -->
+    <div id="confirm-modal">
+        <div class="party-card-wrapper">
+            <div class="party-content">
+                <div class="party-title" id="party-title-text"></div>
+                <div class="party-amount" id="party-amount-display">$ 0</div>
+                
+                <div class="party-details">
+                    <div class="party-detail-row">
+                        <span class="party-detail-label" id="party-concept-label">
+                            <span class="material-icons-round" style="color:var(--primary);">label</span> Concepto:
+                        </span>
+                        <span class="party-detail-val" id="party-concept-val">...</span>
+                    </div>
+                    <div class="party-detail-row">
+                        <span class="party-detail-label">
+                            <span class="material-icons-round" style="color:var(--success);">payments</span> Forma de Pago:
+                        </span>
+                        <span class="party-detail-val" id="party-payment-val">...</span>
+                    </div>
+                    <div class="party-detail-row" id="party-extra-row" style="display:none;">
+                        <span class="party-detail-label" id="party-extra-label">Extra:</span>
+                        <span class="party-detail-val" id="party-extra-val">...</span>
+                    </div>
+                </div>
+
+                <div class="party-actions">
+                    <button class="btn-party btn-party-cancel" onclick="closeConfirmModal()">Cancelar</button>
+                    <button class="btn-party btn-party-confirm" onclick="finalizarRegistro()">CONFIRMAR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- HEADER -->
     <header class="app-header">
         <div class="app-title"><span style="font-size:1.5rem;">🍋</span> Mercado Limpio</div>
@@ -589,6 +743,9 @@
         let chequesCarteraGlobal = [];
         let idChequeSeleccionado = null; 
         let fuelWarningBypass = false; // Bandera para omitir la advertencia de combustible una vez
+        
+        // 🔥 GLOBAL: PAYLOAD TEMPORAL PARA EL MODAL 🔥
+        let tempMovimientoPayload = null;
 
         // LISTAS
         const CATEGORIAS_EGRESO = [ "Pago a Proveedor", "Combustible", "Adelanto de Sueldo", "Pago de Haberes", "Gastos de Limpieza", "Gastos de Mantenimiento (Vehiculos)", "Retiro de Efectivo (Pablo)", "Gastos de Jardineria", "Movimiento Libre (Varios)" ];
@@ -837,43 +994,11 @@
             const cat = document.getElementById('mov-categoria').value;
             const veh = document.getElementById('mov-vehiculo').value;
             
-            // 1. Advertencia de combustible (si aplica y no se ha omitido)
-            if (cat === 'Combustible' && veh && !fuelWarningBypass) {
-                const warning = await api("checkCombustibleWarning", { vehiculo: veh });
-                if (warning.ok && warning.isWarning) {
-                    // Muestra Modal de Confirmación
-                    showModal(
-                        "⛽ Alerta de Carga",
-                        `¡Cuidado! Esta sería la **carga N° ${warning.currentLoads + 1}** del ${veh} en la semana. Normalmente solo se hacen 2. ¿Deseas registrar este egreso de todas formas?`,
-                        "local_gas_station",
-                        "var(--accent)", // Rojo/Naranja para advertencia
-                        () => {
-                            // Si confirma, activa la bandera y vuelve a llamar a registrarMovimiento
-                            fuelWarningBypass = true;
-                            registrarMovimiento();
-                        },
-                        // Función de cancelación
-                        () => {
-                            // Resetea la categoría y el vehículo para evitar el ciclo infinito de alerta
-                            document.getElementById('mov-categoria').value = '';
-                            document.getElementById('mov-vehiculo').value = '';
-                            checkCamposExtra();
-                            showToast("Carga cancelada. Revisá el vehículo o la categoría.", false);
-                        },
-                        "Sí, Registrar", // Texto del botón de confirmación
-                        "No, Cancelar" // Texto del botón de cancelación
-                    );
-                    return; // Detener el flujo principal hasta la confirmación
-                }
-            }
+            // 🚀 CAMBIO PARA VELOCIDAD: Ya no bloqueamos aquí con 'await api()'. 
+            // La validación de combustible ahora ocurre DESPUÉS de confirmar en el modal,
+            // dentro de 'finalizarRegistro'. Esto hace que el modal aparezca INSTANTÁNEAMENTE.
             
-            // Si llegamos aquí, o no es combustible o ya fue confirmado
-            fuelWarningBypass = false; 
-
-            // 2. Proceso de registro normal
-            const btn = document.getElementById('btn-registrar');
-            btn.disabled = true; showLoading("Registrando...");
-            
+            // 2. Proceso de registro (AHORA MODIFICADO PARA PARTY MODAL)
             const pago = document.getElementById('mov-pago').value;
             const imp = parseInt(document.getElementById('mov-importe').getAttribute('data-clean-value')) || 0;
             let obs = document.getElementById('mov-obs').value;
@@ -882,9 +1007,10 @@
             const banco = document.getElementById('mov-banco').value;
             const nroCheque = document.getElementById('mov-cheque-nro').value;
             
-            if(!cat || imp<=0) { hideLoading(); btn.disabled=false; return showToast("Datos incompletos", false); }
+            if(!cat || imp<=0) { return showToast("Datos incompletos", false); }
             if (cat === "Adelanto de Sueldo" && emp) obs = `[${emp}] Adelanto de Sueldo. ${obs}`;
 
+            // PREPARAMOS EL PAYLOAD PERO NO LO ENVIAMOS TODAVIA
             const payload = { 
                 tipo, formaPago: pago, importe: imp, categoria: cat, 
                 usuario: USUARIO_APP, observacion: obs, 
@@ -895,13 +1021,133 @@
                 payload.idChequeOrigen = idChequeSeleccionado;
             }
 
+            // GUARDAMOS EN VARIABLE GLOBAL
+            tempMovimientoPayload = payload;
+
+            // MOSTRAMOS EL MODAL PARTY BOX
+            showConfirmModal(payload);
+        }
+
+        // 🔥 NUEVAS FUNCIONES PARA EL MODAL PARTY BOX 🔥
+        function showConfirmModal(data) {
+            const modal = document.getElementById('confirm-modal');
+            const titleEl = document.getElementById('party-title-text');
+            const amountEl = document.getElementById('party-amount-display');
+            const conceptEl = document.getElementById('party-concept-val');
+            const paymentEl = document.getElementById('party-payment-val');
+            const extraRow = document.getElementById('party-extra-row');
+            const extraLabel = document.getElementById('party-extra-label');
+            const extraVal = document.getElementById('party-extra-val');
+
+            // Narrativa aleatoria
+            const nombres = ["Laura", "Laurita"];
+            const nombreElegido = nombres[Math.floor(Math.random() * nombres.length)];
+            
+            let titulo = `¿Confirmamos, ${nombreElegido}?`;
+            if (data.tipo === 'Ingreso') titulo = `¡Ingreso para ${nombreElegido}!`;
+
+            titleEl.textContent = titulo;
+            amountEl.textContent = `$ ${data.importe.toLocaleString('es-AR')}`;
+            // Color importe segun tipo
+            amountEl.style.color = data.tipo === 'Ingreso' ? 'var(--success)' : 'var(--text-main)';
+
+            conceptEl.textContent = data.categoria;
+            
+            // --- ICONOS PARA FORMA DE PAGO ---
+            let iconPago = "";
+            if (data.formaPago === "Efectivo") iconPago = "💵 ";
+            else if (data.formaPago === "Cheque") iconPago = "🧾 ";
+            else if (data.formaPago === "Banco") iconPago = "🏦 ";
+            
+            paymentEl.textContent = iconPago + data.formaPago;
+
+            // Mostrar extras si existen
+            let extraText = "";
+            let labelText = "";
+            let labelIcon = "";
+            
+            if (data.proveedor) { 
+                labelText = "Proveedor:"; 
+                labelIcon = "store";
+                extraText = data.proveedor; 
+            }
+            else if (data.empleado) { 
+                labelText = "Empleado:"; 
+                labelIcon = "person";
+                extraText = data.empleado; 
+            }
+            else if (data.vehiculo) { 
+                labelText = "Vehículo:"; 
+                labelIcon = "directions_car";
+                extraText = data.vehiculo; 
+            }
+
+            if (extraText) {
+                extraRow.style.display = 'flex';
+                extraLabel.innerHTML = `<span class="material-icons-round" style="color:var(--text-light);">${labelIcon}</span> ${labelText}`;
+                extraVal.textContent = extraText;
+            } else {
+                extraRow.style.display = 'none';
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirm-modal');
+            modal.style.display = 'none';
+        }
+
+        async function finalizarRegistro() {
+            if (!tempMovimientoPayload) return;
+
+            // 1. Cerrar modal instantáneamente (Sensación de rapidez)
+            closeConfirmModal();
+
+            // 2. Feedback inmediato al usuario
+            showToast("Guardando operación...", true);
+
+            // 3. Ejecutar la lógica real (Segundo plano relativo)
+            const payload = tempMovimientoPayload;
+            
+            // Opcional: Bloquear UI muy brevemente si se quiere seguridad extrema, 
+            // pero el usuario pidió "segundo plano". Dejamos que corra.
+            // Solamente deshabilitamos el boton de registrar original para evitar doble click si fuera visible
+            const btn = document.getElementById('btn-registrar');
+            btn.disabled = true;
+
+            // 🚀 VALIDACIÓN DIFERIDA DE COMBUSTIBLE
+            // Ahora se hace AQUÍ, después de que el usuario ya vio el modal y confirmó.
+            // Si hay una alerta, se mostrará sobre la marcha.
+            if (payload.categoria === 'Combustible' && payload.vehiculo && !fuelWarningBypass) {
+                const warning = await api("checkCombustibleWarning", { vehiculo: payload.vehiculo });
+                if (warning.ok && warning.isWarning) {
+                    btn.disabled = false; // Rehabilitar botón por si cancela
+                    showModal(
+                        "⛽ Alerta de Carga",
+                        `¡Cuidado! Esta sería la **carga N° ${warning.currentLoads + 1}** del ${payload.vehiculo} en la semana. Normalmente solo se hacen 2. ¿Deseas registrar este egreso de todas formas?`,
+                        "local_gas_station",
+                        "var(--accent)", 
+                        () => {
+                            fuelWarningBypass = true;
+                            finalizarRegistro(); // Re-intentar guardado ignorando alerta
+                        },
+                        () => {
+                            showToast("Carga cancelada. Revisá el vehículo.", false);
+                        },
+                        "Sí, Registrar",
+                        "No, Cancelar"
+                    );
+                    return; // Detenemos el guardado hasta que confirme la alerta
+                }
+            }
+            fuelWarningBypass = false; 
+
             const res = await api("registrarMovimientoCaja", payload);
-            hideLoading(); btn.disabled = false;
+            btn.disabled = false;
             
             if(res && res.ok) {
-                showToast("Guardado", true);
-                
-                // 🔥 LÓGICA DE RESETEO SELECTIVO 🔥
+                // RESETEO DE CAMPOS AUTOMATICO
                 const inputImporte = document.getElementById('mov-importe');
                 const inputObs = document.getElementById('mov-obs');
                 const selectCat = document.getElementById('mov-categoria');
@@ -912,25 +1158,19 @@
                 inputImporte.setAttribute('data-clean-value', '0');
                 inputObs.value = ""; 
 
-                // Resetear campos de Cheque
                 document.getElementById('mov-banco').value = '';
                 document.getElementById('mov-cheque-nro').value = '';
 
-                // Si fue Pago de Haberes, NO resetear Categoría y mantener el Tipo de Movimiento (Egreso)
-                if (cat !== "Pago de Haberes") {
-                    selectCat.value = ''; // Resetear Categoría
-                    // Resetear Tipo de Movimiento a Egreso (Default)
+                if (payload.categoria !== "Pago de Haberes") {
+                    selectCat.value = ''; 
                     document.getElementById('mov-tipo').value = 'Egreso'; 
                 } else {
-                    // Si fue Pago de Haberes, solo se resetea el Empleado a "Seleccionar..."
                     if (selectEmp) selectEmp.value = '';
                 }
 
-                // Resetear campos dependientes (Proveedor/Vehículo/Cheque)
                 document.getElementById('mov-proveedor').value = '';
                 if (document.getElementById('mov-vehiculo')) document.getElementById('mov-vehiculo').value = '';
                 
-                // Lógica de reseteo de Cheque Cartera
                 if (inputImporte.classList.contains('importe-cheque-lock')) {
                     inputImporte.classList.remove('importe-cheque-lock');
                     inputImporte.disabled = false;
@@ -938,14 +1178,15 @@
                     if (selectChequeCartera) selectChequeCartera.value = '';
                 }
 
-                // Llamar a actualizarCategorias y checkCamposExtra para limpiar la UI
                 actualizarCategorias(); 
                 checkCamposExtra(); 
                 
-                // 3. Finalizar
+                // Actualizar saldos en "vivo"
                 actualizarSaldoHeader();
                 cargarMovimientos();
-            } else { showToast(res.error || "Error al guardar", false); }
+            } else { 
+                showToast(res.error || "Error al guardar (API)", false); 
+            }
         }
 
         // --- AUXILIARES ---
@@ -1011,7 +1252,6 @@
             if (cat === 'Combustible' && veh) {
                 const warning = await api("checkCombustibleWarning", { vehiculo: veh });
                 if (warning.ok && warning.isWarning) {
-                    // Muestra un toast suave para que el usuario esté advertido antes de pulsar Registrar
                     showToast(warning.message.replace('¡ALERTA!', '⛽ Atención:'), false);
                 }
             }
