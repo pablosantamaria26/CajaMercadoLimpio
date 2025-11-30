@@ -7,18 +7,18 @@
     
     <!-- Fuentes e Iconos -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-    <!-- Markdown Parser para respuestas bonitas de la IA -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Chart.js para tendencias -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     
     <style>
         /* =========================================
-            ESTILOS V4.2: ARREGLOS Y DETALLE FINANCIERO
-            ========================================= */
+           ESTILOS V9: FUSIÓN Y CORRECCIONES UI
+           ========================================= */
         :root {
             --bg-body: #0f172a;      
             --bg-card: #1e293b;      
-            --bg-header: rgba(15, 23, 42, 0.98);
+            --bg-header: rgba(15, 23, 42, 0.95);
             
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
@@ -28,7 +28,8 @@
             --danger: #ef4444;      
             --warning: #f59e0b;      
             --purple: #8b5cf6;      
-            --ai-color: #8B5CF6;  
+            --info: #06b6d4; 
+            --accent: #ec4899;
             
             --safe-top: env(safe-area-inset-top);
             --safe-bottom: env(safe-area-inset-bottom);
@@ -41,21 +42,22 @@
             font-family: 'Inter', sans-serif;
             background: var(--bg-body);
             color: var(--text-main);
-            /* FIX: Asegura que el contenido debajo del header fijo no se tape (aprox 120px de header) */
-            padding-top: calc(120px + var(--safe-top)); 
-            padding-bottom: calc(80px + var(--safe-bottom));
+            padding-top: calc(130px + var(--safe-top)); 
+            padding-bottom: calc(90px + var(--safe-bottom));
             min-height: 100vh;
+            overflow-x: hidden; /* Evita scroll lateral por animaciones */
         }
 
         /* --- HEADER --- */
         .header-fixed {
             position: fixed; top: 0; left: 0; width: 100%;
             background: var(--bg-header);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(255,255,255,0.08);
             z-index: 1000;
             padding-top: var(--safe-top);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
         
         .header-content {
@@ -67,15 +69,15 @@
             display: flex; justify-content: space-between; align-items: center;
         }
         .app-logo { 
-            font-size: 1.2rem; font-weight: 800; color: var(--text-main); 
+            font-size: 1.2rem; font-weight: 900; color: var(--text-main); 
             display: flex; align-items: center; gap: 8px; 
             letter-spacing: -0.5px;
         }
-        
+
         /* DATE CONTROLS */
         .date-navigator {
             display: flex; align-items: center; justify-content: space-between;
-            background: rgba(255,255,255,0.07);
+            background: rgba(255,255,255,0.05);
             border-radius: 14px;
             padding: 4px;
             border: 1px solid rgba(255,255,255,0.05);
@@ -85,7 +87,7 @@
             width: 44px; height: 40px; border-radius: 10px; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
         }
-        .date-btn:active { background: rgba(255,255,255,0.15); }
+        .date-btn:active { background: rgba(255,255,255,0.15); transform: scale(0.9); }
         
         .date-display-container {
             flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -97,7 +99,6 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             opacity: 0; cursor: pointer; z-index: 10;
         }
-        .calendar-icon { color: var(--primary); font-size: 20px; }
 
         /* --- TABS --- */
         .tabs-scroller {
@@ -108,17 +109,18 @@
         
         .tab-chip {
             background: rgba(255,255,255,0.05); 
-            border: 1px solid rgba(255,255,255,0.05);
             color: var(--text-muted);
-            padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+            padding: 9px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
             white-space: nowrap; transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.05);
         }
         .tab-chip.active {
             background: var(--primary); color: white; border-color: var(--primary);
             box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            transform: translateY(-1px);
         }
 
-        /* --- SCREEN CONTAINER --- */
+        /* --- SCREENS --- */
         .screen { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
         .screen.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -132,251 +134,156 @@
             border: 1px solid rgba(255,255,255,0.03);
             box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
             position: relative; overflow: hidden;
-            transition: all 0.2s; /* Para el detalle de combustible */
         }
         .card-title {
-            font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;
+            font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;
             letter-spacing: 0.8px; margin-bottom: 15px; font-weight: 700;
             display: flex; justify-content: space-between; align-items: center;
         }
 
-        /* --- DASHBOARD KPIS --- */
+        /* --- KPI GRIDS --- */
         .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
         .kpi-box { 
             background: rgba(255,255,255,0.03); padding: 16px; border-radius: 16px; text-align: center; 
             border: 1px solid rgba(255,255,255,0.02);
         }
-        .kpi-val { 
-            font-size: 1.5rem; font-weight: 800; color: var(--text-main); 
-            line-height: 1.3; padding: 2px 0;
-        }
-        .kpi-lbl { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
-        
+        .kpi-val { font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin-bottom: 2px;}
+        .kpi-lbl { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;}
+
+        .balance-hero { text-align: center; padding: 10px 0 20px 0; }
+        .balance-amount { font-size: 2.8rem; font-weight: 900; letter-spacing: -1px; padding: 5px 0; }
+        .balance-subtitle { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase;}
+
         .text-green { color: var(--success); }
         .text-red { color: var(--danger); }
-        
-        .balance-hero { text-align: center; padding: 15px 0 25px 0; }
-        .balance-amount { 
-            font-size: 3rem; font-weight: 800; letter-spacing: -1.5px; 
-            line-height: 1.2; padding: 5px 0;
-            text-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        .balance-subtitle { 
-            color: var(--text-muted); font-size: 0.95rem; font-weight: 500;
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-        }
+        .text-info { color: var(--info); }
 
         /* --- LISTAS --- */
         .list-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 14px 12px; border-radius: 12px;
+            background: rgba(255,255,255,0.02);
+            margin-bottom: 8px;
+            border: 1px solid rgba(255,255,255,0.02);
         }
-        .list-row:last-child { border-bottom: none; }
-        
         .row-icon {
-            width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.05);
-            display: flex; align-items: center; justify-content: center; margin-right: 14px;
-            font-size: 22px; flex-shrink: 0;
+            width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.05);
+            display: flex; align-items: center; justify-content: center; margin-right: 12px;
+            flex-shrink: 0;
         }
         .row-info { flex-grow: 1; min-width: 0; }
-        .row-title { font-weight: 600; font-size: 1rem; color: var(--text-main); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .row-sub { font-size: 0.8rem; color: var(--text-muted); }
-        .row-amount { font-weight: 700; font-size: 1rem; white-space: nowrap; }
+        .row-title { font-weight: 600; font-size: 0.95rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .row-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+        .row-amount { font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
 
-        /* --- EMPLEADOS INPUTS (Dark Mode) --- */
-        .emp-row {
-            display: flex; align-items: center; gap: 10px;
-            padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .emp-name { flex: 1; font-weight: 600; font-size: 0.95rem; }
-        .emp-input {
-            width: 100px;
-            background: rgba(0,0,0,0.2);
+        /* --- FORMS & INPUTS (CORREGIDO PARA GASTOS FIJOS) --- */
+        .input-dark {
+            width: 100%; padding: 14px; margin-bottom: 12px;
+            background: rgba(0,0,0,0.3); 
             border: 1px solid rgba(255,255,255,0.1);
-            color: var(--text-main);
-            padding: 8px;
-            border-radius: 8px;
-            text-align: right;
-            font-weight: 700;
-            outline: none;
+            color: white; border-radius: 12px; outline: none;
+            font-family: 'Inter', sans-serif; font-size: 1rem;
+            transition: border-color 0.2s;
         }
-        .emp-input:focus { border-color: var(--primary); }
-        .btn-emp-save {
-            background: var(--primary); color: white; border: none;
-            width: 36px; height: 36px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.2s;
+        .input-dark:focus { border-color: var(--primary); }
+        .input-dark::placeholder { color: rgba(255,255,255,0.3); }
+
+        .btn-main-action {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, var(--primary) 0%, #2563eb 100%);
+            border: none; border-radius: 12px;
+            color: white; font-weight: 700; font-size: 1rem;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            cursor: pointer; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
         }
-        .btn-emp-save:active { transform: scale(0.95); }
+        .btn-main-action:active { transform: scale(0.98); }
         
         .btn-add-block {
             width: 100%; padding: 12px;
             background: rgba(255,255,255,0.05);
             border: 1px dashed rgba(255,255,255,0.2);
-            color: var(--text-muted);
-            border-radius: 12px;
-            font-weight: 600; margin-top: 10px;
-            cursor: pointer;
+            color: var(--text-muted); border-radius: 12px;
+            font-weight: 600; margin-top: 10px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
         }
-        .add-form { 
-            display: none; background: rgba(0,0,0,0.2); padding: 15px; 
-            border-radius: 12px; margin-top: 10px; 
-        }
-        .add-form.active { display: block; }
-        .input-dark {
-            width: 100%; padding: 12px; margin-bottom: 10px;
-            background: var(--bg-body); border: 1px solid rgba(255,255,255,0.1);
-            color: white; border-radius: 10px; outline: none;
-        }
+        .add-form { display: none; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.05); }
+        .add-form.active { display: block; animation: fadeIn 0.2s; }
 
-
-        /* --- COMBUSTIBLE CARDS & DETAIL --- */
+        /* --- COMBUSTIBLE (MEJORADO) --- */
         .fuel-vehicle-card {
-            background: linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%);
-            border-radius: 16px; padding: 18px; 
-            margin: 0 15px 12px 15px; /* Ajuste para que se vea como un card con margen */
+            background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+            border-radius: 16px; padding: 16px; 
+            margin: 0 15px 12px 15px;
             display: flex; align-items: center; justify-content: space-between;
             border: 1px solid rgba(255,255,255,0.05);
-            transition: all 0.2s;
+            transition: background 0.2s;
         }
-        .fuel-vehicle-card:hover { background: rgba(255,255,255,0.1); }
-        .fuel-name { font-weight: 700; font-size: 1.1rem; }
-        .fuel-total { color: var(--warning); font-weight: 800; font-size: 1.2rem; line-height: 1.2; }
+        .fuel-vehicle-card:active { background: rgba(255,255,255,0.08); }
+        .fuel-total { color: var(--warning); font-weight: 800; font-size: 1.1rem; }
         
-        /* Contenedor de lista de detalles que se muestra al hacer click */
+        /* Lista detallada de cargas */
         .fuel-details-list {
             display: none; 
-            padding: 0 15px 15px 15px; 
-            margin: -16px 15px 12px 15px; /* Margen negativo para unirlo a la card */
-            background: var(--bg-card); 
-            border: 1px solid rgba(255,255,255,0.05);
-            border-top: none; 
-            border-bottom-left-radius: 20px; 
-            border-bottom-right-radius: 20px;
-            animation: fadeIn 0.3s ease;
+            margin: -8px 15px 12px 15px; 
+            padding: 5px 15px 15px 15px;
+            background: rgba(0,0,0,0.2);
+            border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05); border-top: none;
+        }
+        .fuel-row {
+            display: flex; justify-content: space-between; 
+            padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.9rem; color: var(--text-muted);
+        }
+        .fuel-row:last-child { border-bottom: none; }
+
+        /* --- EMPLEADOS & FIJOS ITEMS --- */
+        .emp-item {
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(255,255,255,0.03); padding: 12px 15px;
+            border-radius: 14px; border: 1px solid rgba(255,255,255,0.02);
+        }
+        .emp-input-mini {
+            background: transparent; border: none; color: var(--success);
+            font-weight: 800; font-size: 1.1rem; text-align: right; width: 80px;
+            outline: none;
+        }
+        .btn-save-mini {
+            width: 34px; height: 34px; border-radius: 8px; border: none;
+            background: rgba(255,255,255,0.1); color: var(--text-muted);
+            display: flex; align-items: center; justify-content: center; margin-left: 8px;
+            cursor: pointer;
         }
 
-        /* --- UTILS --- */
-        .empty-state { 
-            text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 0.95rem; 
-            background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1);
+        /* --- ALERTAS --- */
+        .alert-box {
+            padding: 15px; border-radius: 12px; margin-bottom: 10px;
+            border-left: 4px solid; background: rgba(255,255,255,0.03);
         }
-        .spin { animation: spin 1s infinite linear; display: inline-block; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Floating Buttons */
-        .fab-container {
-            position: fixed; bottom: 30px; right: 20px; z-index: 900;
-            display: flex; flex-direction: column; gap: 15px; align-items: center;
-        }
-
-        .fab {
+        
+        /* --- FAB REFRESH --- */
+        .fab-container { position: fixed; bottom: 30px; right: 20px; z-index: 900; }
+        .fab-refresh {
             width: 56px; height: 56px; border-radius: 50%;
-            border: none; color: white;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            background: var(--primary); color: white; border: none;
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
             display: flex; align-items: center; justify-content: center;
-            transition: transform 0.2s; cursor: pointer;
+            cursor: pointer; transition: transform 0.2s;
         }
-        .fab:active { transform: scale(0.95); }
+        .fab-refresh:active { transform: scale(0.9); }
+
+        .spin { animation: spin 1s infinite linear; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state { text-align: center; padding: 30px; color: var(--text-muted); opacity: 0.7; }
         
-        .fab-refresh { background: var(--bg-card); color: var(--text-muted); width: 48px; height: 48px; }
-        .fab-ai { 
-            background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); 
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
-            animation: pulse-glow 3s infinite;
-        }
-
-        @keyframes pulse-glow {
-            0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(139, 92, 246, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
-        }
-
-        /* --- CHAT MODAL --- */
-        .chat-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
-            z-index: 2000; display: none; align-items: flex-end; justify-content: center;
-        }
-        .chat-modal.active { display: flex; animation: fadeIn 0.3s; }
-        
-        .chat-container {
-            width: 100%; max-width: 500px; height: 85vh;
-            background: var(--bg-body);
-            border-top-left-radius: 24px; border-top-right-radius: 24px;
-            display: flex; flex-direction: column;
-            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
-            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-        .chat-modal.active .chat-container { transform: translateY(0); }
-
-        .chat-header {
-            padding: 20px; display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .chat-title { font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
-        .chat-close { background: none; border: none; color: var(--text-muted); cursor: pointer; }
-
-        .chat-messages {
-            flex-grow: 1; padding: 20px; overflow-y: auto;
-            display: flex; flex-direction: column; gap: 15px;
-        }
-
-        .chat-bubble {
-            max-width: 85%; padding: 12px 16px; border-radius: 18px;
-            font-size: 0.95rem; line-height: 1.5;
-        }
-        .bubble-ai {
-            background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2);
-            color: #e0d7fe; align-self: flex-start;
-            border-bottom-left-radius: 4px;
-        }
-        .bubble-user {
-            background: var(--primary); color: white; align-self: flex-end;
-            border-bottom-right-radius: 4px;
-        }
-
-        .chat-input-area {
-            padding: 15px 20px 30px 20px; /* Safe area bottom */
-            background: var(--bg-header);
-            border-top: 1px solid rgba(255,255,255,0.05);
-            display: flex; gap: 10px;
-        }
-        .chat-input {
-            flex-grow: 1; background: rgba(255,255,255,0.05); border: none;
-            border-radius: 24px; padding: 12px 20px; color: white;
-            font-family: 'Inter', sans-serif; font-size: 1rem;
-        }
-        .chat-input:focus { outline: 2px solid var(--primary); }
-        .chat-send {
-            background: var(--ai-color); border: none; width: 46px; height: 46px; border-radius: 50%;
-            color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;
-        }
-
-        /* Markdown Styles in Chat */
-        .chat-bubble p { margin: 0 0 8px 0; }
-        .chat-bubble p:last-child { margin: 0; }
-        .chat-bubble strong { color: white; font-weight: 700; }
-        .chat-bubble ul { margin: 5px 0; padding-left: 20px; }
-
-        .btn-ai-generate {
-            width: 100%; padding: 12px;
-            background: linear-gradient(90deg, #8B5CF6 0%, #6366F1 100%);
-            border: none; border-radius: 12px;
-            color: white; font-weight: 700; font-size: 0.9rem;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            cursor: pointer; margin-top: 10px;
-            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
-            transition: transform 0.2s;
-        }
-        .btn-ai-generate:active { transform: scale(0.98); }
+        /* Gráficos */
+        .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
 
     </style>
 </head>
 <body>
 
-    <!-- HEADER FIJO -->
+    <!-- HEADER -->
     <div class="header-fixed">
         <div class="header-content">
             <div class="top-row">
@@ -389,281 +296,254 @@
                 </div>
             </div>
             
-            <!-- SELECTOR DE FECHA -->
+            <!-- FECHAS (CON SWIPE LOGIC) -->
             <div class="date-navigator">
-                <button class="date-btn" onclick="changeDate(-1)">
-                    <span class="material-icons-round">chevron_left</span>
-                </button>
-                
+                <button class="date-btn" onclick="changeDate(-1)"><span class="material-icons-round">chevron_left</span></button>
                 <div class="date-display-container">
-                    <span class="material-icons-round calendar-icon">calendar_today</span>
+                    <span class="material-icons-round" style="color:var(--primary); font-size:18px;">calendar_today</span>
                     <span id="date-label" class="date-text">Hoy</span>
                     <input type="date" id="date-picker" onchange="onDatePick(this.value)">
                 </div>
-
-                <button class="date-btn" onclick="changeDate(1)">
-                    <span class="material-icons-round">chevron_right</span>
-                </button>
+                <button class="date-btn" onclick="changeDate(1)"><span class="material-icons-round">chevron_right</span></button>
             </div>
         </div>
 
         <!-- TABS -->
         <div class="tabs-scroller">
             <div class="tab-chip active" onclick="showScreen('resumen', this)">📊 Resumen</div>
+            <div class="tab-chip" onclick="showScreen('tendencias', this)">📈 Tendencias</div>
             <div class="tab-chip" onclick="showScreen('movimientos', this)">📝 Movimientos</div>
-            <div class="tab-chip" onclick="showScreen('empleados', this)">👥 Empleados</div>
             <div class="tab-chip" onclick="showScreen('combustible', this)">⛽ Combustible</div>
+            <div class="tab-chip" onclick="showScreen('empleados', this)">👥 Empleados</div>
+            <div class="tab-chip" onclick="showScreen('fijos', this)">🏠 G. Fijos</div>
             <div class="tab-chip" onclick="showScreen('proveedores', this)">🚚 Proveedores</div>
             <div class="tab-chip" onclick="showScreen('alertas', this)">🚨 Alertas</div>
         </div>
     </div>
 
-    <!-- 1. PANTALLA RESUMEN -->
-    <div id="screen-resumen" class="screen active">
-        <div class="card">
-            <div class="balance-hero">
-                <div class="balance-subtitle">Resultado Operativo (Día)</div>
-                <div class="balance-amount" id="kpi-neto">--</div>
-            </div>
-            <div class="kpi-grid">
-                <div class="kpi-box">
-                    <div class="kpi-val text-green" id="kpi-ingreso">--</div>
-                    <div class="kpi-lbl">Ingresos</div>
-                </div>
-                <div class="kpi-box">
-                    <div class="kpi-val text-red" id="kpi-egreso">--</div>
-                    <div class="kpi-lbl">Egresos</div>
-                </div>
-            </div>
-            
-            <!-- DETALLE DE SALDOS DE CAJA (NUEVO) -->
-            <div class="card-title" style="margin-top:20px;">
-                <span>Caja Física (Saldos)</span>
-                <span class="material-icons-round" style="font-size:16px;">verified_user</span>
-            </div>
-            <div class="kpi-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom:0;">
-                <div class="kpi-box" style="padding:10px;">
-                    <div class="kpi-val" style="font-size:1.1rem;" id="kpi-caja-efectivo">--</div>
-                    <div class="kpi-lbl">EFECTIVO</div>
-                </div>
-                <div class="kpi-box" style="padding:10px;">
-                    <div class="kpi-val" style="font-size:1.1rem; color:var(--purple);" id="kpi-caja-cheques">--</div>
-                    <div class="kpi-lbl">CHEQUES</div>
-                </div>
-                <div class="kpi-box" style="padding:10px; background:var(--primary); color:white; border:none;">
-                    <div class="kpi-val" style="font-size:1.1rem; color:white;" id="kpi-caja-total">--</div>
-                    <div class="kpi-lbl" style="color:white; opacity:0.8;">TOTAL REAL</div>
-                </div>
-            </div>
-            <!-- FIN DETALLE DE SALDOS -->
-        </div>
+    <!-- AREA DE CONTENIDO (SWIPEABLE) -->
+    <div id="main-content-area">
 
-        <div class="card">
-            <div class="card-title">
-                <span>Resumen Inteligente</span>
-                <span class="material-icons-round" style="font-size:16px; color:var(--ai-color);">auto_awesome</span>
-            </div>
-            <div id="smart-summary-content">
-                <p id="smart-summary-text" style="font-size:0.95rem; line-height:1.6; color:var(--text-muted);">
-                    Analizando datos básicos...
-                </p>
-            </div>
-            <button class="btn-ai-generate" onclick="generateAiSummary()">
-                <span class="material-icons-round">psychology</span> Analizar a fondo con IA
-            </button>
-        </div>
-    </div>
-
-    <!-- 2. PANTALLA MOVIMIENTOS -->
-    <div id="screen-movimientos" class="screen">
-        <div class="card">
-            <div class="card-title">
-                <span>Historial del Día</span>
-                <span id="mov-count" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:6px; font-size:0.75rem;">0</span>
-            </div>
-            <div id="movimientos-list">
-                <div class="empty-state">
-                    <span class="material-icons-round" style="font-size:40px; color:rgba(255,255,255,0.2); display:block; margin-bottom:10px;">receipt_long</span>
-                    No hay movimientos.
+        <!-- 1. RESUMEN -->
+        <div id="screen-resumen" class="screen active">
+            <div class="card">
+                <div class="balance-hero">
+                    <div class="balance-subtitle">Resultado Operativo (Día)</div>
+                    <div class="balance-amount" id="kpi-neto">--</div>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-box">
+                        <div class="kpi-val text-green" id="kpi-ingreso">--</div>
+                        <div class="kpi-lbl">Ingresos</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-val text-red" id="kpi-egreso">--</div>
+                        <div class="kpi-lbl">Egresos</div>
+                    </div>
+                </div>
+                
+                <div class="card-title" style="margin-top:20px;">
+                    <span>Caja Física</span>
+                    <span class="material-icons-round" style="font-size:16px;">verified_user</span>
+                </div>
+                <div class="kpi-grid" style="grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+                    <div class="kpi-box" style="padding:10px;">
+                        <div class="kpi-val" style="font-size:1.1rem;" id="kpi-caja-efectivo">--</div>
+                        <div class="kpi-lbl">EFECTIVO</div>
+                    </div>
+                    <div class="kpi-box" style="padding:10px;">
+                        <div class="kpi-val" style="font-size:1.1rem; color:var(--purple);" id="kpi-caja-cheques">--</div>
+                        <div class="kpi-lbl">CHEQUES</div>
+                    </div>
+                    <div class="kpi-box" style="padding:10px; background:var(--primary); border:none;">
+                        <div class="kpi-val" style="font-size:1.1rem; color:white;" id="kpi-caja-total">--</div>
+                        <div class="kpi-lbl" style="color:white; opacity:0.8;">TOTAL</div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- 3. PANTALLA EMPLEADOS -->
-    <div id="screen-empleados" class="screen">
-        <div class="card">
-            <div class="card-title">
-                <span>Gestión de Sueldos</span>
-                <span class="material-icons-round">badge</span>
-            </div>
-            <div id="empleados-list">
-                <div class="empty-state">
-                    <span class="spin material-icons-round">sync</span> Cargando equipo...
+        <!-- 1.5 TENDENCIAS (NUEVO) -->
+        <div id="screen-tendencias" class="screen">
+             <div class="card">
+                <div class="card-title">
+                    <span>Evolución Egresos (7 Días)</span>
+                    <span class="material-icons-round">show_chart</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chartEgresos"></canvas>
+                </div>
+             </div>
+             <div class="card">
+                <div class="card-title">
+                    <span>Ranking de Gastos</span>
+                    <span class="material-icons-round">pie_chart</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chartRanking"></canvas>
+                </div>
+             </div>
+        </div>
+
+        <!-- 2. MOVIMIENTOS -->
+        <div id="screen-movimientos" class="screen">
+            <div class="card">
+                <div class="card-title">
+                    <span>Historial del Día</span>
+                    <span id="mov-count" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:6px; font-size:0.75rem;">0</span>
+                </div>
+                <div id="movimientos-list">
+                    <div class="empty-state">Cargando...</div>
                 </div>
             </div>
-            
-            <button class="btn-add-block" onclick="toggleAddForm()">+ Agregar Nuevo Empleado</button>
-            
-            <div id="add-emp-form" class="add-form">
-                <input type="text" id="new-emp-name" class="input-dark" placeholder="Nombre (ej: Juan)">
-                <input type="number" id="new-emp-wage" class="input-dark" placeholder="Sueldo Base Semanal ($)">
-                <button class="btn-ai-generate" onclick="addNewEmpleado()">Guardar Empleado</button>
+        </div>
+
+        <!-- 3. COMBUSTIBLE (MEJORADO) -->
+        <div id="screen-combustible" class="screen" style="padding: 15px 0;">
+             <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border:none; margin: 0 15px 16px 15px;">
+                <div style="color:white; opacity:0.9; font-size:0.8rem; font-weight:700; margin-bottom:5px;">TOTAL COMBUSTIBLE (DÍA)</div>
+                <div style="color:white; font-size:2.8rem; font-weight:800; line-height:1.1;" id="fuel-day-total">$ 0</div>
+            </div>
+            <div class="card-title" style="padding:0 30px; margin-top:10px;">DESGLOSE POR VEHÍCULO</div>
+            <div id="fuel-container">
+                <div class="empty-state" style="margin:0 15px;">Sin cargas hoy.</div>
             </div>
         </div>
-        <div class="card">
-            <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;">
-                <span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--ai-color);">auto_awesome</span>
-                <strong>Lógica Automática:</strong> Al configurar el sueldo base aquí, la App de Laura descontará automáticamente los adelantos de la semana cuando vaya a pagar los viernes.
+
+        <!-- 4. EMPLEADOS -->
+        <div id="screen-empleados" class="screen">
+            <div class="card">
+                <div class="card-title"><span>Configuración Sueldos</span> <span class="material-icons-round">badge</span></div>
+                <div id="empleados-list" style="display:grid; gap:10px;"></div>
+                
+                <button class="btn-add-block" onclick="toggleAddForm('emp')">
+                    <span class="material-icons-round">add</span> Nuevo Empleado
+                </button>
+                <div id="add-emp-form" class="add-form">
+                    <input type="text" id="new-emp-name" class="input-dark" placeholder="Nombre (ej: Juan)">
+                    <input type="number" id="new-emp-wage" class="input-dark" placeholder="Sueldo Base ($)">
+                    <button class="btn-main-action" onclick="addNewEmpleado()">
+                        <span class="material-icons-round">save</span> Guardar Empleado
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- 4. PANTALLA COMBUSTIBLE -->
-    <div id="screen-combustible" class="screen" style="padding: 15px 0;"> <!-- Quitamos padding horizontal del screen para que el card se extienda y aplicamos a los contenedores -->
-        <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border:none; margin: 0 15px 16px 15px;">
-            <div style="color:white; opacity:0.9; font-size:0.8rem; font-weight:700; margin-bottom:5px;">TOTAL COMBUSTIBLE (DÍA)</div>
-            <div style="color:white; font-size:2.8rem; font-weight:800; line-height:1.1;" id="fuel-day-total">$ 0</div>
-        </div>
-        <div class="card-title" style="padding:0 30px; margin-top:10px;">DESGLOSE POR VEHÍCULO</div>
-        <div id="fuel-container">
-            <div class="empty-state" style="margin: 0 15px;">Sin gastos de combustible hoy.</div>
-        </div>
-    </div>
+        <!-- 5. GASTOS FIJOS (UI CORREGIDA) -->
+        <div id="screen-fijos" class="screen">
+            <div class="card" style="border-left: 4px solid var(--info);">
+                <div class="card-title" style="color:var(--info);">
+                    <span>Gastos Fijos Mensuales</span>
+                    <span class="material-icons-round">apartment</span>
+                </div>
+                <div id="fijos-list" style="display:grid; gap:10px;"></div>
 
-    <!-- 5. PANTALLA PROVEEDORES -->
-    <div id="screen-proveedores" class="screen">
-        <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); border:none;">
-            <div style="color:white; opacity:0.9; font-size:0.8rem; font-weight:700; margin-bottom:5px;">PAGOS PROVEEDORES (DÍA)</div>
-            <div style="color:white; font-size:2.8rem; font-weight:800; line-height:1.1;" id="prov-day-total">$ 0</div>
-        </div>
-        <div class="card">
-            <div class="card-title">Detalle de Pagos</div>
-            <div id="prov-list">
-                <div class="empty-state">No hay pagos a proveedores hoy.</div>
+                <div style="background:rgba(6,182,212,0.1); padding:15px; border-radius:12px; margin-top:16px;">
+                    <div style="font-size:0.8rem; color:var(--text-muted); font-weight:700; margin-bottom:5px;">TOTAL PROYECTADO MENSUAL</div>
+                    <div style="font-size:1.8rem; font-weight:900; color:var(--info);" id="total-fijos-mensual">--</div>
+                </div>
+
+                <button class="btn-add-block" onclick="toggleAddForm('fijo')">
+                    <span class="material-icons-round">add_circle_outline</span> Nuevo Gasto Fijo
+                </button>
+                
+                <!-- FORMULARIO CON ESTILO INPUT-DARK CORREGIDO -->
+                <div id="add-fijo-form" class="add-form">
+                    <input type="text" id="new-fijo-name" class="input-dark" placeholder="Nombre (ej: Alquiler)">
+                    <input type="number" id="new-fijo-amount" class="input-dark" placeholder="Costo Mensual ($)">
+                    <button class="btn-main-action" style="background:var(--info);" onclick="addNewGastoFijo()">
+                        <span class="material-icons-round">save</span> Guardar Gasto
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- 6. PANTALLA ALERTAS -->
-    <div id="screen-alertas" class="screen">
-        <div class="card">
-            <div class="card-title">Centro de Seguridad</div>
-            <div id="alerts-list">
-                <div class="empty-state">✅ Todo normal. Sin alertas.</div>
+        <!-- 6. PROVEEDORES -->
+        <div id="screen-proveedores" class="screen">
+             <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); border:none;">
+                <div style="color:white; opacity:0.9; font-size:0.8rem; font-weight:700; margin-bottom:5px;">PAGOS PROVEEDORES</div>
+                <div style="color:white; font-size:2.8rem; font-weight:800; line-height:1.1;" id="prov-day-total">$ 0</div>
+            </div>
+            <div class="card">
+                <div id="prov-list"><div class="empty-state">Sin pagos hoy.</div></div>
             </div>
         </div>
-    </div>
 
-    <!-- BOTONES FLOTANTES -->
+        <!-- 7. ALERTAS -->
+        <div id="screen-alertas" class="screen">
+            <div class="card">
+                <div class="card-title">Centro de Alertas</div>
+                <div id="alerts-list"></div>
+            </div>
+        </div>
+
+    </div> <!-- Fin Swipe Area -->
+
+    <!-- FAB -->
     <div class="fab-container">
-        <button class="fab fab-refresh" onclick="forceRefresh()" title="Actualizar datos">
-            <span class="material-icons-round" style="font-size:24px;">sync</span>
-        </button>
-        <button class="fab fab-ai" onclick="openChat()" title="Asistente IA">
-            <span class="material-icons-round" style="font-size:28px;">auto_awesome</span>
-        </button>
-    </div>
-
-    <!-- CHAT MODAL -->
-    <div id="chat-modal" class="chat-modal">
-        <div class="chat-container">
-            <div class="chat-header">
-                <div class="chat-title">
-                    <span class="material-icons-round" style="color:var(--ai-color);">psychology</span>
-                    Asistente Financiero
-                </div>
-                <button class="chat-close" onclick="closeChat()">
-                    <span class="material-icons-round" style="font-size:28px;">expand_more</span>
-                </button>
-            </div>
-            
-            <div class="chat-messages" id="chat-messages">
-                <div class="chat-bubble bubble-ai">
-                    👋 Hola. Soy la IA de Mercado Limpio.
-                    <br>He analizado los datos de hoy. ¿Qué necesitas saber sobre la caja, gastos o seguridad?
-                </div>
-            </div>
-
-            <div class="chat-input-area">
-                <input type="text" id="chat-input" class="chat-input" placeholder="Pregúntale a los datos..." onkeypress="handleChatKey(event)">
-                <button class="chat-send" onclick="sendChatMessage()">
-                    <span class="material-icons-round">send</span>
-                </button>
-            </div>
-        </div>
+        <button class="fab-refresh" onclick="forceRefresh()"><span class="material-icons-round" style="font-size:26px;">sync</span></button>
     </div>
 
     <script>
-        // CONFIGURACIÓN API
+        // === CONFIGURACIÓN ===
         const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
-        const apiKey = ""; // La clave se proporciona en tiempo de ejecución
-        
-        // ESTADO GLOBAL
-        let currentDateStr = ""; // ISO YYYY-MM-DD
-        let currentMovs = [];
-        let fuelMovsByVehicle = {}; // Almacenará los movimientos de combustible desglosados
+        const apiKey = ""; 
 
-        // --- INICIALIZACIÓN ---
+        // === ESTADO ===
+        let currentDateStr = "";
+        let currentMovs = [];
+        let fuelMovsByVehicle = {};
+        
+        // Gráficos
+        let chartEgresos = null;
+        let chartRanking = null;
+
         document.addEventListener("DOMContentLoaded", () => {
             const today = new Date();
             const offset = today.getTimezoneOffset() * 60000;
             const localIso = new Date(today.getTime() - offset).toISOString().split('T')[0];
+            
             setDate(localIso);
-            fetchStatusCaja(); 
-            fetchEmpleados(); // Cargar la lista de empleados al inicio
+            fetchStatusCaja();
+            fetchEmpleados();
+            fetchGastosFijos();
+            initSwipe(); // Iniciar detector de deslizamiento
         });
 
-        // --- GESTIÓN DE FECHAS ---
+        // === FECHAS ===
         function setDate(isoDate) {
             currentDateStr = isoDate;
             const picker = document.getElementById('date-picker');
             if(picker) picker.value = isoDate;
             
-            const d = new Date(isoDate + "T12:00:00"); 
-            const today = new Date();
-            today.setHours(12,0,0,0);
-            
-            const diffDays = Math.round((d - today) / (1000 * 60 * 60 * 24));
+            const d = new Date(isoDate + "T12:00:00");
+            const today = new Date(); today.setHours(12,0,0,0);
+            const diff = Math.round((d - today) / (1000 * 60 * 60 * 24));
             
             let label = d.toLocaleDateString('es-AR', {day:'numeric', month:'short'});
-            if(diffDays === 0) label = "Hoy";
-            else if(diffDays === -1) label = "Ayer";
-            else if(diffDays === 1) label = "Mañana";
+            if(diff === 0) label = "Hoy";
+            else if(diff === -1) label = "Ayer";
+            else if(diff === 1) label = "Mañana";
             
-            if(d.getFullYear() !== today.getFullYear()) label += ` ${d.getFullYear()}`;
-
             document.getElementById('date-label').textContent = label;
+            
+            // CARGA DE DATOS CRÍTICA (USANDO LÓGICA V4 "PERFECTA")
             fetchDataForDate(currentDateStr);
             
-            // Limpiar chat al cambiar de fecha para no confundir contexto
-            document.getElementById('chat-messages').innerHTML = `
-                <div class="chat-bubble bubble-ai">
-                    📅 Has cambiado al <b>${label}</b>.
-                    <br>Estoy lista para analizar los datos de esta fecha.
-                </div>
-            `;
+            // Carga diferida de tendencias para no bloquear
+            if(document.getElementById('screen-tendencias').classList.contains('active')){
+                loadTrendsData();
+            }
         }
 
         function changeDate(delta) {
-            const current = new Date(currentDateStr + "T12:00:00");
-            current.setDate(current.getDate() + delta);
-            setDate(current.toISOString().split('T')[0]);
+            const d = new Date(currentDateStr + "T12:00:00");
+            d.setDate(d.getDate() + delta);
+            setDate(d.toISOString().split('T')[0]);
         }
-
         function onDatePick(val) { if(val) setDate(val); }
 
-        function forceRefresh() {
-            const icon = document.querySelector('.fab-refresh span');
-            icon.classList.add('spin');
-            fetchStatusCaja();
-            fetchEmpleados();
-            fetchDataForDate(currentDateStr).then(() => {
-                setTimeout(() => icon.classList.remove('spin'), 500);
-            });
-        }
-
-        // --- API DATA ---
+        // === DATA FETCHING (LÓGICA V4 RESTAURADA) ===
         async function api(fn, params = {}) {
             try {
                 const res = await fetch(API_URL, {
@@ -672,147 +552,25 @@
                     body: JSON.stringify({fn, params})
                 });
                 return await res.json();
-            } catch (e) {
-                console.error(e);
-                return null;
-            }
+            } catch (e) { console.error(e); return null; }
         }
-
-        // FIX 5: Detalle de Caja en Resumen
-        async function fetchStatusCaja() {
-            const res = await api("getEstadoCaja");
-            if(res && (typeof res.efectivo !== 'undefined' || typeof res.total !== 'undefined')) {
-                const efectivo = parseInt(res.efectivo || 0);
-                const cheques = parseInt(res.cheques || 0);
-                const totalReal = efectivo + cheques;
-                
-                document.getElementById('kpi-caja-efectivo').textContent = formatMoney(efectivo);
-                document.getElementById('kpi-caja-cheques').textContent = formatMoney(cheques);
-                document.getElementById('kpi-caja-total').textContent = formatMoney(totalReal);
-            } else {
-                document.getElementById('kpi-caja-efectivo').textContent = '--';
-                document.getElementById('kpi-caja-cheques').textContent = '--';
-                document.getElementById('kpi-caja-total').textContent = '--';
-            }
-        }
-
-        // --- NUEVAS FUNCIONES EMPLEADOS ---
-        // FIX 4: Mostrar fecha de última actualización
-        async function fetchEmpleados() {
-            const container = document.getElementById('empleados-list');
-            const res = await api("getConfigEmpleados"); 
-            
-            if (!res || !res.ok) {
-                container.innerHTML = '<div class="empty-state">No se pudo cargar la lista o aún no está configurada.</div>';
-                return;
-            }
-            
-            const empleados = res.data || [];
-            if(empleados.length === 0) {
-                container.innerHTML = '<div class="empty-state">No hay empleados configurados.</div>';
-                return;
-            }
-            
-            let html = '';
-            empleados.forEach(emp => {
-                const updateDate = emp.lastUpdate ? new Date(emp.lastUpdate + "T12:00:00") : null;
-                const lastUpdateText = updateDate ? updateDate.toLocaleDateString('es-AR') : 'Nunca';
-                
-                html += `
-                    <div class="emp-row">
-                        <span class="material-icons-round" style="color:var(--primary);">account_circle</span>
-                        <div class="row-info">
-                            <div class="emp-name">${emp.nombre}</div>
-                            <div class="row-sub">Últ. Act: ${lastUpdateText}</div>
-                        </div>
-                        <input type="number" class="emp-input" id="wage-${emp.nombre}" value="${emp.sueldoBase}" placeholder="0">
-                        <button class="btn-emp-save" onclick="saveSueldo('${emp.nombre}')">
-                            <span class="material-icons-round" style="font-size:18px">save</span>
-                        </button>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        async function saveSueldo(nombre) {
-            const input = document.getElementById(`wage-${nombre}`);
-            const nuevoSueldo = parseInt(input.value) || 0;
-            
-            const btn = input.nextElementSibling;
-            const originalIcon = btn.innerHTML;
-            const originalBg = btn.style.background;
-            
-            btn.innerHTML = '<span class="spin material-icons-round" style="font-size:18px">sync</span>';
-            btn.style.background = 'var(--warning)';
-            
-            const res = await api("updateConfigEmpleado", { nombre: nombre, sueldoBase: nuevoSueldo, updateDate: new Date().toISOString().split('T')[0] }); // Se añade la fecha de actualización
-            
-            if(res && res.ok) {
-                btn.style.background = 'var(--success)';
-                btn.innerHTML = '<span class="material-icons-round" style="font-size:18px">check</span>';
-                setTimeout(() => {
-                    btn.style.background = originalBg;
-                    btn.innerHTML = originalIcon;
-                    fetchEmpleados(); // Recarga la lista para mostrar la nueva fecha
-                }, 1500);
-            } else {
-                btn.style.background = 'var(--danger)';
-                btn.innerHTML = '<span class="material-icons-round" style="font-size:18px">close</span>';
-                console.error("Error al guardar:", res.error);
-                setTimeout(() => {
-                    btn.style.background = originalBg;
-                    btn.innerHTML = originalIcon;
-                }, 2000);
-            }
-        }
-        
-        function toggleAddForm() {
-            document.getElementById('add-emp-form').classList.toggle('active');
-        }
-
-        async function addNewEmpleado() {
-            const name = document.getElementById('new-emp-name').value.trim();
-            const wage = parseInt(document.getElementById('new-emp-wage').value) || 0;
-            
-            if(!name || wage <= 0) { console.error("Completa nombre y sueldo válido."); return; }
-            
-            const btn = document.querySelector('#add-emp-form button');
-            btn.disabled = true;
-            btn.innerText = "Guardando...";
-            
-            const res = await api("addConfigEmpleado", { nombre: name, sueldoBase: wage });
-            
-            if(res && res.ok) {
-                document.getElementById('new-emp-name').value = "";
-                document.getElementById('new-emp-wage').value = "";
-                toggleAddForm();
-                fetchEmpleados(); // Recargar lista
-            } else {
-                console.error("Error al agregar empleado:", res.error);
-            }
-            btn.disabled = false;
-            btn.innerHTML = '<span class="material-icons-round">psychology</span> Guardar Empleado';
-        }
-
-        // --- FUNCIONES EXISTENTES ---
 
         async function fetchDataForDate(dateStr) {
-            document.getElementById('smart-summary-text').innerHTML = '<span class="spin material-icons-round" style="font-size:1rem; vertical-align:text-bottom;">sync</span> Obteniendo datos...';
-            document.getElementById('movimientos-list').style.opacity = '0.5';
-
+            const listEl = document.getElementById('movimientos-list');
+            listEl.style.opacity = '0.5';
+            
+            // Usamos getMovimientos EXACTO (sin rango) para asegurar consistencia
             const fechaSegura = dateStr + "T12:00:00";
             const res = await api("getMovimientos", { fechaStr: fechaSegura });
             
-            document.getElementById('movimientos-list').style.opacity = '1';
-
+            listEl.style.opacity = '1';
+            
             if(Array.isArray(res)) {
                 currentMovs = res;
-                processData();
             } else {
                 currentMovs = [];
-                processData();
             }
+            processData(); // Procesa la lista localmente
         }
 
         function processData() {
@@ -820,7 +578,7 @@
             const fuelMap = { total: 0, vehicles: {} };
             const provMap = { total: 0, list: [] };
             const alerts = [];
-            fuelMovsByVehicle = {}; // Reset global detail map
+            fuelMovsByVehicle = {}; 
 
             currentMovs.forEach(m => {
                 const imp = Number(m.importe) || 0;
@@ -829,65 +587,55 @@
                 
                 if(m.tipo === 'Ingreso') ingresos += imp; else egresos += imp;
 
-                // Combustible (FIX 3: Almacenar detalles del movimiento)
+                // COMBUSTIBLE
                 if(cat.includes('combustible')) {
                     fuelMap.total += imp;
-                    let veh = m.vehiculo || "Otros"; 
-                    if (veh === "Otros" || veh === "") { 
-                         // Fallback detection logic 
+                    let veh = m.vehiculo || "Otros";
+                    if (veh === "Otros" || veh === "") {
                          if(cat.includes('saveiro') || obs.includes('saveiro')) veh = "Volkswagen Saveiro";
                          else if(cat.includes('toyota') || obs.includes('toyota') || cat.includes('hiace')) veh = "Toyota Hiace";
                          else if(cat.includes('fiat') || cat.includes('uno') || obs.includes('uno')) veh = "Fiat Uno Cargo";
                     }
-
                     if(!fuelMap.vehicles[veh]) fuelMap.vehicles[veh] = { count: 0, total: 0 };
                     fuelMap.vehicles[veh].count++;
                     fuelMap.vehicles[veh].total += imp;
 
-                    // Almacenar el detalle para el desglose
                     if (!fuelMovsByVehicle[veh]) fuelMovsByVehicle[veh] = [];
-                    fuelMovsByVehicle[veh].push({ amount: imp, time: m.hora, date: currentDateStr }); 
+                    fuelMovsByVehicle[veh].push({ amount: imp, time: m.hora, date: m.fecha }); 
                 }
 
-                // Proveedores
+                // PROVEEDORES
                 if(cat.includes('proveedor')) {
                     provMap.total += imp;
                     let name = m.proveedor || obs.replace('pago a ', '').trim() || m.categoria;
+                    const provMatch = obs.match(/\[Prov: (.*?)\]/i);
+                    if(provMatch && provMatch[1]) name = provMatch[1];
                     name = name.charAt(0).toUpperCase() + name.slice(1);
                     provMap.list.push({ name, amount: imp, time: m.hora });
                 }
 
-                // Alertas
+                // ALERTAS
                 if(cat.includes('diferencia') || obs.includes('faltante') || obs.includes('sobrante')) {
-                    if(imp > 1000) alerts.push({ type: 'danger', title: 'Ajuste de Caja', msg: `${m.categoria}: ${formatMoney(imp)}` });
-                }
-                if(imp > 100000 && (cat.includes('varios') || cat.includes('libre'))) {
-                    alerts.push({ type: 'warning', title: 'Gasto Elevado', msg: `Salida de ${formatMoney(imp)} en Varios.` });
+                    if(Math.abs(imp) > 1000) alerts.push({ type: 'danger', title: 'Diferencia Caja', msg: `${m.categoria}: ${formatMoney(imp)}` });
                 }
             });
 
+            // KPIs
             const neto = ingresos - egresos;
-
-            // Render KPIs
             document.getElementById('kpi-ingreso').textContent = formatMoney(ingresos);
             document.getElementById('kpi-egreso').textContent = formatMoney(egresos);
             const netoEl = document.getElementById('kpi-neto');
             netoEl.textContent = formatMoney(neto);
-            netoEl.style.color = neto >= 0 ? 'var(--success)' : 'var(--danger)';
+            netoEl.className = `balance-amount ${neto >= 0 ? 'text-green' : 'text-red'}`;
 
-            // Resumen Básico (Placeholder antes de IA)
-            let summary = currentMovs.length === 0 ? "Sin actividad." : `<b>${currentMovs.length} movimientos</b>. `;
-            if(currentMovs.length > 0) summary += neto > 0 ? `Balance positivo.` : `Gastos superiores.`;
-            document.getElementById('smart-summary-text').innerHTML = summary;
-
-            // Listas
+            // RENDER LISTAS
             renderMovsList(currentMovs);
             renderFuel(fuelMap);
             renderProv(provMap);
             renderAlerts(alerts);
         }
 
-        // --- RENDERERS AUXILIARES ---
+        // === RENDERERS ===
         function renderMovsList(list) {
             const container = document.getElementById('movimientos-list');
             document.getElementById('mov-count').textContent = list.length;
@@ -898,231 +646,306 @@
                 const color = isIng ? 'text-green' : 'text-red';
                 const sign = isIng ? '+' : '-';
                 const icon = getIconForCategory(m.categoria);
-                const subText = `${(m.hora||"").substring(0,5)} hs • ${m.formaPago}` + (m.observacion ? ` • ${m.observacion}` : '');
-                html += `<div class="list-row"><div class="row-icon"><span class="material-icons-round" style="color:${isIng?'var(--success)':'var(--text-muted)'}">${icon}</span></div><div class="row-info"><div class="row-title">${m.categoria}</div><div class="row-sub">${subText}</div></div><div class="row-amount ${color}">${sign} ${formatMoney(m.importe).replace('$ ','')}</div></div>`;
+                const subText = `${(m.hora||"").substring(0,5)} hs • ${m.formaPago}`;
+                html += `
+                <div class="list-row">
+                    <div style="display:flex; align-items:center; overflow:hidden;">
+                        <div class="row-icon"><span class="material-icons-round" style="color:${isIng?'var(--success)':'var(--text-muted)'}">${icon}</span></div>
+                        <div class="row-info">
+                            <div class="row-title">${m.categoria}</div>
+                            <div class="row-sub">${subText}</div>
+                        </div>
+                    </div>
+                    <div class="row-amount ${color}">${sign} ${formatMoney(m.importe).replace('$ ','')}</div>
+                </div>`;
             });
             container.innerHTML = html;
         }
 
-        // FIX 3: Renderizado interactivo de combustible
+        // RENDER COMBUSTIBLE MEJORADO (Detalle no desaparece)
         function renderFuel(map) {
             document.getElementById('fuel-day-total').textContent = formatMoney(map.total);
             const container = document.getElementById('fuel-container');
-            if(map.total === 0) { container.innerHTML = '<div class="empty-state" style="margin: 0 15px;">Sin gastos.</div>'; return; }
+            if(map.total === 0) { container.innerHTML = '<div class="empty-state" style="margin:0 15px;">Sin gastos.</div>'; return; }
             
             let html = '';
             for (const [v, data] of Object.entries(map.vehicles)) {
-                const id = v.replace(/\s/g, '-');
-                const totalFmt = formatMoney(data.total).replace('$ ', '');
-                
+                const id = v.replace(/[^a-zA-Z0-9]/g, ''); // ID seguro
                 html += `
-                    <div class="card fuel-vehicle-card" onclick="toggleFuelDetails('${id}')" id="card-${id}" style="cursor:pointer; margin: 0 15px 0 15px;">
-                        <div class="fuel-name"><span class="material-icons-round" style="vertical-align:middle; margin-right:5px; color:var(--warning);">local_shipping</span> ${v}</div>
+                <div>
+                    <div class="fuel-vehicle-card" onclick="toggleFuel('${id}')">
+                        <div style="font-weight:700;"><span class="material-icons-round" style="vertical-align:middle; margin-right:5px; color:var(--warning);">local_shipping</span> ${v}</div>
                         <div style="text-align:right;">
-                            <div class="fuel-total">$ ${totalFmt}</div>
+                            <div class="fuel-total">${formatMoney(data.total)}</div>
                             <div style="font-size:0.75rem; color:var(--text-muted);">${data.count} carga(s)</div>
                         </div>
                     </div>
-                    <div id="details-${id}" class="fuel-details-list">
-                        ${renderFuelDetails(fuelMovsByVehicle[v] || [])}
+                    <div id="fuel-det-${id}" class="fuel-details-list">
+                        ${renderFuelDetailsRows(fuelMovsByVehicle[v] || [])}
                     </div>
-                `;
+                </div>`;
             }
             container.innerHTML = html;
         }
 
-        function renderFuelDetails(movements) {
-            let html = '';
-            // Aseguramos que la fecha se extraiga correctamente
-            movements.sort((a, b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time));
-            movements.forEach(m => {
-                const dateFmt = new Date(m.date + "T12:00:00").toLocaleDateString('es-AR', {day: 'numeric', month: 'short'});
-                const timeFmt = m.time.substring(0, 5);
-                html += `
-                    <div class="list-row" style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size:0.9rem;">
-                        <div class="row-info" style="margin-right:0;">
-                            <div class="row-title" style="font-size:0.9rem;">${dateFmt} (${timeFmt} hs)</div>
-                        </div>
-                        <div class="row-amount text-red">${formatMoney(m.amount)}</div>
-                    </div>
-                `;
-            });
-            return html;
+        function renderFuelDetailsRows(movs) {
+            return movs.map(m => `
+                <div class="fuel-row">
+                    <span>${(m.time||"").substring(0,5)} hs</span>
+                    <span class="text-red" style="font-weight:700;">${formatMoney(m.amount)}</span>
+                </div>
+            `).join('');
         }
 
-        window.toggleFuelDetails = (id) => {
-            const details = document.getElementById(`details-${id}`);
-            const card = document.getElementById(`card-${id}`);
-            if (details.style.display === 'none') {
-                details.style.display = 'block';
-                card.style.borderRadius = '20px 20px 0 0';
-                card.style.marginBottom = '0'; // Se ajusta el margen para la lista
-            } else {
-                details.style.display = 'none';
-                card.style.borderRadius = '20px';
-                card.style.marginBottom = '12px';
-            }
-        }
-
+        // Función Toggle simple y robusta
+        window.toggleFuel = (id) => {
+            const el = document.getElementById(`fuel-det-${id}`);
+            if(el.style.display === 'block') el.style.display = 'none';
+            else el.style.display = 'block';
+        };
 
         function renderProv(map) {
             document.getElementById('prov-day-total').textContent = formatMoney(map.total);
             const container = document.getElementById('prov-list');
             if(map.list.length === 0) { container.innerHTML = '<div class="empty-state">Sin pagos.</div>'; return; }
-            let html = '';
-            map.list.forEach(p => {
-                html += `<div class="list-row"><div class="row-icon" style="color:var(--purple); background:rgba(139, 92, 246, 0.1);"><span class="material-icons-round">inventory_2</span></div><div class="row-info"><div class="row-title">${p.name}</div><div class="row-sub">${p.time}</div></div><div class="row-amount text-red">- ${formatMoney(p.amount)}</div></div>`;
-            });
-            container.innerHTML = html;
+            container.innerHTML = map.list.map(p => `
+                <div class="list-row">
+                    <div style="display:flex; align-items:center;">
+                        <div class="row-icon" style="background:rgba(139, 92, 246, 0.1); color:var(--purple);"><span class="material-icons-round">local_shipping</span></div>
+                        <div class="row-info"><div class="row-title">${p.name}</div><div class="row-sub">${p.time} hs</div></div>
+                    </div>
+                    <div class="row-amount text-red">- ${formatMoney(p.amount).replace('$ ','')}</div>
+                </div>
+            `).join('');
         }
 
         function renderAlerts(alerts) {
             const container = document.getElementById('alerts-list');
             if(alerts.length === 0) { container.innerHTML = '<div class="empty-state">✅ Todo normal.</div>'; return; }
-            let html = '';
-            alerts.forEach(a => {
-                const color = a.type === 'danger' ? 'var(--danger)' : 'var(--warning)';
-                const bg = a.type === 'danger' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)';
-                html += `<div style="background:${bg}; border-left:4px solid ${color}; padding:15px; border-radius:12px; margin-bottom:10px;"><div style="font-weight:700; color:${color}; margin-bottom:4px; font-size:0.95rem;">${a.title}</div><div style="font-size:0.9rem; color:var(--text-muted);">${a.msg}</div></div>`;
-            });
-            container.innerHTML = html;
+            container.innerHTML = alerts.map(a => `
+                <div class="alert-box" style="border-color:${a.type==='danger'?'var(--danger)':'var(--warning)'}">
+                    <div style="font-weight:700; color:${a.type==='danger'?'var(--danger)':'var(--warning)'}; margin-bottom:5px;">${a.title}</div>
+                    <div style="color:var(--text-muted); font-size:0.9rem;">${a.msg}</div>
+                </div>
+            `).join('');
         }
 
-        // --- GEMINI AI INTEGRATION ---
+        // === SWIPE LOGIC ===
+        function initSwipe() {
+            let startX = 0;
+            const content = document.getElementById('main-content-area');
+            
+            content.addEventListener('touchstart', e => {
+                startX = e.changedTouches[0].screenX;
+            }, {passive: true});
 
-        async function callGemini(promptText) {
-            try {
-                // Implementar reintento con backoff exponencial
-                for (let i = 0; i < 3; i++) {
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: promptText }] }]
-                        })
-                    });
-
-                    if (response.status !== 429 && response.ok) { // 429 is Too Many Requests
-                        const data = await response.json();
-                        return data.candidates?.[0]?.content?.parts?.[0]?.text || "No se pudo generar respuesta.";
-                    }
-
-                    if (i < 2) {
-                        const delay = Math.pow(2, i) * 1000;
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                    }
+            content.addEventListener('touchend', e => {
+                const endX = e.changedTouches[0].screenX;
+                const diff = endX - startX;
+                if (Math.abs(diff) > 80) { // Umbral de swipe
+                    if (diff > 0) changeDate(-1); // Swipe derecha -> día anterior
+                    else changeDate(1); // Swipe izquierda -> día siguiente
                 }
-                return "Error de conexión con la IA después de varios intentos.";
-            } catch (e) {
-                console.error("AI Error:", e);
-                return "Error de conexión con la IA.";
+            }, {passive: true});
+        }
+
+        // === GASTOS FIJOS (API & UI) ===
+        async function fetchGastosFijos() {
+            const container = document.getElementById('fijos-list');
+            const res = await api("getConfigGastosFijos");
+            if (!res || !res.ok) return;
+            
+            const list = res.data || [];
+            let total = 0;
+            container.innerHTML = list.map(g => {
+                total += parseInt(g.montoMensual)||0;
+                return `
+                <div class="emp-item" style="border-left:4px solid var(--info);">
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:1rem;">${g.nombre}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Mensual</div>
+                    </div>
+                    <input type="number" class="emp-input-mini" style="color:var(--info);" id="fijo-${g.nombre.replace(/\s/g,'-')}" value="${g.montoMensual}">
+                    <button class="btn-save-mini" onclick="saveGastoFijo('${g.nombre}')"><span class="material-icons-round" style="font-size:18px;">save</span></button>
+                </div>`;
+            }).join('');
+            document.getElementById('total-fijos-mensual').textContent = formatMoney(total);
+        }
+
+        async function saveGastoFijo(nombre) {
+             const input = document.getElementById(`fijo-${nombre.replace(/\s/g,'-')}`);
+             const val = parseInt(input.value) || 0;
+             const btn = input.nextElementSibling;
+             
+             btn.innerHTML = '<span class="spin material-icons-round" style="font-size:18px">sync</span>';
+             await api("updateConfigGastoFijo", { nombre: nombre, montoMensual: val, lastUpdate: new Date().toISOString().split('T')[0] });
+             btn.innerHTML = '<span class="material-icons-round" style="font-size:18px; color:var(--success);">check</span>';
+             setTimeout(() => { 
+                 btn.innerHTML = '<span class="material-icons-round" style="font-size:18px;">save</span>'; 
+                 fetchGastosFijos(); 
+             }, 1000);
+        }
+
+        async function addNewGastoFijo() {
+            const name = document.getElementById('new-fijo-name').value;
+            const amount = document.getElementById('new-fijo-amount').value;
+            if(!name || !amount) return;
+            
+            const btn = document.querySelector('#add-fijo-form button');
+            btn.innerHTML = "Guardando...";
+            await api("addConfigGastoFijo", { nombre: name, montoMensual: parseInt(amount) });
+            
+            document.getElementById('new-fijo-name').value = "";
+            document.getElementById('new-fijo-amount').value = "";
+            toggleAddForm('fijo');
+            fetchGastosFijos();
+            btn.innerHTML = '<span class="material-icons-round">save</span> Guardar Gasto';
+        }
+
+        // === EMPLEADOS ===
+        async function fetchEmpleados() {
+             const container = document.getElementById('empleados-list');
+             const res = await api("getConfigEmpleados");
+             if(!res || !res.ok) return;
+             
+             container.innerHTML = (res.data || []).map(e => `
+                <div class="emp-item" style="border-left:4px solid var(--primary);">
+                    <div style="flex:1;">
+                        <div style="font-weight:700;">${e.nombre}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Sueldo Base</div>
+                    </div>
+                    <input type="number" class="emp-input-mini" id="wage-${e.nombre.replace(/\s/g,'-')}" value="${e.sueldoBase}">
+                    <button class="btn-save-mini" onclick="saveSueldo('${e.nombre}')"><span class="material-icons-round" style="font-size:18px;">save</span></button>
+                </div>
+             `).join('');
+        }
+        
+        async function saveSueldo(nombre) {
+            const input = document.getElementById(`wage-${nombre.replace(/\s/g,'-')}`);
+            const val = parseInt(input.value) || 0;
+            const btn = input.nextElementSibling;
+            btn.innerHTML = '<span class="spin material-icons-round">sync</span>';
+            await api("updateConfigEmpleado", {nombre, sueldoBase: val, lastUpdate: new Date().toISOString().split('T')[0]});
+            btn.innerHTML = '<span class="material-icons-round" style="color:var(--success);">check</span>';
+            setTimeout(() => { btn.innerHTML = '<span class="material-icons-round">save</span>'; }, 1000);
+        }
+        
+        async function addNewEmpleado() {
+            const name = document.getElementById('new-emp-name').value;
+            const wage = document.getElementById('new-emp-wage').value;
+            if(!name || !wage) return;
+            await api("addConfigEmpleado", {nombre: name, sueldoBase: parseInt(wage)});
+            toggleAddForm('emp');
+            fetchEmpleados();
+        }
+
+        // === TENDENCIAS (Background) ===
+        async function loadTrendsData() {
+            if(chartEgresos) return; // Ya cargado
+            // Pedimos 7 días atrás
+            const d = new Date(currentDateStr + "T12:00:00");
+            const end = currentDateStr;
+            d.setDate(d.getDate() - 6);
+            const start = d.toISOString().split('T')[0];
+            
+            const res = await api("getMovimientosRango", {startDateStr: start, endDateStr: end});
+            if(res && res.ok && res.data) {
+                renderTrendsCharts(res.data);
+            }
+        }
+        
+        function renderTrendsCharts(data) {
+            // Procesar data para agrupar por fecha
+            const days = {};
+            const cats = {};
+            
+            data.forEach(m => {
+                if(m.tipo === 'Egreso') {
+                    if(!days[m.fecha]) days[m.fecha] = 0;
+                    days[m.fecha] += parseInt(m.importe);
+                    
+                    if(!cats[m.categoria]) cats[m.categoria] = 0;
+                    cats[m.categoria] += parseInt(m.importe);
+                }
+            });
+            
+            // Render Chart Egresos
+            const ctx1 = document.getElementById('chartEgresos');
+            if(ctx1) {
+                chartEgresos = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: Object.keys(days).sort().map(d => d.substring(5)), // MM-DD
+                        datasets: [{
+                            label: 'Egresos',
+                            data: Object.keys(days).sort().map(k => days[k]),
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: true, tension: 0.4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: {legend:{display:false}}, scales: { x: {grid:{display:false}, ticks:{color:'#94a3b8'}}, y: {grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#94a3b8'}} } }
+                });
+            }
+            
+            // Render Ranking
+            const sortedCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
+            const ctx2 = document.getElementById('chartRanking');
+            if(ctx2) {
+                chartRanking = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: sortedCats.map(x=>x[0]),
+                        datasets: [{
+                            data: sortedCats.map(x=>x[1]),
+                            backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: {legend:{position:'right', labels:{color:'#94a3b8', font:{size:10}}}} }
+                });
             }
         }
 
-        async function generateAiSummary() {
-            const btn = document.querySelector('.btn-ai-generate');
-            const output = document.getElementById('smart-summary-text');
-            
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spin material-icons-round">sync</span> Analizando...';
-            
-            // Preparar contexto reducido para ahorrar tokens
-            const contextData = JSON.stringify(currentMovs.map(m => ({
-                t: m.tipo, c: m.categoria, i: m.importe, o: m.observacion, p: m.formaPago
-            })));
-
-            const prompt = `Actúa como un analista financiero experto para "Mercado Limpio". Analiza estos movimientos del día: ${contextData}. 
-            Genera un resumen ejecutivo breve (máximo 3 párrafos).
-            1. Evalúa el balance (bueno/malo).
-            2. Identifica el gasto más fuerte o inusual.
-            3. Detecta anomalías de seguridad si las hay.
-            Usa formato Markdown con negritas para cifras clave. Tono profesional pero directo.`;
-
-            const text = await callGemini(prompt);
-            
-            // Parsear Markdown simple a HTML
-            output.innerHTML = marked.parse(text);
-            
-            btn.disabled = false;
-            btn.innerHTML = '<span class="material-icons-round">psychology</span> Regenerar Análisis';
+        // === UTILS ===
+        function fetchStatusCaja() {
+            api("getEstadoCaja").then(res => {
+                if(res) {
+                    const ef = parseInt(res.efectivo||0), ch = parseInt(res.cheques||0);
+                    document.getElementById('kpi-caja-efectivo').textContent = formatMoney(ef);
+                    document.getElementById('kpi-caja-cheques').textContent = formatMoney(ch);
+                    document.getElementById('kpi-caja-total').textContent = formatMoney(ef+ch);
+                }
+            });
+        }
+        
+        function showScreen(id, tab) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-'+id).classList.add('active');
+            if(tab) {
+                document.querySelectorAll('.tab-chip').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+            }
+            if(id === 'tendencias') loadTrendsData();
+        }
+        
+        function toggleAddForm(type) {
+            const f = document.getElementById(type === 'emp' ? 'add-emp-form' : 'add-fijo-form');
+            f.classList.toggle('active');
         }
 
-        // --- CHATBOT ---
-
-        function openChat() {
-            document.getElementById('chat-modal').classList.add('active');
-            setTimeout(() => document.getElementById('chat-input').focus(), 300);
-        }
-        function closeChat() { document.getElementById('chat-modal').classList.remove('active'); }
-
-        function handleChatKey(e) { if(e.key === 'Enter') sendChatMessage(); }
-
-        async function sendChatMessage() {
-            const input = document.getElementById('chat-input');
-            const msg = input.value.trim();
-            if(!msg) return;
-
-            // Add User Bubble
-            addChatBubble(msg, 'user');
-            input.value = '';
-
-            // Loading bubble
-            const loadingId = addChatBubble('Pensando...', 'ai', true);
-
-            // Context
-            const contextData = JSON.stringify(currentMovs.map(m => ({
-                t: m.tipo, c: m.categoria, i: m.importe, o: m.observacion, h: m.hora, p: m.formaPago
-            })));
-
-            const prompt = `Eres el Asistente Financiero de Mercado Limpio.
-            Datos del día: ${contextData}.
-            Usuario pregunta: "${msg}".
-            Responde brevemente basándote SOLO en los datos provistos. Si no hay datos sobre la pregunta, dilo.
-            Si pregunta totales, súmalos.`;
-
-            const reply = await callGemini(prompt);
-            
-            // Remove loading and add reply
-            const loadingEl = document.getElementById(loadingId);
-            if (loadingEl) loadingEl.remove();
-            addChatBubble(reply, 'ai');
-        }
-
-        function addChatBubble(text, type, isLoading = false) {
-            const container = document.getElementById('chat-messages');
-            const div = document.createElement('div');
-            div.className = `chat-bubble bubble-${type}`;
-            div.innerHTML = isLoading ? '<span class="spin material-icons-round">sync</span> ...' : marked.parse(text);
-            
-            const id = 'msg-' + Date.now();
-            div.id = id;
-            
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-            return id;
-        }
-
-        // --- UTILS ---
-        function formatMoney(num) {
-            if(num === undefined || num === null) return "$ 0";
-            return "$ " + Number(num).toLocaleString('es-AR');
-        }
-        function getIconForCategory(cat) {
-            cat = (cat||"").toLowerCase();
-            if(cat.includes('combustible')) return 'local_gas_station';
-            if(cat.includes('proveedor')) return 'local_shipping';
-            if(cat.includes('sueldo') || cat.includes('haberes') || cat.includes('adelanto')) return 'badge';
-            if(cat.includes('ajuste') || cat.includes('diferencia')) return 'tune';
+        function formatMoney(n) { return "$ " + Number(n).toLocaleString('es-AR'); }
+        function getIconForCategory(c) {
+            c = (c||"").toLowerCase();
+            if(c.includes('combustible')) return 'local_gas_station';
+            if(c.includes('proveedor')) return 'local_shipping';
+            if(c.includes('sueldo')||c.includes('haberes')) return 'badge';
             return 'paid';
         }
-        function showScreen(id, tabEl) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById('screen-' + id).classList.add('active');
-            if(tabEl) {
-                document.querySelectorAll('.tab-chip').forEach(t => t.classList.remove('active'));
-                tabEl.classList.add('active');
-                tabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-            }
+        function forceRefresh() { 
+            const i = document.querySelector('.fab-refresh span'); i.classList.add('spin');
+            setDate(currentDateStr); fetchStatusCaja();
+            setTimeout(() => i.classList.remove('spin'), 800);
         }
 
     </script>
