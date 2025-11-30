@@ -1,21 +1,21 @@
 {
   "name": "Caja Mercado Limpio",
-  "short_name": "Caja ML",
-  "start_url": "./laura.html",
+  "short_name": "Mercado Limpio",
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#1565C0",
-  "theme_color": "#1565C0",
+  "background_color": "#6C63FF",
+  "theme_color": "#6C63FF",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2697/2697432.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/2697/2697432.png",
+      "src": "https://img.icons8.com/ios-filled/500/ffffff/small-business.png",
       "type": "image/png",
       "sizes": "512x512"
+    },
+    {
+      "src": "https://img.icons8.com/ios-filled/192/ffffff/small-business.png",
+      "type": "image/png",
+      "sizes": "192x192"
     }
   ]
 }
