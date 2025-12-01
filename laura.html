@@ -27,7 +27,7 @@
             --glass-bg: rgba(255, 255, 255, 0.92); 
             --glass-border: rgba(255, 255, 255, 0.6);
             --info: #0984e3;
-            --warning: #ff9f43; /* Nuevo color para alertas importantes */
+            --warning: #ff9f43;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -47,6 +47,7 @@
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideUpModal { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 159, 67, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0); } }
 
         /* 🔥 ANIMACIÓN HOLOGRÁFICA SELECTOR CHEQUE 🔥 */
@@ -104,192 +105,45 @@
         .welcome-close { margin-top: 25px; background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 800; font-size: 1rem; cursor: pointer; box-shadow: 0 10px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; }
         .welcome-close:active { transform: scale(0.95); }
 
-        /* --- MODAL CONFIRMACION PARTY BOX (NUEVO) --- */
+        /* --- MODAL CONFIRMACION PARTY BOX --- */
         @keyframes rotateParty { 100% { transform: rotate(1turn); } }
 
         .party-card-wrapper {
-            position: relative;
-            z-index: 0;
-            width: 90%;
-            max-width: 420px;
-            border-radius: 30px;
-            overflow: hidden;
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            padding: 3px; /* Grosor del borde sutil */
-            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+            position: relative; z-index: 0; width: 90%; max-width: 420px; border-radius: 30px; overflow: hidden;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); padding: 3px; box-shadow: 0 25px 50px rgba(0,0,0,0.25);
         }
-        
         .party-card-wrapper::before {
-            content: '';
-            position: absolute;
-            z-index: -2;
-            left: -50%;
-            top: -50%;
-            width: 200%;
-            height: 200%;
-            background: conic-gradient(
-                #ff6b6b, 
-                #feca57, 
-                #48dbfb, 
-                #ff9ff3, 
-                #54a0ff, 
-                #5f27cd, 
-                #ff6b6b
-            );
+            content: ''; position: absolute; z-index: -2; left: -50%; top: -50%; width: 200%; height: 200%;
+            background: conic-gradient(#ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff, #5f27cd, #ff6b6b);
             animation: rotateParty 4s linear infinite;
         }
-
-        .party-content {
-            background: #ffffff;
-            border-radius: 27px; /* Un poco menos que el wrapper */
-            padding: 35px 25px;
-            text-align: center;
-            position: relative;
-            z-index: 1;
-        }
-
-        .party-title {
-            font-size: 1.2rem;
-            font-weight: 800;
-            color: var(--text-light);
-            margin-bottom: 5px;
-        }
-
-        .party-highlight {
-            color: var(--primary);
-            font-weight: 900;
-        }
-
-        .party-amount {
-            font-size: 3.2rem;
-            font-weight: 900;
-            margin: 15px 0;
-            color: var(--text-main);
-            letter-spacing: -1px;
-            text-shadow: 2px 2px 0px rgba(0,0,0,0.05);
-        }
-
-        .party-details {
-            background: #f8f9fa;
-            border-radius: 18px;
-            padding: 15px;
-            margin-bottom: 25px;
-            border: 1px dashed #dcdde1;
-            text-align: left;
-        }
-
-        .party-detail-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            font-size: 0.95rem;
-            color: #555;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 8px;
-        }
+        .party-content { background: #ffffff; border-radius: 27px; padding: 35px 25px; text-align: center; position: relative; z-index: 1; }
+        .party-title { font-size: 1.2rem; font-weight: 800; color: var(--text-light); margin-bottom: 5px; }
+        .party-amount { font-size: 3.2rem; font-weight: 900; margin: 15px 0; color: var(--text-main); letter-spacing: -1px; text-shadow: 2px 2px 0px rgba(0,0,0,0.05); }
+        .party-details { background: #f8f9fa; border-radius: 18px; padding: 15px; margin-bottom: 25px; border: 1px dashed #dcdde1; text-align: left; }
+        .party-detail-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.95rem; color: #555; border-bottom: 1px solid #eee; padding-bottom: 8px; }
         .party-detail-row:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
-        
-        .party-detail-label { 
-            font-weight: 600; color: #888; 
-            display: flex; align-items: center; gap: 6px;
-        }
+        .party-detail-label { font-weight: 600; color: #888; display: flex; align-items: center; gap: 6px; }
         .party-detail-val { font-weight: 800; color: var(--text-main); text-align: right; }
 
-        .party-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 10px;
-        }
-
-        .btn-party {
-            flex: 1;
-            padding: 16px;
-            border-radius: 50px;
-            border: none;
-            font-size: 1rem;
-            font-weight: 800;
-            cursor: pointer;
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
+        .party-actions { display: flex; gap: 12px; margin-top: 10px; }
+        .btn-party { flex: 1; padding: 16px; border-radius: 50px; border: none; font-size: 1rem; font-weight: 800; cursor: pointer; transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .btn-party:active { transform: scale(0.90); }
-
-        .btn-party-cancel {
-            background: #f1f2f6;
-            color: #a4b0be;
-        }
-        .btn-party-confirm {
-            background: var(--primary);
-            color: white;
-            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.4);
-        }
+        .btn-party-cancel { background: #f1f2f6; color: #a4b0be; }
+        .btn-party-confirm { background: var(--primary); color: white; box-shadow: 0 8px 20px rgba(108, 99, 255, 0.4); }
 
         /* --- MODAL ARQUEO REMINDER (PROFESIONAL) --- */
-        #arqueo-reminder-modal .modal-card {
-            background: linear-gradient(150deg, #fefefe 0%, #fffcfa 100%);
-            border: 4px solid var(--warning);
-            box-shadow: 0 25px 80px rgba(255, 159, 67, 0.3);
-            padding: 40px 30px 30px 30px;
-        }
-        .reminder-icon {
-            font-size: 3.5rem; 
-            color: var(--warning); 
-            margin-bottom: 15px; 
-            animation: pulse 2s infinite, float 4s infinite ease-in-out;
-            border: 5px solid rgba(255, 159, 67, 0.1);
-            padding: 10px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        .reminder-title {
-            font-size: 1.8rem;
-            font-weight: 900;
-            color: var(--text-main);
-            margin-bottom: 8px;
-        }
-        .reminder-time {
-            font-size: 1.1rem;
-            font-weight: 800;
-            color: var(--accent);
-            margin-bottom: 20px;
-            background: #fff0f3;
-            padding: 5px 15px;
-            border-radius: 10px;
-            display: inline-block;
-        }
-        .reminder-msg {
-            text-align: left;
-            font-size: 1rem;
-            line-height: 1.7;
-            color: #555;
-            font-weight: 600;
-            background: rgba(255, 159, 67, 0.05);
-            padding: 15px;
-            border-radius: 15px;
-            border-left: 5px solid var(--warning);
-        }
+        #arqueo-reminder-modal .modal-card { background: linear-gradient(150deg, #fefefe 0%, #fffcfa 100%); border: 4px solid var(--warning); box-shadow: 0 25px 80px rgba(255, 159, 67, 0.3); padding: 40px 30px 30px 30px; }
+        .reminder-icon { font-size: 3.5rem; color: var(--warning); margin-bottom: 15px; animation: pulse 2s infinite, float 4s infinite ease-in-out; border: 5px solid rgba(255, 159, 67, 0.1); padding: 10px; border-radius: 50%; display: inline-block; }
+        .reminder-title { font-size: 1.8rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px; }
+        .reminder-time { font-size: 1.1rem; font-weight: 800; color: var(--accent); margin-bottom: 20px; background: #fff0f3; padding: 5px 15px; border-radius: 10px; display: inline-block; }
+        .reminder-msg { text-align: left; font-size: 1rem; line-height: 1.7; color: #555; font-weight: 600; background: rgba(255, 159, 67, 0.05); padding: 15px; border-radius: 15px; border-left: 5px solid var(--warning); }
         .reminder-msg b { font-weight: 800; color: var(--primary-dark); }
-        .btn-reminder-action {
-            margin-top: 25px; 
-            background: linear-gradient(45deg, var(--warning), #f1c40f); 
-            color: var(--text-main); 
-            border: none;
-            padding: 14px 35px; 
-            border-radius: 50px; 
-            font-weight: 800; 
-            font-size: 1.1rem;
-            cursor: pointer; 
-            box-shadow: 0 10px 30px rgba(255, 159, 67, 0.4);
-            transition: transform 0.2s, box-shadow 0.3s;
-        }
+        .btn-reminder-action { margin-top: 25px; background: linear-gradient(45deg, var(--warning), #f1c40f); color: var(--text-main); border: none; padding: 14px 35px; border-radius: 50px; font-weight: 800; font-size: 1.1rem; cursor: pointer; box-shadow: 0 10px 30px rgba(255, 159, 67, 0.4); transition: transform 0.2s, box-shadow 0.3s; }
         .btn-reminder-action:active { transform: scale(0.95); box-shadow: 0 5px 15px rgba(255, 159, 67, 0.6); }
 
         /* --- HEADER --- */
-        .app-header { 
-            padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; 
-            background: rgba(255,255,255,0.7); backdrop-filter: blur(15px); 
-            position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.5);
-        }
+        .app-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.7); backdrop-filter: blur(15px); position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.5); }
         .app-title { font-size: 1.3rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
         .user-badge { font-size: 0.85rem; background: #fff; border: 1px solid #eee; padding: 6px 12px; border-radius: 20px; font-weight: 700; color: #555; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
@@ -297,48 +151,24 @@
         .screen { display: none; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); padding-bottom: 40px; }
         .screen.active { display: block; }
 
-        .card { 
-            background: var(--glass-bg); border: 1px solid #fff; 
-            border-radius: 24px; padding: 20px; margin: 15px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.06); 
-            position: relative; overflow: visible;
-        }
+        .card { background: var(--glass-bg); border: 1px solid #fff; border-radius: 24px; padding: 20px; margin: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); position: relative; overflow: visible; }
         .section-title { font-size: 0.9rem; color: var(--text-light); font-weight: 800; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
 
         /* --- AUTOCOMPLETE --- */
         #proveedor-wrapper { position: relative; width: 100%; display: none; }
-        .autocomplete-items {
-            position: absolute; border: 1px solid #d4d4d4; border-bottom: none; border-top: none; z-index: 99;
-            top: 100%; left: 0; right: 0; border-radius: 0 0 15px 15px; overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .autocomplete-items div {
-            padding: 12px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #d4d4d4;
-            font-weight: 600; color: #555; font-size: 0.95rem;
-        }
+        .autocomplete-items { position: absolute; border: 1px solid #d4d4d4; border-bottom: none; border-top: none; z-index: 99; top: 100%; left: 0; right: 0; border-radius: 0 0 15px 15px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .autocomplete-items div { padding: 12px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #d4d4d4; font-weight: 600; color: #555; font-size: 0.95rem; }
         .autocomplete-items div:hover { background-color: #e9e9e9; color: var(--primary); }
 
         /* --- BALANCE --- */
         .balance-card-container { padding: 0 15px; margin-top: 15px; }
-        .balance-card {
-            background: linear-gradient(135deg, #6C63FF 0%, #4834d4 100%);
-            border-radius: 28px; padding: 25px 20px; color: white;
-            box-shadow: 0 15px 35px rgba(108, 99, 255, 0.35);
-            text-align: center; position: relative; overflow: hidden;
-        }
-        .balance-card::before {
-            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-            animation: rotate 20s linear infinite;
-        }
+        .balance-card { background: linear-gradient(135deg, #6C63FF 0%, #4834d4 100%); border-radius: 28px; padding: 25px 20px; color: white; box-shadow: 0 15px 35px rgba(108, 99, 255, 0.35); text-align: center; position: relative; overflow: hidden; }
+        .balance-card::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%); animation: rotate 20s linear infinite; }
         @keyframes rotate { 100% { transform: rotate(360deg); } }
         
         .balance-label { position: relative; font-size: 0.85rem; font-weight: 600; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
         .balance-amount { position: relative; font-size: 3rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 4px 10px rgba(0,0,0,0.2); margin: 0 0 10px 0; }
-        .balance-details {
-            position: relative; background: rgba(0,0,0,0.2); border-radius: 16px; padding: 10px;
-            display: flex; justify-content: space-around; backdrop-filter: blur(5px); margin-top: 5px;
-        }
+        .balance-details { position: relative; background: rgba(0,0,0,0.2); border-radius: 16px; padding: 10px; display: flex; justify-content: space-around; backdrop-filter: blur(5px); margin-top: 5px; }
         .detail-item { display: flex; flex-direction: column; align-items: center; }
         .detail-val { font-size: 1rem; font-weight: 700; }
         .detail-lbl { font-size: 0.65rem; text-transform: uppercase; opacity: 0.8; }
@@ -346,29 +176,15 @@
         .balance-status { position: relative; font-size: 0.7rem; margin-top: 10px; opacity: 0.7; }
 
         /* --- ARQUEO & BILLETES --- */
-        .arqueo-header-card {
-            background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%);
-            border-radius: 24px; padding: 25px; margin: 15px; text-align: center; color: #fff;
-            box-shadow: 0 10px 25px rgba(255, 154, 158, 0.4);
-        }
+        .arqueo-header-card { background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%); border-radius: 24px; padding: 25px; margin: 15px; text-align: center; color: #fff; box-shadow: 0 10px 25px rgba(255, 154, 158, 0.4); }
         .arqueo-header-card .label { font-size: 0.9rem; font-weight: 700; color: rgba(0,0,0,0.5); text-transform: uppercase; margin-bottom: 5px; }
         .arqueo-header-card .value { font-size: 3rem; font-weight: 900; color: #D63031; text-shadow: 0 2px 0 rgba(255,255,255,0.5); }
-        .arqueo-sistema-pill {
-            background: rgba(255,255,255,0.5); padding: 8px 15px; border-radius: 12px;
-            display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
-            font-size: 0.9rem; font-weight: 700; color: #555; backdrop-filter: blur(5px);
-        }
+        .arqueo-sistema-pill { background: rgba(255,255,255,0.5); padding: 8px 15px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.9rem; font-weight: 700; color: #555; backdrop-filter: blur(5px); }
         .billetes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-        .billete-item { 
-            background: #fff; border-radius: 18px; padding: 12px; text-align: center; 
-            border: 2px solid #f0f0f0; transition: all 0.2s; 
-        }
+        .billete-item { background: #fff; border-radius: 18px; padding: 12px; text-align: center; border: 2px solid #f0f0f0; transition: all 0.2s; }
         .billete-item:focus-within { border-color: var(--primary); transform: translateY(-3px); box-shadow: 0 8px 15px rgba(108, 99, 255, 0.15); }
         .billete-label { font-size: 1.1rem; color: #888; font-weight: 700; margin-bottom: 2px; }
-        .billete-input { 
-            width: 100%; border: none; text-align: center; font-size: 1.6rem; font-weight: 800; 
-            color: var(--text-main); outline: none; background: transparent; padding: 5px 0; font-family: 'Quicksand';
-        }
+        .billete-input { width: 100%; border: none; text-align: center; font-size: 1.6rem; font-weight: 800; color: var(--text-main); outline: none; background: transparent; padding: 5px 0; font-family: 'Quicksand'; }
 
         /* --- CONTROLES FORM --- */
         .form-control { width: 100%; padding: 16px; border: 2px solid #eee; border-radius: 16px; font-size: 1rem; font-family: 'Quicksand'; outline: none; transition: all 0.3s; background: #fafafa; color: var(--text-main); font-weight: 700; margin-bottom: 15px; }
@@ -378,13 +194,7 @@
         .importe-cheque-lock { background-color: #e8f5e9 !important; color: var(--success) !important; border-color: var(--success) !important; font-weight: 900 !important; }
 
         /* --- BOTONES --- */
-        .btn-main { 
-            width: 100%; padding: 18px; border: none; border-radius: 18px; 
-            font-size: 1.1rem; font-weight: 800; color: white; cursor: pointer; 
-            background: linear-gradient(45deg, #6C63FF, #4834d4); 
-            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; 
-            display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px;
-        }
+        .btn-main { width: 100%; padding: 18px; border: none; border-radius: 18px; font-size: 1.1rem; font-weight: 800; color: white; cursor: pointer; background: linear-gradient(45deg, #6C63FF, #4834d4); box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; }
         .btn-main:active { transform: scale(0.97); }
         .btn-success { background: linear-gradient(45deg, #00b894, #00cec9); box-shadow: 0 8px 20px rgba(0, 184, 148, 0.3); }
         .btn-arqueo-final { background: linear-gradient(45deg, #FF7675, #D63031); box-shadow: 0 10px 25px rgba(214, 48, 49, 0.4); }
@@ -406,15 +216,8 @@
         .zen-title { font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 5px; }
 
         /* --- BOTTOM NAV --- */
-        .bottom-nav { 
-            position: fixed; bottom: 0; left: 0; width: 100%; display: flex; justify-content: space-around; 
-            padding: 12px 10px 30px 10px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px); 
-            border-top: 1px solid rgba(255,255,255,0.5); box-shadow: 0 -10px 30px rgba(0,0,0,0.05); z-index: 100;
-        }
-        .nav-item { 
-            display: flex; flex-direction: column; align-items: center; color: #b2bec3; 
-            font-size: 0.75rem; font-weight: 700; text-decoration: none; transition: all 0.3s;
-        }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; justify-content: space-around; padding: 12px 10px 30px 10px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,0.5); box-shadow: 0 -10px 30px rgba(0,0,0,0.05); z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #b2bec3; font-size: 0.75rem; font-weight: 700; text-decoration: none; transition: all 0.3s; }
         .nav-icon { font-size: 26px; margin-bottom: 4px; transition: all 0.3s; }
         .nav-item.active { color: var(--primary); }
         .nav-item.active .nav-icon { transform: translateY(-5px); }
@@ -430,9 +233,143 @@
         
         .confetti { position: fixed; width: 10px; height: 10px; background-color: #f00; animation: fall linear forwards; z-index: 9999; top: -10px; }
         @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+
+        /* 🔥 NUEVO: CONTADOR RÁPIDO FLOTANTE (ESTILOS) 🔥 */
+        .quick-counter-fab {
+            position: fixed;
+            bottom: 110px;
+            right: 20px;
+            width: 65px;
+            height: 65px;
+            background: var(--text-main);
+            color: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            z-index: 200;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: popIn 0.6s 0.5s backwards;
+        }
+        .quick-counter-fab:active { transform: scale(0.9) rotate(-10deg); }
+        .quick-counter-fab i { font-size: 32px; }
+
+        /* 🔥 NUEVO: MODAL CONTADOR RÁPIDO FULL SCREEN 🔥 */
+        #quick-counter-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #f4f7f6; /* Fondo sólido pantalla completa */
+            z-index: 12000;
+            display: none;
+            flex-direction: column;
+            animation: slideUpModal 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        
+        /* Layout sin scroll general */
+        .qc-sheet {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .qc-header {
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 15px; flex-shrink: 0;
+        }
+        .qc-title { font-size: 1.2rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; }
+        .qc-close { background: #dfe6e9; border: none; width: 40px; height: 40px; border-radius: 50%; color: var(--text-main); cursor: pointer; display:flex; align-items:center; justify-content:center; }
+        
+        .qc-total-box {
+            background: var(--text-main);
+            color: var(--success);
+            border-radius: 20px;
+            padding: 15px 20px;
+            text-align: right;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+        .qc-total-label { font-size: 0.7rem; text-transform: uppercase; color: #aaa; margin-bottom: 2px; }
+        .qc-total-amount { font-size: 3rem; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+
+        /* Contenedor flexible para los items */
+        .qc-scroll-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* Distribuye espacio */
+            overflow-y: auto; /* Scroll solo si es un telefono muy pequeño */
+        }
+        
+        /* Grid ultra compacto */
+        .qc-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 8px; 
+            height: 100%;
+        }
+        
+        .qc-item {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 5px;
+            display: flex;
+            flex-direction: column; /* Label arriba, input abajo */
+            justify-content: center;
+            align-items: center;
+            transition: 0.1s;
+        }
+        .qc-item:focus-within {
+            border-color: var(--success);
+            box-shadow: 0 4px 10px rgba(0, 184, 148, 0.15);
+            background: #f0fff4;
+        }
+        .qc-label { font-weight: 800; color: #b2bec3; font-size: 0.9rem; margin-bottom: 0; }
+        .qc-input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-size: 1.6rem; /* Numeros grandes */
+            font-weight: 900;
+            color: var(--text-main);
+            outline: none;
+            font-family: 'Quicksand', sans-serif;
+            padding: 0;
+            margin: 0;
+        }
+        .qc-input::placeholder { color: #dfe6e9; }
+
+        .qc-actions { 
+            margin-top: 15px; 
+            display: flex; 
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .btn-qc-clear {
+            flex: 1;
+            background: #fff0f3; color: var(--accent);
+            border: none; padding: 15px; border-radius: 15px;
+            font-weight: 800; font-size: 0.9rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .btn-qc-use {
+            flex: 2;
+            background: var(--success); color: white;
+            border: none; padding: 15px; border-radius: 15px;
+            font-weight: 800; font-size: 1.1rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
+            box-shadow: 0 5px 15px rgba(0, 184, 148, 0.4);
+        }
+        .btn-qc-use:active { transform: scale(0.95); }
     </style>
 </head>
-<body onload="checkArqueoReminder()"> <!-- Añadimos el chequeo del recordatorio al cargar -->
+<body onload="checkArqueoReminder()">
 
     <div class="background-container">
         <div class="shape shape-1"></div>
@@ -462,7 +399,7 @@
         </div>
     </div>
 
-    <!-- MODAL ARQUEO REMINDER (NUEVO) -->
+    <!-- MODAL ARQUEO REMINDER -->
     <div id="arqueo-reminder-modal">
         <div class="modal-card">
             <span class="material-icons-round reminder-icon">alarm_on</span>
@@ -479,7 +416,7 @@
         </div>
     </div>
 
-    <!-- MODAL CUSTOM (Usado para Alerta de Combustible) -->
+    <!-- MODAL CUSTOM -->
     <div id="custom-modal" class="modal-overlay">
         <div class="modal-card">
             <span class="material-icons-round modal-icon" id="modal-icon" style="font-size: 60px; margin-bottom: 10px;">info</span>
@@ -492,7 +429,7 @@
         </div>
     </div>
 
-    <!-- NUEVO MODAL DE CONFIRMACION PARTY BOX -->
+    <!-- MODAL CONFIRMACION PARTY BOX -->
     <div id="confirm-modal">
         <div class="party-card-wrapper">
             <div class="party-content">
@@ -534,6 +471,12 @@
 
     <!-- 1. PANTALLA CAJA -->
     <div id="screen-caja" class="screen active">
+        
+        <!-- 🔥 BOTÓN FLOTANTE CONTADOR BILLETES 🔥 -->
+        <div class="quick-counter-fab" onclick="toggleQuickCounter()">
+            <span class="material-icons-round">calculate</span>
+        </div>
+
         <div class="balance-card-container">
             <div class="balance-card" onclick="actualizarSaldoHeader()">
                 <div class="balance-label">Efectivo en Caja</div>
@@ -707,6 +650,92 @@
                 <button class="btn-main btn-arqueo-final" id="btn-arqueo" onclick="intentarArqueo()">
                     <span class="material-icons-round">lock</span> CERRAR CAJA
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔥 NUEVO: MODAL CONTADOR BILLETES FULL SCREEN 🔥 -->
+    <div id="quick-counter-modal">
+        <div class="qc-sheet">
+            <div class="qc-header">
+                <span class="qc-title">Contador Rápido</span>
+                <button class="qc-close" onclick="toggleQuickCounter()">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+
+            <div class="qc-total-box">
+                <div class="qc-total-label">Total Contado</div>
+                <div class="qc-total-amount" id="qc-total-display">$ 0</div>
+            </div>
+
+            <div class="qc-scroll-area">
+                <div class="qc-grid">
+                    <!-- $20.000 -->
+                    <div class="qc-item">
+                        <div class="qc-label">$ 20.000</div>
+                        <input type="number" class="qc-input" data-val="20000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                    <!-- $10.000 -->
+                    <div class="qc-item">
+                        <div class="qc-label">$ 10.000</div>
+                        <input type="number" class="qc-input" data-val="10000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                    <!-- $5.000 -->
+                    <div class="qc-item">
+                        <div class="qc-label">$ 5.000</div>
+                        <input type="number" class="qc-input" data-val="5000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                    <!-- $2.000 -->
+                    <div class="qc-item">
+                        <div class="qc-label">$ 2.000</div>
+                        <input type="number" class="qc-input" data-val="2000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                    <!-- $1.000 -->
+                    <div class="qc-item">
+                        <div class="qc-label">$ 1.000</div>
+                        <input type="number" class="qc-input" data-val="1000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                    <!-- $500 -->
+                    <div class="qc-item">
+                        <div class="qc-label">$ 500</div>
+                        <input type="number" class="qc-input" data-val="500" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                    <!-- $200 -->
+                    <div class="qc-item">
+                        <div class="qc-label">$ 200</div>
+                        <input type="number" class="qc-input" data-val="200" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                    <!-- $100 -->
+                    <div class="qc-item">
+                        <div class="qc-label">$ 100</div>
+                        <input type="number" class="qc-input" data-val="100" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                    <!-- $50 -->
+                    <div class="qc-item">
+                        <div class="qc-label">$ 50</div>
+                        <input type="number" class="qc-input" data-val="50" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                    <!-- $20 -->
+                    <div class="qc-item">
+                        <div class="qc-label">$ 20</div>
+                        <input type="number" class="qc-input" data-val="20" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                    <!-- $10 -->
+                     <div class="qc-item" style="grid-column: span 2;">
+                        <div class="qc-label" style="display:inline;">$ 10</div>
+                        <input type="number" class="qc-input" style="display:inline; width:50%;" data-val="10" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="qc-actions">
+                    <button class="btn-qc-clear" onclick="clearQuickCounter()">
+                        <span class="material-icons-round">delete_outline</span> BORRAR
+                    </button>
+                    <button class="btn-qc-use" onclick="transferAndClose()">
+                        <span class="material-icons-round">check</span> USAR MONTO
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1472,7 +1501,7 @@
                     <div style="font-size:0.95rem; line-height:1.4; color:var(--text-main);">
                         <span style="font-weight:900; color:${color};">SOBRAN $ ${dif.toLocaleString('es-AR')}.</span>
                         <br>
-                        <span style="font-weight:600; font-size:0.9rem;">Tranquila, cargá el conteo tal cual está. El sistema automáticamente registrará el ajuste (Positivo) para que la caja cuadre perfectamente con el dinero físico.</span>
+                        <span style="font-weight:600; font-size:0.9rem;">Tranquila, cargá el conteo tal cual está. El sistema automáticamente registrará el ajuste para que la caja cuadre perfectamente con el dinero físico.</span>
                     </div>
                 `;
                 div.innerHTML = `<div style="text-align:center; background:#e8f5e9; padding:10px; border-radius:10px; border:2px solid ${color};">${texto}</div>`;
@@ -1543,6 +1572,59 @@
         function lanzarConfeti() {
             for(let i=0; i<30; i++) {
                 const c = document.createElement('div'); c.className = 'confetti'; c.style.left = Math.random() * 100 + 'vw'; c.style.animationDuration = (Math.random() * 2 + 1) + 's'; c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`; document.body.appendChild(c); setTimeout(() => c.remove(), 3000);
+            }
+        }
+
+        // 🔥 FUNCIONES NUEVAS: CONTADOR RÁPIDO FLOTANTE 🔥
+        function toggleQuickCounter() {
+            const modal = document.getElementById('quick-counter-modal');
+            if (modal.style.display === 'flex') {
+                modal.style.display = 'none';
+            } else {
+                modal.style.display = 'flex';
+            }
+        }
+
+        function calcQuickCounter() {
+            const inputs = document.querySelectorAll('#quick-counter-modal .qc-input');
+            let total = 0;
+            inputs.forEach(inp => {
+                const val = parseInt(inp.value) || 0;
+                const denomination = parseInt(inp.getAttribute('data-val'));
+                total += val * denomination;
+            });
+            const display = document.getElementById('qc-total-display');
+            display.innerText = "$ " + total.toLocaleString('es-AR');
+        }
+
+        function clearQuickCounter() {
+            const inputs = document.querySelectorAll('#quick-counter-modal .qc-input');
+            inputs.forEach(inp => inp.value = '');
+            calcQuickCounter();
+        }
+
+        function transferAndClose() {
+            // 1. Obtenemos el total visual y numérico
+            const displayEl = document.getElementById('qc-total-display');
+            const totalText = displayEl.innerText; // Ej: "$ 15.000"
+            const totalVal = parseInt(totalText.replace(/[^0-9]/g, '')) || 0;
+
+            if (totalVal > 0) {
+                // 2. Buscamos el campo de importe principal
+                const inputImporte = document.getElementById('mov-importe');
+                
+                // 3. Pegamos los valores
+                inputImporte.value = totalText.replace('$ ', ''); // Pone "15.000"
+                inputImporte.setAttribute('data-clean-value', totalVal); // Pone 15000 (int)
+
+                // 4. Feedback y cierre
+                showToast(`Importe cargado: ${totalText}`, true);
+                toggleQuickCounter();
+                
+                // 5. Opcional: Borrar el contador para la próxima
+                // clearQuickCounter(); 
+            } else {
+                showToast("El contador está en cero", false);
             }
         }
     </script>
