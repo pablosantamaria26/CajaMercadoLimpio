@@ -132,7 +132,7 @@
         .btn-party-cancel { background: #f1f2f6; color: #a4b0be; }
         .btn-party-confirm { background: var(--primary); color: white; box-shadow: 0 8px 20px rgba(108, 99, 255, 0.4); }
 
-        /* --- MODAL ARQUEO REMINDER (PROFESIONAL) --- */
+        /* --- MODAL ARQUEO REMINDER (PROFESIONAL & PERMANENTE) --- */
         #arqueo-reminder-modal .modal-card { background: linear-gradient(150deg, #fefefe 0%, #fffcfa 100%); border: 4px solid var(--warning); box-shadow: 0 25px 80px rgba(255, 159, 67, 0.3); padding: 40px 30px 30px 30px; }
         .reminder-icon { font-size: 3.5rem; color: var(--warning); margin-bottom: 15px; animation: pulse 2s infinite, float 4s infinite ease-in-out; border: 5px solid rgba(255, 159, 67, 0.1); padding: 10px; border-radius: 50%; display: inline-block; }
         .reminder-title { font-size: 1.8rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px; }
@@ -827,7 +827,6 @@
             checkWelcomeMessage();
             
             // 🔥 REVISIÓN AUTOMÁTICA CADA MINUTO 🔥
-            // Esto asegura que el aviso salte aunque la página ya esté abierta
             setInterval(checkArqueoReminder, 60000); 
         });
 
@@ -838,6 +837,11 @@
             actualizarSaldoHeader(); 
             buscarRendicionPendiente();
             cargarConfigEmpleados();
+            
+            // 🔥 PEDIR PERMISO DE NOTIFICACIONES AL INICIAR 🔥
+            if ("Notification" in window) {
+                Notification.requestPermission();
+            }
         }
 
         // --- FUNCIONES WELCOME ---
@@ -895,7 +899,25 @@
 
             // 3. Mostrar solo si es el día/hora correcta Y no se mostró hoy
             if (isWeekday && isTime && lastReminder !== todayStr) {
-                showArqueoReminderModal();
+                
+                // --- LÓGICA DE NOTIFICACIÓN DE ESCRITORIO ---
+                if (document.visibilityState === 'hidden' && Notification.permission === "granted") {
+                    // Si la app está minimizada, mandamos notificación al sistema operativo
+                    const notif = new Notification("⏰ Hora de Arqueo - Mercado Limpio", {
+                        body: "Son las 15:30. Toca aquí para realizar el cierre de caja.",
+                        icon: "https://cdn-icons-png.flaticon.com/512/2942/2942544.png" // Icono genérico de dinero
+                    });
+                    
+                    notif.onclick = function() {
+                        window.focus(); // Intenta traer la ventana al frente
+                        this.close();
+                        showArqueoReminderModal(); // Muestra el modal al abrir
+                    };
+                } else {
+                    // Si la app está visible, mostramos directo
+                    showArqueoReminderModal();
+                }
+
                 localStorage.setItem('lastArqueoReminder', todayStr);
             }
         }
@@ -904,12 +926,8 @@
             const modal = document.getElementById('arqueo-reminder-modal');
             modal.style.display = 'flex';
 
-            // Auto-cierre después de 4 segundos
-            setTimeout(() => {
-                if (modal.style.display === 'flex') {
-                    goToArqueoAndClose();
-                }
-            }, 4000); 
+            // 🚫 YA NO HAY SETTIMEOUT AQUÍ
+            // El modal se queda fijo hasta que el usuario toque el botón.
         }
 
         function goToArqueoAndClose() {
@@ -970,6 +988,7 @@
         
         function setFechaHoy(reload = true) {
             const d = new Date();
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
             document.getElementById('fecha-historial').value = d.toISOString().split('T')[0];
             if(reload) cargarMovimientos();
         }
@@ -1042,10 +1061,6 @@
             const tipo = document.getElementById('mov-tipo').value;
             const cat = document.getElementById('mov-categoria').value;
             const veh = document.getElementById('mov-vehiculo').value;
-            
-            // 🚀 CAMBIO PARA VELOCIDAD: Ya no bloqueamos aquí con 'await api()'. 
-            // La validación de combustible ahora ocurre DESPUÉS de confirmar en el modal,
-            // dentro de 'finalizarRegistro'. Esto hace que el modal aparezca INSTANTÁNEAMENTE.
             
             // 2. Proceso de registro (AHORA MODIFICADO PARA PARTY MODAL)
             const pago = document.getElementById('mov-pago').value;
@@ -1159,15 +1174,11 @@
             // 3. Ejecutar la lógica real (Segundo plano relativo)
             const payload = tempMovimientoPayload;
             
-            // Opcional: Bloquear UI muy brevemente si se quiere seguridad extrema, 
-            // pero el usuario pidió "segundo plano". Dejamos que corra.
             // Solamente deshabilitamos el boton de registrar original para evitar doble click si fuera visible
             const btn = document.getElementById('btn-registrar');
             btn.disabled = true;
 
             // 🚀 VALIDACIÓN DIFERIDA DE COMBUSTIBLE
-            // Ahora se hace AQUÍ, después de que el usuario ya vio el modal y confirmó.
-            // Si hay una alerta, se mostrará sobre la marcha.
             if (payload.categoria === 'Combustible' && payload.vehiculo && !fuelWarningBypass) {
                 const warning = await api("checkCombustibleWarning", { vehiculo: payload.vehiculo });
                 if (warning.ok && warning.isWarning) {
