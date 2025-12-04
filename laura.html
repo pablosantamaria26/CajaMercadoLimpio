@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Caja Mercado Limpio V3</title>
+    <title>Caja Mercado Limpio </title>
     <meta name="theme-color" content="#6C63FF">
 
     <!-- PWA: Enlace al Manifiesto (NECESARIO PARA EL BOTÓN DE INSTALAR) -->
@@ -796,7 +796,7 @@
         const CATEGORIAS_EGRESO = [ "Pago a Proveedor", "Combustible", "Adelanto de Sueldo", "Pago de Haberes", "Gastos de Limpieza", "Gastos de Mantenimiento (Vehiculos)", "Retiro de Efectivo (Pablo)", "Gastos de Jardineria", "Movimiento Libre (Varios)" ];
         const CATEGORIAS_INGRESO = ["Venta Local", "Ingreso Varios", "Aporte de Capital"];
         const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
-        const PROVEEDORES = ["Marwiplast", "Bio Bag", "Broche plastico", "Bumerang", "Carol", "Colores", "Coolbazar", "Cotton", "Da Silva", "Desesplast", "Diawara", "Emege", "Entresol", "Fedata", "Fibran", "Flexal", "Hechicera", "Infinity import", "K&K", "La Americana", "La gauchita", "Macetex", "Make Fresh", "Matriplaster", "Mis Plast", "Modoplast", "Molmar", "POP", "Rigolleau", "Romyl", "Samantha", "Santamaria", "Sasha", "Soifer", "lumilagro", "Make", "Suka", "Supy", "Tauro", "Tecnomatric", "Yesi", "Durax", "Javi"].sort();
+        const PROVEEDORES = ["Marwiplast", "Bio Bag", "Broche plastico", "Bumerang", "Carol", "Colores", "Coolbazar", "Cotton", "Santamaria Escobillones", "Desesplast", "Diawara", "Emege", "Entresol", "Fedata", "Fibran", "Flexal", "Hechicera", "Infinity import", "K&K", "La Americana", "La gauchita", "Macetex", "Make Fresh", "Matriplaster", "Mis Plast", "Modoplast", "Molmar", "POP", "Rigolleau", "Romyl", "Samantha", "Santamaria", "Sasha", "Soifer", "lumilagro", "Make", "Suka", "Supy", "Tauro", "Tecnomatric", "Yesi", "Durax", "Javi"].sort();
 
         // MONITOR SEGURIDAD
         class SuspicionTracker {
@@ -1395,7 +1395,7 @@
                     const opt = document.createElement('option'); opt.value = emp.nombre; opt.textContent = emp.nombre; select.appendChild(opt);
                 });
             } else {
-                const BACKUP_EMPS = ["Nicolás", "Laura", "Ariel", "Martín", "Lucas", "Tomas"];
+                const BACKUP_EMPS = ["Nicolás", "Laura", "Ignacio", "Martín", "Lucas", "Tomas"];
                 select.innerHTML = '<option value="" disabled selected>Empleado</option>';
                 BACKUP_EMPS.forEach(x => { const opt = document.createElement('option'); opt.value = x; opt.textContent = x; select.appendChild(opt); }); 
             }
