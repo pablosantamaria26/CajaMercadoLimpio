@@ -5,31 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Dueño - Mercado Limpio</title>
     
-    <!-- Fuentes e Iconos -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
-    <!-- Chart.js para tendencias -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     
     <style>
         /* =========================================
-           ESTILOS V9: FUSIÓN Y CORRECCIONES UI
+           ESTILOS V10: FINTECH PRO - DARK MODE
            ========================================= */
         :root {
-            --bg-body: #0f172a;      
-            --bg-card: #1e293b;      
-            --bg-header: rgba(15, 23, 42, 0.95);
+            --bg-body: #0b0e14;       /* Negro profundo */
+            --bg-card: #151a23;       /* Gris azulado muy oscuro */
+            --bg-header: rgba(11, 14, 20, 0.85);
             
-            --text-main: #f8fafc;
+            --text-main: #ffffff;
             --text-muted: #94a3b8;
             
-            --primary: #3b82f6;      
-            --success: #10b981;      
-            --danger: #ef4444;      
-            --warning: #f59e0b;      
-            --purple: #8b5cf6;      
-            --info: #06b6d4; 
-            --accent: #ec4899;
+            --primary: #3b82f6;       
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --success: #10b981;       
+            --danger: #ef4444;       
+            --warning: #f59e0b;       
+            --info: #06b6d4;          /* Color principal para Gastos Fijos */
             
             --safe-top: env(safe-area-inset-top);
             --safe-bottom: env(safe-area-inset-bottom);
@@ -42,248 +39,264 @@
             font-family: 'Inter', sans-serif;
             background: var(--bg-body);
             color: var(--text-main);
-            padding-top: calc(130px + var(--safe-top)); 
+            padding-top: calc(120px + var(--safe-top)); 
             padding-bottom: calc(90px + var(--safe-bottom));
             min-height: 100vh;
-            overflow-x: hidden; /* Evita scroll lateral por animaciones */
+            -webkit-font-smoothing: antialiased;
         }
 
         /* --- HEADER --- */
         .header-fixed {
             position: fixed; top: 0; left: 0; width: 100%;
             background: var(--bg-header);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
             z-index: 1000;
             padding-top: var(--safe-top);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
         
-        .header-content {
-            padding: 10px 15px;
-            display: flex; flex-direction: column; gap: 12px;
-        }
+        .header-content { padding: 10px 20px; }
 
-        .top-row {
-            display: flex; justify-content: space-between; align-items: center;
-        }
+        .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        
         .app-logo { 
-            font-size: 1.2rem; font-weight: 900; color: var(--text-main); 
-            display: flex; align-items: center; gap: 8px; 
-            letter-spacing: -0.5px;
+            font-size: 1.1rem; font-weight: 800; color: var(--text-main); 
+            display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;
         }
 
-        /* DATE CONTROLS */
+        /* DATE NAVIGATOR REFINADO */
         .date-navigator {
-            display: flex; align-items: center; justify-content: space-between;
-            background: rgba(255,255,255,0.05);
-            border-radius: 14px;
-            padding: 4px;
-            border: 1px solid rgba(255,255,255,0.05);
+            display: flex; align-items: center; justify-content: center; gap: 15px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 50px;
+            padding: 4px 6px;
+            border: 1px solid rgba(255,255,255,0.08);
+            width: 100%; max-width: 320px; margin: 0 auto;
         }
         .date-btn {
-            background: transparent; border: none; color: var(--text-main);
-            width: 44px; height: 40px; border-radius: 10px; cursor: pointer;
+            background: transparent; border: none; color: var(--text-muted);
+            width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
         }
-        .date-btn:active { background: rgba(255,255,255,0.15); transform: scale(0.9); }
+        .date-btn:active { background: rgba(255,255,255,0.1); color: white; }
         
         .date-display-container {
-            flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
-            position: relative; height: 40px;
+            position: relative; display: flex; align-items: center; gap: 8px;
         }
-        .date-text { font-weight: 700; font-size: 1rem; }
-        
-        #date-picker {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            opacity: 0; cursor: pointer; z-index: 10;
-        }
+        .date-text { font-weight: 600; font-size: 0.95rem; color: var(--text-main); }
+        #date-picker { position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; }
 
         /* --- TABS --- */
         .tabs-scroller {
-            display: flex; gap: 8px; overflow-x: auto; padding: 0 15px 12px 15px;
+            display: flex; gap: 15px; overflow-x: auto; padding: 0 20px 15px 20px;
             scrollbar-width: none; 
         }
         .tabs-scroller::-webkit-scrollbar { display: none; }
         
         .tab-chip {
-            background: rgba(255,255,255,0.05); 
+            background: transparent; 
             color: var(--text-muted);
-            padding: 9px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+            padding: 8px 0; 
+            font-size: 0.9rem; font-weight: 600;
             white-space: nowrap; transition: all 0.2s;
-            border: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 2px solid transparent;
+            border-radius: 0;
+            opacity: 0.7;
         }
         .tab-chip.active {
-            background: var(--primary); color: white; border-color: var(--primary);
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-            transform: translateY(-1px);
+            color: var(--primary); 
+            border-bottom: 2px solid var(--primary);
+            opacity: 1;
         }
 
-        /* --- SCREENS --- */
-        .screen { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
+        /* --- CARDS & UI --- */
+        .screen { display: none; padding: 20px; animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         .screen.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* --- CARDS --- */
         .card {
             background: var(--bg-card);
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 16px;
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
             border: 1px solid rgba(255,255,255,0.03);
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
             position: relative; overflow: hidden;
         }
-        .card-title {
-            font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;
-            letter-spacing: 0.8px; margin-bottom: 15px; font-weight: 700;
+        
+        .card-header {
             display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+            font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
         }
 
-        /* --- KPI GRIDS --- */
-        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
-        .kpi-box { 
-            background: rgba(255,255,255,0.03); padding: 16px; border-radius: 16px; text-align: center; 
+        /* --- HERO BALANCE --- */
+        .hero-card {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            text-align: center; padding-top: 30px; padding-bottom: 30px;
+        }
+        .balance-amount { 
+            font-size: 3.2rem; font-weight: 800; letter-spacing: -2px; 
+            padding: 0; margin: 10px 0;
+            font-variant-numeric: tabular-nums; 
+            background: -webkit-linear-gradient(90deg, #fff, #94a3b8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .balance-amount.text-green { 
+            background: -webkit-linear-gradient(90deg, #34d399, #10b981); 
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+        }
+        .balance-amount.text-red { 
+            background: -webkit-linear-gradient(90deg, #f87171, #ef4444); 
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+        }
+
+        /* --- KPI PILLS --- */
+        .kpi-row { display: flex; gap: 15px; margin-top: 25px; }
+        .kpi-pill {
+            flex: 1; background: rgba(255,255,255,0.03);
+            border-radius: 16px; padding: 12px;
+            display: flex; flex-direction: column; align-items: center;
             border: 1px solid rgba(255,255,255,0.02);
         }
-        .kpi-val { font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin-bottom: 2px;}
-        .kpi-lbl { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;}
+        .kpi-pill-val { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; color: white; }
+        .kpi-pill-lbl { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
 
-        .balance-hero { text-align: center; padding: 10px 0 20px 0; }
-        .balance-amount { font-size: 2.8rem; font-weight: 900; letter-spacing: -1px; padding: 5px 0; }
-        .balance-subtitle { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase;}
+        /* --- WIDGET CAJA FÍSICA --- */
+        .physical-money-widget {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border-radius: 20px; padding: 20px; color: white;
+            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+            position: relative; overflow: hidden;
+        }
+        .physical-money-widget::before {
+            content:''; position: absolute; top:-50%; right:-20%; width: 200px; height: 200px;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%); border-radius: 50%;
+        }
+        .pm-label { font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; font-weight: 700; margin-bottom: 5px; }
+        .pm-total { font-size: 2.2rem; font-weight: 800; margin-bottom: 15px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); font-variant-numeric: tabular-nums; }
+        .pm-breakdown { display: flex; gap: 15px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 15px; }
+        .pm-item { flex: 1; }
+        .pm-item-val { font-weight: 700; font-size: 1rem; }
+        .pm-item-lbl { font-size: 0.7rem; opacity: 0.7; }
 
-        .text-green { color: var(--success); }
-        .text-red { color: var(--danger); }
-        .text-info { color: var(--info); }
-
-        /* --- LISTAS --- */
+        /* --- ESTILOS ESPECIALES GASTOS FIJOS --- */
+        .fixed-hero {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0.02) 100%);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            text-align: center; padding: 25px;
+        }
+        .fixed-total { 
+            font-size: 2.5rem; font-weight: 900; color: var(--info); 
+            margin: 10px 0; letter-spacing: -1px; text-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+        }
+        
+        /* Lista Limpia */
+        .clean-list { display: flex; flex-direction: column; }
         .list-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 14px 12px; border-radius: 12px;
-            background: rgba(255,255,255,0.02);
-            margin-bottom: 8px;
-            border: 1px solid rgba(255,255,255,0.02);
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
-        .row-icon {
-            width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.05);
-            display: flex; align-items: center; justify-content: center; margin-right: 12px;
-            flex-shrink: 0;
-        }
-        .row-info { flex-grow: 1; min-width: 0; }
-        .row-title { font-weight: 600; font-size: 0.95rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .row-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
-        .row-amount { font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
-
-        /* --- FORMS & INPUTS (CORREGIDO PARA GASTOS FIJOS) --- */
-        .input-dark {
-            width: 100%; padding: 14px; margin-bottom: 12px;
-            background: rgba(0,0,0,0.3); 
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white; border-radius: 12px; outline: none;
-            font-family: 'Inter', sans-serif; font-size: 1rem;
-            transition: border-color 0.2s;
-        }
-        .input-dark:focus { border-color: var(--primary); }
-        .input-dark::placeholder { color: rgba(255,255,255,0.3); }
-
-        .btn-main-action {
-            width: 100%; padding: 14px;
-            background: linear-gradient(135deg, var(--primary) 0%, #2563eb 100%);
-            border: none; border-radius: 12px;
-            color: white; font-weight: 700; font-size: 1rem;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            cursor: pointer; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-        }
-        .btn-main-action:active { transform: scale(0.98); }
+        .list-row:last-child { border-bottom: none; }
         
-        .btn-add-block {
-            width: 100%; padding: 12px;
+        .row-icon {
+            width: 42px; height: 42px; border-radius: 12px; 
+            background: rgba(255,255,255,0.05); color: var(--text-main);
+            display: flex; align-items: center; justify-content: center; margin-right: 15px;
+        }
+        .row-info { flex: 1; }
+        .row-title { font-size: 1rem; font-weight: 600; margin-bottom: 2px; }
+        .row-sub { font-size: 0.8rem; color: #64748b; }
+        
+        /* Input invisible para editar montos en lista */
+        .clean-input {
+            background: transparent; border: 1px solid transparent;
+            color: var(--text-main); font-weight: 700; font-size: 1rem;
+            text-align: right; width: 100px; padding: 5px;
+            border-radius: 8px; outline: none; transition: all 0.2s;
+            font-family: 'Inter';
+        }
+        .clean-input:focus {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--info);
+        }
+        .clean-input:focus + .mini-save-btn { opacity: 1; transform: translateX(0); }
+
+        .mini-save-btn {
+            background: var(--info); color: white; border: none;
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            margin-left: 8px; cursor: pointer;
+            opacity: 0.5; transition: all 0.2s;
+        }
+
+        /* --- BOTONES & FORMULARIOS --- */
+        .btn-add-floating {
+            width: 100%; padding: 15px;
             background: rgba(255,255,255,0.05);
             border: 1px dashed rgba(255,255,255,0.2);
-            color: var(--text-muted); border-radius: 12px;
-            font-weight: 600; margin-top: 10px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 5px;
+            color: var(--text-muted); border-radius: 16px;
+            font-weight: 600; margin-top: 15px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: all 0.2s;
         }
-        .add-form { display: none; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.05); }
-        .add-form.active { display: block; animation: fadeIn 0.2s; }
+        .btn-add-floating:hover, .btn-add-floating:active {
+            background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.4);
+        }
 
-        /* --- COMBUSTIBLE (MEJORADO) --- */
-        .fuel-vehicle-card {
-            background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
-            border-radius: 16px; padding: 16px; 
-            margin: 0 15px 12px 15px;
-            display: flex; align-items: center; justify-content: space-between;
-            border: 1px solid rgba(255,255,255,0.05);
-            transition: background 0.2s;
+        .add-form { 
+            display: none; background: #0f1218; padding: 20px; 
+            border-radius: 20px; margin-top: 15px; 
+            border: 1px solid rgba(255,255,255,0.1); 
         }
-        .fuel-vehicle-card:active { background: rgba(255,255,255,0.08); }
-        .fuel-total { color: var(--warning); font-weight: 800; font-size: 1.1rem; }
+        .add-form.active { display: block; animation: fadeIn 0.3s; }
         
-        /* Lista detallada de cargas */
-        .fuel-details-list {
-            display: none; 
-            margin: -8px 15px 12px 15px; 
-            padding: 5px 15px 15px 15px;
-            background: rgba(0,0,0,0.2);
-            border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.05); border-top: none;
+        .input-pro {
+            width: 100%; padding: 16px; margin-bottom: 15px;
+            background: rgba(255,255,255,0.03); 
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white; border-radius: 14px; outline: none;
+            font-family: 'Inter'; font-size: 1rem;
         }
-        .fuel-row {
-            display: flex; justify-content: space-between; 
-            padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
-            font-size: 0.9rem; color: var(--text-muted);
-        }
-        .fuel-row:last-child { border-bottom: none; }
-
-        /* --- EMPLEADOS & FIJOS ITEMS --- */
-        .emp-item {
-            display: flex; align-items: center; justify-content: space-between;
-            background: rgba(255,255,255,0.03); padding: 12px 15px;
-            border-radius: 14px; border: 1px solid rgba(255,255,255,0.02);
-        }
-        .emp-input-mini {
-            background: transparent; border: none; color: var(--success);
-            font-weight: 800; font-size: 1.1rem; text-align: right; width: 80px;
-            outline: none;
-        }
-        .btn-save-mini {
-            width: 34px; height: 34px; border-radius: 8px; border: none;
-            background: rgba(255,255,255,0.1); color: var(--text-muted);
-            display: flex; align-items: center; justify-content: center; margin-left: 8px;
-            cursor: pointer;
-        }
-
-        /* --- ALERTAS --- */
-        .alert-box {
-            padding: 15px; border-radius: 12px; margin-bottom: 10px;
-            border-left: 4px solid; background: rgba(255,255,255,0.03);
-        }
+        .input-pro:focus { border-color: var(--info); background: rgba(255,255,255,0.05); }
         
-        /* --- FAB REFRESH --- */
+        .btn-primary-action {
+            width: 100%; padding: 16px;
+            background: var(--info); color: white;
+            border: none; border-radius: 14px;
+            font-weight: 700; font-size: 1rem; cursor: pointer;
+            box-shadow: 0 5px 20px rgba(6, 182, 212, 0.3);
+        }
+
+        /* FAB REFRESH */
         .fab-container { position: fixed; bottom: 30px; right: 20px; z-index: 900; }
         .fab-refresh {
-            width: 56px; height: 56px; border-radius: 50%;
-            background: var(--primary); color: white; border: none;
-            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+            width: 50px; height: 50px; border-radius: 50%;
+            background: var(--bg-card); color: var(--text-main); 
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: transform 0.2s;
         }
         .fab-refresh:active { transform: scale(0.9); }
-
         .spin { animation: spin 1s infinite linear; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .empty-state { text-align: center; padding: 30px; color: var(--text-muted); opacity: 0.7; }
+
+        .empty-state { text-align: center; padding: 30px; color: var(--text-muted); opacity: 0.6; font-style: italic; }
         
-        /* Gráficos */
+        /* Utilidades texto */
+        .text-green { color: #34d399; }
+        .text-red { color: #f87171; }
+        
         .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
 
     </style>
 </head>
 <body>
 
-    <!-- HEADER -->
     <div class="header-fixed">
         <div class="header-content">
             <div class="top-row">
@@ -291,16 +304,14 @@
                     <span class="material-icons-round" style="color:var(--primary)">analytics</span> 
                     Control Dueño
                 </div>
-                <div style="font-size:0.75rem; font-weight:700; color:var(--success); background:rgba(16,185,129,0.15); padding:6px 10px; border-radius:20px; display:flex; align-items:center; gap:4px;">
+                <div style="font-size:0.75rem; font-weight:700; color:var(--success); background:rgba(16,185,129,0.15); padding:6px 12px; border-radius:20px; display:flex; align-items:center; gap:5px;">
                     <span style="font-size:8px;">●</span> ONLINE
                 </div>
             </div>
             
-            <!-- FECHAS (CON SWIPE LOGIC) -->
             <div class="date-navigator">
                 <button class="date-btn" onclick="changeDate(-1)"><span class="material-icons-round">chevron_left</span></button>
                 <div class="date-display-container">
-                    <span class="material-icons-round" style="color:var(--primary); font-size:18px;">calendar_today</span>
                     <span id="date-label" class="date-text">Hoy</span>
                     <input type="date" id="date-picker" onchange="onDatePick(this.value)">
                 </div>
@@ -308,180 +319,148 @@
             </div>
         </div>
 
-        <!-- TABS -->
         <div class="tabs-scroller">
-            <div class="tab-chip active" onclick="showScreen('resumen', this)">📊 Resumen</div>
-            <div class="tab-chip" onclick="showScreen('tendencias', this)">📈 Tendencias</div>
-            <div class="tab-chip" onclick="showScreen('movimientos', this)">📝 Movimientos</div>
-            <div class="tab-chip" onclick="showScreen('combustible', this)">⛽ Combustible</div>
-            <div class="tab-chip" onclick="showScreen('empleados', this)">👥 Empleados</div>
-            <div class="tab-chip" onclick="showScreen('fijos', this)">🏠 G. Fijos</div>
-            <div class="tab-chip" onclick="showScreen('proveedores', this)">🚚 Proveedores</div>
-            <div class="tab-chip" onclick="showScreen('alertas', this)">🚨 Alertas</div>
+            <div class="tab-chip active" onclick="showScreen('resumen', this)">Resumen</div>
+            <div class="tab-chip" onclick="showScreen('tendencias', this)">Tendencias</div>
+            <div class="tab-chip" onclick="showScreen('movimientos', this)">Movimientos</div>
+            <div class="tab-chip" onclick="showScreen('combustible', this)">Combustible</div>
+            <div class="tab-chip" onclick="showScreen('fijos', this)" style="color:var(--info); border-color:var(--info); opacity:1;">Gastos Fijos</div>
+            <div class="tab-chip" onclick="showScreen('empleados', this)">Empleados</div>
+            <div class="tab-chip" onclick="showScreen('proveedores', this)">Proveedores</div>
+            <div class="tab-chip" onclick="showScreen('alertas', this)">Alertas</div>
         </div>
     </div>
 
-    <!-- AREA DE CONTENIDO (SWIPEABLE) -->
     <div id="main-content-area">
 
-        <!-- 1. RESUMEN -->
         <div id="screen-resumen" class="screen active">
-            <div class="card">
-                <div class="balance-hero">
-                    <div class="balance-subtitle">Resultado Operativo (Día)</div>
-                    <div class="balance-amount" id="kpi-neto">--</div>
-                </div>
-                <div class="kpi-grid">
-                    <div class="kpi-box">
-                        <div class="kpi-val text-green" id="kpi-ingreso">--</div>
-                        <div class="kpi-lbl">Ingresos</div>
-                    </div>
-                    <div class="kpi-box">
-                        <div class="kpi-val text-red" id="kpi-egreso">--</div>
-                        <div class="kpi-lbl">Egresos</div>
-                    </div>
-                </div>
+            <div class="card hero-card">
+                <div style="color:var(--text-muted); font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; font-weight:700;">Resultado Operativo</div>
+                <div class="balance-amount" id="kpi-neto">--</div>
                 
-                <div class="card-title" style="margin-top:20px;">
-                    <span>Caja Física</span>
-                    <span class="material-icons-round" style="font-size:16px;">verified_user</span>
+                <div class="kpi-row">
+                    <div class="kpi-pill">
+                        <div class="kpi-pill-val text-green" id="kpi-ingreso">--</div>
+                        <div class="kpi-pill-lbl">Ingresos</div>
+                    </div>
+                    <div class="kpi-pill">
+                        <div class="kpi-pill-val text-red" id="kpi-egreso">--</div>
+                        <div class="kpi-pill-lbl">Egresos</div>
+                    </div>
                 </div>
-                <div class="kpi-grid" style="grid-template-columns: 1fr 1fr 1fr; gap:8px;">
-                    <div class="kpi-box" style="padding:10px;">
-                        <div class="kpi-val" style="font-size:1.1rem;" id="kpi-caja-efectivo">--</div>
-                        <div class="kpi-lbl">EFECTIVO</div>
+            </div>
+
+            <div class="physical-money-widget">
+                <div class="pm-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle;">lock</span> Caja Física Total</div>
+                <div class="pm-total" id="kpi-caja-total">--</div>
+                <div class="pm-breakdown">
+                    <div class="pm-item">
+                        <div class="pm-item-val" id="kpi-caja-efectivo">--</div>
+                        <div class="pm-item-lbl">Efectivo</div>
                     </div>
-                    <div class="kpi-box" style="padding:10px;">
-                        <div class="kpi-val" style="font-size:1.1rem; color:var(--purple);" id="kpi-caja-cheques">--</div>
-                        <div class="kpi-lbl">CHEQUES</div>
-                    </div>
-                    <div class="kpi-box" style="padding:10px; background:var(--primary); border:none;">
-                        <div class="kpi-val" style="font-size:1.1rem; color:white;" id="kpi-caja-total">--</div>
-                        <div class="kpi-lbl" style="color:white; opacity:0.8;">TOTAL</div>
+                    <div class="pm-item">
+                        <div class="pm-item-val" id="kpi-caja-cheques">--</div>
+                        <div class="pm-item-lbl">Cheques</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 1.5 TENDENCIAS (NUEVO) -->
-        <div id="screen-tendencias" class="screen">
-             <div class="card">
-                <div class="card-title">
-                    <span>Evolución Egresos (7 Días)</span>
-                    <span class="material-icons-round">show_chart</span>
-                </div>
-                <div class="chart-container">
-                    <canvas id="chartEgresos"></canvas>
-                </div>
-             </div>
-             <div class="card">
-                <div class="card-title">
-                    <span>Ranking de Gastos</span>
-                    <span class="material-icons-round">pie_chart</span>
-                </div>
-                <div class="chart-container">
-                    <canvas id="chartRanking"></canvas>
-                </div>
-             </div>
-        </div>
+        <div id="screen-fijos" class="screen">
+            <div class="card fixed-hero">
+                <div style="font-size:0.8rem; color:var(--info); font-weight:700; text-transform:uppercase; letter-spacing:1px;">Proyección Mensual</div>
+                <div class="fixed-total" id="total-fijos-mensual">--</div>
+                <div style="font-size:0.8rem; opacity:0.7;">Suma total de gastos recurrentes</div>
+            </div>
 
-        <!-- 2. MOVIMIENTOS -->
-        <div id="screen-movimientos" class="screen">
             <div class="card">
-                <div class="card-title">
-                    <span>Historial del Día</span>
-                    <span id="mov-count" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:6px; font-size:0.75rem;">0</span>
-                </div>
-                <div id="movimientos-list">
+                <div class="card-header">Detalle de Gastos</div>
+                <div id="fijos-list" class="clean-list">
                     <div class="empty-state">Cargando...</div>
                 </div>
+
+                <button class="btn-add-floating" onclick="toggleAddForm('fijo')">
+                    <span class="material-icons-round">add</span> Agregar Nuevo Gasto
+                </button>
+
+                <div id="add-fijo-form" class="add-form">
+                    <div style="margin-bottom:15px; font-weight:700; color:white;">Nuevo Gasto Fijo</div>
+                    <input type="text" id="new-fijo-name" class="input-pro" placeholder="Nombre (ej: Alquiler Local)">
+                    <input type="number" id="new-fijo-amount" class="input-pro" placeholder="Monto Mensual ($)">
+                    <button class="btn-primary-action" onclick="addNewGastoFijo()">
+                        Guardar Gasto
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- 3. COMBUSTIBLE (MEJORADO) -->
-        <div id="screen-combustible" class="screen" style="padding: 15px 0;">
-             <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border:none; margin: 0 15px 16px 15px;">
+        <div id="screen-movimientos" class="screen">
+            <div class="card">
+                <div class="card-header">
+                    <span>Historial del Día</span>
+                    <span id="mov-count" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:6px; font-size:0.75rem; color:white;">0</span>
+                </div>
+                <div id="movimientos-list"></div>
+            </div>
+        </div>
+
+        <div id="screen-tendencias" class="screen">
+             <div class="card">
+                <div class="card-header">Evolución Egresos (7 Días)</div>
+                <div class="chart-container"><canvas id="chartEgresos"></canvas></div>
+             </div>
+             <div class="card">
+                <div class="card-header">Ranking de Gastos</div>
+                <div class="chart-container"><canvas id="chartRanking"></canvas></div>
+             </div>
+        </div>
+
+        <div id="screen-combustible" class="screen">
+             <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); text-align:center;">
                 <div style="color:white; opacity:0.9; font-size:0.8rem; font-weight:700; margin-bottom:5px;">TOTAL COMBUSTIBLE (DÍA)</div>
                 <div style="color:white; font-size:2.8rem; font-weight:800; line-height:1.1;" id="fuel-day-total">$ 0</div>
             </div>
-            <div class="card-title" style="padding:0 30px; margin-top:10px;">DESGLOSE POR VEHÍCULO</div>
-            <div id="fuel-container">
-                <div class="empty-state" style="margin:0 15px;">Sin cargas hoy.</div>
-            </div>
+            <div style="margin:20px 0 10px 10px; font-size:0.8rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Desglose por Vehículo</div>
+            <div id="fuel-container"></div>
         </div>
 
-        <!-- 4. EMPLEADOS -->
         <div id="screen-empleados" class="screen">
             <div class="card">
-                <div class="card-title"><span>Configuración Sueldos</span> <span class="material-icons-round">badge</span></div>
-                <div id="empleados-list" style="display:grid; gap:10px;"></div>
+                <div class="card-header">Sueldos Base</div>
+                <div id="empleados-list" class="clean-list"></div>
                 
-                <button class="btn-add-block" onclick="toggleAddForm('emp')">
-                    <span class="material-icons-round">add</span> Nuevo Empleado
+                <button class="btn-add-floating" onclick="toggleAddForm('emp')">
+                    <span class="material-icons-round">person_add</span> Nuevo Empleado
                 </button>
                 <div id="add-emp-form" class="add-form">
-                    <input type="text" id="new-emp-name" class="input-dark" placeholder="Nombre (ej: Juan)">
-                    <input type="number" id="new-emp-wage" class="input-dark" placeholder="Sueldo Base ($)">
-                    <button class="btn-main-action" onclick="addNewEmpleado()">
-                        <span class="material-icons-round">save</span> Guardar Empleado
-                    </button>
+                    <input type="text" id="new-emp-name" class="input-pro" placeholder="Nombre">
+                    <input type="number" id="new-emp-wage" class="input-pro" placeholder="Sueldo Base ($)">
+                    <button class="btn-primary-action" style="background:var(--primary);" onclick="addNewEmpleado()">Guardar Empleado</button>
                 </div>
             </div>
         </div>
 
-        <!-- 5. GASTOS FIJOS (UI CORREGIDA) -->
-        <div id="screen-fijos" class="screen">
-            <div class="card" style="border-left: 4px solid var(--info);">
-                <div class="card-title" style="color:var(--info);">
-                    <span>Gastos Fijos Mensuales</span>
-                    <span class="material-icons-round">apartment</span>
-                </div>
-                <div id="fijos-list" style="display:grid; gap:10px;"></div>
-
-                <div style="background:rgba(6,182,212,0.1); padding:15px; border-radius:12px; margin-top:16px;">
-                    <div style="font-size:0.8rem; color:var(--text-muted); font-weight:700; margin-bottom:5px;">TOTAL PROYECTADO MENSUAL</div>
-                    <div style="font-size:1.8rem; font-weight:900; color:var(--info);" id="total-fijos-mensual">--</div>
-                </div>
-
-                <button class="btn-add-block" onclick="toggleAddForm('fijo')">
-                    <span class="material-icons-round">add_circle_outline</span> Nuevo Gasto Fijo
-                </button>
-                
-                <!-- FORMULARIO CON ESTILO INPUT-DARK CORREGIDO -->
-                <div id="add-fijo-form" class="add-form">
-                    <input type="text" id="new-fijo-name" class="input-dark" placeholder="Nombre (ej: Alquiler)">
-                    <input type="number" id="new-fijo-amount" class="input-dark" placeholder="Costo Mensual ($)">
-                    <button class="btn-main-action" style="background:var(--info);" onclick="addNewGastoFijo()">
-                        <span class="material-icons-round">save</span> Guardar Gasto
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 6. PROVEEDORES -->
         <div id="screen-proveedores" class="screen">
-             <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); border:none;">
+             <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); text-align:center;">
                 <div style="color:white; opacity:0.9; font-size:0.8rem; font-weight:700; margin-bottom:5px;">PAGOS PROVEEDORES</div>
                 <div style="color:white; font-size:2.8rem; font-weight:800; line-height:1.1;" id="prov-day-total">$ 0</div>
             </div>
-            <div class="card">
-                <div id="prov-list"><div class="empty-state">Sin pagos hoy.</div></div>
+            <div class="card" style="margin-top:15px;">
+                <div id="prov-list" class="clean-list"></div>
             </div>
         </div>
 
-        <!-- 7. ALERTAS -->
         <div id="screen-alertas" class="screen">
             <div class="card">
-                <div class="card-title">Centro de Alertas</div>
+                <div class="card-header">Centro de Alertas</div>
                 <div id="alerts-list"></div>
             </div>
         </div>
 
-    </div> <!-- Fin Swipe Area -->
+    </div>
 
-    <!-- FAB -->
     <div class="fab-container">
-        <button class="fab-refresh" onclick="forceRefresh()"><span class="material-icons-round" style="font-size:26px;">sync</span></button>
+        <button class="fab-refresh" onclick="forceRefresh()"><span class="material-icons-round" style="font-size:24px;">sync</span></button>
     </div>
 
     <script>
@@ -494,7 +473,6 @@
         let currentMovs = [];
         let fuelMovsByVehicle = {};
         
-        // Gráficos
         let chartEgresos = null;
         let chartRanking = null;
 
@@ -507,7 +485,7 @@
             fetchStatusCaja();
             fetchEmpleados();
             fetchGastosFijos();
-            initSwipe(); // Iniciar detector de deslizamiento
+            initSwipe();
         });
 
         // === FECHAS ===
@@ -526,11 +504,8 @@
             else if(diff === 1) label = "Mañana";
             
             document.getElementById('date-label').textContent = label;
-            
-            // CARGA DE DATOS CRÍTICA (USANDO LÓGICA V4 "PERFECTA")
             fetchDataForDate(currentDateStr);
             
-            // Carga diferida de tendencias para no bloquear
             if(document.getElementById('screen-tendencias').classList.contains('active')){
                 loadTrendsData();
             }
@@ -543,7 +518,7 @@
         }
         function onDatePick(val) { if(val) setDate(val); }
 
-        // === DATA FETCHING (LÓGICA V4 RESTAURADA) ===
+        // === DATA FETCHING ===
         async function api(fn, params = {}) {
             try {
                 const res = await fetch(API_URL, {
@@ -558,11 +533,8 @@
         async function fetchDataForDate(dateStr) {
             const listEl = document.getElementById('movimientos-list');
             listEl.style.opacity = '0.5';
-            
-            // Usamos getMovimientos EXACTO (sin rango) para asegurar consistencia
             const fechaSegura = dateStr + "T12:00:00";
             const res = await api("getMovimientos", { fechaStr: fechaSegura });
-            
             listEl.style.opacity = '1';
             
             if(Array.isArray(res)) {
@@ -570,7 +542,7 @@
             } else {
                 currentMovs = [];
             }
-            processData(); // Procesa la lista localmente
+            processData(); 
         }
 
         function processData() {
@@ -628,29 +600,35 @@
             netoEl.textContent = formatMoney(neto);
             netoEl.className = `balance-amount ${neto >= 0 ? 'text-green' : 'text-red'}`;
 
-            // RENDER LISTAS
             renderMovsList(currentMovs);
             renderFuel(fuelMap);
             renderProv(provMap);
             renderAlerts(alerts);
         }
 
-        // === RENDERERS ===
+        // === RENDERERS (CLEAN) ===
         function renderMovsList(list) {
             const container = document.getElementById('movimientos-list');
             document.getElementById('mov-count').textContent = list.length;
             if(list.length === 0) { container.innerHTML = '<div class="empty-state">Sin movimientos.</div>'; return; }
-            let html = '';
+            
+            let html = '<div class="clean-list">'; 
             list.forEach(m => {
                 const isIng = m.tipo === 'Ingreso';
                 const color = isIng ? 'text-green' : 'text-red';
                 const sign = isIng ? '+' : '-';
                 const icon = getIconForCategory(m.categoria);
-                const subText = `${(m.hora||"").substring(0,5)} hs • ${m.formaPago}`;
+                const subText = `${(m.hora||"").substring(0,5)} • ${m.formaPago}`;
+                
+                const bgIcon = isIng ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+                const colorIcon = isIng ? '#34d399' : '#f87171';
+
                 html += `
                 <div class="list-row">
                     <div style="display:flex; align-items:center; overflow:hidden;">
-                        <div class="row-icon"><span class="material-icons-round" style="color:${isIng?'var(--success)':'var(--text-muted)'}">${icon}</span></div>
+                        <div class="row-icon" style="background:${bgIcon}; color:${colorIcon}">
+                            <span class="material-icons-round">${icon}</span>
+                        </div>
                         <div class="row-info">
                             <div class="row-title">${m.categoria}</div>
                             <div class="row-sub">${subText}</div>
@@ -659,49 +637,42 @@
                     <div class="row-amount ${color}">${sign} ${formatMoney(m.importe).replace('$ ','')}</div>
                 </div>`;
             });
+            html += '</div>';
             container.innerHTML = html;
         }
 
-        // RENDER COMBUSTIBLE MEJORADO (Detalle no desaparece)
         function renderFuel(map) {
             document.getElementById('fuel-day-total').textContent = formatMoney(map.total);
             const container = document.getElementById('fuel-container');
-            if(map.total === 0) { container.innerHTML = '<div class="empty-state" style="margin:0 15px;">Sin gastos.</div>'; return; }
+            if(map.total === 0) { container.innerHTML = '<div class="empty-state">Sin gastos.</div>'; return; }
             
             let html = '';
             for (const [v, data] of Object.entries(map.vehicles)) {
-                const id = v.replace(/[^a-zA-Z0-9]/g, ''); // ID seguro
+                const id = v.replace(/[^a-zA-Z0-9]/g, ''); 
                 html += `
-                <div>
-                    <div class="fuel-vehicle-card" onclick="toggleFuel('${id}')">
+                <div class="card" style="margin-bottom:10px; padding:15px; border:1px solid rgba(255,255,255,0.05);" onclick="toggleFuel('${id}')">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
                         <div style="font-weight:700;"><span class="material-icons-round" style="vertical-align:middle; margin-right:5px; color:var(--warning);">local_shipping</span> ${v}</div>
                         <div style="text-align:right;">
-                            <div class="fuel-total">${formatMoney(data.total)}</div>
+                            <div style="font-weight:800; color:var(--warning);">${formatMoney(data.total)}</div>
                             <div style="font-size:0.75rem; color:var(--text-muted);">${data.count} carga(s)</div>
                         </div>
                     </div>
-                    <div id="fuel-det-${id}" class="fuel-details-list">
-                        ${renderFuelDetailsRows(fuelMovsByVehicle[v] || [])}
+                    <div id="fuel-det-${id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.1);">
+                        ${(fuelMovsByVehicle[v]||[]).map(m => `
+                            <div style="display:flex; justify-content:space-between; font-size:0.9rem; margin-bottom:5px;">
+                                <span style="color:#94a3b8;">${(m.time||"").substring(0,5)} hs</span>
+                                <span style="font-weight:700;">${formatMoney(m.amount)}</span>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>`;
             }
             container.innerHTML = html;
         }
-
-        function renderFuelDetailsRows(movs) {
-            return movs.map(m => `
-                <div class="fuel-row">
-                    <span>${(m.time||"").substring(0,5)} hs</span>
-                    <span class="text-red" style="font-weight:700;">${formatMoney(m.amount)}</span>
-                </div>
-            `).join('');
-        }
-
-        // Función Toggle simple y robusta
         window.toggleFuel = (id) => {
             const el = document.getElementById(`fuel-det-${id}`);
-            if(el.style.display === 'block') el.style.display = 'none';
-            else el.style.display = 'block';
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
         };
 
         function renderProv(map) {
@@ -711,7 +682,7 @@
             container.innerHTML = map.list.map(p => `
                 <div class="list-row">
                     <div style="display:flex; align-items:center;">
-                        <div class="row-icon" style="background:rgba(139, 92, 246, 0.1); color:var(--purple);"><span class="material-icons-round">local_shipping</span></div>
+                        <div class="row-icon" style="background:rgba(139, 92, 246, 0.1); color:var(--purple);"><span class="material-icons-round">inventory_2</span></div>
                         <div class="row-info"><div class="row-title">${p.name}</div><div class="row-sub">${p.time} hs</div></div>
                     </div>
                     <div class="row-amount text-red">- ${formatMoney(p.amount).replace('$ ','')}</div>
@@ -723,33 +694,14 @@
             const container = document.getElementById('alerts-list');
             if(alerts.length === 0) { container.innerHTML = '<div class="empty-state">✅ Todo normal.</div>'; return; }
             container.innerHTML = alerts.map(a => `
-                <div class="alert-box" style="border-color:${a.type==='danger'?'var(--danger)':'var(--warning)'}">
-                    <div style="font-weight:700; color:${a.type==='danger'?'var(--danger)':'var(--warning)'}; margin-bottom:5px;">${a.title}</div>
+                <div style="padding:15px; border-radius:12px; margin-bottom:10px; background:rgba(239, 68, 68, 0.1); border-left:4px solid var(--danger);">
+                    <div style="font-weight:700; color:var(--danger); margin-bottom:5px;">${a.title}</div>
                     <div style="color:var(--text-muted); font-size:0.9rem;">${a.msg}</div>
                 </div>
             `).join('');
         }
 
-        // === SWIPE LOGIC ===
-        function initSwipe() {
-            let startX = 0;
-            const content = document.getElementById('main-content-area');
-            
-            content.addEventListener('touchstart', e => {
-                startX = e.changedTouches[0].screenX;
-            }, {passive: true});
-
-            content.addEventListener('touchend', e => {
-                const endX = e.changedTouches[0].screenX;
-                const diff = endX - startX;
-                if (Math.abs(diff) > 80) { // Umbral de swipe
-                    if (diff > 0) changeDate(-1); // Swipe derecha -> día anterior
-                    else changeDate(1); // Swipe izquierda -> día siguiente
-                }
-            }, {passive: true});
-        }
-
-        // === GASTOS FIJOS (API & UI) ===
+        // === GASTOS FIJOS (LÓGICA MEJORADA) ===
         async function fetchGastosFijos() {
             const container = document.getElementById('fijos-list');
             const res = await api("getConfigGastosFijos");
@@ -757,18 +709,33 @@
             
             const list = res.data || [];
             let total = 0;
-            container.innerHTML = list.map(g => {
-                total += parseInt(g.montoMensual)||0;
-                return `
-                <div class="emp-item" style="border-left:4px solid var(--info);">
-                    <div style="flex:1;">
-                        <div style="font-weight:700; font-size:1rem;">${g.nombre}</div>
-                        <div style="font-size:0.75rem; color:var(--text-muted);">Mensual</div>
-                    </div>
-                    <input type="number" class="emp-input-mini" style="color:var(--info);" id="fijo-${g.nombre.replace(/\s/g,'-')}" value="${g.montoMensual}">
-                    <button class="btn-save-mini" onclick="saveGastoFijo('${g.nombre}')"><span class="material-icons-round" style="font-size:18px;">save</span></button>
-                </div>`;
-            }).join('');
+            
+            if(list.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay gastos fijos configurados.</div>';
+            } else {
+                container.innerHTML = list.map(g => {
+                    total += parseInt(g.montoMensual)||0;
+                    return `
+                    <div class="list-row">
+                        <div style="display:flex; align-items:center;">
+                             <div class="row-icon" style="background:rgba(6, 182, 212, 0.1); color:var(--info);">
+                                <span class="material-icons-round">calendar_today</span>
+                            </div>
+                            <div class="row-info">
+                                <div class="row-title">${g.nombre}</div>
+                                <div class="row-sub">Mensual</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center;">
+                            <span style="color:var(--text-muted); margin-right:5px;">$</span>
+                            <input type="number" class="clean-input" id="fijo-${g.nombre.replace(/\s/g,'-')}" value="${g.montoMensual}">
+                            <button class="mini-save-btn" onclick="saveGastoFijo('${g.nombre}')">
+                                <span class="material-icons-round" style="font-size:18px;">save</span>
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
             document.getElementById('total-fijos-mensual').textContent = formatMoney(total);
         }
 
@@ -779,7 +746,7 @@
              
              btn.innerHTML = '<span class="spin material-icons-round" style="font-size:18px">sync</span>';
              await api("updateConfigGastoFijo", { nombre: nombre, montoMensual: val, lastUpdate: new Date().toISOString().split('T')[0] });
-             btn.innerHTML = '<span class="material-icons-round" style="font-size:18px; color:var(--success);">check</span>';
+             btn.innerHTML = '<span class="material-icons-round" style="font-size:18px;">check</span>';
              setTimeout(() => { 
                  btn.innerHTML = '<span class="material-icons-round" style="font-size:18px;">save</span>'; 
                  fetchGastosFijos(); 
@@ -792,14 +759,16 @@
             if(!name || !amount) return;
             
             const btn = document.querySelector('#add-fijo-form button');
-            btn.innerHTML = "Guardando...";
+            const originalText = btn.innerText;
+            btn.innerText = "Guardando...";
+            
             await api("addConfigGastoFijo", { nombre: name, montoMensual: parseInt(amount) });
             
             document.getElementById('new-fijo-name').value = "";
             document.getElementById('new-fijo-amount').value = "";
             toggleAddForm('fijo');
             fetchGastosFijos();
-            btn.innerHTML = '<span class="material-icons-round">save</span> Guardar Gasto';
+            btn.innerText = originalText;
         }
 
         // === EMPLEADOS ===
@@ -809,27 +778,34 @@
              if(!res || !res.ok) return;
              
              container.innerHTML = (res.data || []).map(e => `
-                <div class="emp-item" style="border-left:4px solid var(--primary);">
-                    <div style="flex:1;">
-                        <div style="font-weight:700;">${e.nombre}</div>
-                        <div style="font-size:0.75rem; color:var(--text-muted);">Sueldo Base</div>
+                <div class="list-row">
+                    <div style="display:flex; align-items:center;">
+                         <div class="row-icon" style="background:rgba(59, 130, 246, 0.1); color:var(--primary);">
+                            <span class="material-icons-round">person</span>
+                        </div>
+                        <div class="row-info">
+                            <div class="row-title">${e.nombre}</div>
+                        </div>
                     </div>
-                    <input type="number" class="emp-input-mini" id="wage-${e.nombre.replace(/\s/g,'-')}" value="${e.sueldoBase}">
-                    <button class="btn-save-mini" onclick="saveSueldo('${e.nombre}')"><span class="material-icons-round" style="font-size:18px;">save</span></button>
+                    <div style="display:flex; align-items:center;">
+                        <span style="color:var(--text-muted); margin-right:5px;">$</span>
+                        <input type="number" class="clean-input" id="wage-${e.nombre.replace(/\s/g,'-')}" value="${e.sueldoBase}">
+                        <button class="mini-save-btn" onclick="saveSueldo('${e.nombre}')">
+                            <span class="material-icons-round" style="font-size:18px;">save</span>
+                        </button>
+                    </div>
                 </div>
              `).join('');
         }
-        
         async function saveSueldo(nombre) {
             const input = document.getElementById(`wage-${nombre.replace(/\s/g,'-')}`);
             const val = parseInt(input.value) || 0;
             const btn = input.nextElementSibling;
-            btn.innerHTML = '<span class="spin material-icons-round">sync</span>';
+            btn.innerHTML = '<span class="spin material-icons-round" style="font-size:18px">sync</span>';
             await api("updateConfigEmpleado", {nombre, sueldoBase: val, lastUpdate: new Date().toISOString().split('T')[0]});
-            btn.innerHTML = '<span class="material-icons-round" style="color:var(--success);">check</span>';
-            setTimeout(() => { btn.innerHTML = '<span class="material-icons-round">save</span>'; }, 1000);
+            btn.innerHTML = '<span class="material-icons-round" style="font-size:18px;">check</span>';
+            setTimeout(() => { btn.innerHTML = '<span class="material-icons-round" style="font-size:18px;">save</span>'; }, 1000);
         }
-        
         async function addNewEmpleado() {
             const name = document.getElementById('new-emp-name').value;
             const wage = document.getElementById('new-emp-wage').value;
@@ -839,10 +815,9 @@
             fetchEmpleados();
         }
 
-        // === TENDENCIAS (Background) ===
+        // === TENDENCIAS ===
         async function loadTrendsData() {
-            if(chartEgresos) return; // Ya cargado
-            // Pedimos 7 días atrás
+            if(chartEgresos) return; 
             const d = new Date(currentDateStr + "T12:00:00");
             const end = currentDateStr;
             d.setDate(d.getDate() - 6);
@@ -853,42 +828,31 @@
                 renderTrendsCharts(res.data);
             }
         }
-        
         function renderTrendsCharts(data) {
-            // Procesar data para agrupar por fecha
             const days = {};
             const cats = {};
-            
             data.forEach(m => {
                 if(m.tipo === 'Egreso') {
                     if(!days[m.fecha]) days[m.fecha] = 0;
                     days[m.fecha] += parseInt(m.importe);
-                    
                     if(!cats[m.categoria]) cats[m.categoria] = 0;
                     cats[m.categoria] += parseInt(m.importe);
                 }
             });
-            
-            // Render Chart Egresos
             const ctx1 = document.getElementById('chartEgresos');
             if(ctx1) {
                 chartEgresos = new Chart(ctx1, {
                     type: 'line',
                     data: {
-                        labels: Object.keys(days).sort().map(d => d.substring(5)), // MM-DD
+                        labels: Object.keys(days).sort().map(d => d.substring(5)), 
                         datasets: [{
-                            label: 'Egresos',
-                            data: Object.keys(days).sort().map(k => days[k]),
-                            borderColor: '#ef4444',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            fill: true, tension: 0.4
+                            label: 'Egresos', data: Object.keys(days).sort().map(k => days[k]),
+                            borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4
                         }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: {legend:{display:false}}, scales: { x: {grid:{display:false}, ticks:{color:'#94a3b8'}}, y: {grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#94a3b8'}} } }
                 });
             }
-            
-            // Render Ranking
             const sortedCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
             const ctx2 = document.getElementById('chartRanking');
             if(ctx2) {
@@ -898,8 +862,7 @@
                         labels: sortedCats.map(x=>x[0]),
                         datasets: [{
                             data: sortedCats.map(x=>x[1]),
-                            backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981'],
-                            borderWidth: 0
+                            backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981'], borderWidth: 0
                         }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: {legend:{position:'right', labels:{color:'#94a3b8', font:{size:10}}}} }
@@ -918,7 +881,6 @@
                 }
             });
         }
-        
         function showScreen(id, tab) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-'+id).classList.add('active');
@@ -928,12 +890,10 @@
             }
             if(id === 'tendencias') loadTrendsData();
         }
-        
         function toggleAddForm(type) {
             const f = document.getElementById(type === 'emp' ? 'add-emp-form' : 'add-fijo-form');
             f.classList.toggle('active');
         }
-
         function formatMoney(n) { return "$ " + Number(n).toLocaleString('es-AR'); }
         function getIconForCategory(c) {
             c = (c||"").toLowerCase();
@@ -944,10 +904,17 @@
         }
         function forceRefresh() { 
             const i = document.querySelector('.fab-refresh span'); i.classList.add('spin');
-            setDate(currentDateStr); fetchStatusCaja();
+            setDate(currentDateStr); fetchStatusCaja(); fetchGastosFijos();
             setTimeout(() => i.classList.remove('spin'), 800);
         }
-
+        function initSwipe() {
+            let startX = 0; const content = document.getElementById('main-content-area');
+            content.addEventListener('touchstart', e => { startX = e.changedTouches[0].screenX; }, {passive: true});
+            content.addEventListener('touchend', e => {
+                const endX = e.changedTouches[0].screenX; const diff = endX - startX;
+                if (Math.abs(diff) > 80) { if (diff > 0) changeDate(-1); else changeDate(1); }
+            }, {passive: true});
+        }
     </script>
 </body>
 </html>
