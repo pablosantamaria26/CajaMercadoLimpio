@@ -11,22 +11,22 @@
     
     <style>
         /* =========================================
-           ESTILOS V10: FINTECH PRO - DARK MODE
+           ESTILOS V11: FINTECH PRO + DETALLES
            ========================================= */
         :root {
-            --bg-body: #0b0e14;       /* Negro profundo */
-            --bg-card: #151a23;       /* Gris azulado muy oscuro */
+            --bg-body: #0b0e14;       
+            --bg-card: #151a23;       
             --bg-header: rgba(11, 14, 20, 0.85);
             
             --text-main: #ffffff;
             --text-muted: #94a3b8;
             
             --primary: #3b82f6;       
-            --primary-glow: rgba(59, 130, 246, 0.4);
             --success: #10b981;       
             --danger: #ef4444;       
             --warning: #f59e0b;       
-            --info: #06b6d4;          /* Color principal para Gastos Fijos */
+            --info: #06b6d4;
+            --purple: #8b5cf6;
             
             --safe-top: env(safe-area-inset-top);
             --safe-bottom: env(safe-area-inset-bottom);
@@ -65,7 +65,7 @@
             display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;
         }
 
-        /* DATE NAVIGATOR REFINADO */
+        /* DATE NAVIGATOR */
         .date-navigator {
             display: flex; align-items: center; justify-content: center; gap: 15px;
             background: rgba(255,255,255,0.03);
@@ -78,14 +78,9 @@
             background: transparent; border: none; color: var(--text-muted);
             width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s;
-        }
-        .date-btn:active { background: rgba(255,255,255,0.1); color: white; }
-        
-        .date-display-container {
-            position: relative; display: flex; align-items: center; gap: 8px;
         }
         .date-text { font-weight: 600; font-size: 0.95rem; color: var(--text-main); }
+        .date-display-container { position: relative; display: flex; align-items: center; gap: 8px; }
         #date-picker { position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; }
 
         /* --- TABS --- */
@@ -94,72 +89,47 @@
             scrollbar-width: none; 
         }
         .tabs-scroller::-webkit-scrollbar { display: none; }
-        
         .tab-chip {
-            background: transparent; 
-            color: var(--text-muted);
-            padding: 8px 0; 
-            font-size: 0.9rem; font-weight: 600;
+            background: transparent; color: var(--text-muted);
+            padding: 8px 0; font-size: 0.9rem; font-weight: 600;
             white-space: nowrap; transition: all 0.2s;
-            border-bottom: 2px solid transparent;
-            border-radius: 0;
-            opacity: 0.7;
+            border-bottom: 2px solid transparent; opacity: 0.7;
         }
-        .tab-chip.active {
-            color: var(--primary); 
-            border-bottom: 2px solid var(--primary);
-            opacity: 1;
-        }
+        .tab-chip.active { color: var(--primary); border-bottom: 2px solid var(--primary); opacity: 1; }
 
         /* --- CARDS & UI --- */
-        .screen { display: none; padding: 20px; animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .screen { display: none; padding: 20px; animation: fadeIn 0.4s ease; }
         .screen.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .card {
-            background: var(--bg-card);
-            border-radius: 24px;
-            padding: 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.03);
-            position: relative; overflow: hidden;
+            background: var(--bg-card); border-radius: 24px; padding: 24px;
+            margin-bottom: 20px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.03); position: relative; overflow: hidden;
         }
-        
         .card-header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px;
-            font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 20px; font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
         }
 
         /* --- HERO BALANCE --- */
         .hero-card {
             background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-            text-align: center; padding-top: 30px; padding-bottom: 30px;
+            text-align: center; padding: 30px 20px;
         }
         .balance-amount { 
-            font-size: 3.2rem; font-weight: 800; letter-spacing: -2px; 
-            padding: 0; margin: 10px 0;
+            font-size: 3.2rem; font-weight: 800; letter-spacing: -2px; margin: 10px 0;
             font-variant-numeric: tabular-nums; 
             background: -webkit-linear-gradient(90deg, #fff, #94a3b8);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        .balance-amount.text-green { 
-            background: -webkit-linear-gradient(90deg, #34d399, #10b981); 
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
-        }
-        .balance-amount.text-red { 
-            background: -webkit-linear-gradient(90deg, #f87171, #ef4444); 
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
-        }
+        .balance-amount.text-green { background: -webkit-linear-gradient(90deg, #34d399, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .balance-amount.text-red { background: -webkit-linear-gradient(90deg, #f87171, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
-        /* --- KPI PILLS --- */
         .kpi-row { display: flex; gap: 15px; margin-top: 25px; }
         .kpi-pill {
-            flex: 1; background: rgba(255,255,255,0.03);
-            border-radius: 16px; padding: 12px;
-            display: flex; flex-direction: column; align-items: center;
-            border: 1px solid rgba(255,255,255,0.02);
+            flex: 1; background: rgba(255,255,255,0.03); border-radius: 16px; padding: 12px;
+            display: flex; flex-direction: column; align-items: center; border: 1px solid rgba(255,255,255,0.02);
         }
         .kpi-pill-val { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; color: white; }
         .kpi-pill-lbl { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
@@ -169,7 +139,7 @@
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             border-radius: 20px; padding: 20px; color: white;
             box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
-            position: relative; overflow: hidden;
+            position: relative; overflow: hidden; margin-bottom: 20px;
         }
         .physical-money-widget::before {
             content:''; position: absolute; top:-50%; right:-20%; width: 200px; height: 200px;
@@ -182,117 +152,74 @@
         .pm-item-val { font-weight: 700; font-size: 1rem; }
         .pm-item-lbl { font-size: 0.7rem; opacity: 0.7; }
 
-        /* --- ESTILOS ESPECIALES GASTOS FIJOS --- */
-        .fixed-hero {
-            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0.02) 100%);
-            border: 1px solid rgba(6, 182, 212, 0.2);
-            text-align: center; padding: 25px;
+        /* --- WIDGET BANCO (NUEVO) --- */
+        .bank-widget {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            border-radius: 20px; padding: 20px; color: white;
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.3);
+            display: flex; justify-content: space-between; align-items: center;
         }
-        .fixed-total { 
-            font-size: 2.5rem; font-weight: 900; color: var(--info); 
-            margin: 10px 0; letter-spacing: -1px; text-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
-        }
-        
-        /* Lista Limpia */
+
+        /* --- LISTAS Y DETALLES (NUEVO) --- */
         .clean-list { display: flex; flex-direction: column; }
+        
+        /* Fila principal clickeable */
         .list-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 16px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer; position: relative;
         }
+        .list-row:active { background: rgba(255,255,255,0.02); }
         .list-row:last-child { border-bottom: none; }
         
+        /* Detalle desplegable */
+        .row-detail-panel {
+            display: none; /* Oculto por defecto */
+            background: rgba(0,0,0,0.2);
+            margin: -1px 0 10px 0; padding: 15px;
+            border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.9rem; color: var(--text-muted);
+            animation: slideDown 0.2s ease-out;
+        }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .detail-line { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .detail-line:last-child { margin-bottom: 0; }
+        .detail-label { font-weight: 600; color: var(--text-muted); }
+        .detail-val { color: var(--text-main); font-weight: 500; text-align: right; max-width: 60%; }
+
+        /* Iconos */
         .row-icon {
             width: 42px; height: 42px; border-radius: 12px; 
             background: rgba(255,255,255,0.05); color: var(--text-main);
-            display: flex; align-items: center; justify-content: center; margin-right: 15px;
+            display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0;
         }
-        .row-info { flex: 1; }
-        .row-title { font-size: 1rem; font-weight: 600; margin-bottom: 2px; }
+        .row-info { flex: 1; overflow: hidden; }
+        .row-title { font-size: 1rem; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .row-sub { font-size: 0.8rem; color: #64748b; }
         
-        /* Input invisible para editar montos en lista */
-        .clean-input {
-            background: transparent; border: 1px solid transparent;
-            color: var(--text-main); font-weight: 700; font-size: 1rem;
-            text-align: right; width: 100px; padding: 5px;
-            border-radius: 8px; outline: none; transition: all 0.2s;
-            font-family: 'Inter';
-        }
-        .clean-input:focus {
-            background: rgba(255,255,255,0.1);
-            border-color: var(--info);
-        }
-        .clean-input:focus + .mini-save-btn { opacity: 1; transform: translateX(0); }
-
-        .mini-save-btn {
-            background: var(--info); color: white; border: none;
-            width: 32px; height: 32px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            margin-left: 8px; cursor: pointer;
-            opacity: 0.5; transition: all 0.2s;
-        }
-
-        /* --- BOTONES & FORMULARIOS --- */
-        .btn-add-floating {
-            width: 100%; padding: 15px;
-            background: rgba(255,255,255,0.05);
-            border: 1px dashed rgba(255,255,255,0.2);
-            color: var(--text-muted); border-radius: 16px;
-            font-weight: 600; margin-top: 15px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            transition: all 0.2s;
-        }
-        .btn-add-floating:hover, .btn-add-floating:active {
-            background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.4);
-        }
-
-        .add-form { 
-            display: none; background: #0f1218; padding: 20px; 
-            border-radius: 20px; margin-top: 15px; 
-            border: 1px solid rgba(255,255,255,0.1); 
-        }
-        .add-form.active { display: block; animation: fadeIn 0.3s; }
-        
-        .input-pro {
-            width: 100%; padding: 16px; margin-bottom: 15px;
-            background: rgba(255,255,255,0.03); 
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white; border-radius: 14px; outline: none;
-            font-family: 'Inter'; font-size: 1rem;
-        }
-        .input-pro:focus { border-color: var(--info); background: rgba(255,255,255,0.05); }
-        
-        .btn-primary-action {
-            width: 100%; padding: 16px;
-            background: var(--info); color: white;
-            border: none; border-radius: 14px;
-            font-weight: 700; font-size: 1rem; cursor: pointer;
-            box-shadow: 0 5px 20px rgba(6, 182, 212, 0.3);
-        }
-
-        /* FAB REFRESH */
-        .fab-container { position: fixed; bottom: 30px; right: 20px; z-index: 900; }
-        .fab-refresh {
-            width: 50px; height: 50px; border-radius: 50%;
-            background: var(--bg-card); color: var(--text-main); 
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: transform 0.2s;
-        }
-        .fab-refresh:active { transform: scale(0.9); }
-        .spin { animation: spin 1s infinite linear; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        .empty-state { text-align: center; padding: 30px; color: var(--text-muted); opacity: 0.6; font-style: italic; }
-        
-        /* Utilidades texto */
+        /* Utilidades */
         .text-green { color: #34d399; }
         .text-red { color: #f87171; }
+        .fixed-hero { background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.2); text-align: center; padding: 25px; border-radius: 20px; }
+        .fixed-total { font-size: 2.5rem; font-weight: 900; color: var(--info); margin: 10px 0; letter-spacing: -1px; }
+
+        /* Inputs */
+        .clean-input { background: transparent; border: 1px solid transparent; color: white; text-align: right; width: 100px; padding: 5px; border-radius: 8px; outline: none; font-weight: 700; }
+        .clean-input:focus { background: rgba(255,255,255,0.1); border-color: var(--info); }
+        .mini-save-btn { background: var(--info); color: white; border: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-left: 8px; cursor: pointer; }
+        .btn-add-floating { width: 100%; padding: 15px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); color: var(--text-muted); border-radius: 16px; margin-top: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .add-form { display: none; background: #0f1218; padding: 20px; border-radius: 20px; margin-top: 15px; border: 1px solid rgba(255,255,255,0.1); }
+        .add-form.active { display: block; }
+        .input-pro { width: 100%; padding: 16px; margin-bottom: 15px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 14px; outline: none; }
+        .btn-primary-action { width: 100%; padding: 16px; background: var(--info); color: white; border: none; border-radius: 14px; font-weight: 700; cursor: pointer; }
+
+        .fab-container { position: fixed; bottom: 30px; right: 20px; z-index: 900; }
+        .fab-refresh { width: 50px; height: 50px; border-radius: 50%; background: var(--bg-card); color: var(--text-main); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 20px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
+        .spin { animation: spin 1s infinite linear; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         
         .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
-
     </style>
 </head>
 <body>
@@ -324,7 +251,7 @@
             <div class="tab-chip" onclick="showScreen('tendencias', this)">Tendencias</div>
             <div class="tab-chip" onclick="showScreen('movimientos', this)">Movimientos</div>
             <div class="tab-chip" onclick="showScreen('combustible', this)">Combustible</div>
-            <div class="tab-chip" onclick="showScreen('fijos', this)" style="color:var(--info); border-color:var(--info); opacity:1;">Gastos Fijos</div>
+            <div class="tab-chip" onclick="showScreen('fijos', this)" style="color:var(--info);">Gastos Fijos</div>
             <div class="tab-chip" onclick="showScreen('empleados', this)">Empleados</div>
             <div class="tab-chip" onclick="showScreen('proveedores', this)">Proveedores</div>
             <div class="tab-chip" onclick="showScreen('alertas', this)">Alertas</div>
@@ -364,6 +291,14 @@
                     </div>
                 </div>
             </div>
+
+            <div class="bank-widget">
+                <div>
+                    <div class="pm-label" style="opacity:0.9;">INGRESOS BANCO / DIGITAL</div>
+                    <div style="font-size:0.8rem; opacity:0.7;">Acumulado del día</div>
+                </div>
+                <div style="font-size:1.8rem; font-weight:800; text-align:right;" id="kpi-banco-total">$ 0</div>
+            </div>
         </div>
 
         <div id="screen-fijos" class="screen">
@@ -372,24 +307,17 @@
                 <div class="fixed-total" id="total-fijos-mensual">--</div>
                 <div style="font-size:0.8rem; opacity:0.7;">Suma total de gastos recurrentes</div>
             </div>
-
             <div class="card">
                 <div class="card-header">Detalle de Gastos</div>
-                <div id="fijos-list" class="clean-list">
-                    <div class="empty-state">Cargando...</div>
-                </div>
-
+                <div id="fijos-list" class="clean-list"><div class="empty-state">Cargando...</div></div>
                 <button class="btn-add-floating" onclick="toggleAddForm('fijo')">
                     <span class="material-icons-round">add</span> Agregar Nuevo Gasto
                 </button>
-
                 <div id="add-fijo-form" class="add-form">
                     <div style="margin-bottom:15px; font-weight:700; color:white;">Nuevo Gasto Fijo</div>
                     <input type="text" id="new-fijo-name" class="input-pro" placeholder="Nombre (ej: Alquiler Local)">
                     <input type="number" id="new-fijo-amount" class="input-pro" placeholder="Monto Mensual ($)">
-                    <button class="btn-primary-action" onclick="addNewGastoFijo()">
-                        Guardar Gasto
-                    </button>
+                    <button class="btn-primary-action" onclick="addNewGastoFijo()">Guardar Gasto</button>
                 </div>
             </div>
         </div>
@@ -428,7 +356,6 @@
             <div class="card">
                 <div class="card-header">Sueldos Base</div>
                 <div id="empleados-list" class="clean-list"></div>
-                
                 <button class="btn-add-floating" onclick="toggleAddForm('emp')">
                     <span class="material-icons-round">person_add</span> Nuevo Empleado
                 </button>
@@ -466,8 +393,7 @@
     <script>
         // === CONFIGURACIÓN ===
         const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
-        const apiKey = ""; 
-
+        
         // === ESTADO ===
         let currentDateStr = "";
         let currentMovs = [];
@@ -547,6 +473,8 @@
 
         function processData() {
             let ingresos = 0, egresos = 0;
+            let totalBanco = 0; // Acumulador para bancos
+
             const fuelMap = { total: 0, vehicles: {} };
             const provMap = { total: 0, list: [] };
             const alerts = [];
@@ -556,8 +484,17 @@
                 const imp = Number(m.importe) || 0;
                 const cat = (m.categoria || "").toLowerCase();
                 const obs = (m.observacion || "").toLowerCase();
+                const fp = (m.formaPago || "").toLowerCase();
                 
-                if(m.tipo === 'Ingreso') ingresos += imp; else egresos += imp;
+                if(m.tipo === 'Ingreso') {
+                    ingresos += imp;
+                    // Lógica para detectar Banco/Digital
+                    if(fp.includes('banco') || fp.includes('transf') || fp.includes('cuenta') || fp.includes('mp') || fp.includes('mercado')) {
+                        totalBanco += imp;
+                    }
+                } else {
+                    egresos += imp;
+                }
 
                 // COMBUSTIBLE
                 if(cat.includes('combustible')) {
@@ -571,7 +508,6 @@
                     if(!fuelMap.vehicles[veh]) fuelMap.vehicles[veh] = { count: 0, total: 0 };
                     fuelMap.vehicles[veh].count++;
                     fuelMap.vehicles[veh].total += imp;
-
                     if (!fuelMovsByVehicle[veh]) fuelMovsByVehicle[veh] = [];
                     fuelMovsByVehicle[veh].push({ amount: imp, time: m.hora, date: m.fecha }); 
                 }
@@ -599,6 +535,9 @@
             const netoEl = document.getElementById('kpi-neto');
             netoEl.textContent = formatMoney(neto);
             netoEl.className = `balance-amount ${neto >= 0 ? 'text-green' : 'text-red'}`;
+            
+            // KPI BANCO
+            document.getElementById('kpi-banco-total').textContent = formatMoney(totalBanco);
 
             renderMovsList(currentMovs);
             renderFuel(fuelMap);
@@ -606,14 +545,14 @@
             renderAlerts(alerts);
         }
 
-        // === RENDERERS (CLEAN) ===
+        // === RENDERERS (CLEAN + INTERACTIVE) ===
         function renderMovsList(list) {
             const container = document.getElementById('movimientos-list');
             document.getElementById('mov-count').textContent = list.length;
             if(list.length === 0) { container.innerHTML = '<div class="empty-state">Sin movimientos.</div>'; return; }
             
             let html = '<div class="clean-list">'; 
-            list.forEach(m => {
+            list.forEach((m, index) => {
                 const isIng = m.tipo === 'Ingreso';
                 const color = isIng ? 'text-green' : 'text-red';
                 const sign = isIng ? '+' : '-';
@@ -622,23 +561,57 @@
                 
                 const bgIcon = isIng ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
                 const colorIcon = isIng ? '#34d399' : '#f87171';
+                
+                // Generamos ID único para el detalle
+                const detailId = `mov-det-${index}`;
 
                 html += `
-                <div class="list-row">
-                    <div style="display:flex; align-items:center; overflow:hidden;">
-                        <div class="row-icon" style="background:${bgIcon}; color:${colorIcon}">
-                            <span class="material-icons-round">${icon}</span>
+                <div>
+                    <div class="list-row" onclick="toggleMovDetail('${detailId}')">
+                        <div style="display:flex; align-items:center; overflow:hidden;">
+                            <div class="row-icon" style="background:${bgIcon}; color:${colorIcon}">
+                                <span class="material-icons-round">${icon}</span>
+                            </div>
+                            <div class="row-info">
+                                <div class="row-title">${m.categoria}</div>
+                                <div class="row-sub">${subText}</div>
+                            </div>
                         </div>
-                        <div class="row-info">
-                            <div class="row-title">${m.categoria}</div>
-                            <div class="row-sub">${subText}</div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div class="row-amount ${color}">${sign} ${formatMoney(m.importe).replace('$ ','')}</div>
+                            <span class="material-icons-round" style="color:var(--text-muted); font-size:16px;">expand_more</span>
                         </div>
                     </div>
-                    <div class="row-amount ${color}">${sign} ${formatMoney(m.importe).replace('$ ','')}</div>
+
+                    <div id="${detailId}" class="row-detail-panel">
+                        <div class="detail-line">
+                            <span class="detail-label">Observación</span>
+                            <span class="detail-val">${m.observacion || "-"}</span>
+                        </div>
+                        <div class="detail-line">
+                            <span class="detail-label">Usuario</span>
+                            <span class="detail-val">${m.usuario || "N/A"}</span>
+                        </div>
+                        <div class="detail-line">
+                            <span class="detail-label">Método</span>
+                            <span class="detail-val">${m.formaPago}</span>
+                        </div>
+                        <div class="detail-line" style="margin-top:5px; padding-top:5px; border-top:1px dashed rgba(255,255,255,0.1);">
+                            <span class="detail-label" style="font-size:0.75rem;">ID Transacción</span>
+                            <span class="detail-val" style="font-size:0.75rem; opacity:0.5;">#${m.id || index}</span>
+                        </div>
+                    </div>
                 </div>`;
             });
             html += '</div>';
             container.innerHTML = html;
+        }
+        
+        // Función para abrir/cerrar detalles de movimiento
+        window.toggleMovDetail = (id) => {
+            const el = document.getElementById(id);
+            if(el.style.display === "block") el.style.display = "none";
+            else el.style.display = "block";
         }
 
         function renderFuel(map) {
@@ -701,7 +674,7 @@
             `).join('');
         }
 
-        // === GASTOS FIJOS (LÓGICA MEJORADA) ===
+        // === GASTOS FIJOS ===
         async function fetchGastosFijos() {
             const container = document.getElementById('fijos-list');
             const res = await api("getConfigGastosFijos");
@@ -898,7 +871,7 @@
         function getIconForCategory(c) {
             c = (c||"").toLowerCase();
             if(c.includes('combustible')) return 'local_gas_station';
-            if(c.includes('proveedor')) return 'local_shipping';
+            if(c.includes('proveedor')) return 'inventory_2';
             if(c.includes('sueldo')||c.includes('haberes')) return 'badge';
             return 'paid';
         }
