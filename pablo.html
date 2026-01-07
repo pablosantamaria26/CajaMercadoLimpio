@@ -11,7 +11,7 @@
     
     <style>
         /* =========================================
-           ESTILOS V11: FINTECH PRO + DETALLES
+           ESTILOS V13: FINTECH PRO + WIDGET BANCO DUAL
            ========================================= */
         :root {
             --bg-body: #0b0e14;       
@@ -152,12 +152,18 @@
         .pm-item-val { font-weight: 700; font-size: 1rem; }
         .pm-item-lbl { font-size: 0.7rem; opacity: 0.7; }
 
-        /* --- WIDGET BANCO (NUEVO) --- */
+        /* --- WIDGET BANCO DUAL (ACTUALIZADO) --- */
         .bank-widget {
             background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
             border-radius: 20px; padding: 20px; color: white;
             box-shadow: 0 10px 30px rgba(124, 58, 237, 0.3);
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex; flex-direction: column; align-items: flex-start; gap: 15px;
+            position: relative; overflow: hidden;
+        }
+        /* Decoración de fondo */
+        .bank-widget::after {
+            content:''; position: absolute; bottom:-50%; left:-20%; width: 150px; height: 150px;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%); border-radius: 50%; pointer-events: none;
         }
 
         /* --- LISTAS Y DETALLES (NUEVO) --- */
@@ -220,6 +226,7 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         
         .chart-container { position: relative; height: 200px; width: 100%; margin-top: 10px; }
+        .empty-state { text-align:center; padding:30px; color:var(--text-muted); font-style:italic; opacity:0.6; }
     </style>
 </head>
 <body>
@@ -293,11 +300,25 @@
             </div>
 
             <div class="bank-widget">
-                <div>
-                    <div class="pm-label" style="opacity:0.9;">INGRESOS BANCO / DIGITAL</div>
-                    <div style="font-size:0.8rem; opacity:0.7;">Acumulado del día</div>
+                <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; z-index: 1;">
+                    <div>
+                        <div class="pm-label" style="opacity:0.9;">BANCO / DIGITAL (HOY)</div>
+                        <div style="font-size:0.75rem; opacity:0.7;" id="bank-status-msg">Escaneando rendición...</div>
+                    </div>
+                    <div style="font-size: 1.6rem; font-weight: 800;" id="kpi-banco-dia">
+                        <span class="spin material-icons-round" style="font-size:20px;">sync</span>
+                    </div>
                 </div>
-                <div style="font-size:1.8rem; font-weight:800; text-align:right;" id="kpi-banco-total">$ 0</div>
+
+                <div style="width: 100%; height: 1px; background: rgba(255,255,255,0.15); margin: 10px 0; z-index: 1;"></div>
+
+                <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; z-index: 1;">
+                    <div>
+                        <div class="pm-label" style="opacity:1; color: #fff; font-weight: 900;">ACUMULADO MENSUAL</div>
+                        <div style="font-size:0.7rem; opacity:0.7;">Total transferencias del mes</div>
+                    </div>
+                    <div style="font-size: 1.8rem; font-weight: 900; color: #fff;" id="kpi-banco-mes">--</div>
+                </div>
             </div>
         </div>
 
@@ -411,6 +432,7 @@
             fetchStatusCaja();
             fetchEmpleados();
             fetchGastosFijos();
+            fetchBancosDia(); // 🔥 INICIA LA LECTURA DE BANCOS
             initSwipe();
         });
 
@@ -473,8 +495,6 @@
 
         function processData() {
             let ingresos = 0, egresos = 0;
-            let totalBanco = 0; // Acumulador para bancos
-
             const fuelMap = { total: 0, vehicles: {} };
             const provMap = { total: 0, list: [] };
             const alerts = [];
@@ -484,17 +504,8 @@
                 const imp = Number(m.importe) || 0;
                 const cat = (m.categoria || "").toLowerCase();
                 const obs = (m.observacion || "").toLowerCase();
-                const fp = (m.formaPago || "").toLowerCase();
                 
-                if(m.tipo === 'Ingreso') {
-                    ingresos += imp;
-                    // Lógica para detectar Banco/Digital
-                    if(fp.includes('banco') || fp.includes('transf') || fp.includes('cuenta') || fp.includes('mp') || fp.includes('mercado')) {
-                        totalBanco += imp;
-                    }
-                } else {
-                    egresos += imp;
-                }
+                if(m.tipo === 'Ingreso') ingresos += imp; else egresos += imp;
 
                 // COMBUSTIBLE
                 if(cat.includes('combustible')) {
@@ -536,13 +547,41 @@
             netoEl.textContent = formatMoney(neto);
             netoEl.className = `balance-amount ${neto >= 0 ? 'text-green' : 'text-red'}`;
             
-            // KPI BANCO
-            document.getElementById('kpi-banco-total').textContent = formatMoney(totalBanco);
-
             renderMovsList(currentMovs);
             renderFuel(fuelMap);
             renderProv(provMap);
             renderAlerts(alerts);
+        }
+
+        // 🔥 FUNCIÓN QUE LLAMA AL BACKEND PARA LEER LA PLANILLA
+        async function fetchBancosDia() {
+            const diaEl = document.getElementById('kpi-banco-dia');
+            const mesEl = document.getElementById('kpi-banco-mes');
+            const msgEl = document.getElementById('bank-status-msg');
+
+            // Estado de carga
+            if(diaEl) diaEl.innerHTML = '<span class="spin material-icons-round" style="font-size:20px;">sync</span>';
+
+            const res = await api("getResumenBancosDueño");
+            
+            if (res && res.ok) {
+                if(diaEl) diaEl.textContent = formatMoney(res.totalDia);
+                if(mesEl) mesEl.textContent = formatMoney(res.totalMes);
+                
+                if(msgEl) {
+                    if (res.totalDia > 0) {
+                        msgEl.textContent = "Rendición detectada ✅";
+                        msgEl.style.color = "#34d399";
+                    } else {
+                        msgEl.textContent = "Esperando rendición hoy...";
+                        msgEl.style.color = "var(--text-muted)";
+                    }
+                }
+            } else {
+                if(diaEl) diaEl.textContent = "$ 0";
+                if(mesEl) mesEl.textContent = "$ 0";
+                if(msgEl) msgEl.textContent = "Error al conectar";
+            }
         }
 
         // === RENDERERS (CLEAN + INTERACTIVE) ===
@@ -562,7 +601,6 @@
                 const bgIcon = isIng ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
                 const colorIcon = isIng ? '#34d399' : '#f87171';
                 
-                // Generamos ID único para el detalle
                 const detailId = `mov-det-${index}`;
 
                 html += `
@@ -607,7 +645,6 @@
             container.innerHTML = html;
         }
         
-        // Función para abrir/cerrar detalles de movimiento
         window.toggleMovDetail = (id) => {
             const el = document.getElementById(id);
             if(el.style.display === "block") el.style.display = "none";
@@ -877,7 +914,7 @@
         }
         function forceRefresh() { 
             const i = document.querySelector('.fab-refresh span'); i.classList.add('spin');
-            setDate(currentDateStr); fetchStatusCaja(); fetchGastosFijos();
+            setDate(currentDateStr); fetchStatusCaja(); fetchGastosFijos(); fetchBancosDia(); // 🔥 REFRESCA TAMBIÉN BANCOS
             setTimeout(() => i.classList.remove('spin'), 800);
         }
         function initSwipe() {
