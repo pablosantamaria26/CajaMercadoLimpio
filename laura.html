@@ -1251,25 +1251,31 @@
 
         // --- AUXILIARES ---
         function actualizarCategorias() {
-            const tipo = document.getElementById('mov-tipo').value;
-            const selectEl = document.getElementById('mov-categoria');
-            const catActual = selectEl.value; // Guardar valor actual para no resetear si es Pago de Haberes
-            
-            selectEl.innerHTML = '<option value="" disabled selected>-- Motivo --</option>';
-            const lista = tipo === 'Egreso' ? CATEGORIAS_EGRESO : CATEGORIAS_INGRESO;
-            lista.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat; opt.textContent = cat;
-                selectEl.appendChild(opt);
-            });
+    const tipo = document.getElementById('mov-tipo').value;
+    const selectEl = document.getElementById('mov-categoria');
+    const catActual = selectEl.value; 
+    
+    // Limpiamos los valores de campos extra para que no queden "colgados"
+    document.getElementById('mov-empleado').value = "";
+    document.getElementById('mov-proveedor').value = "";
+    document.getElementById('mov-vehiculo').value = "";
+    document.getElementById('mov-banco').value = "";
+    document.getElementById('mov-cheque-nro').value = "";
+    
+    selectEl.innerHTML = '<option value="" disabled selected>-- Motivo --</option>';
+    const lista = tipo === 'Egreso' ? CATEGORIAS_EGRESO : CATEGORIAS_INGRESO;
+    lista.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat; opt.textContent = cat;
+        selectEl.appendChild(opt);
+    });
 
-            // Si la categoría actual era "Pago de Haberes", la mantenemos seleccionada
-            if (catActual === "Pago de Haberes" && tipo === 'Egreso') {
-                selectEl.value = 'Pago de Haberes';
-            }
-            
-            checkCamposExtra(); 
-        }
+    if (catActual === "Pago de Haberes" && tipo === 'Egreso') {
+        selectEl.value = 'Pago de Haberes';
+    }
+    
+    checkCamposExtra(); 
+}
 
         function checkCamposExtra() {
             const tipo = document.getElementById('mov-tipo').value;
