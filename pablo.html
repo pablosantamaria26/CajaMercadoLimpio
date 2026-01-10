@@ -11,41 +11,38 @@
     
     <style>
         /* =========================================
-           ESTILOS V5.0: SWIPE UI + BANK ANIMATION
+           ESTILOS V6.0: NATIVE SNAP SCROLL
            ========================================= */
         :root {
             --bg-body: #000000;       
             --bg-card: #151a23;       
             --bg-header: rgba(11, 14, 20, 0.95);
-            
-            --text-main: #ffffff;
-            --text-muted: #94a3b8;
-            
             --primary: #3b82f6;       
             --success: #10b981;       
             --danger: #ef4444;       
             --warning: #f59e0b;       
             --info: #06b6d4;
             --purple: #8b5cf6;
-            
+            --text-muted: #94a3b8;
             --safe-top: env(safe-area-inset-top);
             --safe-bottom: env(safe-area-inset-bottom);
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; user-select: none; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         
         body {
             margin: 0; padding: 0;
             font-family: 'Inter', sans-serif;
             background: var(--bg-body);
-            color: var(--text-main);
+            color: white;
             height: 100vh;
-            overflow: hidden; /* Importante para el swipe */
             display: flex; flex-direction: column;
+            overflow: hidden; /* Evita rebote general */
         }
 
-        /* --- HEADER MINIMALISTA --- */
+        /* --- HEADER FIJO --- */
         .header-fixed {
+            flex: 0 0 auto; /* No se encoge */
             height: calc(60px + var(--safe-top));
             padding-top: var(--safe-top);
             background: var(--bg-header);
@@ -54,47 +51,45 @@
             padding-left: 20px; padding-right: 20px;
             z-index: 100;
         }
-        
         .header-title { font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
-        .current-page-indicator { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
-
         .btn-calendar {
             background: rgba(255,255,255,0.1); border: none; color: white;
             width: 36px; height: 36px; border-radius: 12px;
             display: flex; align-items: center; justify-content: center; cursor: pointer;
         }
-        .date-display { font-size: 0.75rem; font-weight: 700; margin-right: 10px; color: var(--primary); }
+        .date-display { font-size: 0.8rem; font-weight: 700; margin-right: 10px; color: var(--primary); }
 
-        /* --- CONTENEDOR DESLIZANTE (SWIPE) --- */
-        .slider-container {
-            flex: 1;
-            width: 100%;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .slides-wrapper {
+        /* --- CONTENEDOR PRINCIPAL (LA MAGIA DEL SNAP) --- */
+        .snap-container {
+            flex: 1; /* Ocupa el resto de la pantalla */
             display: flex;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            overflow-x: auto; /* Scroll horizontal */
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory; /* Esto hace que se clave en cada pantalla */
+            -webkit-overflow-scrolling: touch; /* Suavidad en iOS */
+            scrollbar-width: none; /* Ocultar barra scroll Firefox */
         }
+        .snap-container::-webkit-scrollbar { display: none; /* Ocultar barra scroll Chrome/Safari */ }
 
+        /* CADA PANTALLA */
         .screen {
-            width: 100vw; /* Ocupa todo el ancho */
-            flex-shrink: 0;
+            flex: 0 0 100%; /* Ancho completo */
+            width: 100vw;
             height: 100%;
+            scroll-snap-align: start; /* Punto de anclaje */
             overflow-y: auto; /* Scroll vertical interno */
             padding: 20px;
             padding-bottom: 100px; /* Espacio para el FAB */
         }
 
-        /* --- INDICADORES DE PÁGINA (PUNTITOS) --- */
+        /* --- PUNTOS INDICADORES --- */
         .dots-container {
-            position: fixed; bottom: 20px; left: 20px;
+            position: fixed; bottom: 25px; left: 25px;
             display: flex; gap: 6px; z-index: 90;
+            background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 20px;
+            backdrop-filter: blur(4px);
         }
-        .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: 0.3s; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.3); transition: 0.3s; }
         .dot.active { background: var(--primary); width: 18px; border-radius: 10px; }
 
         /* --- CARDS & WIDGETS --- */
@@ -103,66 +98,61 @@
             margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.03);
         }
-        
-        /* Hero Card */
+        .card-header { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
+
+        /* Hero */
         .hero-card { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); text-align: center; padding: 30px 20px; }
         .balance-amount { 
             font-size: 3.5rem; font-weight: 800; letter-spacing: -2px; margin: 10px 0;
             background: -webkit-linear-gradient(90deg, #fff, #94a3b8);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        .text-green { color:#34d399; -webkit-text-fill-color: #34d399; }
-        .text-red { color:#f87171; -webkit-text-fill-color: #f87171; }
-
-        /* Kpis */
         .kpi-row { display: flex; gap: 15px; margin-top: 25px; }
         .kpi-pill { flex: 1; background: rgba(255,255,255,0.03); border-radius: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.02); display:flex; flex-direction:column; align-items:center; }
-        .kpi-pill-val { font-size: 1.1rem; font-weight: 700; color: white; }
-        .kpi-pill-lbl { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
-
-        /* Widget Banco Animado */
+        
+        /* Widget Banco */
         .bank-widget {
             background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);
             border-radius: 20px; padding: 20px; color: white;
-            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.2);
             position: relative; overflow: hidden;
             display: flex; flex-direction: column; gap: 10px;
         }
-        /* Círculo animado de búsqueda */
         .pulse-ring {
-            position: absolute; right: -20px; top: -20px;
-            width: 100px; height: 100px; border-radius: 50%;
-            border: 4px solid rgba(255,255,255,0.1);
-            animation: pulse 2s infinite;
+            position: absolute; right: -20px; top: -20px; width: 100px; height: 100px; border-radius: 50%;
+            border: 4px solid rgba(255,255,255,0.1); animation: pulse 2s infinite; display: none;
         }
         @keyframes pulse { 0% { transform: scale(1); opacity: 0.5; } 100% { transform: scale(2); opacity: 0; } }
 
-        /* Modal Calendario */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
-            z-index: 2000; display: none; align-items: center; justify-content: center;
-            animation: fadeIn 0.2s;
-        }
-        .modal-content {
-            background: #1e293b; padding: 25px; border-radius: 20px;
-            width: 90%; max-width: 350px; text-align: center;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .modal-overlay.active { display: flex; }
-        
-        /* Utils Generales */
-        .pm-label { font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; font-weight: 700; }
+        /* --- LISTAS Y DETALLES --- */
         .clean-list { display: flex; flex-direction: column; }
-        .list-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .fab-refresh { position: fixed; bottom: 30px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: white; border: none; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .spin { animation: spin 1s infinite linear; } @keyframes spin { to { transform: rotate(360deg); } }
+        .list-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; }
+        .list-row:active { background: rgba(255,255,255,0.05); }
         
-        /* Loading States */
-        .scanning-text { font-size: 0.8rem; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 5px; }
-        .scanning-text span { animation: blink 1.5s infinite; }
-        @keyframes blink { 50% { opacity: 0.3; } }
+        /* Detalle desplegable */
+        .row-detail-panel {
+            display: none; background: rgba(0,0,0,0.3); margin-top: -1px; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05);
+            animation: slideDown 0.2s ease-out;
+        }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .detail-line { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; color: #cbd5e1; }
 
+        /* Utils */
+        .text-green { color:#34d399; -webkit-text-fill-color: #34d399; }
+        .text-red { color:#f87171; -webkit-text-fill-color: #f87171; }
+        .pm-label { font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; font-weight: 700; }
+        
+        .fab-refresh { position: fixed; bottom: 25px; right: 25px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: white; border: none; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; cursor: pointer; }
+        .spin { animation: spin 1s infinite linear; } @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 2000; display: none; align-items: center; justify-content: center; }
+        .modal-content { background: #1e293b; padding: 25px; border-radius: 20px; width: 90%; max-width: 350px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        .modal-overlay.active { display: flex; }
+
+        /* Inputs */
+        .clean-input { background: transparent; border: 1px solid transparent; color: white; text-align: right; width: 100px; padding: 5px; border-radius: 8px; outline: none; font-weight: 700; }
+        .clean-input:focus { background: rgba(255,255,255,0.1); border-color: var(--info); }
+        .mini-save-btn { background: var(--info); color: white; border: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-left: 8px; }
     </style>
 </head>
 <body>
@@ -180,96 +170,128 @@
         </div>
     </div>
 
-    <div class="slider-container" id="slider-container">
-        <div class="slides-wrapper" id="slides-wrapper">
+    <div class="snap-container" id="snap-scroll">
 
-            <div class="screen">
-                <div class="card hero-card">
-                    <div style="color:var(--text-muted); font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; font-weight:700;">Resultado Operativo</div>
-                    <div class="balance-amount" id="kpi-neto">--</div>
-                    <div class="kpi-row">
-                        <div class="kpi-pill">
-                            <div class="kpi-pill-val text-green" id="kpi-ingreso">--</div>
-                            <div class="kpi-pill-lbl">Ingresos</div>
-                        </div>
-                        <div class="kpi-pill">
-                            <div class="kpi-pill-val text-red" id="kpi-egreso">--</div>
-                            <div class="kpi-pill-lbl">Egresos</div>
-                        </div>
+        <div class="screen" id="screen-0">
+            <div class="card hero-card">
+                <div style="color:var(--text-muted); font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; font-weight:700;">Resultado Operativo</div>
+                <div class="balance-amount" id="kpi-neto">--</div>
+                <div class="kpi-row">
+                    <div class="kpi-pill">
+                        <div style="font-size:1.1rem; font-weight:700;" class="text-green" id="kpi-ingreso">--</div>
+                        <div class="kpi-pill-lbl">Ingresos</div>
                     </div>
-                </div>
-
-                <div class="card bank-widget" id="bank-widget-container">
-                    <div class="pulse-ring" id="bank-pulse"></div>
-                    
-                    <div style="z-index: 1;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div class="pm-label" style="opacity:0.9; color:#e9d5ff;">TRANSFERENCIAS HOY</div>
-                            <div id="bank-icon-status"><span class="material-icons-round spin" style="font-size:16px;">sync</span></div>
-                        </div>
-                        <div style="margin-top:5px;">
-                            <div style="font-size:2rem; font-weight:800;" id="kpi-banco-dia">$ 0</div>
-                            <div class="scanning-text" id="bank-status-msg"><span>Buscando rendición...</span></div>
-                        </div>
-                    </div>
-
-                    <div style="height:1px; background:rgba(255,255,255,0.2); margin:5px 0;"></div>
-
-                    <div style="display:flex; justify-content:space-between; align-items:center; z-index: 1;">
-                        <div class="pm-label" style="opacity:0.8;">ACUMULADO MES</div>
-                        <div style="font-size:1.4rem; font-weight:700;" id="kpi-banco-mes">--</div>
-                    </div>
-                </div>
-
-                <div class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                        <div class="pm-label">CAJA FÍSICA TOTAL</div>
-                        <div class="pm-label text-green" id="kpi-caja-total" style="font-size:1rem;">$ 0</div>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px;">
-                            <div style="font-size:0.7rem; color:#94a3b8;">Efectivo</div>
-                            <div style="font-weight:700;" id="kpi-caja-efectivo">--</div>
-                        </div>
-                        <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px;">
-                            <div style="font-size:0.7rem; color:#94a3b8;">Cheques</div>
-                            <div style="font-weight:700;" id="kpi-caja-cheques">--</div>
-                        </div>
+                    <div class="kpi-pill">
+                        <div style="font-size:1.1rem; font-weight:700;" class="text-red" id="kpi-egreso">--</div>
+                        <div class="kpi-pill-lbl">Egresos</div>
                     </div>
                 </div>
             </div>
 
-            <div class="screen">
-                <div class="card">
-                    <div style="margin-bottom:20px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Historial Completo</div>
-                    <div id="movimientos-list"></div>
+            <div class="card bank-widget">
+                <div class="pulse-ring" id="bank-pulse"></div>
+                <div style="z-index: 1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="pm-label" style="opacity:0.9; color:#e9d5ff;">TRANSFERENCIAS HOY</div>
+                        <div id="bank-icon-status"><span class="material-icons-round spin" style="font-size:16px;">sync</span></div>
+                    </div>
+                    <div style="margin-top:5px;">
+                        <div style="font-size:2rem; font-weight:800;" id="kpi-banco-dia">$ 0</div>
+                        <div style="font-size:0.8rem; opacity:0.7;" id="bank-status-msg">Escaneando...</div>
+                    </div>
+                </div>
+                <div style="height:1px; background:rgba(255,255,255,0.2); margin:5px 0;"></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; z-index: 1;">
+                    <div class="pm-label" style="opacity:0.8;">ACUMULADO MES</div>
+                    <div style="font-size:1.4rem; font-weight:700;" id="kpi-banco-mes">--</div>
                 </div>
             </div>
 
-            <div class="screen">
-                <div class="card">
-                    <div style="margin-bottom:10px; font-weight:700;">Egresos últimos 7 días</div>
-                    <div style="height:250px; position:relative;"><canvas id="chartEgresos"></canvas></div>
+            <div class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                    <div class="pm-label">CAJA FÍSICA TOTAL</div>
+                    <div class="pm-label text-green" id="kpi-caja-total" style="font-size:1rem;">$ 0</div>
                 </div>
-                <div class="card">
-                    <div style="margin-bottom:10px; font-weight:700;">Ranking de Gastos</div>
-                    <div style="height:250px; position:relative;"><canvas id="chartRanking"></canvas></div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px;">
+                        <div style="font-size:0.7rem; color:#94a3b8;">Efectivo</div>
+                        <div style="font-weight:700;" id="kpi-caja-efectivo">--</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px;">
+                        <div style="font-size:0.7rem; color:#94a3b8;">Cheques</div>
+                        <div style="font-weight:700;" id="kpi-caja-cheques">--</div>
+                    </div>
                 </div>
             </div>
-
-            <div class="screen">
-                <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); text-align:center;">
-                    <div style="opacity:0.9; font-size:0.8rem; font-weight:700;">GASTO COMBUSTIBLE (DÍA)</div>
-                    <div style="font-size:2.5rem; font-weight:800;" id="fuel-day-total">$ 0</div>
-                </div>
-                <div id="fuel-container" style="margin-top:20px;"></div>
-            </div>
-
         </div>
+
+        <div class="screen" id="screen-1">
+             <div class="card">
+                <div class="card-header">Evolución Egresos (7 Días)</div>
+                <div style="height:250px; position:relative;"><canvas id="chartEgresos"></canvas></div>
+             </div>
+             <div class="card">
+                <div class="card-header">Ranking de Gastos</div>
+                <div style="height:250px; position:relative;"><canvas id="chartRanking"></canvas></div>
+             </div>
+        </div>
+
+        <div class="screen" id="screen-2">
+            <div class="card">
+                <div class="card-header">
+                    <span>Historial del Día</span>
+                    <span id="mov-count" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:6px; font-size:0.75rem; color:white;">0</span>
+                </div>
+                <div id="movimientos-list"></div>
+            </div>
+        </div>
+
+        <div class="screen" id="screen-3">
+             <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); text-align:center;">
+                <div style="opacity:0.9; font-size:0.8rem; font-weight:700;">GASTO COMBUSTIBLE (DÍA)</div>
+                <div style="font-size:2.5rem; font-weight:800;" id="fuel-day-total">$ 0</div>
+            </div>
+            <div id="fuel-container" style="margin-top:20px;"></div>
+        </div>
+
+        <div class="screen" id="screen-4">
+             <div class="card" style="background:rgba(6, 182, 212, 0.1); border:1px solid rgba(6, 182, 212, 0.3); text-align:center;">
+                <div style="color:var(--info); font-size:0.8rem; font-weight:700; text-transform:uppercase;">Proyección Mensual</div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--info); margin:10px 0;" id="total-fijos-mensual">--</div>
+            </div>
+            <div class="card">
+                <div class="card-header">Detalle Gastos Fijos</div>
+                <div id="fijos-list" class="clean-list"></div>
+            </div>
+        </div>
+
+        <div class="screen" id="screen-5">
+            <div class="card">
+                <div class="card-header">Sueldos Base</div>
+                <div id="empleados-list" class="clean-list"></div>
+            </div>
+        </div>
+
+        <div class="screen" id="screen-6">
+             <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); text-align:center;">
+                <div style="opacity:0.9; font-size:0.8rem; font-weight:700;">PAGOS PROVEEDORES</div>
+                <div style="font-size:2.5rem; font-weight:800;" id="prov-day-total">$ 0</div>
+            </div>
+            <div class="card" style="margin-top:15px;">
+                <div id="prov-list" class="clean-list"></div>
+            </div>
+        </div>
+
+        <div class="screen" id="screen-7">
+            <div class="card">
+                <div class="card-header">Centro de Alertas</div>
+                <div id="alerts-list"></div>
+            </div>
+        </div>
+
     </div>
 
-    <div class="dots-container" id="dots-container">
-        </div>
+    <div class="dots-container" id="dots-container"></div>
 
     <button class="fab-refresh" onclick="forceRefresh()">
         <span class="material-icons-round" style="font-size:24px;">sync</span>
@@ -286,136 +308,143 @@
     <script>
         const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
         
-        // Estado
         let currentDateStr = "";
-        let currentSlide = 0;
-        const pageTitles = ["Resumen", "Movimientos", "Tendencias", "Combustible"];
-        
-        // Datos
+        const pageTitles = ["Resumen", "Tendencias", "Movimientos", "Combustible", "Gastos Fijos", "Empleados", "Proveedores", "Alertas"];
         let currentMovs = [];
         let fuelMovsByVehicle = {};
-        let chartEgresos = null; 
+        
+        let chartEgresos = null;
         let chartRanking = null;
 
-        // --- INICIALIZACIÓN ---
+        // INICIO
         document.addEventListener("DOMContentLoaded", () => {
-            // Fecha hoy local
             const today = new Date();
             const offset = today.getTimezoneOffset() * 60000;
             const localIso = new Date(today.getTime() - offset).toISOString().split('T')[0];
             
             setDate(localIso);
             
-            // Slider
-            initSlider();
-            createDots();
+            // Generar puntitos
+            const dotsC = document.getElementById('dots-container');
+            pageTitles.forEach((_, i) => {
+                const d = document.createElement('div');
+                d.className = `dot ${i===0?'active':''}`;
+                dotsC.appendChild(d);
+            });
+
+            // Observer para saber en qué pantalla estamos (Scroll Snap Detection)
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if(entry.isIntersecting) {
+                        const index = parseInt(entry.target.id.split('-')[1]);
+                        document.getElementById('header-page-title').innerText = pageTitles[index];
+                        document.querySelectorAll('.dot').forEach((d, i) => d.className = `dot ${i===index?'active':''}`);
+                        
+                        // Carga perezosa de gráficos
+                        if(index === 1) loadTrendsData();
+                    }
+                });
+            }, { threshold: 0.6 });
+
+            document.querySelectorAll('.screen').forEach(s => observer.observe(s));
             
             // Cargas iniciales
             fetchStatusCaja();
             fetchBancosDia();
+            fetchGastosFijos();
+            fetchEmpleados();
         });
 
-        // --- LÓGICA DE SWIPE / SLIDER ---
-        function initSlider() {
-            const container = document.getElementById('slider-container');
-            const wrapper = document.getElementById('slides-wrapper');
-            const totalSlides = document.querySelectorAll('.screen').length;
+        // --- BANCO / TRANSFERENCIAS ---
+        async function fetchBancosDia() {
+            const diaEl = document.getElementById('kpi-banco-dia');
+            const mesEl = document.getElementById('kpi-banco-mes');
+            const statusEl = document.getElementById('bank-status-msg');
+            const iconEl = document.getElementById('bank-icon-status');
+            const pulseEl = document.getElementById('bank-pulse');
+
+            // Animación buscando
+            pulseEl.style.display = 'block';
+            statusEl.innerText = "Buscando rendición...";
+            iconEl.innerHTML = '<span class="material-icons-round spin">sync</span>';
+
+            const res = await api("getResumenBancosDueño");
             
-            let startX = 0;
-            let currentTranslate = 0;
-            let prevTranslate = 0;
-            let isDragging = false;
+            pulseEl.style.display = 'none'; // Fin animación
 
-            // Touch Events
-            container.addEventListener('touchstart', e => {
-                startX = e.touches[0].clientX;
-                isDragging = true;
-                wrapper.style.transition = 'none'; // Quitar transición para arrastre
-            }, {passive: true});
+            if (res && res.ok) {
+                diaEl.textContent = formatMoney(res.totalDia);
+                mesEl.textContent = formatMoney(res.totalMes); // ✅ ACUMULADO CONFIRMADO DESDE DIA 1
 
-            container.addEventListener('touchmove', e => {
-                if(!isDragging) return;
-                const currentX = e.touches[0].clientX;
-                const diff = currentX - startX;
-                // Resistencia en bordes
-                if ((currentSlide === 0 && diff > 0) || (currentSlide === totalSlides - 1 && diff < 0)) {
-                    currentTranslate = prevTranslate + diff * 0.3; 
+                if (res.totalDia > 0) {
+                    statusEl.innerHTML = '<span style="color:#34d399; font-weight:700;">Rendición Recibida ✅</span>';
+                    iconEl.innerHTML = '<span class="material-icons-round" style="color:#34d399;">check_circle</span>';
                 } else {
-                    currentTranslate = prevTranslate + diff;
+                    statusEl.innerText = "Esperando archivo... ⏳";
+                    iconEl.innerHTML = '<span class="material-icons-round" style="color:#94a3b8;">schedule</span>';
                 }
-                wrapper.style.transform = `translateX(${currentTranslate}px)`;
-            }, {passive: true});
-
-            container.addEventListener('touchend', e => {
-                isDragging = false;
-                const movedBy = currentTranslate - prevTranslate;
-                const threshold = window.innerWidth / 4; // Deslizar 25% pantalla para cambiar
-                
-                // Decidir si cambiar slide
-                if (movedBy < -threshold && currentSlide < totalSlides - 1) currentSlide++;
-                else if (movedBy > threshold && currentSlide > 0) currentSlide--;
-                
-                goToSlide(currentSlide);
-            });
+            } else {
+                statusEl.innerText = "Error conexión";
+                iconEl.innerHTML = '<span class="material-icons-round" style="color:#ef4444;">error</span>';
+            }
         }
 
-        function goToSlide(index) {
-            const wrapper = document.getElementById('slides-wrapper');
-            currentSlide = index;
-            const width = window.innerWidth;
-            const translate = -index * width;
+        // --- MOVIMIENTOS Y DETALLES ---
+        function renderMovs(list) {
+            const c = document.getElementById('movimientos-list');
+            document.getElementById('mov-count').textContent = list.length;
             
-            wrapper.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
-            wrapper.style.transform = `translateX(${translate}px)`;
+            if(list.length === 0) { c.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-style:italic;">Sin movimientos</div>'; return; }
             
-            // Actualizar estado interno
-            /* prevTranslate se usa para el cálculo del touchmove siguiente */
-            // Necesitamos guardar el estado final en una variable global para el próximo touchstart
-            // Pero como usamos transform por index, lo recalculamos en el touchstart idealmente, 
-            // simplificaremos reiniciando prevTranslate al valor calculado:
-            const slider = document.getElementById('slider-container'); // Hack para resetear variables internas touch
-            // Simplemente actualizamos UI
-            updateHeader(index);
-            updateDots(index);
-            
-            // Lazy load gráficos
-            if(index === 2) loadTrendsData();
+            c.innerHTML = list.map((m, i) => {
+                const isIng = m.tipo === 'Ingreso';
+                const color = isIng ? '#34d399' : '#f87171';
+                const bgIcon = isIng ? 'rgba(52, 211, 153, 0.1)' : 'rgba(248, 113, 113, 0.1)';
+                const icon = m.categoria.toLowerCase().includes('combustible') ? 'local_gas_station' : (isIng ? 'arrow_downward' : 'arrow_upward');
+                const id = `det-${i}`;
+
+                return `
+                <div style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <div class="list-row" onclick="toggleDetail('${id}')" style="border:none;">
+                        <div style="display:flex; align-items:center;">
+                            <div style="background:${bgIcon}; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-right:15px;">
+                                <span class="material-icons-round" style="color:${color}">${icon}</span>
+                            </div>
+                            <div>
+                                <div style="font-weight:600; font-size:0.95rem;">${m.categoria}</div>
+                                <div style="font-size:0.8rem; color:#64748b;">${(m.hora||"").substring(0,5)} • ${m.formaPago}</div>
+                            </div>
+                        </div>
+                        <div style="font-weight:700; color:${color}">${isIng?'+':'-'} ${formatMoney(m.importe).replace('$ ','')}</div>
+                    </div>
+                    <div id="${id}" class="row-detail-panel">
+                        <div class="detail-line"><span>Obs:</span> <span style="color:white; text-align:right;">${m.observacion||"-"}</span></div>
+                        <div class="detail-line"><span>Usuario:</span> <span style="color:white;">${m.usuario||"Sistema"}</span></div>
+                        <div class="detail-line"><span>ID:</span> <span style="font-family:monospace;">#${m.id}</span></div>
+                    </div>
+                </div>
+                `;
+            }).join('');
         }
 
-        function updateHeader(index) {
-            document.getElementById('header-page-title').innerText = pageTitles[index] || "Info";
-        }
-        
-        function createDots() {
-            const c = document.getElementById('dots-container');
-            pageTitles.forEach((_, i) => {
-                const d = document.createElement('div');
-                d.className = `dot ${i===0?'active':''}`;
-                c.appendChild(d);
-            });
-        }
-        function updateDots(index) {
-            document.querySelectorAll('.dot').forEach((d, i) => {
-                d.className = `dot ${i===index?'active':''}`;
-            });
-        }
+        window.toggleDetail = (id) => {
+            const el = document.getElementById(id);
+            if(el.style.display === "block") el.style.display = "none";
+            else el.style.display = "block";
+        };
 
-        // --- FECHAS Y CALENDARIO ---
+        // --- FECHAS ---
         function setDate(isoDate) {
             currentDateStr = isoDate;
-            
-            // Formato Humano
             const d = new Date(isoDate + "T12:00:00");
             const today = new Date(); today.setHours(12,0,0,0);
             const diff = Math.round((d - today) / (1000 * 60 * 60 * 24));
             
             let label = d.toLocaleDateString('es-AR', {day:'numeric', month:'short'});
-            if(diff === 0) label = "Hoy";
-            else if(diff === -1) label = "Ayer";
+            if(diff === 0) label = "Hoy"; else if(diff === -1) label = "Ayer";
             
             document.getElementById('date-label').textContent = label;
             document.getElementById('date-picker-input').value = isoDate;
-            
             fetchDataForDate(isoDate);
         }
 
@@ -429,51 +458,11 @@
             if(val) {
                 setDate(val);
                 toggleCalendar();
-                // Si cambiamos de fecha, intentamos buscar bancos de ese día
-                fetchBancosDia(); 
+                fetchBancosDia(); // Re-chequear banco si cambia fecha
             }
         }
 
-        // --- ANIMACIÓN DE BANCO ---
-        async function fetchBancosDia() {
-            const diaEl = document.getElementById('kpi-banco-dia');
-            const mesEl = document.getElementById('kpi-banco-mes');
-            const statusEl = document.getElementById('bank-status-msg');
-            const iconEl = document.getElementById('bank-icon-status');
-            const pulseEl = document.getElementById('bank-pulse');
-
-            // 1. ESTADO DE CARGA (ANIMACIÓN)
-            diaEl.style.opacity = '0.5';
-            statusEl.innerHTML = '<span>Buscando rendición...</span>';
-            iconEl.innerHTML = '<span class="material-icons-round spin">sync</span>';
-            pulseEl.style.display = 'block'; // Activar radar
-
-            const res = await api("getResumenBancosDueño");
-
-            // 2. RESPUESTA RECIBIDA
-            pulseEl.style.display = 'none'; // Apagar radar
-            diaEl.style.opacity = '1';
-
-            if (res && res.ok) {
-                diaEl.textContent = formatMoney(res.totalDia);
-                mesEl.textContent = formatMoney(res.totalMes);
-                
-                if (res.totalDia > 0) {
-                    // CASO ENCONTRADO
-                    statusEl.innerHTML = '<span style="color:#34d399; font-weight:700;">Rendición Recibida ✅</span>';
-                    iconEl.innerHTML = '<span class="material-icons-round" style="color:#34d399;">check_circle</span>';
-                } else {
-                    // CASO NO ENCONTRADO AUN
-                    statusEl.innerHTML = '<span style="color:#94a3b8;">Esperando archivo... ⏳</span>';
-                    iconEl.innerHTML = '<span class="material-icons-round" style="color:#94a3b8;">schedule</span>';
-                }
-            } else {
-                statusEl.textContent = "Error de conexión ❌";
-                iconEl.innerHTML = '<span class="material-icons-round" style="color:#ef4444;">error</span>';
-            }
-        }
-
-        // --- API & DATA ---
+        // --- API CORE ---
         async function api(fn, params = {}) {
             try {
                 const res = await fetch(API_URL, {
@@ -490,9 +479,7 @@
             listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Cargando...</div>';
             
             const res = await api("getMovimientos", { fechaStr: dateStr + "T12:00:00" });
-            
-            if(Array.isArray(res)) currentMovs = res;
-            else currentMovs = [];
+            if(Array.isArray(res)) currentMovs = res; else currentMovs = [];
             
             processData(); 
         }
@@ -511,14 +498,18 @@
         function processData() {
             let ingresos = 0, egresos = 0;
             const fuelMap = { total: 0, vehicles: {} };
+            const provMap = { total: 0, list: [] };
+            const alerts = [];
             fuelMovsByVehicle = {};
 
             currentMovs.forEach(m => {
                 const imp = Number(m.importe) || 0;
                 const cat = (m.categoria || "").toLowerCase();
+                const obs = (m.observacion || "").toLowerCase();
+                
                 if(m.tipo === 'Ingreso') ingresos += imp; else egresos += imp;
 
-                // Combustible logic
+                // Combustible
                 if(cat.includes('combustible')) {
                     fuelMap.total += imp;
                     let veh = m.vehiculo || "Otros";
@@ -533,6 +524,21 @@
                     if(!fuelMovsByVehicle[veh]) fuelMovsByVehicle[veh] = [];
                     fuelMovsByVehicle[veh].push({amount:imp, time:m.hora});
                 }
+                
+                // Proveedores
+                if(cat.includes('proveedor')) {
+                    provMap.total += imp;
+                    let name = m.proveedor || obs.replace('pago a ', '').trim() || m.categoria;
+                    const provMatch = obs.match(/\[Prov: (.*?)\]/i);
+                    if(provMatch && provMatch[1]) name = provMatch[1];
+                    name = name.charAt(0).toUpperCase() + name.slice(1);
+                    provMap.list.push({ name, amount: imp, time: m.hora });
+                }
+
+                // Alertas
+                if(cat.includes('diferencia') || obs.includes('faltante') || obs.includes('sobrante')) {
+                    if(Math.abs(imp) > 1000) alerts.push({ type: 'danger', title: 'Diferencia Caja', msg: `${m.categoria}: ${formatMoney(imp)}` });
+                }
             });
 
             // Update KPIs
@@ -543,31 +549,13 @@
             nEl.textContent = formatMoney(neto);
             nEl.className = `balance-amount ${neto>=0?'text-green':'text-red'}`;
 
-            // Render Lists
             renderMovs(currentMovs);
             renderFuel(fuelMap);
+            renderProv(provMap);
+            renderAlerts(alerts);
         }
 
-        function renderMovs(list) {
-            const c = document.getElementById('movimientos-list');
-            if(list.length === 0) { c.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-style:italic;">Sin movimientos</div>'; return; }
-            
-            c.innerHTML = list.map(m => `
-                <div class="list-row">
-                    <div style="display:flex; align-items:center;">
-                        <div style="background:rgba(255,255,255,0.05); width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-right:15px;">
-                            <span class="material-icons-round" style="color:${m.tipo==='Ingreso'?'#34d399':'#f87171'}">${m.tipo==='Ingreso'?'arrow_downward':'arrow_upward'}</span>
-                        </div>
-                        <div>
-                            <div style="font-weight:600; font-size:0.95rem;">${m.categoria}</div>
-                            <div style="font-size:0.8rem; color:#64748b;">${(m.hora||"").substring(0,5)} • ${m.formaPago}</div>
-                        </div>
-                    </div>
-                    <div style="font-weight:700; color:${m.tipo==='Ingreso'?'#34d399':'#f87171'}">${m.tipo==='Ingreso'?'+':'-'} ${formatMoney(m.importe).replace('$ ','')}</div>
-                </div>
-            `).join('');
-        }
-
+        // Renderers auxiliares
         function renderFuel(map) {
             document.getElementById('fuel-day-total').textContent = formatMoney(map.total);
             const c = document.getElementById('fuel-container');
@@ -583,18 +571,84 @@
             `).join('');
         }
 
-        function loadTrendsData() {
-            // Placeholder para lógica de gráficos
-            // (La misma lógica que tenías antes iría aquí para chart.js)
+        function renderProv(map) {
+            document.getElementById('prov-day-total').textContent = formatMoney(map.total);
+            const c = document.getElementById('prov-list');
+            if(map.list.length === 0) { c.innerHTML = '<div style="text-align:center; color:#64748b;">Sin pagos</div>'; return; }
+            c.innerHTML = map.list.map(p => `
+                <div class="list-row">
+                    <div style="display:flex; align-items:center;">
+                        <div style="background:rgba(139, 92, 246, 0.1); width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-right:15px;">
+                            <span class="material-icons-round" style="color:var(--purple)">inventory_2</span>
+                        </div>
+                        <div><div style="font-weight:600;">${p.name}</div><div style="font-size:0.8rem; color:#64748b;">${p.time} hs</div></div>
+                    </div>
+                    <div class="text-red">- ${formatMoney(p.amount).replace('$ ','')}</div>
+                </div>
+            `).join('');
         }
 
-        function forceRefresh() {
-            const b = document.querySelector('.fab-refresh span');
-            b.classList.add('spin');
-            fetchStatusCaja();
-            fetchBancosDia();
-            fetchDataForDate(currentDateStr);
-            setTimeout(()=>b.classList.remove('spin'), 1000);
+        function renderAlerts(alerts) {
+            const c = document.getElementById('alerts-list');
+            if(alerts.length === 0) { c.innerHTML = '<div style="text-align:center; color:#64748b;">✅ Todo normal</div>'; return; }
+            c.innerHTML = alerts.map(a => `<div style="padding:15px; border-radius:12px; margin-bottom:10px; background:rgba(239, 68, 68, 0.1); border-left:4px solid var(--danger);"><div style="font-weight:700; color:var(--danger);">${a.title}</div><div style="color:#94a3b8; font-size:0.9rem;">${a.msg}</div></div>`).join('');
+        }
+
+        // Otros
+        async function fetchGastosFijos() {
+            const container = document.getElementById('fijos-list');
+            const res = await api("getConfigGastosFijos");
+            if (!res || !res.ok) return;
+            const list = res.data || [];
+            let total = 0;
+            if(list.length === 0) container.innerHTML = '<div style="text-align:center;">Sin gastos</div>';
+            else {
+                container.innerHTML = list.map(g => {
+                    total += parseInt(g.montoMensual)||0;
+                    return `<div class="list-row"><div><div>${g.nombre}</div><div style="font-size:0.8rem; color:#64748b;">Mensual</div></div><div style="display:flex; align-items:center;"><span style="margin-right:5px;">$</span><input type="number" class="clean-input" onchange="saveGastoFijo('${g.nombre}', this.value)" value="${g.montoMensual}"></div></div>`;
+                }).join('');
+            }
+            document.getElementById('total-fijos-mensual').textContent = formatMoney(total);
+        }
+        async function saveGastoFijo(nombre, val) { await api("updateConfigGastoFijo", { nombre, montoMensual: val, lastUpdate: new Date().toISOString().split('T')[0] }); fetchGastosFijos(); }
+
+        async function fetchEmpleados() {
+             const c = document.getElementById('empleados-list');
+             const res = await api("getConfigEmpleados");
+             if(!res || !res.ok) return;
+             c.innerHTML = (res.data || []).map(e => `<div class="list-row"><div>${e.nombre}</div><div style="display:flex; align-items:center;"><span style="margin-right:5px;">$</span><input type="number" class="clean-input" onchange="saveSueldo('${e.nombre}', this.value)" value="${e.sueldoBase}"></div></div>`).join('');
+        }
+        async function saveSueldo(nombre, val) { await api("updateConfigEmpleado", {nombre, sueldoBase: val, lastUpdate: new Date().toISOString().split('T')[0]}); }
+
+        async function loadTrendsData() {
+            if(chartEgresos) return; 
+            const d = new Date(currentDateStr + "T12:00:00");
+            const end = currentDateStr;
+            d.setDate(d.getDate() - 6);
+            const start = d.toISOString().split('T')[0];
+            const res = await api("getMovimientosRango", {startDateStr: start, endDateStr: end});
+            if(res && res.ok && res.data) renderTrendsCharts(res.data);
+        }
+
+        function renderTrendsCharts(data) {
+            const days = {}; const cats = {};
+            data.forEach(m => {
+                if(m.tipo === 'Egreso') {
+                    if(!days[m.fecha]) days[m.fecha] = 0; days[m.fecha] += parseInt(m.importe);
+                    if(!cats[m.categoria]) cats[m.categoria] = 0; cats[m.categoria] += parseInt(m.importe);
+                }
+            });
+            const ctx1 = document.getElementById('chartEgresos');
+            if(ctx1) chartEgresos = new Chart(ctx1, { type: 'line', data: { labels: Object.keys(days).sort().map(d => d.substring(5)), datasets: [{ label: 'Egresos', data: Object.keys(days).sort().map(k => days[k]), borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: {legend:{display:false}}, scales: { x: {grid:{display:false}, ticks:{color:'#94a3b8'}}, y: {grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#94a3b8'}} } } });
+            const sortedCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
+            const ctx2 = document.getElementById('chartRanking');
+            if(ctx2) chartRanking = new Chart(ctx2, { type: 'doughnut', data: { labels: sortedCats.map(x=>x[0]), datasets: [{ data: sortedCats.map(x=>x[1]), backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: {legend:{position:'right', labels:{color:'#94a3b8', font:{size:10}}}} } });
+        }
+
+        function forceRefresh() { 
+            const i = document.querySelector('.fab-refresh span'); i.classList.add('spin');
+            setDate(currentDateStr); fetchStatusCaja(); fetchBancosDia();
+            setTimeout(() => i.classList.remove('spin'), 800);
         }
 
         function formatMoney(n) { return "$ " + Number(n).toLocaleString('es-AR'); }
