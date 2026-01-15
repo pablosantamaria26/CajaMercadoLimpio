@@ -6,7 +6,7 @@
     <title>Caja Mercado Limpio </title>
     <meta name="theme-color" content="#6C63FF">
 
-    <!-- PWA: Enlace al Manifiesto (NECESARIO PARA EL BOTÓN DE INSTALAR) -->
+    <!-- PWA: Enlace al Manifiesto -->
     <link rel="manifest" href="manifest.json">
 
     <!-- Fuentes e Iconos -->
@@ -15,7 +15,7 @@
     
     <style>
         /* =========================================
-            ESTILOS V11.0: ZEN & ROBUST
+            ESTILOS V13.1: ARQUEO BLIND & SECURE
             ========================================= */
         :root {
             --primary: #6C63FF;     
@@ -28,6 +28,7 @@
             --glass-border: rgba(255, 255, 255, 0.6);
             --info: #0984e3;
             --warning: #ff9f43;
+            --danger: #D63031;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -49,6 +50,21 @@
         @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes slideUpModal { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 159, 67, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0); } }
+
+        /* 🔥 EFECTO NUBLADO (BLUR) PARA SALDOS OCULTOS 🔥 */
+        .balance-blurred {
+            color: transparent !important;
+            text-shadow: 0 0 15px rgba(255,255,255,0.8) !important;
+            filter: blur(4px) !important;
+            pointer-events: none;
+            user-select: none;
+        }
+        /* Para textos oscuros */
+        .text-blurred {
+            color: transparent !important;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5) !important;
+            filter: blur(4px) !important;
+        }
 
         /* 🔥 ANIMACIÓN HOLOGRÁFICA SELECTOR CHEQUE 🔥 */
         @keyframes holograma {
@@ -176,7 +192,19 @@
         .balance-status { position: relative; font-size: 0.7rem; margin-top: 10px; opacity: 0.7; }
 
         /* --- ARQUEO & BILLETES --- */
-        .arqueo-header-card { background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%); border-radius: 24px; padding: 25px; margin: 15px; text-align: center; color: #fff; box-shadow: 0 10px 25px rgba(255, 154, 158, 0.4); }
+        .arqueo-header-card { background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%); border-radius: 24px; padding: 25px; margin: 15px; text-align: center; color: #fff; box-shadow: 0 10px 25px rgba(255, 154, 158, 0.4); position: relative; border: 4px solid white; }
+        
+        /* 🔥 BADGE DE MODO ARQUEO 🔥 */
+        .arqueo-mode-badge {
+            background: #D63031; color: white;
+            padding: 8px 15px; border-radius: 20px;
+            font-size: 0.9rem; font-weight: 900;
+            display: inline-flex; align-items: center; gap: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+            border: 2px solid white;
+        }
+
         .arqueo-header-card .label { font-size: 0.9rem; font-weight: 700; color: rgba(0,0,0,0.5); text-transform: uppercase; margin-bottom: 5px; }
         .arqueo-header-card .value { font-size: 3rem; font-weight: 900; color: #D63031; text-shadow: 0 2px 0 rgba(255,255,255,0.5); }
         .arqueo-sistema-pill { background: rgba(255,255,255,0.5); padding: 8px 15px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.9rem; font-weight: 700; color: #555; backdrop-filter: blur(5px); }
@@ -197,7 +225,24 @@
         .btn-main { width: 100%; padding: 18px; border: none; border-radius: 18px; font-size: 1.1rem; font-weight: 800; color: white; cursor: pointer; background: linear-gradient(45deg, #6C63FF, #4834d4); box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; }
         .btn-main:active { transform: scale(0.97); }
         .btn-success { background: linear-gradient(45deg, #00b894, #00cec9); box-shadow: 0 8px 20px rgba(0, 184, 148, 0.3); }
-        .btn-arqueo-final { background: linear-gradient(45deg, #FF7675, #D63031); box-shadow: 0 10px 25px rgba(214, 48, 49, 0.4); }
+        
+        /* 🔥 BOTÓN DE ARQUEO DESTACADO (POP & PULSE) 🔥 */
+        .btn-arqueo-pop { 
+            background: linear-gradient(45deg, #eb3b5a, #d63031); 
+            box-shadow: 0 0 20px rgba(235, 59, 90, 0.6);
+            border: 4px solid #f7b731; /* Borde dorado para sobresalir */
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            animation: pulse-red 2s infinite;
+            transform: scale(1.02);
+        }
+        
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(235, 59, 90, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(235, 59, 90, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(235, 59, 90, 0); }
+        }
         
         /* Boton IA */
         .btn-ai { width: auto; height: 54px; margin-top:0; padding: 0 20px; border-radius: 16px; background: white; color: var(--primary); border: 2px solid #eee; box-shadow: none; }
@@ -216,11 +261,22 @@
         .zen-title { font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 5px; }
 
         /* --- BOTTOM NAV --- */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; justify-content: space-around; padding: 12px 10px 30px 10px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,0.5); box-shadow: 0 -10px 30px rgba(0,0,0,0.05); z-index: 100; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; justify-content: space-around; padding: 12px 10px 30px 10px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,0.5); box-shadow: 0 -10px 30px rgba(0,0,0,0.05); z-index: 100; transition: transform 0.3s ease; }
         .nav-item { display: flex; flex-direction: column; align-items: center; color: #b2bec3; font-size: 0.75rem; font-weight: 700; text-decoration: none; transition: all 0.3s; }
         .nav-icon { font-size: 26px; margin-bottom: 4px; transition: all 0.3s; }
         .nav-item.active { color: var(--primary); }
         .nav-item.active .nav-icon { transform: translateY(-5px); }
+
+        /* 🔥 DISTINTIVO PARA EL BOTÓN ARQUEO EN NAV 🔥 */
+        .nav-item-arqueo {
+            color: var(--danger) !important;
+            opacity: 0.8;
+        }
+        .nav-item-arqueo.active {
+            opacity: 1;
+            transform: scale(1.1);
+            text-shadow: 0 0 10px rgba(214, 48, 49, 0.3);
+        }
 
         /* --- TOAST & MODAL --- */
         #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
@@ -367,6 +423,17 @@
             box-shadow: 0 5px 15px rgba(0, 184, 148, 0.4);
         }
         .btn-qc-use:active { transform: scale(0.95); }
+
+        /* Estilo para resumen de cierre */
+        .resumen-card {
+            background: white; border-radius: 20px; padding: 25px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1); 
+            text-align: center; margin-top: 20px;
+            animation: popIn 0.5s;
+        }
+        .resumen-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .resumen-row:last-child { border-bottom: none; }
+        .resumen-val { font-weight: 800; font-size: 1.2rem; }
     </style>
 </head>
 <body onload="checkArqueoReminder()">
@@ -480,6 +547,7 @@
         <div class="balance-card-container">
             <div class="balance-card" onclick="actualizarSaldoHeader()">
                 <div class="balance-label">Efectivo en Caja</div>
+                <!-- 🔥 ID MODIFICADO PARA SOPORTAR BLUR 🔥 -->
                 <div class="balance-amount" id="big-balance">...</div>
                 <div class="balance-details">
                     <div class="detail-item">
@@ -621,11 +689,21 @@
     <!-- 3. PANTALLA ARQUEO -->
     <div id="screen-arqueo" class="screen">
         <div class="arqueo-header-card">
+            <!-- TITULO MODO ARQUEO: SIN BOTÓN DE CERRAR -->
+            <div style="display:flex; justify-content:center; align-items:center;">
+                <div class="arqueo-mode-badge">
+                    <span class="material-icons-round" style="font-size:16px;">warning_amber</span>
+                    MODO ARQUEO
+                </div>
+            </div>
+            
             <div class="label" style="color:rgba(255,255,255,0.8);">Total Físico en Caja</div>
             <div id="arqueo-total-display" style="font-size:3.5rem; font-weight:900; margin:5px 0; text-shadow:0 5px 15px rgba(0,0,0,0.2);">$ 0</div>
+            
+            <!-- 🔥 SISTEMA OCULTO POR DEFECTO 🔥 -->
             <div class="arqueo-sistema-pill">
                 <span class="material-icons-round" style="font-size:16px;">dns</span>
-                Sistema: <span id="arqueo-sistema">...</span>
+                Sistema: <span id="arqueo-sistema" style="font-family:monospace; font-weight:900; letter-spacing:3px;">****</span>
             </div>
         </div>
         <div class="card">
@@ -647,8 +725,9 @@
             </div>
             <input type="hidden" id="arqueo-fisico">
             <div style="margin-top:30px;">
-                <button class="btn-main btn-arqueo-final" id="btn-arqueo" onclick="intentarArqueo()">
-                    <span class="material-icons-round">lock</span> CERRAR CAJA
+                <!-- 🔥 BOTÓN MODIFICADO 🔥 -->
+                <button class="btn-main btn-arqueo-pop" id="btn-arqueo" onclick="intentarArqueo()">
+                    <span class="material-icons-round">lock</span> FINALIZAR MODO ARQUEO
                 </button>
             </div>
         </div>
@@ -748,7 +827,8 @@
         <a href="#" class="nav-item" onclick="showScreen('rendicion', this)">
             <span class="material-icons-round nav-icon">receipt_long</span> <span>Rendición</span>
         </a>
-        <a href="#" class="nav-item" onclick="showScreen('arqueo', this)">
+        <!-- 🔥 BOTÓN ARQUEO DISTINTIVO 🔥 -->
+        <a href="#" class="nav-item nav-item-arqueo" onclick="showScreen('arqueo', this)">
             <span class="material-icons-round nav-icon">pie_chart</span> <span>Arqueo</span>
         </a>
     </nav>
@@ -789,6 +869,9 @@
         let idChequeSeleccionado = null; 
         let fuelWarningBypass = false; // Bandera para omitir la advertencia de combustible una vez
         
+        // 🔥 GLOBAL: MODO CIEGO (ARQUEO) 🔥
+        let modoCiegoActivo = false;
+
         // 🔥 GLOBAL: PAYLOAD TEMPORAL PARA EL MODAL 🔥
         let tempMovimientoPayload = null;
 
@@ -995,10 +1078,29 @@
         window.showScreen = (id, el) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-' + id).classList.add('active');
+            
+            // Manejo de clase activa en nav items
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             if(el) el.classList.add('active');
-            if (id === 'arqueo') { monitor.reset(); actualizarSaldoHeader(); calcBilletes('arq'); } 
-            else if (id === 'rendicion') { monitor.reset(); buscarRendicionPendiente(); }
+
+            // 🔥 LOGICA MODO ARQUEO: OCULTAR NAV BAR + SALDO 🔥
+            const bottomNav = document.querySelector('.bottom-nav');
+            if (id === 'arqueo') {
+                bottomNav.style.display = 'none'; // Ocultar barra en arqueo
+                
+                // ACTIVAR MODO CIEGO GLOBALMENTE
+                modoCiegoActivo = true;
+                actualizarSaldoHeader(); // Forzar actualización visual inmediata
+
+                monitor.reset(); 
+                calcBilletes('arq'); 
+            } else if (id === 'rendicion') {
+                bottomNav.style.display = 'flex';
+                monitor.reset(); 
+                buscarRendicionPendiente(); 
+            } else {
+                bottomNav.style.display = 'flex';
+            }
         };
 
         // --- API ---
@@ -1019,14 +1121,42 @@
             const elCheques = document.getElementById('val-cheques');
             const elTotalReal = document.getElementById('val-total-real');
             const statusEl = document.getElementById('last-update');
+            
+            // 🚨 MODO CIEGO ACTIVO: BLOQUEAR VISIBILIDAD DE SALDOS INMEDIATAMENTE 🚨
+            if (modoCiegoActivo) {
+                // 1. Pantalla Arqueo: Mostrar asteriscos fijos
+                sysEl.innerHTML = '<span style="letter-spacing:2px; font-weight:900; color:#aaa;">****</span>';
+                
+                // 2. Pantalla Caja (Fondo): Aplicar Blur + Asteriscos
+                el.classList.add('balance-blurred');
+                el.innerText = "$ ****";
+                
+                elCheques.classList.add('text-blurred');
+                elCheques.innerText = "****";
+                
+                elTotalReal.classList.add('text-blurred');
+                elTotalReal.innerText = "****";
+                
+                statusEl.innerText = "Modo Ciego Activo";
+                return; // 🛑 DETENER EJECUCIÓN: No hacer fetch si estamos ciegos
+            }
+
+            // Flujo normal (No Arqueo)
             if(el.innerText === "...") statusEl.innerText = "Sincronizando...";
             try {
                 const res = await api("getEstadoCaja");
                 if (res && (typeof res.efectivo !== 'undefined' || typeof res.total !== 'undefined')) {
                     saldoSistema = parseInt(res.efectivo || res.total || 0);
                     const chequesVal = res.cheques ? parseInt(res.cheques) : 0; 
+                    
+                    // Asegurar que se vean si no estamos en modo ciego
+                    el.classList.remove('balance-blurred');
+                    elCheques.classList.remove('text-blurred');
+                    elTotalReal.classList.remove('text-blurred');
+
                     el.innerText = "$ " + saldoSistema.toLocaleString('es-AR');
                     sysEl.innerText = "$ " + saldoSistema.toLocaleString('es-AR');
+                    
                     elCheques.innerText = "$ " + chequesVal.toLocaleString('es-AR');
                     elTotalReal.innerText = "$ " + (saldoSistema + chequesVal).toLocaleString('es-AR');
                     statusEl.innerText = 'Actualizado ' + new Date().toLocaleTimeString().slice(0,5);
@@ -1581,7 +1711,51 @@
                 showLoading("Cerrando caja...");
                 const res = await api("registrarArqueo", { usuario: USUARIO_APP, efectivoFisico: fisico, monitorData: monitor.getReport() });
                 hideLoading();
-                if (res && res.ok) { lanzarConfeti(); document.getElementById('screen-arqueo').innerHTML = `<div style="height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center;"><span class="material-icons-round" style="font-size:80px; color:var(--success);">check_circle</span><h1>¡Caja Cerrada!</h1></div>`; setTimeout(() => window.location.reload(), 2500); } 
+                if (res && res.ok) { 
+                    lanzarConfeti(); 
+                    
+                    // 🔥 LOGICA DE RESUMEN 6 SEGUNDOS 🔥
+                    const dif = fisico - saldoSistema;
+                    const colorDif = dif === 0 ? 'var(--success)' : (dif > 0 ? 'var(--success)' : 'var(--danger)');
+                    const simbolo = dif > 0 ? '+' : '';
+                    
+                    const htmlResumen = `
+                        <div style="height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px;">
+                            <span class="material-icons-round" style="font-size:80px; color:var(--success); animation:popIn 0.5s;">check_circle</span>
+                            <h1 style="margin:10px 0;">¡Caja Cerrada!</h1>
+                            
+                            <div class="resumen-card">
+                                <h3 style="margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">📊 Resumen del Día</h3>
+                                <div class="resumen-row">
+                                    <span style="color:#aaa;">Físico (Tu conteo)</span>
+                                    <span class="resumen-val">$ ${fisico.toLocaleString('es-AR')}</span>
+                                </div>
+                                <div class="resumen-row">
+                                    <span style="color:#aaa;">Sistema</span>
+                                    <!-- Aquí mostramos el sistema POR ÚLTIMA VEZ para que Laura vea si cuadró o no -->
+                                    <span class="resumen-val">$ ${saldoSistema.toLocaleString('es-AR')}</span>
+                                </div>
+                                <div class="resumen-row">
+                                    <span style="color:#aaa;">Diferencia</span>
+                                    <span class="resumen-val" style="color:${colorDif};">${simbolo}$ ${dif.toLocaleString('es-AR')}</span>
+                                </div>
+                                <div style="margin-top:20px; padding-top:15px; border-top:2px dashed #ddd;">
+                                    <div style="font-size:0.9rem; color:#aaa; font-weight:700;">CAJA INICIAL MAÑANA</div>
+                                    <div style="font-size:2rem; font-weight:900; color:var(--primary);">$ ${fisico.toLocaleString('es-AR')}</div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top:30px; color:#aaa; font-weight:600; font-size:0.9rem;">
+                                <span class="material-icons-round" style="font-size:14px; vertical-align:middle;">timer</span> 
+                                Cerrando sistema en 6s...
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('screen-arqueo').innerHTML = htmlResumen;
+                    
+                    setTimeout(() => window.location.reload(), 6000); 
+                } 
                 else { showToast(res.error || "Error al cerrar", false); }
             });
         }
