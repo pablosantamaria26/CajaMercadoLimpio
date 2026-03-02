@@ -9,18 +9,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     
+    <!-- Librerías para generar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
     <style>
         /* =========================================
            ESTILOS V6.0: NATIVE SNAP SCROLL
            ========================================= */
         :root {
-            --bg-body: #000000;       
-            --bg-card: #151a23;       
+            --bg-body: #000000;        
+            --bg-card: #151a23;        
             --bg-header: rgba(11, 14, 20, 0.95);
-            --primary: #3b82f6;       
-            --success: #10b981;       
-            --danger: #ef4444;       
-            --warning: #f59e0b;       
+            --primary: #3b82f6;        
+            --success: #10b981;        
+            --danger: #ef4444;        
+            --warning: #f59e0b;        
             --info: #06b6d4;
             --purple: #8b5cf6;
             --text-muted: #94a3b8;
@@ -273,7 +277,13 @@
         </div>
 
         <div class="screen" id="screen-6">
-             <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); text-align:center;">
+             <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); text-align:center; position:relative;">
+                
+                <!-- BOTÓN REPORTE PDF -->
+                <button onclick="openReportModal()" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; gap:5px; font-weight:600; font-size:0.8rem;">
+                    <span class="material-icons-round" style="font-size:18px;">picture_as_pdf</span> Reporte
+                </button>
+
                 <div style="opacity:0.9; font-size:0.8rem; font-weight:700;">PAGOS PROVEEDORES</div>
                 <div style="font-size:2.5rem; font-weight:800;" id="prov-day-total">$ 0</div>
             </div>
@@ -302,6 +312,33 @@
             <h3 style="margin-top:0; color:white;">Ir a fecha</h3>
             <input type="date" id="date-picker-input" style="width:100%; padding:15px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:10px; font-size:1.1rem; margin:20px 0;">
             <button onclick="confirmDate()" style="width:100%; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:700; font-size:1rem;">Ver Datos</button>
+        </div>
+    </div>
+
+    <!-- MODAL REPORTE PROVEEDOR -->
+    <div class="modal-overlay" id="report-modal" onclick="if(event.target===this) closeReportModal()">
+        <div class="modal-content" style="max-width: 400px; text-align:left;">
+            <h3 style="margin-top:0; color:white; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; display:flex; align-items:center; gap:8px;">
+                <span class="material-icons-round" style="color:var(--purple);">receipt_long</span> Generar Reporte
+            </h3>
+            
+            <label style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Proveedor</label>
+            <select id="report-prov-select" style="width:100%; padding:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:white; border-radius:8px; margin-bottom:15px; outline:none; font-family:'Inter', sans-serif;"></select>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px;">
+                <div>
+                    <label style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Desde</label>
+                    <input type="date" id="report-date-start" style="width:100%; padding:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:white; border-radius:8px; outline:none; color-scheme: dark; font-family:'Inter', sans-serif;">
+                </div>
+                <div>
+                    <label style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Hasta</label>
+                    <input type="date" id="report-date-end" style="width:100%; padding:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:white; border-radius:8px; outline:none; color-scheme: dark; font-family:'Inter', sans-serif;">
+                </div>
+            </div>
+            
+            <button id="btn-generate-pdf" onclick="crearPDFProveedor()" style="width:100%; padding:15px; background:var(--purple); color:white; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:0.2s;">
+                <span class="material-icons-round">download</span> DESCARGAR PDF
+            </button>
         </div>
     </div>
 
@@ -652,6 +689,190 @@
         }
 
         function formatMoney(n) { return "$ " + Number(n).toLocaleString('es-AR'); }
+
+        // ==========================================
+        // 🔥 MÓDULO GENERADOR DE PDF PROVEEDORES 🔥
+        // ==========================================
+        const LISTA_PROVEEDORES = ["Marwiplast", "Bio Bag", "Broche plastico", "Bumerang", "Carol", "Colores", "Coolbazar", "Cotton", "Santamaria Escobillones", "Desesplast", "Diawara", "Emege", "Entresol", "Fedata", "Fibran", "Flexal", "Hechicera", "Infinity import", "K&K", "La Americana", "La gauchita", "Macetex", "Make Fresh", "Matriplaster", "Mis Plast", "Modoplast", "Molmar", "POP", "Rigolleau", "Romyl", "Samantha", "Santamaria", "Sasha", "Soifer", "lumilagro", "Make", "Suka", "Supy", "Tauro", "Tecnomatric", "Yesi", "Durax", "Javi"].sort();
+
+        function openReportModal() {
+            const select = document.getElementById('report-prov-select');
+            if(select.options.length === 0) {
+                LISTA_PROVEEDORES.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p; opt.textContent = p; select.appendChild(opt);
+                });
+            }
+            
+            // Setear fechas por defecto (Desde hace 30 días hasta hoy)
+            const hoy = new Date();
+            const haceUnMes = new Date(); haceUnMes.setDate(hoy.getDate() - 30);
+            
+            document.getElementById('report-date-end').value = hoy.toISOString().split('T')[0];
+            document.getElementById('report-date-start').value = haceUnMes.toISOString().split('T')[0];
+            
+            document.getElementById('report-modal').classList.add('active');
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal').classList.remove('active');
+        }
+
+        async function crearPDFProveedor() {
+            const prov = document.getElementById('report-prov-select').value;
+            const start = document.getElementById('report-date-start').value;
+            const end = document.getElementById('report-date-end').value;
+            const btn = document.getElementById('btn-generate-pdf');
+
+            if(!start || !end) { alert("Completa las fechas"); return; }
+
+            btn.innerHTML = '<span class="material-icons-round spin">sync</span> Procesando...';
+            btn.style.opacity = '0.7';
+            btn.disabled = true;
+
+            // 1. Buscar movimientos en la base de datos
+            const res = await api("getMovimientosRango", {startDateStr: start, endDateStr: end});
+            
+            btn.innerHTML = '<span class="material-icons-round">download</span> DESCARGAR PDF';
+            btn.style.opacity = '1';
+            btn.disabled = false;
+
+            if(!res || !res.ok || !res.data) { alert("Error al buscar datos del rango de fechas"); return; }
+
+            // 2. Filtrar solo los pagos a ESE proveedor específico
+            const nombreProvLC = prov.toLowerCase();
+            const pagos = res.data.filter(m => {
+                if (m.tipo !== 'Egreso') return false;
+                const cat = (m.categoria || "").toLowerCase();
+                const obs = (m.observacion || "").toLowerCase();
+                const p = (m.proveedor || "").toLowerCase();
+                
+                // Si la categoría es proveedor y el nombre está en el campo proveedor O en la observación
+                return cat.includes('proveedor') && (p.includes(nombreProvLC) || obs.includes(nombreProvLC));
+            });
+
+            if(pagos.length === 0) {
+                alert(`No se encontraron pagos a "${prov}" en ese rango de fechas.`);
+                return;
+            }
+
+            // 3. Generar el Documento PDF
+            generarEstructuraPDF(prov, start, end, pagos);
+            closeReportModal();
+        }
+
+        function generarEstructuraPDF(proveedor, startStr, endStr, pagosData) {
+            window.jsPDF = window.jspdf.jsPDF;
+            const doc = new jsPDF('p', 'mm', 'a4'); // A4 Vertical
+
+            // Formatear Fechas
+            const formatDate = (iso) => {
+                const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`;
+            };
+            
+            let totalAbonado = 0;
+            const tableRows = [];
+
+            // Armar las filas de la tabla cronológicamente
+            // Invertimos porque suelen venir del más nuevo al más viejo, y un PDF queda mejor cronológico
+            pagosData.reverse().forEach(p => {
+                const importe = parseInt(p.importe) || 0;
+                totalAbonado += importe;
+                
+                // Extraer detalles importantes para justificar el pago (cheques, bancos)
+                let detalleStr = p.observacion || "-";
+                if(p.formaPago === 'Cheque') detalleStr = `Cheque ${p.banco||''} #${p.nroCheque||''} | ${detalleStr}`;
+                else if(p.formaPago === 'Banco') detalleStr = `Transferencia | ${detalleStr}`;
+
+                // Solo tomamos la parte de la fecha (YYYY-MM-DD)
+                const fechaCorta = p.fecha ? formatDate(p.fecha.split('T')[0]) : "N/A";
+
+                tableRows.push([
+                    fechaCorta,
+                    p.hora ? p.hora.substring(0,5) : "-",
+                    p.formaPago,
+                    detalleStr.substring(0, 45), // Truncar si es muy largo
+                    "$ " + importe.toLocaleString('es-AR')
+                ]);
+            });
+
+            // --- DISEÑO DEL MEMBRETE ---
+            doc.setFillColor(44, 62, 80); // Color azul oscuro corporativo
+            doc.rect(0, 0, 210, 40, 'F'); // Franja superior
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(22);
+            doc.text("MERCADO LIMPIO", 15, 22);
+            
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text("Reporte de Auditoría de Pagos", 15, 30);
+
+            // --- DATOS DEL REPORTE ---
+            doc.setTextColor(50, 50, 50);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("RESUMEN DE CUENTA CORRIENTE", 15, 55);
+            
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Proveedor:`, 15, 65);
+            doc.setFont("helvetica", "bold");
+            doc.text(proveedor.toUpperCase(), 38, 65);
+
+            doc.setFont("helvetica", "normal");
+            doc.text(`Período de análisis:`, 15, 72);
+            doc.setFont("helvetica", "bold");
+            doc.text(`${formatDate(startStr)} al ${formatDate(endStr)}`, 48, 72);
+
+            doc.setFont("helvetica", "normal");
+            doc.text(`Fecha de emisión:`, 140, 65);
+            doc.text(new Date().toLocaleDateString('es-AR'), 172, 65);
+
+            // --- TABLA DE DATOS (AutoTable) ---
+            doc.autoTable({
+                startY: 82,
+                head: [['Fecha', 'Hora', 'Modo de Pago', 'Detalles / Ref.', 'Importe']],
+                body: tableRows,
+                theme: 'striped',
+                headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+                styles: { fontSize: 9, cellPadding: 4 },
+                columnStyles: { 
+                    0: { cellWidth: 25 },
+                    1: { cellWidth: 15 }, 
+                    2: { cellWidth: 25 }, 
+                    3: { cellWidth: 'auto' }, 
+                    4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' } 
+                }
+            });
+
+            // --- TOTALES ---
+            const finalY = doc.lastAutoTable.finalY + 15;
+            
+            doc.setFillColor(241, 245, 249); // Fondo gris claro
+            doc.rect(120, finalY - 8, 75, 20, 'F');
+
+            doc.setFontSize(12);
+            doc.setTextColor(50, 50, 50);
+            doc.text("Total Pagado:", 125, finalY);
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.setTextColor(16, 185, 129); // Verde success
+            doc.text("$ " + totalAbonado.toLocaleString('es-AR'), 155, finalY);
+
+            // --- FIRMA DIGITAL / PIE DE PÁGINA ---
+            doc.setFont("helvetica", "italic");
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text("Este documento es un extracto oficial generado por el sistema de gestión de Mercado Limpio.", 15, 280);
+            doc.text("Para cualquier consulta sobre estos comprobantes, comunicarse con Administración.", 15, 285);
+
+            // --- DESCARGAR ---
+            const nombreArchivo = `MercadoLimpio_Pagos_${proveedor.replace(/\s/g, '')}.pdf`;
+            doc.save(nombreArchivo);
+        }
 
     </script>
 </body>
