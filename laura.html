@@ -2,1822 +2,1075 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Caja Mercado Limpio </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Caja Mercado Limpio</title>
     <meta name="theme-color" content="#6C63FF">
-
-    <!-- PWA: Enlace al Manifiesto -->
     <link rel="manifest" href="manifest.json">
-
-    <!-- Fuentes e Iconos -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700;800&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* =========================================
-            ESTILOS V13.1: ARQUEO BLIND & SECURE
-            ========================================= */
-        :root {
-            --primary: #6C63FF;     
-            --primary-dark: #4834d4;
-            --accent: #FF6584;      
-            --success: #00B894;     
-            --text-main: #2D3436;
-            --text-light: #636E72;
-            --glass-bg: rgba(255, 255, 255, 0.92); 
-            --glass-border: rgba(255, 255, 255, 0.6);
-            --info: #0984e3;
-            --warning: #ff9f43;
-            --danger: #D63031;
-        }
-
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        
-        body {
-            margin: 0; padding: 0;
-            font-family: 'Quicksand', sans-serif;
-            background: #f4f7f6; 
-            color: var(--text-main);
-            padding-bottom: 110px;
-            overflow-x: hidden;
-            min-height: 100vh;
-        }
-
-        /* --- ANIMACIONES --- */
-        @keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes slideUpModal { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 159, 67, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0); } }
-
-        /* 🔥 EFECTO NUBLADO (BLUR) PARA SALDOS OCULTOS 🔥 */
-        .balance-blurred {
-            color: transparent !important;
-            text-shadow: 0 0 15px rgba(255,255,255,0.8) !important;
-            filter: blur(4px) !important;
-            pointer-events: none;
-            user-select: none;
-        }
-        /* Para textos oscuros */
-        .text-blurred {
-            color: transparent !important;
-            text-shadow: 0 0 10px rgba(0,0,0,0.5) !important;
-            filter: blur(4px) !important;
-        }
-
-        /* 🔥 ANIMACIÓN HOLOGRÁFICA SELECTOR CHEQUE 🔥 */
-        @keyframes holograma {
-            0% { background-position: 100% 0; }
-            100% { background-position: -100% 0; }
-        }
-        .loading-cheques {
-            background: linear-gradient(90deg, #ffffff 0%, #eef2f3 25%, #d1d8e0 50%, #eef2f3 75%, #ffffff 100%);
-            background-size: 200% 100%;
-            animation: holograma 2s infinite linear;
-            border: 2px solid var(--primary) !important;
-            color: var(--primary) !important;
-            font-weight: 800 !important;
-            cursor: progress;
-        }
-
-        /* --- FONDO ANIMADO --- */
-        .background-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%); }
-        .shape { position: absolute; filter: blur(80px); opacity: 0.6; animation: float 10s infinite ease-in-out; }
-        .shape-1 { width: 300px; height: 300px; background: #a29bfe; top: -50px; left: -50px; border-radius: 50%; }
-        .shape-2 { width: 250px; height: 250px; background: #ff7675; bottom: 100px; right: -50px; border-radius: 50%; animation-delay: 2s; }
-
-        /* --- LOADING --- */
-        #loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(8px);
-            z-index: 10000; display: none; flex-direction: column;
-            justify-content: center; align-items: center; transition: opacity 0.3s;
-        }
-        #loading-overlay.active { display: flex; }
-        .spinner { width: 50px; height: 50px; border: 5px solid #dfe6e9; border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        .loading-text { font-weight: 800; color: var(--primary); font-size: 1.1rem; letter-spacing: 1px; }
-
-        /* --- MODALES GENERALES --- */
-        #welcome-modal, #custom-modal, #arqueo-reminder-modal, #confirm-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
-            z-index: 11000; display: none; justify-content: center; align-items: center;
-        }
-
-        .welcome-card, .modal-card {
-            background: white; width: 90%; max-width: 450px;
-            border-radius: 30px; padding: 30px 25px; text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.15); animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-            position: relative; overflow: hidden; border: 4px solid #fff;
-            background: linear-gradient(145deg, #ffffff, #f0f0f0);
-        }
-        /* Estilos específicos para Modal de Bienvenida */
-        .welcome-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: linear-gradient(90deg, #FF9A9E, #FECFEF, #a29bfe); }
-        .welcome-icon { font-size: 3rem; margin-bottom: 10px; animation: float 3s infinite ease-in-out; }
-        .welcome-title { font-size: 1.6rem; font-weight: 800; color: var(--primary); margin-bottom: 5px; }
-        .welcome-date { font-size: 0.9rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
-        .welcome-msg { font-size: 1rem; line-height: 1.6; color: #555; font-weight: 600; font-style: italic; background: rgba(108, 99, 255, 0.05); padding: 15px; border-radius: 15px; border-left: 4px solid var(--accent); }
-        .welcome-close { margin-top: 25px; background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 800; font-size: 1rem; cursor: pointer; box-shadow: 0 10px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; }
-        .welcome-close:active { transform: scale(0.95); }
-
-        /* --- MODAL CONFIRMACION PARTY BOX --- */
-        @keyframes rotateParty { 100% { transform: rotate(1turn); } }
-
-        .party-card-wrapper {
-            position: relative; z-index: 0; width: 90%; max-width: 420px; border-radius: 30px; overflow: hidden;
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); padding: 3px; box-shadow: 0 25px 50px rgba(0,0,0,0.25);
-        }
-        .party-card-wrapper::before {
-            content: ''; position: absolute; z-index: -2; left: -50%; top: -50%; width: 200%; height: 200%;
-            background: conic-gradient(#ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff, #5f27cd, #ff6b6b);
-            animation: rotateParty 4s linear infinite;
-        }
-        .party-content { background: #ffffff; border-radius: 27px; padding: 35px 25px; text-align: center; position: relative; z-index: 1; }
-        .party-title { font-size: 1.2rem; font-weight: 800; color: var(--text-light); margin-bottom: 5px; }
-        .party-amount { font-size: 3.2rem; font-weight: 900; margin: 15px 0; color: var(--text-main); letter-spacing: -1px; text-shadow: 2px 2px 0px rgba(0,0,0,0.05); }
-        .party-details { background: #f8f9fa; border-radius: 18px; padding: 15px; margin-bottom: 25px; border: 1px dashed #dcdde1; text-align: left; }
-        .party-detail-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.95rem; color: #555; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-        .party-detail-row:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
-        .party-detail-label { font-weight: 600; color: #888; display: flex; align-items: center; gap: 6px; }
-        .party-detail-val { font-weight: 800; color: var(--text-main); text-align: right; }
-
-        .party-actions { display: flex; gap: 12px; margin-top: 10px; }
-        .btn-party { flex: 1; padding: 16px; border-radius: 50px; border: none; font-size: 1rem; font-weight: 800; cursor: pointer; transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        .btn-party:active { transform: scale(0.90); }
-        .btn-party-cancel { background: #f1f2f6; color: #a4b0be; }
-        .btn-party-confirm { background: var(--primary); color: white; box-shadow: 0 8px 20px rgba(108, 99, 255, 0.4); }
-
-        /* --- MODAL ARQUEO REMINDER (PROFESIONAL & PERMANENTE) --- */
-        #arqueo-reminder-modal .modal-card { background: linear-gradient(150deg, #fefefe 0%, #fffcfa 100%); border: 4px solid var(--warning); box-shadow: 0 25px 80px rgba(255, 159, 67, 0.3); padding: 40px 30px 30px 30px; }
-        .reminder-icon { font-size: 3.5rem; color: var(--warning); margin-bottom: 15px; animation: pulse 2s infinite, float 4s infinite ease-in-out; border: 5px solid rgba(255, 159, 67, 0.1); padding: 10px; border-radius: 50%; display: inline-block; }
-        .reminder-title { font-size: 1.8rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px; }
-        .reminder-time { font-size: 1.1rem; font-weight: 800; color: var(--accent); margin-bottom: 20px; background: #fff0f3; padding: 5px 15px; border-radius: 10px; display: inline-block; }
-        .reminder-msg { text-align: left; font-size: 1rem; line-height: 1.7; color: #555; font-weight: 600; background: rgba(255, 159, 67, 0.05); padding: 15px; border-radius: 15px; border-left: 5px solid var(--warning); }
-        .reminder-msg b { font-weight: 800; color: var(--primary-dark); }
-        .btn-reminder-action { margin-top: 25px; background: linear-gradient(45deg, var(--warning), #f1c40f); color: var(--text-main); border: none; padding: 14px 35px; border-radius: 50px; font-weight: 800; font-size: 1.1rem; cursor: pointer; box-shadow: 0 10px 30px rgba(255, 159, 67, 0.4); transition: transform 0.2s, box-shadow 0.3s; }
-        .btn-reminder-action:active { transform: scale(0.95); box-shadow: 0 5px 15px rgba(255, 159, 67, 0.6); }
-
-        /* --- HEADER --- */
-        .app-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.7); backdrop-filter: blur(15px); position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.5); }
-        .app-title { font-size: 1.3rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
-        .user-badge { font-size: 0.85rem; background: #fff; border: 1px solid #eee; padding: 6px 12px; border-radius: 20px; font-weight: 700; color: #555; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-
-        /* --- CARDS & SCREENS --- */
-        .screen { display: none; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); padding-bottom: 40px; }
-        .screen.active { display: block; }
-
-        .card { background: var(--glass-bg); border: 1px solid #fff; border-radius: 24px; padding: 20px; margin: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); position: relative; overflow: visible; }
-        .section-title { font-size: 0.9rem; color: var(--text-light); font-weight: 800; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
-
-        /* --- AUTOCOMPLETE --- */
-        #proveedor-wrapper { position: relative; width: 100%; display: none; }
-        .autocomplete-items { position: absolute; border: 1px solid #d4d4d4; border-bottom: none; border-top: none; z-index: 99; top: 100%; left: 0; right: 0; border-radius: 0 0 15px 15px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .autocomplete-items div { padding: 12px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #d4d4d4; font-weight: 600; color: #555; font-size: 0.95rem; }
-        .autocomplete-items div:hover { background-color: #e9e9e9; color: var(--primary); }
-
-        /* --- BALANCE --- */
-        .balance-card-container { padding: 0 15px; margin-top: 15px; }
-        .balance-card { background: linear-gradient(135deg, #6C63FF 0%, #4834d4 100%); border-radius: 28px; padding: 25px 20px; color: white; box-shadow: 0 15px 35px rgba(108, 99, 255, 0.35); text-align: center; position: relative; overflow: hidden; }
-        .balance-card::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%); animation: rotate 20s linear infinite; }
-        @keyframes rotate { 100% { transform: rotate(360deg); } }
-        
-        .balance-label { position: relative; font-size: 0.85rem; font-weight: 600; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .balance-amount { position: relative; font-size: 3rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 4px 10px rgba(0,0,0,0.2); margin: 0 0 10px 0; }
-        .balance-details { position: relative; background: rgba(0,0,0,0.2); border-radius: 16px; padding: 10px; display: flex; justify-content: space-around; backdrop-filter: blur(5px); margin-top: 5px; }
-        .detail-item { display: flex; flex-direction: column; align-items: center; }
-        .detail-val { font-size: 1rem; font-weight: 700; }
-        .detail-lbl { font-size: 0.65rem; text-transform: uppercase; opacity: 0.8; }
-        .detail-divider { width: 1px; background: rgba(255,255,255,0.3); }
-        .balance-status { position: relative; font-size: 0.7rem; margin-top: 10px; opacity: 0.7; }
-
-        /* --- ARQUEO & BILLETES --- */
-        .arqueo-header-card { background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%); border-radius: 24px; padding: 25px; margin: 15px; text-align: center; color: #fff; box-shadow: 0 10px 25px rgba(255, 154, 158, 0.4); position: relative; border: 4px solid white; }
-        
-        /* 🔥 BADGE DE MODO ARQUEO 🔥 */
-        .arqueo-mode-badge {
-            background: #D63031; color: white;
-            padding: 8px 15px; border-radius: 20px;
-            font-size: 0.9rem; font-weight: 900;
-            display: inline-flex; align-items: center; gap: 5px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
-            border: 2px solid white;
-        }
-
-        .arqueo-header-card .label { font-size: 0.9rem; font-weight: 700; color: rgba(0,0,0,0.5); text-transform: uppercase; margin-bottom: 5px; }
-        .arqueo-header-card .value { font-size: 3rem; font-weight: 900; color: #D63031; text-shadow: 0 2px 0 rgba(255,255,255,0.5); }
-        .arqueo-sistema-pill { background: rgba(255,255,255,0.5); padding: 8px 15px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.9rem; font-weight: 700; color: #555; backdrop-filter: blur(5px); }
-        .billetes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-        .billete-item { background: #fff; border-radius: 18px; padding: 12px; text-align: center; border: 2px solid #f0f0f0; transition: all 0.2s; }
-        .billete-item:focus-within { border-color: var(--primary); transform: translateY(-3px); box-shadow: 0 8px 15px rgba(108, 99, 255, 0.15); }
-        .billete-label { font-size: 1.1rem; color: #888; font-weight: 700; margin-bottom: 2px; }
-        .billete-input { width: 100%; border: none; text-align: center; font-size: 1.6rem; font-weight: 800; color: var(--text-main); outline: none; background: transparent; padding: 5px 0; font-family: 'Quicksand'; }
-
-        /* --- CONTROLES FORM --- */
-        .form-control { width: 100%; padding: 16px; border: 2px solid #eee; border-radius: 16px; font-size: 1rem; font-family: 'Quicksand'; outline: none; transition: all 0.3s; background: #fafafa; color: var(--text-main); font-weight: 700; margin-bottom: 15px; }
-        .form-control:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.1); }
-        .mov-controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0; }
-        #mov-importe { font-size: 2rem; text-align: center; color: var(--primary); border: 2px dashed var(--primary); background: rgba(108, 99, 255, 0.03); }
-        .importe-cheque-lock { background-color: #e8f5e9 !important; color: var(--success) !important; border-color: var(--success) !important; font-weight: 900 !important; }
-
-        /* --- BOTONES --- */
-        .btn-main { width: 100%; padding: 18px; border: none; border-radius: 18px; font-size: 1.1rem; font-weight: 800; color: white; cursor: pointer; background: linear-gradient(45deg, #6C63FF, #4834d4); box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3); transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; }
-        .btn-main:active { transform: scale(0.97); }
-        .btn-success { background: linear-gradient(45deg, #00b894, #00cec9); box-shadow: 0 8px 20px rgba(0, 184, 148, 0.3); }
-        
-        /* 🔥 BOTÓN DE ARQUEO DESTACADO (POP & PULSE) 🔥 */
-        .btn-arqueo-pop { 
-            background: linear-gradient(45deg, #eb3b5a, #d63031); 
-            box-shadow: 0 0 20px rgba(235, 59, 90, 0.6);
-            border: 4px solid #f7b731; /* Borde dorado para sobresalir */
-            font-size: 1.2rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            animation: pulse-red 2s infinite;
-            transform: scale(1.02);
-        }
-        
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(235, 59, 90, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(235, 59, 90, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(235, 59, 90, 0); }
-        }
-        
-        /* Boton IA */
-        .btn-ai { width: auto; height: 54px; margin-top:0; padding: 0 20px; border-radius: 16px; background: white; color: var(--primary); border: 2px solid #eee; box-shadow: none; }
-        .jbl-active { animation: spin 1s infinite linear !important; color: var(--text-main) !important; }
-
-        /* --- HISTORIAL --- */
-        .mov-item { padding: 15px; background: white; border-radius: 16px; margin-bottom: 10px; border-bottom: 2px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
-        .amount-in { color: var(--success); font-weight: 800; }
-        .amount-out { color: var(--accent); font-weight: 800; }
-        .mov-title { font-weight: 700; font-size: 0.95rem; }
-        .mov-sub { font-size: 0.8rem; color: #aaa; margin-top: 3px; display: block; }
-
-        /* --- ZEN STATE --- */
-        .zen-state { text-align: center; padding: 40px 20px; }
-        .zen-icon { font-size: 80px; color: var(--success); margin-bottom: 20px; animation: popIn 0.8s; }
-        .zen-title { font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 5px; }
-
-        /* --- BOTTOM NAV --- */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; justify-content: space-around; padding: 12px 10px 30px 10px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,0.5); box-shadow: 0 -10px 30px rgba(0,0,0,0.05); z-index: 100; transition: transform 0.3s ease; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; color: #b2bec3; font-size: 0.75rem; font-weight: 700; text-decoration: none; transition: all 0.3s; }
-        .nav-icon { font-size: 26px; margin-bottom: 4px; transition: all 0.3s; }
-        .nav-item.active { color: var(--primary); }
-        .nav-item.active .nav-icon { transform: translateY(-5px); }
-
-        /* 🔥 DISTINTIVO PARA EL BOTÓN ARQUEO EN NAV 🔥 */
-        .nav-item-arqueo {
-            color: var(--danger) !important;
-            opacity: 0.8;
-        }
-        .nav-item-arqueo.active {
-            opacity: 1;
-            transform: scale(1.1);
-            text-shadow: 0 0 10px rgba(214, 48, 49, 0.3);
-        }
-
-        /* --- TOAST & MODAL --- */
-        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-        .toast-msg { background: #2D3436; color: white; padding: 12px 20px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: slideDown 0.3s forwards; }
-        
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 5000; display: none; justify-content: center; align-items: center; }
-        .modal-card { background: white; width: 85%; max-width: 400px; border-radius: 24px; padding: 30px; text-align: center; animation: popIn 0.3s; }
-        .modal-actions { display: flex; gap: 10px; margin-top: 25px; }
-        .btn-modal { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; }
-        
-        .confetti { position: fixed; width: 10px; height: 10px; background-color: #f00; animation: fall linear forwards; z-index: 9999; top: -10px; }
-        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
-
-        /* 🔥 NUEVO: CONTADOR RÁPIDO FLOTANTE (ESTILOS) 🔥 */
-        .quick-counter-fab {
-            position: fixed;
-            bottom: 110px;
-            right: 20px;
-            width: 65px;
-            height: 65px;
-            background: var(--text-main);
-            color: var(--success);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            z-index: 200;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            animation: popIn 0.6s 0.5s backwards;
-        }
-        .quick-counter-fab:active { transform: scale(0.9) rotate(-10deg); }
-        .quick-counter-fab i { font-size: 32px; }
-
-        /* 🔥 NUEVO: MODAL CONTADOR RÁPIDO FULL SCREEN 🔥 */
-        #quick-counter-modal {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: #f4f7f6; /* Fondo sólido pantalla completa */
-            z-index: 12000;
-            display: none;
-            flex-direction: column;
-            animation: slideUpModal 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-        }
-        
-        /* Layout sin scroll general */
-        .qc-sheet {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-        }
-
-        .qc-header {
-            display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 15px; flex-shrink: 0;
-        }
-        .qc-title { font-size: 1.2rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; }
-        .qc-close { background: #dfe6e9; border: none; width: 40px; height: 40px; border-radius: 50%; color: var(--text-main); cursor: pointer; display:flex; align-items:center; justify-content:center; }
-        
-        .qc-total-box {
-            background: var(--text-main);
-            color: var(--success);
-            border-radius: 20px;
-            padding: 15px 20px;
-            text-align: right;
-            margin-bottom: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            flex-shrink: 0;
-        }
-        .qc-total-label { font-size: 0.7rem; text-transform: uppercase; color: #aaa; margin-bottom: 2px; }
-        .qc-total-amount { font-size: 3rem; font-weight: 900; line-height: 1; letter-spacing: -1px; }
-
-        /* Contenedor flexible para los items */
-        .qc-scroll-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between; /* Distribuye espacio */
-            overflow-y: auto; /* Scroll solo si es un telefono muy pequeño */
-        }
-        
-        /* Grid ultra compacto */
-        .qc-grid { 
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            gap: 8px; 
-            height: 100%;
-        }
-        
-        .qc-item {
-            background: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 12px;
-            padding: 5px;
-            display: flex;
-            flex-direction: column; /* Label arriba, input abajo */
-            justify-content: center;
-            align-items: center;
-            transition: 0.1s;
-        }
-        .qc-item:focus-within {
-            border-color: var(--success);
-            box-shadow: 0 4px 10px rgba(0, 184, 148, 0.15);
-            background: #f0fff4;
-        }
-        .qc-label { font-weight: 800; color: #b2bec3; font-size: 0.9rem; margin-bottom: 0; }
-        .qc-input {
-            width: 100%;
-            border: none;
-            background: transparent;
-            text-align: center;
-            font-size: 1.6rem; /* Numeros grandes */
-            font-weight: 900;
-            color: var(--text-main);
-            outline: none;
-            font-family: 'Quicksand', sans-serif;
-            padding: 0;
-            margin: 0;
-        }
-        .qc-input::placeholder { color: #dfe6e9; }
-
-        .qc-actions { 
-            margin-top: 15px; 
-            display: flex; 
-            gap: 10px;
-            flex-shrink: 0;
-        }
-        .btn-qc-clear {
-            flex: 1;
-            background: #fff0f3; color: var(--accent);
-            border: none; padding: 15px; border-radius: 15px;
-            font-weight: 800; font-size: 0.9rem;
-            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
-        }
-        .btn-qc-use {
-            flex: 2;
-            background: var(--success); color: white;
-            border: none; padding: 15px; border-radius: 15px;
-            font-weight: 800; font-size: 1.1rem;
-            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
-            box-shadow: 0 5px 15px rgba(0, 184, 148, 0.4);
-        }
-        .btn-qc-use:active { transform: scale(0.95); }
-
-        /* Estilo para resumen de cierre */
-        .resumen-card {
-            background: white; border-radius: 20px; padding: 25px; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1); 
-            text-align: center; margin-top: 20px;
-            animation: popIn 0.5s;
-        }
-        .resumen-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
-        .resumen-row:last-child { border-bottom: none; }
-        .resumen-val { font-weight: 800; font-size: 1.2rem; }
-    </style>
-</head>
-<body onload="checkArqueoReminder()">
-
-    <div class="background-container">
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-    </div>
-
-    <!-- LOADING -->
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-        <div class="loading-text" id="loading-text">Cargando...</div>
-    </div>
-
-    <!-- BIENVENIDA MODAL -->
-    <div id="welcome-modal">
-        <div class="welcome-card">
-            <div class="welcome-icon">☀️</div>
-            <div class="welcome-title">¡Buenos días, Laura!</div>
-            <div class="welcome-date" id="welcome-date-text">Lunes</div>
-            <div class="welcome-weather" id="welcome-weather-box">
-                <span class="material-icons-round">cloud</span> <span>Cargando...</span>
-            </div>
-            <div class="welcome-msg">
-                "Cuando manejes esta aplicación y el dinero, no podés estar apurada. 
-                Hacelo con paciencia y amor. 💖"
-            </div>
-            <button class="welcome-close" onclick="closeWelcomeModal()">¡Entendido!</button>
-        </div>
-    </div>
-
-    <!-- MODAL ARQUEO REMINDER -->
-    <div id="arqueo-reminder-modal">
-        <div class="modal-card">
-            <span class="material-icons-round reminder-icon">alarm_on</span>
-            <div class="reminder-title">Hora de Cierre de Caja</div>
-            <div class="reminder-time">15:30 hs.</div>
-            <div class="reminder-msg">
-                Es momento de realizar el **Arqueo Final** del día. 
-                <br>
-                Hacelo con calma y **contá los billetes físicamente** antes de ingresar el total. El sistema se ajustará al saldo real.
-            </div>
-            <button class="btn-reminder-action" onclick="goToArqueoAndClose()">
-                <span class="material-icons-round">pie_chart</span> IR A ARQUEO
-            </button>
-        </div>
-    </div>
-
-    <!-- MODAL CUSTOM -->
-    <div id="custom-modal" class="modal-overlay">
-        <div class="modal-card">
-            <span class="material-icons-round modal-icon" id="modal-icon" style="font-size: 60px; margin-bottom: 10px;">info</span>
-            <div class="modal-title" id="modal-title" style="font-size: 1.4rem; font-weight: 800; margin-bottom: 5px; color: var(--text-main);">Título</div>
-            <div class="modal-msg" id="modal-msg" style="color: var(--text-light); line-height: 1.5;">Mensaje</div>
-            <div class="modal-actions">
-                <button class="btn-modal" style="background:#f1f2f6; color:#636e72;" onclick="closeModal()">Cerrar</button>
-                <button class="btn-modal" id="btn-modal-confirm" style="background:var(--primary); color:white;">Entendido</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL CONFIRMACION PARTY BOX -->
-    <div id="confirm-modal">
-        <div class="party-card-wrapper">
-            <div class="party-content">
-                <div class="party-title" id="party-title-text"></div>
-                <div class="party-amount" id="party-amount-display">$ 0</div>
-                
-                <div class="party-details">
-                    <div class="party-detail-row">
-                        <span class="party-detail-label" id="party-concept-label">
-                            <span class="material-icons-round" style="color:var(--primary);">label</span> Concepto:
-                        </span>
-                        <span class="party-detail-val" id="party-concept-val">...</span>
-                    </div>
-                    <div class="party-detail-row">
-                        <span class="party-detail-label">
-                            <span class="material-icons-round" style="color:var(--success);">payments</span> Forma de Pago:
-                        </span>
-                        <span class="party-detail-val" id="party-payment-val">...</span>
-                    </div>
-                    <div class="party-detail-row" id="party-extra-row" style="display:none;">
-                        <span class="party-detail-label" id="party-extra-label">Extra:</span>
-                        <span class="party-detail-val" id="party-extra-val">...</span>
-                    </div>
-                </div>
-
-                <div class="party-actions">
-                    <button class="btn-party btn-party-cancel" onclick="closeConfirmModal()">Cancelar</button>
-                    <button class="btn-party btn-party-confirm" onclick="finalizarRegistro()">CONFIRMAR</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- HEADER -->
-    <header class="app-header">
-        <div class="app-title"><span style="font-size:1.5rem;">🍋</span> Mercado Limpio</div>
-        <div class="user-badge"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--primary);">person</span> Laura</div>
-    </header>
-
-    <!-- 1. PANTALLA CAJA -->
-    <div id="screen-caja" class="screen active">
-        
-        <!-- 🔥 BOTÓN FLOTANTE CONTADOR BILLETES 🔥 -->
-        <div class="quick-counter-fab" onclick="toggleQuickCounter()">
-            <span class="material-icons-round">calculate</span>
-        </div>
-
-        <div class="balance-card-container">
-            <div class="balance-card" onclick="actualizarSaldoHeader()">
-                <div class="balance-label">Efectivo en Caja</div>
-                <!-- 🔥 ID MODIFICADO PARA SOPORTAR BLUR 🔥 -->
-                <div class="balance-amount" id="big-balance">...</div>
-                <div class="balance-details">
-                    <div class="detail-item">
-                        <span class="detail-val" id="val-cheques">$ 0</span>
-                        <span class="detail-lbl">Cheques</span>
-                    </div>
-                    <div class="detail-divider"></div>
-                    <div class="detail-item">
-                        <span class="detail-val" id="val-total-real">$ 0</span>
-                        <span class="detail-lbl">Activo Total</span>
-                    </div>
-                </div>
-                <div class="balance-status" id="last-update">Conectando...</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="section-title"><span class="material-icons-round" style="color:var(--primary);">edit_note</span> Nuevo Movimiento</div>
-            
-            <div class="mov-controls-grid">
-                <select id="mov-tipo" class="form-control">
-                    <option value="Egreso">🔻 Egreso</option>
-                    <option value="Ingreso">🟢 Ingreso</option>
-                </select>
-                <select id="mov-pago" class="form-control">
-                    <option value="Efectivo">💵 Efectivo</option>
-                    <option value="Cheque">🧾 Cheque</option>
-                    <option value="Banco">🏦 Banco</option>
-                </select>
-            </div>
-
-            <select id="mov-categoria" class="form-control">
-                <option value="" disabled selected>-- Motivo --</option>
-            </select>
-
-            <!-- CAMPOS EXTRA -->
-            <div id="extra-fields-container" style="display:none; background:#f8f9fa; padding:15px; border-radius:16px; margin-bottom:15px; border:1px dashed #ddd;">
-                <div id="proveedor-wrapper" style="display:none;">
-                    <div style="position:relative;">
-                        <input type="text" id="mov-proveedor" class="form-control" placeholder="🏢 Buscar Proveedor..." autocomplete="off">
-                        <div id="proveedor-suggestions" class="autocomplete-items"></div>
-                    </div>
-                </div>
-                <select id="mov-vehiculo" class="form-control" style="display:none;">
-                    <option value="" disabled selected>Vehículo</option>
-                </select>
-                <select id="mov-empleado" class="form-control" style="display:none;">
-                    <option value="" disabled selected>Empleado</option>
-                </select>
-
-                <!-- SELECTOR CHEQUE CARTERA -->
-                <div id="selector-cheque-wrapper" style="display:none; margin-bottom:15px;">
-                    <label style="font-size:0.8rem; color:var(--primary); font-weight:700; margin-left:5px; margin-bottom:5px; display:block;">Seleccionar Cheque en Cartera:</label>
-                    <select id="mov-cheque-cartera" class="form-control" style="border: 2px solid var(--accent); background:#fff0f3;">
-                        <option value="" disabled selected>Cargando cheques...</option>
-                    </select>
-                </div>
-
-                <div id="cheque-fields" style="display:none;">
-                    <input type="text" id="mov-banco" class="form-control" placeholder="🏦 Banco Emisor">
-                    <input type="text" id="mov-cheque-nro" class="form-control" placeholder="#️⃣ N° Cheque">
-                </div>
-            </div>
-
-            <input type="text" inputmode="numeric" id="mov-importe" class="form-control" placeholder="$ 0" oninput="formatearImporte(this)">
-            
-            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-                <input type="text" id="mov-obs" class="form-control" placeholder="📝 Nota (opcional)" style="flex-grow: 1; margin-bottom:0;">
-                <button id="btn-ai-magic" class="btn-main btn-ai" onclick="generateAiObservation()" title="IA Mágica">✨</button>
-            </div>
-
-            <button class="btn-main" id="btn-registrar" onclick="registrarMovimiento()">REGISTRAR</button>
-        </div>
-
-        <div class="card">
-            <div class="section-title">
-                <span class="material-icons-round" style="color:var(--text-light);">history</span> Historial
-                <button onclick="setFechaHoy(true)" style="margin-left:auto; background:none; border:none; color:var(--primary); font-weight:700; font-size:0.8rem;">HOY</button>
-            </div>
-            <input type="date" id="fecha-historial" class="form-control" style="padding:10px;" onchange="cargarMovimientos()">
-            <ul class="mov-list" id="lista-movimientos" style="list-style:none; padding:0; margin-top:10px;">
-                <li style="text-align:center; color:#aaa; padding: 20px;">Cargando...</li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- 2. PANTALLA RENDICIÓN -->
-    <div id="screen-rendicion" class="screen">
-        <div id="zen-state-container" class="zen-state" style="display:none;">
-            <div class="zen-icon">🧘</div>
-            <div class="zen-title">Modo Zen Activado</div>
-            <div class="zen-msg" id="zen-msg-text" style="color:var(--text-light);">No hay rendiciones pendientes.<br>Disfrutá del día.</div>
-        </div>
-        <div id="rendicion-content" style="display:none;">
-            <div class="card" id="rendicion-loading-card" style="text-align:center; padding:40px;">
-                <div class="spinner" style="margin:0 auto 20px auto;"></div>
-                <div style="font-weight:700; color:var(--text-light);">Buscando planillas...</div>
-            </div>
-            <div id="card-rendicion-data" class="card" style="display:none; border-top: 5px solid var(--primary);">
-                <div style="background:#f0f2ff; padding:15px; border-radius:12px; border-left:4px solid var(--primary); margin-bottom:20px; font-size:0.95rem; line-height:1.5; color:var(--text-main);">
-                    <span id="rendicion-narrativa"></span>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <div style="text-align:left;">
-                        <div style="font-size:0.75rem; font-weight:700; color:#aaa; text-transform:uppercase;">Esperado</div>
-                        <div id="rendicion-esperado" style="font-size:1.5rem; font-weight:800; color:var(--primary);">$ 0</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:0.75rem; font-weight:700; color:#aaa; text-transform:uppercase;">Tu Conteo</div>
-                        <div id="rendicion-contado-display" data-numeric="0" style="font-size:1.5rem; font-weight:800; color:var(--text-main);">$ 0</div>
-                    </div>
-                </div>
-                <div id="rendicion-diferencia-container" style="margin-top:15px;"></div>
-                <button class="btn-main btn-success" id="btn-rendicion" onclick="intentarRendicion()" style="margin-top:20px;">
-                    <span class="material-icons-round">check_circle</span> CONFIRMAR
-                </button>
-            </div>
-            <div class="card" id="card-billetes-rendicion" style="display:none;">
-                <div class="section-title" style="justify-content:space-between;">
-                    <span><span class="material-icons-round" style="color:var(--success);">payments</span> Billetes</span>
-                    <span style="color:var(--accent); cursor:pointer; font-size:0.8rem;" onclick="limpiarBilletes('rend')">Borrar</span>
-                </div>
-                <div class="billetes-grid">
-                    <div class="billete-item"><div class="billete-label">$ 20.000</div><input type="number" class="billete-input" data-val="20000" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 10.000</div><input type="number" class="billete-input" data-val="10000" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 5.000</div><input type="number" class="billete-input" data-val="5000" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 2.000</div><input type="number" class="billete-input" data-val="2000" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 1.000</div><input type="number" class="billete-input" data-val="1000" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 500</div><input type="number" class="billete-input" data-val="500" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 200</div><input type="number" class="billete-input" data-val="200" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 100</div><input type="number" class="billete-input" data-val="100" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 50</div><input type="number" class="billete-input" data-val="50" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 20</div><input type="number" class="billete-input" data-val="20" oninput="calcBilletes('rend')" placeholder="0"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 3. PANTALLA ARQUEO -->
-    <div id="screen-arqueo" class="screen">
-        <div class="arqueo-header-card">
-            <!-- TITULO MODO ARQUEO: SIN BOTÓN DE CERRAR -->
-            <div style="display:flex; justify-content:center; align-items:center;">
-                <div class="arqueo-mode-badge">
-                    <span class="material-icons-round" style="font-size:16px;">warning_amber</span>
-                    MODO ARQUEO
-                </div>
-            </div>
-            
-            <div class="label" style="color:rgba(255,255,255,0.8);">Total Físico en Caja</div>
-            <div id="arqueo-total-display" style="font-size:3.5rem; font-weight:900; margin:5px 0; text-shadow:0 5px 15px rgba(0,0,0,0.2);">$ 0</div>
-            
-            <!-- 🔥 SISTEMA OCULTO POR DEFECTO 🔥 -->
-            <div class="arqueo-sistema-pill">
-                <span class="material-icons-round" style="font-size:16px;">dns</span>
-                Sistema: <span id="arqueo-sistema" style="font-family:monospace; font-weight:900; letter-spacing:3px;">****</span>
-            </div>
-        </div>
-        <div class="card">
-            <div class="section-title" style="justify-content:space-between;">
-                <span><span class="material-icons-round" style="color:#e17055;">savings</span> Conteo</span>
-                <span style="color:var(--accent); cursor:pointer; font-size:0.8rem;" onclick="limpiarBilletes('arq')">Reiniciar</span>
-            </div>
-            <div class="billetes-grid">
-                <div class="billete-item"><div class="billete-label">$ 20.000</div><input type="number" class="billete-input" data-val="20000" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 10.000</div><input type="number" class="billete-input" data-val="10000" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 5.000</div><input type="number" class="billete-input" data-val="5000" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 2.000</div><input type="number" class="billete-input" data-val="2000" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 1.000</div><input type="number" class="billete-input" data-val="1000" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 500</div><input type="number" class="billete-input" data-val="500" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 200</div><input type="number" class="billete-input" data-val="200" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 100</div><input type="number" class="billete-input" data-val="100" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 50</div><input type="number" class="billete-input" data-val="50" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 20</div><input type="number" class="billete-input" data-val="20" oninput="calcBilletes('arq')" placeholder="0"></div>
-            </div>
-            <input type="hidden" id="arqueo-fisico">
-            <div style="margin-top:30px;">
-                <!-- 🔥 BOTÓN MODIFICADO 🔥 -->
-                <button class="btn-main btn-arqueo-pop" id="btn-arqueo" onclick="intentarArqueo()">
-                    <span class="material-icons-round">lock</span> FINALIZAR MODO ARQUEO
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 🔥 NUEVO: MODAL CONTADOR BILLETES FULL SCREEN 🔥 -->
-    <div id="quick-counter-modal">
-        <div class="qc-sheet">
-            <div class="qc-header">
-                <span class="qc-title">Contador Rápido</span>
-                <button class="qc-close" onclick="toggleQuickCounter()">
-                    <span class="material-icons-round">close</span>
-                </button>
-            </div>
-
-            <div class="qc-total-box">
-                <div class="qc-total-label">Total Contado</div>
-                <div class="qc-total-amount" id="qc-total-display">$ 0</div>
-            </div>
-
-            <div class="qc-scroll-area">
-                <div class="qc-grid">
-                    <!-- $20.000 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 20.000</div>
-                        <input type="number" class="qc-input" data-val="20000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $10.000 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 10.000</div>
-                        <input type="number" class="qc-input" data-val="10000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $5.000 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 5.000</div>
-                        <input type="number" class="qc-input" data-val="5000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $2.000 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 2.000</div>
-                        <input type="number" class="qc-input" data-val="2000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $1.000 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 1.000</div>
-                        <input type="number" class="qc-input" data-val="1000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $500 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 500</div>
-                        <input type="number" class="qc-input" data-val="500" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $200 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 200</div>
-                        <input type="number" class="qc-input" data-val="200" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $100 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 100</div>
-                        <input type="number" class="qc-input" data-val="100" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $50 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 50</div>
-                        <input type="number" class="qc-input" data-val="50" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $20 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 20</div>
-                        <input type="number" class="qc-input" data-val="20" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $10 -->
-                     <div class="qc-item" style="grid-column: span 2;">
-                        <div class="qc-label" style="display:inline;">$ 10</div>
-                        <input type="number" class="qc-input" style="display:inline; width:50%;" data-val="10" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                </div>
-
-                <div class="qc-actions">
-                    <button class="btn-qc-clear" onclick="clearQuickCounter()">
-                        <span class="material-icons-round">delete_outline</span> BORRAR
-                    </button>
-                    <button class="btn-qc-use" onclick="transferAndClose()">
-                        <span class="material-icons-round">check</span> USAR MONTO
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- NAVBAR -->
-    <nav class="bottom-nav">
-        <a href="#" class="nav-item active" onclick="showScreen('caja', this)">
-            <span class="material-icons-round nav-icon">storefront</span> <span>Caja</span>
-        </a>
-        <a href="#" class="nav-item" onclick="showScreen('rendicion', this)">
-            <span class="material-icons-round nav-icon">receipt_long</span> <span>Rendición</span>
-        </a>
-        <!-- 🔥 BOTÓN ARQUEO DISTINTIVO 🔥 -->
-        <a href="#" class="nav-item nav-item-arqueo" onclick="showScreen('arqueo', this)">
-            <span class="material-icons-round nav-icon">pie_chart</span> <span>Arqueo</span>
-        </a>
-    </nav>
-
-    <!-- TOAST -->
-    <div id="toast-container"></div>
-
-    <!-- PWA: SCRIPT DE REGISTRO DEL SERVICE WORKER (NECESARIO PARA INSTALACION) -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('./sw.js').then(function(registration) {
-                    console.log('ServiceWorker registrado con éxito: ', registration.scope);
-                }, function(err) {
-                    console.log('ServiceWorker falló: ', err);
-                });
-            });
-        }
-    </script>
-
-    <script>
-        // --- CONFIGURACIÓN ---
-        const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
-        const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
-        const API_KEY = ""; // INYECTAR SI ES NECESARIO
-        const USUARIO_APP = "Laura";
-        
-        const RENDICION_REPARTIDOR = 'Nico'; 
-        const RENDICION_TURNO_DEFECTO = 'Mañana';
-        
-        let saldoSistema = 0;
-        let rendicionPendiente = null; 
-        let configEmpleadosGlobal = [];
-        let deudasSemanalGlobal = {};
-        
-        // 🔥 GLOBAL: CHEQUES CARTERA 🔥
-        let chequesCarteraGlobal = [];
-        let idChequeSeleccionado = null; 
-        let fuelWarningBypass = false; // Bandera para omitir la advertencia de combustible una vez
-        
-        // 🔥 GLOBAL: MODO CIEGO (ARQUEO) 🔥
-        let modoCiegoActivo = false;
-
-        // 🔥 GLOBAL: PAYLOAD TEMPORAL PARA EL MODAL 🔥
-        let tempMovimientoPayload = null;
-
-        // LISTAS
-        const CATEGORIAS_EGRESO = [ "Pago a Proveedor", "Combustible", "Adelanto de Sueldo", "Pago de Haberes", "Gastos de Limpieza", "Gastos de Mantenimiento (Vehiculos)", "Retiro de Efectivo (Pablo)", "Gastos de Jardineria", "Movimiento Libre (Varios)" ];
-        const CATEGORIAS_INGRESO = ["Venta Local", "Ingreso Varios", "Aporte de Capital"];
-        const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
-        const PROVEEDORES = ["Marwiplast", "Bio Bag", "Broche plastico", "Bumerang", "Carol", "Colores", "Coolbazar", "Cotton", "Santamaria Escobillones", "Desesplast", "Diawara", "Emege", "Entresol", "Fedata", "Fibran", "Flexal", "Hechicera", "Infinity import", "K&K", "La Americana", "La gauchita", "Macetex", "Make Fresh", "Matriplaster", "Mis Plast", "Modoplast", "Molmar", "POP", "Rigolleau", "Romyl", "Samantha", "Santamaria", "Sasha", "Soifer", "lumilagro", "Make", "Suka", "Supy", "Tauro", "Tecnomatric", "Yesi", "Durax", "Javi"].sort();
-
-        // MONITOR SEGURIDAD
-        class SuspicionTracker {
-            constructor() { this.reset(); }
-            reset() { this.data = { startTime: Date.now(), edits: 0, deletes: 0, submitAttempts: 0, valuesTried: [] }; }
-            logEdit(val) { this.data.edits++; if(val) this.data.valuesTried.push(val); }
-            logDelete() { this.data.deletes++; }
-            logAttempt() { this.data.submitAttempts++; }
-            getReport() { return { ...this.data, durationSeconds: Math.floor((Date.now() - this.data.startTime) / 1000) }; }
-        }
-        const monitor = new SuspicionTracker();
-
-        document.addEventListener("DOMContentLoaded", () => {
-            initApp();
-            
-            document.getElementById('mov-categoria').addEventListener('change', (e) => {
-                checkCamposExtra();
-                if(e.target.value === "Pago de Haberes") verificarAdelantosSemana();
-                if(e.target.value === "Combustible") checkFuelWarningFlow(); // 🔥 NEW: Check Fuel
-            });
-            document.getElementById('mov-vehiculo').addEventListener('change', checkFuelWarningFlow); // 🔥 NEW: Check Fuel
-            document.getElementById('mov-tipo').addEventListener('change', actualizarCategorias);
-            document.getElementById('mov-pago').addEventListener('change', checkChequeFields);
-            document.getElementById('mov-empleado').addEventListener('change', calcularPagoHaberes);
-            document.getElementById('mov-cheque-cartera').addEventListener('change', seleccionarChequeCartera);
-
-            initSelects(); 
-            checkWelcomeMessage();
-            
-            // 🔥 REVISIÓN AUTOMÁTICA CADA MINUTO 🔥
-            setInterval(checkArqueoReminder, 60000); 
-        });
-
-        function initApp() {
-            setFechaHoy(false); 
-            actualizarCategorias();
-            cargarMovimientos();
-            actualizarSaldoHeader(); 
-            buscarRendicionPendiente();
-            cargarConfigEmpleados();
-            
-            // 🔥 PEDIR PERMISO DE NOTIFICACIONES AL INICIAR 🔥
-            if ("Notification" in window) {
-                Notification.requestPermission();
-            }
-        }
-
-        // --- FUNCIONES WELCOME ---
-        function checkWelcomeMessage() {
-            const lastSeen = localStorage.getItem('lastWelcomeDate');
-            const todayStr = new Date().toDateString(); 
-            if (lastSeen !== todayStr) {
-                showWelcomeModal();
-                localStorage.setItem('lastWelcomeDate', todayStr);
-            }
-        }
-        function showWelcomeModal() {
-            const modal = document.getElementById('welcome-modal');
-            const dateEl = document.getElementById('welcome-date-text');
-            const tempEl = document.getElementById('welcome-weather-box');
-            const opts = { weekday: 'long', day: 'numeric', month: 'long' };
-            const fechaBonita = new Date().toLocaleDateString('es-ES', opts);
-            dateEl.textContent = fechaBonita.charAt(0).toUpperCase() + fechaBonita.slice(1);
-            modal.style.display = 'flex';
-            getWeatherForLaura(tempEl);
-            setTimeout(() => { if(modal.style.display === 'flex') closeWelcomeModal(); }, 7000);
-        }
-        function closeWelcomeModal() {
-            const modal = document.getElementById('welcome-modal');
-            modal.style.opacity = '0'; 
-            setTimeout(() => { modal.style.display = 'none'; modal.style.opacity = '1'; }, 400);
-        }
-        async function getWeatherForLaura(element) {
-            try {
-                // Buenos Aires coordinates for weather
-                const url = "https://api.open-meteo.com/v1/forecast?latitude=-34.61&longitude=-58.38&current_weather=true";
-                const res = await fetch(url);
-                const data = await res.json();
-                if (data && data.current_weather) {
-                    const temp = Math.round(data.current_weather.temperature);
-                    element.innerHTML = `<span class="material-icons-round">wb_sunny</span><span>${temp}°C</span>`;
-                }
-            } catch (e) { element.textContent = "Clima agradable"; }
-        }
-
-        // 🔥 FUNCIONES DE RECORDATORIO DE ARQUEO 🔥
-        function checkArqueoReminder() {
-            const now = new Date();
-            const day = now.getDay(); // 0 (Dom) - 6 (Sab)
-            const hours = now.getHours();
-            const minutes = now.getMinutes();
-            const todayStr = now.toDateString(); 
-            const lastReminder = localStorage.getItem('lastArqueoReminder');
-
-            // 1. Días de Lunes (1) a Viernes (5)
-            const isWeekday = day >= 1 && day <= 5;
-
-            // 2. Horario: 15:30 (3:30 PM) a 15:34 PM (Damos 5 minutos de ventana)
-            const isTime = (hours === 15 && minutes >= 30 && minutes <= 34);
-
-            // 3. Mostrar solo si es el día/hora correcta Y no se mostró hoy
-            if (isWeekday && isTime && lastReminder !== todayStr) {
-                
-                // --- LÓGICA DE NOTIFICACIÓN DE ESCRITORIO ---
-                if (document.visibilityState === 'hidden' && Notification.permission === "granted") {
-                    // Si la app está minimizada, mandamos notificación al sistema operativo
-                    const notif = new Notification("⏰ Hora de Arqueo - Mercado Limpio", {
-                        body: "Son las 15:30. Toca aquí para realizar el cierre de caja.",
-                        icon: "https://cdn-icons-png.flaticon.com/512/2942/2942544.png" // Icono genérico de dinero
-                    });
-                    
-                    notif.onclick = function() {
-                        window.focus(); // Intenta traer la ventana al frente
-                        this.close();
-                        showArqueoReminderModal(); // Muestra el modal al abrir
-                    };
-                } else {
-                    // Si la app está visible, mostramos directo
-                    showArqueoReminderModal();
-                }
-
-                localStorage.setItem('lastArqueoReminder', todayStr);
-            }
-        }
-        
-        function showArqueoReminderModal() {
-            const modal = document.getElementById('arqueo-reminder-modal');
-            modal.style.display = 'flex';
-
-            // 🚫 YA NO HAY SETTIMEOUT AQUÍ
-            // El modal se queda fijo hasta que el usuario toque el botón.
-        }
-
-        function goToArqueoAndClose() {
-            const modal = document.getElementById('arqueo-reminder-modal');
-            modal.style.opacity = '0';
-            setTimeout(() => {
-                modal.style.display = 'none';
-                modal.style.opacity = '1';
-                // Navegar a la pantalla de Arqueo
-                const arqueoNav = document.querySelector('.bottom-nav a:nth-child(3)');
-                if(arqueoNav) showScreen('arqueo', arqueoNav);
-            }, 300);
-        }
-
-        // --- UI HELPERS ---
-        function showLoading(msg) { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.add('active'); }
-        function hideLoading() { document.getElementById('loading-overlay').classList.remove('active'); }
-        function showToast(msg, isSuccess) {
-            const container = document.getElementById("toast-container");
-            const div = document.createElement("div");
-            div.className = "toast-msg";
-            let icon = isSuccess ? "check_circle" : "error_outline";
-            if(isSuccess) div.style.borderLeft = "4px solid var(--success)";
-            else div.style.borderLeft = "4px solid var(--accent)";
-            div.innerHTML = `<span class="material-icons-round" style="color:${isSuccess?'var(--success)':'var(--accent)'}">${icon}</span> <span>${msg}</span>`;
-            container.appendChild(div);
-            setTimeout(() => { div.style.opacity = '0'; setTimeout(() => div.remove(), 300); }, 3500);
-        }
-        
-        // Custom Modal for confirmations (e.g., Fuel Warning)
-        function showModal(title, msg, icon, color, onConfirm, onCancel, confirmText = "Confirmar", cancelText = "Cancelar") {
-            const m = document.getElementById('custom-modal');
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-msg').innerHTML = msg;
-            document.getElementById('modal-icon').innerText = icon;
-            document.getElementById('modal-icon').style.color = color;
-            
-            const btnConfirm = document.getElementById('btn-modal-confirm');
-            const btnCancel = m.querySelector('.modal-actions .btn-modal:nth-child(1)');
-
-            btnConfirm.style.background = color;
-            btnConfirm.textContent = confirmText;
-            btnCancel.textContent = cancelText;
-
-            const newBtnConfirm = btnConfirm.cloneNode(true);
-            const newBtnCancel = btnCancel.cloneNode(true);
-            
-            btnConfirm.parentNode.replaceChild(newBtnConfirm, btnConfirm);
-            btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
-            
-            newBtnConfirm.onclick = () => { closeModal(); if(onConfirm) onConfirm(); };
-            newBtnCancel.onclick = () => { closeModal(); if(onCancel) onCancel(); };
-
-            m.style.display = 'flex';
-        }
-
-        function closeModal() { document.getElementById('custom-modal').style.display = 'none'; }
-        
-        function setFechaHoy(reload = true) {
-            const d = new Date();
-            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-            document.getElementById('fecha-historial').value = d.toISOString().split('T')[0];
-            if(reload) cargarMovimientos();
-        }
-        window.showScreen = (id, el) => {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById('screen-' + id).classList.add('active');
-            
-            // Manejo de clase activa en nav items
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            if(el) el.classList.add('active');
-
-            // 🔥 LOGICA MODO ARQUEO: OCULTAR NAV BAR + SALDO 🔥
-            const bottomNav = document.querySelector('.bottom-nav');
-            if (id === 'arqueo') {
-                bottomNav.style.display = 'none'; // Ocultar barra en arqueo
-                
-                // ACTIVAR MODO CIEGO GLOBALMENTE
-                modoCiegoActivo = true;
-                actualizarSaldoHeader(); // Forzar actualización visual inmediata
-
-                monitor.reset(); 
-                calcBilletes('arq'); 
-            } else if (id === 'rendicion') {
-                bottomNav.style.display = 'flex';
-                monitor.reset(); 
-                buscarRendicionPendiente(); 
-            } else {
-                bottomNav.style.display = 'flex';
-            }
-        };
-
-        // --- API ---
-        async function api(fn, params = {}) {
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ fn, params })
-                });
-                return await response.json();
-            } catch (error) { return { ok: false, error: "Error de conexión" }; }
-        }
-
-        async function actualizarSaldoHeader() {
-            const el = document.getElementById('big-balance');
-            const sysEl = document.getElementById('arqueo-sistema');
-            const elCheques = document.getElementById('val-cheques');
-            const elTotalReal = document.getElementById('val-total-real');
-            const statusEl = document.getElementById('last-update');
-            
-            // 🚨 MODO CIEGO ACTIVO: BLOQUEAR VISIBILIDAD DE SALDOS INMEDIATAMENTE 🚨
-            if (modoCiegoActivo) {
-                // 1. Pantalla Arqueo: Mostrar asteriscos fijos
-                sysEl.innerHTML = '<span style="letter-spacing:2px; font-weight:900; color:#aaa;">****</span>';
-                
-                // 2. Pantalla Caja (Fondo): Aplicar Blur + Asteriscos
-                el.classList.add('balance-blurred');
-                el.innerText = "$ ****";
-                
-                elCheques.classList.add('text-blurred');
-                elCheques.innerText = "****";
-                
-                elTotalReal.classList.add('text-blurred');
-                elTotalReal.innerText = "****";
-                
-                statusEl.innerText = "Modo Ciego Activo";
-                return; // 🛑 DETENER EJECUCIÓN: No hacer fetch si estamos ciegos
-            }
-
-            // Flujo normal (No Arqueo)
-            if(el.innerText === "...") statusEl.innerText = "Sincronizando...";
-            try {
-                const res = await api("getEstadoCaja");
-                if (res && (typeof res.efectivo !== 'undefined' || typeof res.total !== 'undefined')) {
-                    saldoSistema = parseInt(res.efectivo || res.total || 0);
-                    const chequesVal = res.cheques ? parseInt(res.cheques) : 0; 
-                    
-                    // Asegurar que se vean si no estamos en modo ciego
-                    el.classList.remove('balance-blurred');
-                    elCheques.classList.remove('text-blurred');
-                    elTotalReal.classList.remove('text-blurred');
-
-                    el.innerText = "$ " + saldoSistema.toLocaleString('es-AR');
-                    sysEl.innerText = "$ " + saldoSistema.toLocaleString('es-AR');
-                    
-                    elCheques.innerText = "$ " + chequesVal.toLocaleString('es-AR');
-                    elTotalReal.innerText = "$ " + (saldoSistema + chequesVal).toLocaleString('es-AR');
-                    statusEl.innerText = 'Actualizado ' + new Date().toLocaleTimeString().slice(0,5);
-                }
-            } catch (err) { statusEl.innerText = "Reintentando..."; }
-        }
-
-        // --- MOVIMIENTOS ---
-        async function cargarMovimientos() {
-            const fechaStr = document.getElementById('fecha-historial').value; 
-            const lista = document.getElementById('lista-movimientos');
-            lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Cargando...</li>';
-            const res = await api("getMovimientos", { fechaStr: fechaStr + "T12:00:00" });
-            lista.innerHTML = "";
-            if (!res || res.length === 0) return lista.innerHTML = `<li style="text-align:center; padding:20px; color:#aaa;">Sin movimientos 🦗</li>`;
-            res.forEach(m => {
-                const color = m.tipo === 'Ingreso' ? 'amount-in' : 'amount-out';
-                const obs = m.observacion ? `<span class="mov-sub" style="font-style:italic;">${m.observacion}</span>` : "";
-                lista.innerHTML += `
-                    <li class="mov-item">
-                        <div class="mov-info">
-                            <span class="mov-title">${m.categoria}</span>
-                            <span class="mov-sub">${m.hora} • ${m.formaPago}</span>
-                            ${obs}
-                        </div>
-                        <div class="${color}">${m.tipo==='Ingreso'?'+':'-'} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
-                    </li>`;
-            });
-        }
-
-        async function registrarMovimiento() {
-            const tipo = document.getElementById('mov-tipo').value;
-            const cat = document.getElementById('mov-categoria').value;
-            const veh = document.getElementById('mov-vehiculo').value;
-            
-            // 2. Proceso de registro (AHORA MODIFICADO PARA PARTY MODAL)
-            const pago = document.getElementById('mov-pago').value;
-            const imp = parseInt(document.getElementById('mov-importe').getAttribute('data-clean-value')) || 0;
-            let obs = document.getElementById('mov-obs').value;
-            const prov = document.getElementById('mov-proveedor').value;
-            const emp = document.getElementById('mov-empleado').value;
-            const banco = document.getElementById('mov-banco').value;
-            const nroCheque = document.getElementById('mov-cheque-nro').value;
-            
-            if(!cat || imp<=0) { return showToast("Datos incompletos", false); }
-            if (cat === "Adelanto de Sueldo" && emp) obs = `[${emp}] Adelanto de Sueldo. ${obs}`;
-
-            // PREPARAMOS EL PAYLOAD PERO NO LO ENVIAMOS TODAVIA
-            const payload = { 
-                tipo, formaPago: pago, importe: imp, categoria: cat, 
-                usuario: USUARIO_APP, observacion: obs, 
-                proveedor: prov, vehiculo: veh, empleado: emp, 
-                banco: banco, nroCheque: nroCheque
-            };
-            if(tipo === 'Egreso' && pago === 'Cheque' && idChequeSeleccionado) {
-                payload.idChequeOrigen = idChequeSeleccionado;
-            }
-
-            // GUARDAMOS EN VARIABLE GLOBAL
-            tempMovimientoPayload = payload;
-
-            // MOSTRAMOS EL MODAL PARTY BOX
-            showConfirmModal(payload);
-        }
-
-        // 🔥 NUEVAS FUNCIONES PARA EL MODAL PARTY BOX 🔥
-        function showConfirmModal(data) {
-            const modal = document.getElementById('confirm-modal');
-            const titleEl = document.getElementById('party-title-text');
-            const amountEl = document.getElementById('party-amount-display');
-            const conceptEl = document.getElementById('party-concept-val');
-            const paymentEl = document.getElementById('party-payment-val');
-            const extraRow = document.getElementById('party-extra-row');
-            const extraLabel = document.getElementById('party-extra-label');
-            const extraVal = document.getElementById('party-extra-val');
-
-            // Narrativa aleatoria
-            const nombres = ["Laura", "Laurita"];
-            const nombreElegido = nombres[Math.floor(Math.random() * nombres.length)];
-            
-            let titulo = `¿Confirmamos, ${nombreElegido}?`;
-            if (data.tipo === 'Ingreso') titulo = `¡Ingreso para ${nombreElegido}!`;
-
-            titleEl.textContent = titulo;
-            amountEl.textContent = `$ ${data.importe.toLocaleString('es-AR')}`;
-            // Color importe segun tipo
-            amountEl.style.color = data.tipo === 'Ingreso' ? 'var(--success)' : 'var(--text-main)';
-
-            conceptEl.textContent = data.categoria;
-            
-            // --- ICONOS PARA FORMA DE PAGO ---
-            let iconPago = "";
-            if (data.formaPago === "Efectivo") iconPago = "💵 ";
-            else if (data.formaPago === "Cheque") iconPago = "🧾 ";
-            else if (data.formaPago === "Banco") iconPago = "🏦 ";
-            
-            paymentEl.textContent = iconPago + data.formaPago;
-
-            // Mostrar extras si existen
-            let extraText = "";
-            let labelText = "";
-            let labelIcon = "";
-            
-            if (data.proveedor) { 
-                labelText = "Proveedor:"; 
-                labelIcon = "store";
-                extraText = data.proveedor; 
-            }
-            else if (data.empleado) { 
-                labelText = "Empleado:"; 
-                labelIcon = "person";
-                extraText = data.empleado; 
-            }
-            else if (data.vehiculo) { 
-                labelText = "Vehículo:"; 
-                labelIcon = "directions_car";
-                extraText = data.vehiculo; 
-            }
-
-            if (extraText) {
-                extraRow.style.display = 'flex';
-                extraLabel.innerHTML = `<span class="material-icons-round" style="color:var(--text-light);">${labelIcon}</span> ${labelText}`;
-                extraVal.textContent = extraText;
-            } else {
-                extraRow.style.display = 'none';
-            }
-
-            modal.style.display = 'flex';
-        }
-
-        function closeConfirmModal() {
-            const modal = document.getElementById('confirm-modal');
-            modal.style.display = 'none';
-        }
-
-        async function finalizarRegistro() {
-            if (!tempMovimientoPayload) return;
-
-            // 1. Cerrar modal instantáneamente (Sensación de rapidez)
-            closeConfirmModal();
-
-            // 2. Feedback inmediato al usuario
-            showToast("Guardando operación...", true);
-
-            // 3. Ejecutar la lógica real (Segundo plano relativo)
-            const payload = tempMovimientoPayload;
-            
-            // Solamente deshabilitamos el boton de registrar original para evitar doble click si fuera visible
-            const btn = document.getElementById('btn-registrar');
-            btn.disabled = true;
-
-            // 🚀 VALIDACIÓN DIFERIDA DE COMBUSTIBLE
-            if (payload.categoria === 'Combustible' && payload.vehiculo && !fuelWarningBypass) {
-                const warning = await api("checkCombustibleWarning", { vehiculo: payload.vehiculo });
-                if (warning.ok && warning.isWarning) {
-                    btn.disabled = false; // Rehabilitar botón por si cancela
-                    showModal(
-                        "⛽ Alerta de Carga",
-                        `¡Cuidado! Esta sería la **carga N° ${warning.currentLoads + 1}** del ${payload.vehiculo} en la semana. Normalmente solo se hacen 2. ¿Deseas registrar este egreso de todas formas?`,
-                        "local_gas_station",
-                        "var(--accent)", 
-                        () => {
-                            fuelWarningBypass = true;
-                            finalizarRegistro(); // Re-intentar guardado ignorando alerta
-                        },
-                        () => {
-                            showToast("Carga cancelada. Revisá el vehículo.", false);
-                        },
-                        "Sí, Registrar",
-                        "No, Cancelar"
-                    );
-                    return; // Detenemos el guardado hasta que confirme la alerta
-                }
-            }
-            fuelWarningBypass = false; 
-
-            const res = await api("registrarMovimientoCaja", payload);
-            btn.disabled = false;
-            
-            if(res && res.ok) {
-                // RESETEO DE CAMPOS AUTOMATICO
-                const inputImporte = document.getElementById('mov-importe');
-                const inputObs = document.getElementById('mov-obs');
-                const selectCat = document.getElementById('mov-categoria');
-                const selectEmp = document.getElementById('mov-empleado');
-                const selectChequeCartera = document.getElementById('mov-cheque-cartera');
-
-                inputImporte.value = ""; 
-                inputImporte.setAttribute('data-clean-value', '0');
-                inputObs.value = ""; 
-
-                document.getElementById('mov-banco').value = '';
-                document.getElementById('mov-cheque-nro').value = '';
-
-                if (payload.categoria !== "Pago de Haberes") {
-                    selectCat.value = ''; 
-                    document.getElementById('mov-tipo').value = 'Egreso'; 
-                } else {
-                    if (selectEmp) selectEmp.value = '';
-                }
-
-                document.getElementById('mov-proveedor').value = '';
-                if (document.getElementById('mov-vehiculo')) document.getElementById('mov-vehiculo').value = '';
-                
-                if (inputImporte.classList.contains('importe-cheque-lock')) {
-                    inputImporte.classList.remove('importe-cheque-lock');
-                    inputImporte.disabled = false;
-                    idChequeSeleccionado = null;
-                    if (selectChequeCartera) selectChequeCartera.value = '';
-                }
-
-                actualizarCategorias(); 
-                checkCamposExtra(); 
-                
-                // Actualizar saldos en "vivo"
-                actualizarSaldoHeader();
-                cargarMovimientos();
-            } else { 
-                showToast(res.error || "Error al guardar (API)", false); 
-            }
-        }
-
-        // --- AUXILIARES ---
-        function actualizarCategorias() {
-    const tipo = document.getElementById('mov-tipo').value;
-    const selectEl = document.getElementById('mov-categoria');
-    const catActual = selectEl.value; 
-    
-    // Limpiamos los valores de campos extra para que no queden "colgados"
-    document.getElementById('mov-empleado').value = "";
-    document.getElementById('mov-proveedor').value = "";
-    document.getElementById('mov-vehiculo').value = "";
-    document.getElementById('mov-banco').value = "";
-    document.getElementById('mov-cheque-nro').value = "";
-    
-    selectEl.innerHTML = '<option value="" disabled selected>-- Motivo --</option>';
-    const lista = tipo === 'Egreso' ? CATEGORIAS_EGRESO : CATEGORIAS_INGRESO;
-    lista.forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat; opt.textContent = cat;
-        selectEl.appendChild(opt);
-    });
-
-    if (catActual === "Pago de Haberes" && tipo === 'Egreso') {
-        selectEl.value = 'Pago de Haberes';
-    }
-    
-    checkCamposExtra(); 
+/* =============================================
+   CAJA ML PRO v5.0 — LIGHT ALEGRE THEME
+   ============================================= */
+:root {
+    --primary: #6C63FF;
+    --primary-dark: #4834d4;
+    --accent: #FF6584;
+    --success: #00B894;
+    --info: #0984e3;
+    --warning: #ff9f43;
+    --danger: #D63031;
+    --text-main: #2D3436;
+    --text-light: #636E72;
+    --text-muted: #b2bec3;
+    --bg: #f4f7f6;
+    --glass-bg: rgba(255,255,255,0.92);
+    --glass-border: rgba(255,255,255,0.6);
+    --card-bg: rgba(255,255,255,0.95);
+    --card-border: rgba(0,0,0,0.04);
+    --radius: 24px;
+    --radius-sm: 16px;
+    --radius-xs: 12px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --nav-h: 70px;
 }
 
-        function checkCamposExtra() {
-            const tipo = document.getElementById('mov-tipo').value;
-            const pago = document.getElementById('mov-pago').value;
-            const cat = document.getElementById('mov-categoria').value;
-            const extraContainer = document.getElementById('extra-fields-container');
-            const showProv = cat && cat.includes("Proveedor");
-            const showVeh = cat && (cat.includes("Combustible") || cat.includes("Mantenimiento"));
-            const showEmp = cat && (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto"));
-            const chequeVisible = pago === 'Cheque';
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-            document.getElementById('proveedor-wrapper').style.display = showProv ? 'block' : 'none';
-            document.getElementById('mov-vehiculo').style.display = showVeh ? 'block' : 'none';
-            document.getElementById('mov-empleado').style.display = showEmp ? 'block' : 'none';
-            document.getElementById('cheque-fields').style.display = chequeVisible ? 'block' : 'none';
-            
-            const selectorCheque = document.getElementById('selector-cheque-wrapper');
-            if (tipo === 'Egreso' && pago === 'Cheque') {
-                selectorCheque.style.display = 'block';
-                const tieneOpciones = document.getElementById('mov-cheque-cartera').options.length > 1;
-                if(!tieneOpciones) cargarChequesCartera();
-            } else {
-                selectorCheque.style.display = 'none';
-                const inpImp = document.getElementById('mov-importe');
-                if(inpImp.classList.contains('importe-cheque-lock')) {
-                    inpImp.classList.remove('importe-cheque-lock');
-                    inpImp.disabled = false;
-                    inpImp.value = "";
-                    idChequeSeleccionado = null;
-                }
-            }
-            if(showProv || showVeh || showEmp || chequeVisible) extraContainer.style.display = 'block';
-            else extraContainer.style.display = 'none';
-        }
-        
-        async function checkFuelWarningFlow() {
-            const cat = document.getElementById('mov-categoria').value;
-            const veh = document.getElementById('mov-vehiculo').value;
-            
-            if (cat === 'Combustible' && veh) {
-                const warning = await api("checkCombustibleWarning", { vehiculo: veh });
-                if (warning.ok && warning.isWarning) {
-                    showToast(warning.message.replace('¡ALERTA!', '⛽ Atención:'), false);
-                }
-            }
-        }
+body {
+    margin: 0; padding: 0;
+    font-family: 'Quicksand', sans-serif;
+    background: var(--bg);
+    color: var(--text-main);
+    padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 20px);
+    overflow-x: hidden;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
 
-        async function cargarChequesCartera() {
-            const select = document.getElementById('mov-cheque-cartera');
-            select.classList.add('loading-cheques');
-            select.innerHTML = '<option value="" disabled selected>⏳ Buscando en cartera...</option>';
-            select.disabled = true;
-            const res = await api('getChequesCartera');
-            select.classList.remove('loading-cheques');
-            select.disabled = false;
-            if (res && res.ok && res.data && res.data.length > 0) {
-                chequesCarteraGlobal = res.data;
-                select.innerHTML = '<option value="" selected>-- Seleccionar Cheque --</option>';
-                chequesCarteraGlobal.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.id;
-                    const importeFmt = parseInt(c.importe).toLocaleString('es-AR');
-                    opt.textContent = `${c.banco} (#${c.nro}) - $${importeFmt}`;
-                    select.appendChild(opt);
-                });
-            } else { select.innerHTML = '<option value="" disabled selected>No hay cheques disponibles</option>'; }
-        }
+/* --- ANIMATED BG --- */
+.bg-shapes { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%); }
+.bg-shapes .s { position: absolute; filter: blur(80px); opacity: 0.6; }
+.bg-shapes .s1 { width: 300px; height: 300px; background: #a29bfe; top: -50px; left: -50px; border-radius: 50%; animation: float 10s infinite ease-in-out; }
+.bg-shapes .s2 { width: 250px; height: 250px; background: #ff7675; bottom: 100px; right: -50px; border-radius: 50%; animation: float 10s 2s infinite ease-in-out; }
 
-        function seleccionarChequeCartera() {
-            const id = document.getElementById('mov-cheque-cartera').value;
-            const cheque = chequesCarteraGlobal.find(c => String(c.id) === String(id));
-            if (cheque) {
-                const inpImp = document.getElementById('mov-importe');
-                const impVal = parseInt(cheque.importe);
-                inpImp.value = impVal.toLocaleString('es-AR');
-                inpImp.setAttribute('data-clean-value', impVal);
-                inpImp.classList.add('importe-cheque-lock');
-                inpImp.disabled = true; 
-                document.getElementById('mov-banco').value = cheque.banco;
-                document.getElementById('mov-cheque-nro').value = cheque.nro;
-                idChequeSeleccionado = cheque.id;
-                showToast(`Cheque de $${inpImp.value} seleccionado`, true);
-            }
-        }
+/* --- ANIMATIONS --- */
+@keyframes popIn { 0%{transform:scale(0.9);opacity:0} 100%{transform:scale(1);opacity:1} }
+@keyframes float { 0%{transform:translateY(0)} 50%{transform:translateY(-10px)} 100%{transform:translateY(0)} }
+@keyframes spin { 100%{transform:rotate(360deg)} }
+@keyframes slideDown { from{transform:translateY(-20px);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes slideUpModal { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(255,159,67,0.4)} 70%{box-shadow:0 0 0 20px rgba(255,159,67,0)} }
+@keyframes pulse-red { 0%{box-shadow:0 0 0 0 rgba(235,59,90,0.7)} 70%{box-shadow:0 0 0 15px rgba(235,59,90,0)} }
+@keyframes holograma { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+@keyframes rotateParty { 100%{transform:rotate(1turn)} }
+@keyframes fall { to{transform:translateY(100vh) rotate(720deg)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 
-        function checkChequeFields() { checkCamposExtra(); }
-        function formatearImporte(input) {
-            let valor = input.value.replace(/[^0-9]/g, ""); 
-            if (valor) { valor = parseInt(valor).toLocaleString('es-AR'); input.value = valor; } else { input.value = ""; }
-            input.setAttribute('data-clean-value', parseInt(input.value.replace(/\./g, '')) || 0);
-        }
+.fade-up { animation: fadeUp 0.35s ease-out both; }
+.spin { animation: spin 1s linear infinite !important; }
 
-        function initSelects() {
-            const fill = (id, arr) => { 
-                const s = document.getElementById(id); 
-                s.innerHTML = '<option value="" disabled selected>Seleccionar...</option>';
-                arr.forEach(x => { const opt = document.createElement('option'); opt.value = x; opt.textContent = x; s.appendChild(opt); }); 
-            };
-            fill("mov-vehiculo", VEHICULOS); 
-            const inp = document.getElementById("mov-proveedor");
-            const box = document.getElementById("proveedor-suggestions");
-            inp.addEventListener("input", function() {
-                const val = this.value.toLowerCase();
-                box.innerHTML = "";
-                if(val.length < 1) return;
-                const matches = PROVEEDORES.filter(p => p.toLowerCase().includes(val));
-                matches.forEach(p => {
-                    const div = document.createElement("div"); div.innerText = p;
-                    div.onclick = () => { inp.value = p; box.innerHTML = ""; };
-                    box.appendChild(div);
-                });
+/* BLUR (arqueo) */
+.balance-blurred { color:transparent!important; text-shadow:0 0 15px rgba(255,255,255,0.8)!important; filter:blur(4px)!important; pointer-events:none; user-select:none; }
+.text-blurred { color:transparent!important; text-shadow:0 0 10px rgba(0,0,0,0.5)!important; filter:blur(4px)!important; }
+
+/* LOADING CHEQUES */
+.loading-cheques { background:linear-gradient(90deg,#fff 0%,#eef2f3 25%,#d1d8e0 50%,#eef2f3 75%,#fff 100%); background-size:200% 100%; animation:holograma 2s infinite linear; border:2px solid var(--primary)!important; color:var(--primary)!important; font-weight:800!important; }
+
+/* --- LOADING OVERLAY --- */
+#loading-overlay { position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.85);backdrop-filter:blur(8px);z-index:10000;display:none;flex-direction:column;justify-content:center;align-items:center; }
+#loading-overlay.active { display:flex; }
+.spinner { width:50px;height:50px;border:5px solid #dfe6e9;border-top:5px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px; }
+.loading-text { font-weight:800;color:var(--primary);font-size:1.1rem;letter-spacing:1px; }
+
+/* --- HEADER --- */
+.app-header { padding:15px 20px;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.7);backdrop-filter:blur(15px);position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(255,255,255,0.5); }
+.app-title { font-size:1.3rem;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:8px; }
+.header-right { display:flex;align-items:center;gap:10px; }
+.header-time { font-size:0.85rem;font-weight:700;color:var(--text-light); }
+.user-badge { font-size:0.85rem;background:#fff;border:1px solid #eee;padding:6px 12px;border-radius:20px;font-weight:700;color:#555;box-shadow:0 2px 5px rgba(0,0,0,0.05); }
+
+/* --- VIEWS --- */
+.screen { display:none;animation:popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275);padding-bottom:40px; }
+.screen.active { display:block; }
+
+/* --- CARDS --- */
+.card { background:var(--card-bg);border:1px solid #fff;border-radius:var(--radius);padding:20px;margin:15px;box-shadow:0 10px 30px rgba(0,0,0,0.06);position:relative;overflow:visible; }
+.section-title { font-size:0.9rem;color:var(--text-light);font-weight:800;margin-bottom:15px;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:8px; }
+
+/* --- QUICK ACTIONS --- */
+.quick-actions { display:flex;gap:8px;overflow-x:auto;padding:2px 15px 10px;scrollbar-width:none; }
+.quick-actions::-webkit-scrollbar { display:none; }
+.quick-chip { flex:0 0 auto;padding:8px 16px;border-radius:20px;background:#fff;border:1.5px solid #eee;font-size:0.78rem;font-weight:700;color:var(--text-light);cursor:pointer;white-space:nowrap;transition:all 0.2s;box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+.quick-chip:active,.quick-chip.active { background:rgba(108,99,255,0.08);color:var(--primary);border-color:rgba(108,99,255,0.3); }
+
+/* --- BALANCE HERO --- */
+.balance-card-container { padding:0 15px;margin-top:15px; }
+.balance-card { background:linear-gradient(135deg,#6C63FF 0%,#4834d4 100%);border-radius:28px;padding:25px 20px;color:white;box-shadow:0 15px 35px rgba(108,99,255,0.35);text-align:center;position:relative;overflow:hidden; }
+.balance-card::before { content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(255,255,255,0.1) 0%,transparent 60%);animation:spin 20s linear infinite; }
+.balance-label { position:relative;font-size:0.85rem;font-weight:600;opacity:0.9;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px; }
+.balance-amount { position:relative;font-size:3rem;font-weight:800;letter-spacing:-1px;text-shadow:0 4px 10px rgba(0,0,0,0.2);margin:0 0 10px; }
+.balance-details { position:relative;background:rgba(0,0,0,0.2);border-radius:16px;padding:10px;display:flex;justify-content:space-around;backdrop-filter:blur(5px);margin-top:5px; }
+.detail-item { display:flex;flex-direction:column;align-items:center; }
+.detail-val { font-size:1rem;font-weight:700; }
+.detail-lbl { font-size:0.65rem;text-transform:uppercase;opacity:0.8; }
+.detail-divider { width:1px;background:rgba(255,255,255,0.3); }
+.balance-status { position:relative;font-size:0.7rem;margin-top:10px;opacity:0.7; }
+
+/* --- FORM --- */
+.form-control { width:100%;padding:16px;border:2px solid #eee;border-radius:var(--radius-sm);font-size:1rem;font-family:'Quicksand';outline:none;transition:all 0.3s;background:#fafafa;color:var(--text-main);font-weight:700;margin-bottom:12px; }
+.form-control:focus { border-color:var(--primary);background:#fff;box-shadow:0 0 0 4px rgba(108,99,255,0.1); }
+.mov-controls-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:0; }
+#mov-importe { font-size:2rem;text-align:center;color:var(--primary);border:2px dashed var(--primary);background:rgba(108,99,255,0.03); }
+.importe-cheque-lock { background-color:#e8f5e9!important;color:var(--success)!important;border-color:var(--success)!important;font-weight:900!important; }
+
+/* Extra fields */
+.extra-fields-box { display:none;background:#f8f9fa;padding:15px;border-radius:var(--radius-sm);margin-bottom:12px;border:1px dashed #ddd; }
+.extra-fields-box.visible { display:block;animation:fadeUp 0.2s ease-out; }
+
+/* Autocomplete */
+.autocomplete-items { position:absolute;border:1px solid #d4d4d4;z-index:99;top:100%;left:0;right:0;border-radius:0 0 15px 15px;overflow:hidden;box-shadow:0 5px 15px rgba(0,0,0,0.1);background:#fff; }
+.autocomplete-items div { padding:12px;cursor:pointer;border-bottom:1px solid #eee;font-weight:600;color:#555;font-size:0.95rem; }
+.autocomplete-items div:hover,.autocomplete-items div:active { background:#e9e9e9;color:var(--primary); }
+
+/* --- BUTTONS --- */
+.btn-main { width:100%;padding:18px;border:none;border-radius:18px;font-size:1.1rem;font-weight:800;color:white;cursor:pointer;background:linear-gradient(45deg,#6C63FF,#4834d4);box-shadow:0 8px 20px rgba(108,99,255,0.3);transition:transform 0.2s;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px;font-family:'Quicksand'; }
+.btn-main:active { transform:scale(0.97); }
+.btn-main:disabled { opacity:0.5;pointer-events:none; }
+.btn-success { background:linear-gradient(45deg,#00b894,#00cec9);box-shadow:0 8px 20px rgba(0,184,148,0.3); }
+.btn-arqueo-pop { background:linear-gradient(45deg,#eb3b5a,#d63031);box-shadow:0 0 20px rgba(235,59,90,0.6);border:4px solid #f7b731;font-size:1.2rem;text-transform:uppercase;letter-spacing:1px;animation:pulse-red 2s infinite; }
+.btn-ai { width:auto;height:54px;margin-top:0;padding:0 20px;border-radius:16px;background:white;color:var(--primary);border:2px solid #eee;box-shadow:none; }
+
+/* --- MOVIMIENTOS LIST --- */
+.mov-item { padding:15px;background:white;border-radius:var(--radius-sm);margin-bottom:10px;border-bottom:2px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center; }
+.mov-icon { font-size:20px;margin-right:12px;width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center; }
+.mov-icon.in { background:rgba(0,184,148,0.1);color:var(--success); }
+.mov-icon.out { background:rgba(255,101,132,0.1);color:var(--accent); }
+.mov-desc { font-weight:700;font-size:0.95rem; }
+.mov-sub { font-size:0.8rem;color:#aaa;margin-top:3px; }
+
+/* --- BILLETES --- */
+.billetes-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:12px; }
+.billete-item { background:#fff;border-radius:18px;padding:12px;text-align:center;border:2px solid #f0f0f0;transition:all 0.2s; }
+.billete-item:focus-within { border-color:var(--primary);transform:translateY(-3px);box-shadow:0 8px 15px rgba(108,99,255,0.15); }
+.billete-label { font-size:1.1rem;color:#888;font-weight:700;margin-bottom:2px; }
+.billete-input { width:100%;border:none;text-align:center;font-size:1.6rem;font-weight:800;color:var(--text-main);outline:none;background:transparent;padding:5px 0;font-family:'Quicksand'; }
+
+/* Diff bar */
+.diff-bar { text-align:center;padding:12px;border-radius:var(--radius-xs);font-weight:800;font-size:0.95rem;margin-top:12px;transition:all 0.3s; }
+.diff-bar.exacto { background:#e8f5e9;color:var(--success);border:2px solid var(--success); }
+.diff-bar.falta { background:#fff0f3;color:var(--accent);border:2px solid var(--accent); }
+.diff-bar.sobra { background:#e8f5e9;color:var(--success);border:2px solid var(--success); }
+
+/* --- ARQUEO --- */
+.arqueo-header-card { background:linear-gradient(135deg,#FF9A9E 0%,#FECFEF 99%);border-radius:var(--radius);padding:25px;margin:15px;text-align:center;color:#fff;box-shadow:0 10px 25px rgba(255,154,158,0.4);border:4px solid white; }
+.arqueo-mode-badge { background:#D63031;color:white;padding:8px 15px;border-radius:20px;font-size:0.9rem;font-weight:900;display:inline-flex;align-items:center;gap:5px;box-shadow:0 5px 15px rgba(0,0,0,0.1);margin-bottom:10px;border:2px solid white; }
+.arqueo-sistema-pill { background:rgba(255,255,255,0.5);padding:8px 15px;border-radius:12px;display:inline-flex;align-items:center;gap:8px;margin-top:10px;font-size:0.9rem;font-weight:700;color:#555;backdrop-filter:blur(5px); }
+
+/* --- ZEN STATE --- */
+.zen-state { text-align:center;padding:40px 20px; }
+.zen-icon { font-size:80px;color:var(--success);margin-bottom:20px;animation:popIn 0.8s; }
+.zen-title { font-size:1.5rem;font-weight:800;margin-bottom:5px; }
+
+/* --- BOTTOM NAV --- */
+.bottom-nav { position:fixed;bottom:0;left:0;width:100%;display:flex;justify-content:space-around;padding:12px 10px calc(10px + var(--safe-bottom));background:rgba(255,255,255,0.9);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,0.5);box-shadow:0 -10px 30px rgba(0,0,0,0.05);z-index:100; }
+.nav-item { display:flex;flex-direction:column;align-items:center;color:#b2bec3;font-size:0.75rem;font-weight:700;text-decoration:none;transition:all 0.3s;background:none;border:none;font-family:'Quicksand';cursor:pointer; }
+.nav-icon { font-size:26px;margin-bottom:4px;transition:all 0.3s; }
+.nav-item.active { color:var(--primary); }
+.nav-item.active .nav-icon { transform:translateY(-5px); }
+.nav-item-arqueo { color:var(--danger)!important;opacity:0.8; }
+.nav-item-arqueo.active { opacity:1; }
+
+/* --- TOASTS --- */
+#toast-container { position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;width:90%;max-width:400px;display:flex;flex-direction:column;gap:10px;pointer-events:none; }
+.toast-msg { background:#2D3436;color:white;padding:12px 20px;border-radius:12px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,0.2);animation:slideDown 0.3s forwards;pointer-events:auto; }
+
+/* --- MODALS --- */
+.modal-overlay { position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);z-index:5000;display:none;justify-content:center;align-items:center; }
+.modal-overlay.open { display:flex; }
+.modal-card { background:white;width:85%;max-width:400px;border-radius:var(--radius);padding:30px;text-align:center;animation:popIn 0.3s;box-shadow:0 20px 60px rgba(0,0,0,0.15); }
+.modal-actions { display:flex;gap:10px;margin-top:25px; }
+.btn-modal { flex:1;padding:14px;border-radius:var(--radius-xs);border:none;font-weight:700;font-size:1rem;cursor:pointer;font-family:'Quicksand'; }
+
+/* --- WELCOME MODAL --- */
+#welcome-modal { position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);z-index:11000;display:none;justify-content:center;align-items:center; }
+.welcome-card { background:white;width:90%;max-width:450px;border-radius:30px;padding:30px 25px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.15);animation:popIn 0.6s cubic-bezier(0.34,1.56,0.64,1);position:relative;overflow:hidden;border:4px solid #fff;background:linear-gradient(145deg,#ffffff,#f0f0f0); }
+.welcome-card::before { content:'';position:absolute;top:0;left:0;width:100%;height:6px;background:linear-gradient(90deg,#FF9A9E,#FECFEF,#a29bfe); }
+
+/* --- PARTY BOX CONFIRM MODAL --- */
+#confirm-modal { position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);z-index:11000;display:none;justify-content:center;align-items:center; }
+.party-card-wrapper { position:relative;z-index:0;width:90%;max-width:420px;border-radius:30px;overflow:hidden;animation:popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275);padding:3px;box-shadow:0 25px 50px rgba(0,0,0,0.25); }
+.party-card-wrapper::before { content:'';position:absolute;z-index:-2;left:-50%;top:-50%;width:200%;height:200%;background:conic-gradient(#ff6b6b,#feca57,#48dbfb,#ff9ff3,#54a0ff,#5f27cd,#ff6b6b);animation:rotateParty 4s linear infinite; }
+.party-content { background:#fff;border-radius:27px;padding:35px 25px;text-align:center;position:relative;z-index:1; }
+.party-title { font-size:1.2rem;font-weight:800;color:var(--text-light);margin-bottom:5px; }
+.party-amount { font-size:3.2rem;font-weight:900;margin:15px 0;color:var(--text-main);letter-spacing:-1px; }
+.party-details { background:#f8f9fa;border-radius:18px;padding:15px;margin-bottom:25px;border:1px dashed #dcdde1;text-align:left; }
+.party-detail-row { display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:0.95rem;color:#555;border-bottom:1px solid #eee;padding-bottom:8px; }
+.party-detail-row:last-child { margin-bottom:0;border-bottom:none;padding-bottom:0; }
+.party-detail-label { font-weight:600;color:#888;display:flex;align-items:center;gap:6px; }
+.party-detail-val { font-weight:800;color:var(--text-main);text-align:right; }
+.party-actions { display:flex;gap:12px;margin-top:10px; }
+.btn-party { flex:1;padding:16px;border-radius:50px;border:none;font-size:1rem;font-weight:800;cursor:pointer;transition:transform 0.2s;font-family:'Quicksand'; }
+.btn-party:active { transform:scale(0.90); }
+.btn-party-cancel { background:#f1f2f6;color:#a4b0be; }
+.btn-party-confirm { background:var(--primary);color:white;box-shadow:0 8px 20px rgba(108,99,255,0.4); }
+
+/* --- ARQUEO REMINDER MODAL --- */
+#arqueo-reminder-modal { position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);z-index:11000;display:none;justify-content:center;align-items:center; }
+.reminder-icon { font-size:3.5rem;color:var(--warning);margin-bottom:15px;animation:pulse 2s infinite,float 4s infinite ease-in-out; }
+
+/* --- COUNTER FAB --- */
+.quick-counter-fab { position:fixed;bottom:calc(var(--nav-h) + var(--safe-bottom) + 16px);right:20px;width:65px;height:65px;background:var(--text-main);color:var(--success);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 25px rgba(0,0,0,0.3);z-index:200;cursor:pointer;transition:all 0.3s;border:none; }
+.quick-counter-fab:active { transform:scale(0.9); }
+.quick-counter-fab i { font-size:32px; }
+
+/* --- QC FULLSCREEN --- */
+#quick-counter-modal { position:fixed;top:0;left:0;width:100%;height:100%;background:#f4f7f6;z-index:12000;display:none;flex-direction:column;animation:slideUpModal 0.4s; }
+.qc-sheet { width:100%;height:100%;display:flex;flex-direction:column;padding:20px; }
+.qc-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:15px; }
+.qc-title { font-size:1.2rem;font-weight:800;color:var(--text-light);text-transform:uppercase;letter-spacing:1px; }
+.qc-close { background:#dfe6e9;border:none;width:40px;height:40px;border-radius:50%;color:var(--text-main);cursor:pointer;display:flex;align-items:center;justify-content:center; }
+.qc-total-box { background:var(--text-main);color:var(--success);border-radius:20px;padding:15px 20px;text-align:right;margin-bottom:15px;box-shadow:0 10px 30px rgba(0,0,0,0.2); }
+.qc-total-label { font-size:0.7rem;text-transform:uppercase;color:#aaa;margin-bottom:2px; }
+.qc-total-amount { font-size:3rem;font-weight:900;line-height:1;letter-spacing:-1px; }
+.qc-scroll-area { flex:1;display:flex;flex-direction:column;justify-content:space-between;overflow-y:auto; }
+.qc-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:8px;height:100%; }
+.qc-item { background:#fff;border:1px solid #e9ecef;border-radius:12px;padding:5px;display:flex;flex-direction:column;justify-content:center;align-items:center; }
+.qc-item:focus-within { border-color:var(--success);box-shadow:0 4px 10px rgba(0,184,148,0.15);background:#f0fff4; }
+.qc-label { font-weight:800;color:#b2bec3;font-size:0.9rem; }
+.qc-input { width:100%;border:none;background:transparent;text-align:center;font-size:1.6rem;font-weight:900;color:var(--text-main);outline:none;font-family:'Quicksand';padding:0; }
+.qc-actions { margin-top:15px;display:flex;gap:10px; }
+.btn-qc-clear { flex:1;background:#fff0f3;color:var(--accent);border:none;padding:15px;border-radius:15px;font-weight:800;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Quicksand'; }
+.btn-qc-use { flex:2;background:var(--success);color:white;border:none;padding:15px;border-radius:15px;font-weight:800;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;box-shadow:0 5px 15px rgba(0,184,148,0.4);font-family:'Quicksand'; }
+
+.confetti { position:fixed;width:10px;height:10px;animation:fall linear forwards;z-index:9999;top:-10px; }
+.hidden { display:none!important; }
+    </style>
+</head>
+<body>
+
+<div class="bg-shapes"><div class="s s1"></div><div class="s s2"></div></div>
+
+<!-- LOADING -->
+<div id="loading-overlay"><div class="spinner"></div><div class="loading-text" id="loading-text">Cargando...</div></div>
+
+<!-- WELCOME MODAL -->
+<div id="welcome-modal">
+    <div class="welcome-card">
+        <div style="font-size:3rem;margin-bottom:10px;animation:float 3s infinite ease-in-out;">☀️</div>
+        <div style="font-size:1.6rem;font-weight:800;color:var(--primary);margin-bottom:5px;">¡Buenos días, Laura!</div>
+        <div style="font-size:0.9rem;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;" id="welcome-date"></div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:15px;color:var(--text-light);font-weight:600;" id="welcome-weather"><span class="material-icons-round">cloud</span><span>Cargando...</span></div>
+        <div style="font-size:1rem;line-height:1.6;color:#555;font-weight:600;font-style:italic;background:rgba(108,99,255,0.05);padding:15px;border-radius:15px;border-left:4px solid var(--accent);">
+            "Cuando manejes esta aplicación y el dinero, no podés estar apurada. Hacelo con paciencia y amor. 💖"
+        </div>
+        <button onclick="ML.closeWelcome()" style="margin-top:25px;background:var(--primary);color:white;border:none;padding:12px 30px;border-radius:50px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 10px 20px rgba(108,99,255,0.3);font-family:'Quicksand';">¡Entendido!</button>
+    </div>
+</div>
+
+<!-- ARQUEO REMINDER MODAL -->
+<div id="arqueo-reminder-modal">
+    <div class="modal-card" style="border:4px solid var(--warning);box-shadow:0 25px 80px rgba(255,159,67,0.3);padding:40px 30px;">
+        <span class="material-icons-round reminder-icon">alarm_on</span>
+        <div style="font-size:1.8rem;font-weight:900;margin-bottom:8px;">Hora de Cierre de Caja</div>
+        <div style="font-size:1.1rem;font-weight:800;color:var(--accent);margin-bottom:20px;background:#fff0f3;padding:5px 15px;border-radius:10px;display:inline-block;">15:30 hs.</div>
+        <div style="text-align:left;font-size:1rem;line-height:1.7;color:#555;font-weight:600;background:rgba(255,159,67,0.05);padding:15px;border-radius:15px;border-left:5px solid var(--warning);">
+            Es momento de realizar el <b>Arqueo Final</b> del día. Hacelo con calma y <b>contá los billetes físicamente</b> antes de ingresar el total.
+        </div>
+        <button onclick="ML.goToArqueo()" style="margin-top:25px;background:linear-gradient(45deg,var(--warning),#f1c40f);color:var(--text-main);border:none;padding:14px 35px;border-radius:50px;font-weight:800;font-size:1.1rem;cursor:pointer;box-shadow:0 10px 30px rgba(255,159,67,0.4);font-family:'Quicksand';display:flex;align-items:center;gap:8px;margin:25px auto 0;">
+            <span class="material-icons-round">pie_chart</span> IR A ARQUEO
+        </button>
+    </div>
+</div>
+
+<!-- GENERIC MODAL -->
+<div class="modal-overlay" id="modal-custom">
+    <div class="modal-card">
+        <span class="material-icons-round" id="modal-icon" style="font-size:60px;margin-bottom:10px;">info</span>
+        <div id="modal-title" style="font-size:1.4rem;font-weight:800;margin-bottom:5px;"></div>
+        <div id="modal-msg" style="color:var(--text-light);line-height:1.5;"></div>
+        <div class="modal-actions">
+            <button class="btn-modal" id="modal-btn-cancel" style="background:#f1f2f6;color:#636e72;">Cerrar</button>
+            <button class="btn-modal" id="modal-btn-confirm" style="background:var(--primary);color:white;">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- PARTY BOX CONFIRM MODAL -->
+<div id="confirm-modal">
+    <div class="party-card-wrapper">
+        <div class="party-content">
+            <div class="party-title" id="party-title"></div>
+            <div class="party-amount" id="party-amount">$ 0</div>
+            <div class="party-details">
+                <div class="party-detail-row">
+                    <span class="party-detail-label" id="party-concept-label"><span class="material-icons-round" style="color:var(--primary);">label</span> Concepto:</span>
+                    <span class="party-detail-val" id="party-concept-val"></span>
+                </div>
+                <div class="party-detail-row">
+                    <span class="party-detail-label"><span class="material-icons-round" style="color:var(--success);">payments</span> Forma de Pago:</span>
+                    <span class="party-detail-val" id="party-payment-val"></span>
+                </div>
+                <div class="party-detail-row" id="party-extra-row" style="display:none;">
+                    <span class="party-detail-label" id="party-extra-label">Extra:</span>
+                    <span class="party-detail-val" id="party-extra-val"></span>
+                </div>
+            </div>
+            <div class="party-actions">
+                <button class="btn-party btn-party-cancel" onclick="ML.closeConfirmModal()">Cancelar</button>
+                <button class="btn-party btn-party-confirm" onclick="ML.finalizarRegistro()">CONFIRMAR</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- HEADER -->
+<header class="app-header">
+    <div class="app-title"><span style="font-size:1.5rem;">🍋</span> Mercado Limpio</div>
+    <div class="header-right">
+        <span class="header-time" id="header-time">--:--</span>
+        <div class="user-badge"><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:var(--primary);">person</span> Laura</div>
+    </div>
+</header>
+
+<!-- ===== SCREEN: CAJA ===== -->
+<div id="screen-caja" class="screen active">
+    <button class="quick-counter-fab" onclick="ML.toggleQC()"><i class="material-icons-round">calculate</i></button>
+
+    <div class="balance-card-container">
+        <div class="balance-card" id="hero-card" onclick="ML.refreshBalance()">
+            <div class="balance-label">Efectivo en Caja</div>
+            <div class="balance-amount" id="big-balance">...</div>
+            <div class="balance-details">
+                <div class="detail-item"><span class="detail-val" id="val-cheques">$ 0</span><span class="detail-lbl">Cheques</span></div>
+                <div class="detail-divider"></div>
+                <div class="detail-item"><span class="detail-val" id="val-total-real">$ 0</span><span class="detail-lbl">Activo Total</span></div>
+            </div>
+            <div class="balance-status" id="last-update">Conectando...</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions" id="quick-actions"></div>
+
+    <div class="card">
+        <div class="section-title"><span class="material-icons-round" style="color:var(--primary);">edit_note</span> Nuevo Movimiento</div>
+        <div class="mov-controls-grid" style="margin-bottom:12px;">
+            <select id="mov-tipo" class="form-control" style="margin-bottom:0;"><option value="Egreso">🔻 Egreso</option><option value="Ingreso">🟢 Ingreso</option></select>
+            <select id="mov-pago" class="form-control" style="margin-bottom:0;"><option value="Efectivo">💵 Efectivo</option><option value="Cheque">🧾 Cheque</option><option value="Banco">🏦 Banco</option></select>
+        </div>
+        <select id="mov-categoria" class="form-control"><option value="" disabled selected>-- Motivo --</option></select>
+
+        <div class="extra-fields-box" id="extra-fields">
+            <div id="wrap-proveedor" class="hidden" style="position:relative;margin-bottom:12px;">
+                <input type="text" id="mov-proveedor" class="form-control" placeholder="🏢 Buscar Proveedor..." autocomplete="off" style="margin-bottom:0;">
+                <div id="prov-suggestions" class="autocomplete-items" style="display:none;"></div>
+            </div>
+            <select id="mov-vehiculo" class="form-control hidden"></select>
+            <select id="mov-empleado" class="form-control hidden"></select>
+            <div id="wrap-cheque-cartera" class="hidden" style="margin-bottom:12px;">
+                <label style="font-size:0.8rem;color:var(--primary);font-weight:700;margin-left:5px;margin-bottom:5px;display:block;">Cheque en Cartera:</label>
+                <select id="mov-cheque-cartera" class="form-control" style="border:2px solid var(--accent);background:#fff0f3;margin-bottom:0;"></select>
+            </div>
+            <div id="wrap-cheque-fields" class="hidden">
+                <input type="text" id="mov-banco" class="form-control" placeholder="🏦 Banco Emisor">
+                <input type="text" id="mov-cheque-nro" class="form-control" placeholder="#️⃣ N° Cheque">
+            </div>
+        </div>
+
+        <input type="text" inputmode="numeric" id="mov-importe" class="form-control" placeholder="$ 0" style="font-size:2rem;text-align:center;color:var(--primary);border:2px dashed var(--primary);background:rgba(108,99,255,0.03);">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+            <input type="text" id="mov-obs" class="form-control" placeholder="📝 Nota (opcional)" style="flex:1;margin-bottom:0;">
+            <button class="btn-main btn-ai" id="btn-ai" onclick="ML.generateAiObs()" title="IA Mágica">✨</button>
+        </div>
+        <button class="btn-main" id="btn-registrar">REGISTRAR</button>
+    </div>
+
+    <div class="card">
+        <div class="section-title" style="justify-content:space-between;">
+            <span style="display:flex;align-items:center;gap:8px;"><span class="material-icons-round" style="color:var(--text-light);">history</span> Historial</span>
+            <button onclick="ML.setFechaHoy()" style="background:none;border:none;color:var(--primary);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:'Quicksand';">HOY</button>
+        </div>
+        <input type="date" id="fecha-historial" class="form-control" style="padding:10px;">
+        <div id="lista-movimientos" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<!-- ===== SCREEN: RENDICIÓN ===== -->
+<div id="screen-rendicion" class="screen">
+    <div id="zen-state" class="zen-state" style="display:none;">
+        <div class="zen-icon">🧘</div>
+        <div class="zen-title">Modo Zen Activado</div>
+        <div id="zen-msg" style="color:var(--text-light);">No hay rendiciones pendientes.<br>Disfrutá del día.</div>
+    </div>
+    <div id="rend-content">
+        <div id="rend-loading" class="card" style="text-align:center;padding:40px;">
+            <div class="spinner" style="margin:0 auto 20px;"></div>
+            <div style="font-weight:700;color:var(--text-light);">Buscando planillas...</div>
+        </div>
+        <div id="rend-data" class="card" style="display:none;border-top:5px solid var(--primary);">
+            <div style="background:#f0f2ff;padding:15px;border-radius:12px;border-left:4px solid var(--primary);margin-bottom:20px;font-size:0.95rem;line-height:1.5;">
+                <span id="rend-narrativa"></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                <div><div style="font-size:0.75rem;font-weight:700;color:#aaa;text-transform:uppercase;">Esperado</div><div id="rend-esperado" style="font-size:1.5rem;font-weight:800;color:var(--primary);">$ 0</div></div>
+                <div style="text-align:right;"><div style="font-size:0.75rem;font-weight:700;color:#aaa;text-transform:uppercase;">Tu Conteo</div><div id="rend-contado" data-numeric="0" style="font-size:1.5rem;font-weight:800;">$ 0</div></div>
+            </div>
+            <div id="rend-diff"></div>
+            <button class="btn-main btn-success" id="btn-rendicion" style="margin-top:20px;"><span class="material-icons-round">check_circle</span> CONFIRMAR</button>
+        </div>
+        <div id="rend-bills-card" class="card" style="display:none;">
+            <div class="section-title" style="justify-content:space-between;">
+                <span><span class="material-icons-round" style="color:var(--success);">payments</span> Billetes</span>
+                <span style="color:var(--accent);cursor:pointer;font-size:0.8rem;font-weight:700;" onclick="ML.clearBills('rend')">Borrar</span>
+            </div>
+            <div class="billetes-grid" id="bills-rend"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== SCREEN: ARQUEO ===== -->
+<div id="screen-arqueo" class="screen">
+    <div class="arqueo-header-card">
+        <div class="arqueo-mode-badge"><span class="material-icons-round" style="font-size:16px;">warning_amber</span> MODO ARQUEO</div>
+        <div style="font-size:0.9rem;font-weight:700;color:rgba(255,255,255,0.8);text-transform:uppercase;margin-bottom:5px;">Total Físico en Caja</div>
+        <div id="arqueo-total" style="font-size:3.5rem;font-weight:900;margin:5px 0;text-shadow:0 5px 15px rgba(0,0,0,0.2);">$ 0</div>
+        <div class="arqueo-sistema-pill"><span class="material-icons-round" style="font-size:16px;">dns</span> Sistema: <span id="arqueo-sistema" style="font-family:monospace;font-weight:900;letter-spacing:3px;">****</span></div>
+    </div>
+    <div class="card">
+        <div class="section-title" style="justify-content:space-between;">
+            <span><span class="material-icons-round" style="color:#e17055;">savings</span> Conteo</span>
+            <span style="color:var(--accent);cursor:pointer;font-size:0.8rem;font-weight:700;" onclick="ML.clearBills('arq')">Reiniciar</span>
+        </div>
+        <div class="billetes-grid" id="bills-arq"></div>
+        <input type="hidden" id="arqueo-fisico">
+        <button class="btn-main btn-arqueo-pop" id="btn-arqueo" style="margin-top:30px;"><span class="material-icons-round">lock</span> FINALIZAR MODO ARQUEO</button>
+    </div>
+</div>
+
+<!-- QC FULLSCREEN -->
+<div id="quick-counter-modal">
+    <div class="qc-sheet">
+        <div class="qc-header"><span class="qc-title">Contador Rápido</span><button class="qc-close" onclick="ML.toggleQC()"><span class="material-icons-round">close</span></button></div>
+        <div class="qc-total-box"><div class="qc-total-label">Total Contado</div><div class="qc-total-amount" id="qc-total">$ 0</div></div>
+        <div class="qc-scroll-area">
+            <div class="qc-grid" id="qc-grid"></div>
+            <div class="qc-actions">
+                <button class="btn-qc-clear" onclick="ML.clearQC()"><span class="material-icons-round">delete_outline</span> BORRAR</button>
+                <button class="btn-qc-use" onclick="ML.transferQC()"><span class="material-icons-round">check</span> USAR MONTO</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NAV -->
+<nav class="bottom-nav" id="bottom-nav">
+    <button class="nav-item active" data-view="caja"><span class="material-icons-round nav-icon">storefront</span><span>Caja</span></button>
+    <button class="nav-item" data-view="rendicion"><span class="material-icons-round nav-icon">receipt_long</span><span>Rendición</span></button>
+    <button class="nav-item nav-item-arqueo" data-view="arqueo"><span class="material-icons-round nav-icon">pie_chart</span><span>Arqueo</span></button>
+</nav>
+
+<div id="toast-container"></div>
+
+<script>
+if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script>
+
+<script>
+/* =============================================
+   CAJA ML PRO ENGINE v5.0 — FULL FEATURE PARITY
+   ============================================= */
+const ML = (() => {
+    // CONFIG
+    const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
+    const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
+    const API_KEY = "";
+    const USER = "Laura";
+    const REPARTIDOR = 'Nico';
+    const BILLETES = [20000,10000,5000,2000,1000,500,200,100,50,20,10];
+    const PROVEEDORES = ["Marwiplast","Bio Bag","Broche plastico","Bumerang","Carol","Colores","Coolbazar","Cotton","Santamaria Escobillones","Desesplast","Diawara","Emege","Entresol","Fedata","Fibran","Flexal","Hechicera","Infinity import","K&K","La Americana","La gauchita","Macetex","Make Fresh","Matriplaster","Mis Plast","Modoplast","Molmar","POP","Rigolleau","Romyl","Samantha","Santamaria","Sasha","Soifer","lumilagro","Make","Suka","Supy","Tauro","Tecnomatric","Yesi","Durax","Javi"].sort();
+    const VEHICULOS = ["Toyota Hiace","Volkswagen Saveiro","Fiat Uno Cargo"];
+    const CAT_EGRESO = ["Pago a Proveedor","Combustible","Adelanto de Sueldo","Pago de Haberes","Gastos de Limpieza","Gastos de Mantenimiento (Vehiculos)","Retiro de Efectivo (Pablo)","Gastos de Jardineria","Movimiento Libre (Varios)"];
+    const CAT_INGRESO = ["Venta Local","Ingreso Varios","Aporte de Capital"];
+
+    // STATE
+    let saldoSistema = 0;
+    let rendicionPendiente = null;
+    let configEmpleados = [];
+    let deudasSemanal = {};
+    let chequesCartera = [];
+    let idChequeSeleccionado = null;
+    let modoCiego = false;
+    let tempPayload = null;
+    let fuelWarningBypass = false;
+    let fechaMovimientos = '';
+
+    // MONITOR
+    const monitor = {
+        data: { startTime:Date.now(), edits:0, deletes:0, submitAttempts:0, valuesTried:[] },
+        reset(){ this.data = { startTime:Date.now(), edits:0, deletes:0, submitAttempts:0, valuesTried:[] }; },
+        logEdit(v){ this.data.edits++; if(v) this.data.valuesTried.push(v); },
+        logDelete(){ this.data.deletes++; },
+        logAttempt(){ this.data.submitAttempts++; },
+        report(){ return { ...this.data, durationSeconds:Math.floor((Date.now()-this.data.startTime)/1000) }; }
+    };
+
+    // HELPERS
+    const $ = s => document.querySelector(s);
+    const $$ = s => document.querySelectorAll(s);
+    const el = id => document.getElementById(id);
+    function fmt(n){ return "$ "+Number(n||0).toLocaleString("es-AR",{minimumFractionDigits:0}); }
+    function todayISO(){ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().split('T')[0]; }
+    function getFechaSegura(f){ return f?f+"T12:00:00":""; }
+    function formatoFechaHumano(f){ if(!f) return "--"; const [y,m,d]=f.split("-"); return new Date(y,m-1,d).toLocaleDateString("es-ES",{day:'numeric',month:'long'}); }
+
+    // API
+    async function api(fn,params={}){
+        try{ const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn,params})}); return await r.json(); }
+        catch(e){ return {ok:false,error:"Sin conexión"}; }
+    }
+
+    // TOAST
+    function showToast(msg,ok=true){
+        const c=el('toast-container'),d=document.createElement('div');
+        d.className='toast-msg'; const icon=ok?'check_circle':'error_outline'; const color=ok?'var(--success)':'var(--accent)';
+        d.style.borderLeft=ok?'4px solid var(--success)':'4px solid var(--accent)';
+        d.innerHTML=`<span class="material-icons-round" style="color:${color}">${icon}</span><span>${msg}</span>`;
+        c.appendChild(d); setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),300);},3500);
+    }
+    function showLoading(m){ el('loading-text').innerText=m; el('loading-overlay').classList.add('active'); }
+    function hideLoading(){ el('loading-overlay').classList.remove('active'); }
+
+    // MODAL GENÉRICO
+    function showModal(title,msg,icon,color,onConfirm,onCancel,confirmText="Confirmar",cancelText="Cancelar"){
+        el('modal-title').innerText=title; el('modal-msg').innerHTML=msg;
+        el('modal-icon').innerText=icon; el('modal-icon').style.color=color;
+        const bc=el('modal-btn-confirm'), bx=el('modal-btn-cancel');
+        bc.style.background=color; bc.textContent=confirmText; bx.textContent=cancelText;
+        const nc=bc.cloneNode(true), nx=bx.cloneNode(true);
+        bc.parentNode.replaceChild(nc,bc); bx.parentNode.replaceChild(nx,bx);
+        nc.onclick=()=>{closeModal(); if(onConfirm)onConfirm();};
+        nx.onclick=()=>{closeModal(); if(onCancel)onCancel();};
+        el('modal-custom').classList.add('open');
+    }
+    function closeModal(){ el('modal-custom').classList.remove('open'); }
+
+    // CONFETTI
+    function confetti(){ for(let i=0;i<30;i++){const c=document.createElement('div');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.animationDuration=(Math.random()*2+1)+'s';c.style.backgroundColor=`hsl(${Math.random()*360},100%,50%)`;document.body.appendChild(c);setTimeout(()=>c.remove(),3000);} }
+
+    // CLOCK
+    function startClock(){ const u=()=>{el('header-time').textContent=new Date().toLocaleTimeString("es-AR",{hour:'2-digit',minute:'2-digit'});}; u(); setInterval(u,30000); }
+
+    // WELCOME
+    function checkWelcome(){
+        const last=localStorage.getItem('lastWelcomeDate'), today=new Date().toDateString();
+        if(last!==today){ showWelcome(); localStorage.setItem('lastWelcomeDate',today); }
+    }
+    function showWelcome(){
+        const m=el('welcome-modal'), opts={weekday:'long',day:'numeric',month:'long'};
+        const f=new Date().toLocaleDateString('es-ES',opts); el('welcome-date').textContent=f.charAt(0).toUpperCase()+f.slice(1);
+        m.style.display='flex'; getWeather();
+        setTimeout(()=>{if(m.style.display==='flex')closeWelcome();},7000);
+    }
+    function closeWelcome(){ const m=el('welcome-modal'); m.style.opacity='0'; setTimeout(()=>{m.style.display='none';m.style.opacity='1';},400); }
+    async function getWeather(){
+        try{ const r=await fetch("https://api.open-meteo.com/v1/forecast?latitude=-34.61&longitude=-58.38&current_weather=true"); const d=await r.json();
+        if(d?.current_weather) el('welcome-weather').innerHTML=`<span class="material-icons-round">wb_sunny</span><span>${Math.round(d.current_weather.temperature)}°C</span>`; }catch(e){}
+    }
+
+    // NAV
+    function initNav(){
+        $$('.nav-item').forEach(btn=>{
+            btn.addEventListener('click',()=>{
+                const view=btn.dataset.view;
+                $$('.nav-item').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+                $$('.screen').forEach(s=>s.classList.remove('active')); el('screen-'+view).classList.add('active');
+                const nav=el('bottom-nav'), fab=$('.quick-counter-fab');
+                if(view==='arqueo'){ nav.style.display='none'; if(fab)fab.style.display='none'; modoCiego=true; refreshBalance(); monitor.reset(); calcBills('arq'); }
+                else{ nav.style.display='flex'; if(fab)fab.style.display='flex'; if(modoCiego){modoCiego=false;refreshBalance();} }
+                if(view==='rendicion'){ monitor.reset(); buscarRendicion(); }
             });
-            document.addEventListener("click", (e) => { if(e.target !== inp) box.innerHTML = ""; });
-        }
+        });
+    }
 
-        async function cargarConfigEmpleados() {
-            const res = await api("getConfigEmpleados");
-            const select = document.getElementById('mov-empleado');
-            if(res && res.ok && res.data) {
-                configEmpleadosGlobal = res.data;
-                select.innerHTML = '<option value="" disabled selected>Empleado</option>';
-                configEmpleadosGlobal.forEach(emp => {
-                    const opt = document.createElement('option'); opt.value = emp.nombre; opt.textContent = emp.nombre; select.appendChild(opt);
+    // BALANCE
+    async function refreshBalance(){
+        const bigEl=el('big-balance'), sysEl=el('arqueo-sistema'), chEl=el('val-cheques'), totEl=el('val-total-real'), stEl=el('last-update');
+        if(modoCiego){
+            sysEl.innerHTML='****'; bigEl.classList.add('balance-blurred'); bigEl.innerText='$ ****';
+            chEl.classList.add('text-blurred'); chEl.innerText='****'; totEl.classList.add('text-blurred'); totEl.innerText='****';
+            stEl.innerText='Modo Ciego Activo'; return;
+        }
+        bigEl.classList.remove('balance-blurred'); chEl.classList.remove('text-blurred'); totEl.classList.remove('text-blurred');
+        try{
+            const r=await api('getEstadoCaja');
+            if(r&&typeof r.efectivo!=='undefined'){
+                saldoSistema=parseInt(r.efectivo||0); const ch=parseInt(r.cheques||0);
+                bigEl.innerText=fmt(saldoSistema); sysEl.innerText=fmt(saldoSistema);
+                chEl.innerText=fmt(ch); totEl.innerText=fmt(saldoSistema+ch);
+                stEl.innerText='Actualizado '+new Date().toLocaleTimeString().slice(0,5);
+            }
+        }catch(e){ stEl.innerText='Reintentando...'; }
+    }
+
+    // MOVIMIENTOS
+    async function cargarMovimientos(){
+        const fecha=el('fecha-historial').value, lista=el('lista-movimientos');
+        lista.innerHTML='<div style="text-align:center;padding:20px;color:#aaa;">Cargando...</div>';
+        const res=await api('getMovimientos',{fechaStr:getFechaSegura(fecha)});
+        lista.innerHTML='';
+        if(!Array.isArray(res)||res.length===0){ lista.innerHTML='<div style="text-align:center;padding:20px;color:#bbb;">Sin movimientos 🦗</div>'; return; }
+        res.forEach(m=>{
+            const isIn=m.tipo==='Ingreso'; const cat=(m.categoria||'').toLowerCase();
+            let icon='paid'; if(cat.includes('combustible'))icon='local_gas_station'; else if(cat.includes('proveedor'))icon='local_shipping'; else if(cat.includes('retiro'))icon='logout'; else if(cat.includes('diferencia'))icon='cached';
+            let titulo=m.categoria||'Varios';
+            if(cat.includes('proveedor')&&m.observacion&&m.observacion.includes('Pago a')) titulo=m.observacion.replace('Pago a ','').trim();
+            if(cat.includes('diferencia rendición')){ icon='cached'; titulo='Ajuste Rendición'; }
+            const obs=m.observacion?`<span class="mov-sub" style="font-style:italic;">${m.observacion}</span>`:'';
+            const d=document.createElement('div'); d.className='mov-item';
+            d.innerHTML=`<div style="display:flex;align-items:center;"><div class="mov-icon ${isIn?'in':'out'}"><span class="material-icons-round">${icon}</span></div><div><span class="mov-desc">${titulo}</span><span class="mov-sub">${m.hora} · ${m.formaPago}</span>${obs}</div></div><div style="font-weight:700;color:${isIn?'var(--success)':'var(--accent)'};">${isIn?'+':'-'} $ ${Math.abs(m.importe).toLocaleString('es-AR')}</div>`;
+            lista.appendChild(d);
+        });
+    }
+
+    function setFechaHoy(){ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); el('fecha-historial').value=d.toISOString().split('T')[0]; cargarMovimientos(); }
+
+    // CATEGORIES
+    function actualizarCategorias(){
+        const tipo=el('mov-tipo').value, sel=el('mov-categoria'), cur=sel.value;
+        el('mov-empleado').value=''; el('mov-proveedor').value=''; el('mov-vehiculo').value=''; el('mov-banco').value=''; el('mov-cheque-nro').value='';
+        sel.innerHTML='<option value="" disabled selected>-- Motivo --</option>';
+        (tipo==='Egreso'?CAT_EGRESO:CAT_INGRESO).forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o);});
+        if(cur==='Pago de Haberes'&&tipo==='Egreso') sel.value='Pago de Haberes';
+        checkExtras();
+    }
+
+    // EXTRA FIELDS
+    function checkExtras(){
+        const tipo=el('mov-tipo').value, pago=el('mov-pago').value, cat=el('mov-categoria').value||'', catL=cat.toLowerCase();
+        const showProv=catL.includes('proveedor'), showVeh=catL.includes('combustible')||catL.includes('mantenimiento');
+        const showEmp=catL.includes('sueldo')||catL.includes('haberes')||catL.includes('adelanto');
+        const showCheque=pago==='Cheque';
+        el('wrap-proveedor').classList.toggle('hidden',!showProv);
+        el('mov-vehiculo').classList.toggle('hidden',!showVeh);
+        el('mov-empleado').classList.toggle('hidden',!showEmp);
+        el('wrap-cheque-cartera').classList.toggle('hidden',!(tipo==='Egreso'&&showCheque));
+        el('wrap-cheque-fields').classList.toggle('hidden',!showCheque);
+        if(tipo==='Egreso'&&showCheque){ const s=el('mov-cheque-cartera'); if(s.options.length<=1) cargarChequesCartera(); }
+        // Unlock importe if we exit cheque mode
+        if(!showCheque||tipo!=='Egreso'){
+            const inp=el('mov-importe');
+            if(inp.classList.contains('importe-cheque-lock')){inp.classList.remove('importe-cheque-lock');inp.disabled=false;inp.value='';idChequeSeleccionado=null;}
+        }
+        const any=showProv||showVeh||showEmp||showCheque;
+        el('extra-fields').classList.toggle('visible',any);
+    }
+
+    // IMPORTE FORMAT
+    function formatearImporte(input){
+        let v=input.value.replace(/[^0-9]/g,'');
+        if(v){v=parseInt(v).toLocaleString('es-AR');input.value=v;}else{input.value='';}
+        input.setAttribute('data-clean-value',parseInt(input.value.replace(/\./g,''))||0);
+    }
+
+    // =============================================
+    // 🔥 FULL RESET — THE CRITICAL FIX
+    // =============================================
+    function resetForm(){
+        el('mov-tipo').value='Egreso';
+        el('mov-pago').value='Efectivo';     // 🔥 THIS WAS THE BUG
+        el('mov-categoria').value='';
+        const imp=el('mov-importe'); imp.value=''; imp.setAttribute('data-clean-value','0'); imp.classList.remove('importe-cheque-lock'); imp.disabled=false;
+        el('mov-obs').value=''; el('mov-proveedor').value=''; el('mov-banco').value=''; el('mov-cheque-nro').value='';
+        if(el('mov-vehiculo'))el('mov-vehiculo').value=''; if(el('mov-empleado'))el('mov-empleado').value='';
+        if(el('mov-cheque-cartera'))el('mov-cheque-cartera').value='';
+        idChequeSeleccionado=null; fuelWarningBypass=false;
+        $$('.quick-chip').forEach(c=>c.classList.remove('active'));
+        actualizarCategorias(); checkExtras();
+    }
+
+    // REGISTER FLOW → SHOW PARTY BOX
+    function registrarMovimiento(){
+        const tipo=el('mov-tipo').value, cat=el('mov-categoria').value, pago=el('mov-pago').value;
+        const imp=parseInt(el('mov-importe').getAttribute('data-clean-value'))||0;
+        let obs=el('mov-obs').value;
+        const prov=el('mov-proveedor').value, emp=el('mov-empleado').value, veh=el('mov-vehiculo').value;
+        const banco=el('mov-banco').value, nroCheque=el('mov-cheque-nro').value;
+        if(!cat||imp<=0){showToast("Datos incompletos",false);return;}
+        if(cat==='Adelanto de Sueldo'&&emp) obs=`[${emp}] Adelanto de Sueldo. ${obs}`;
+        const payload={tipo,formaPago:pago,importe:imp,categoria:cat,usuario:USER,observacion:obs,proveedor:prov,vehiculo:veh,empleado:emp,banco,nroCheque};
+        if(tipo==='Egreso'&&pago==='Cheque'&&idChequeSeleccionado) payload.idChequeOrigen=idChequeSeleccionado;
+        tempPayload=payload;
+        showPartyBox(payload);
+    }
+
+    // PARTY BOX
+    function showPartyBox(d){
+        const nombres=["Laura","Laurita"]; const n=nombres[Math.floor(Math.random()*nombres.length)];
+        el('party-title').textContent=d.tipo==='Ingreso'?`¡Ingreso para ${n}!`:`¿Confirmamos, ${n}?`;
+        el('party-amount').textContent=`$ ${d.importe.toLocaleString('es-AR')}`;
+        el('party-amount').style.color=d.tipo==='Ingreso'?'var(--success)':'var(--text-main)';
+        el('party-concept-val').textContent=d.categoria;
+        let iconP=''; if(d.formaPago==='Efectivo')iconP='💵 '; else if(d.formaPago==='Cheque')iconP='🧾 '; else if(d.formaPago==='Banco')iconP='🏦 ';
+        el('party-payment-val').textContent=iconP+d.formaPago;
+        let extra='',label='',ico='';
+        if(d.proveedor){label='Proveedor:';ico='store';extra=d.proveedor;}
+        else if(d.empleado){label='Empleado:';ico='person';extra=d.empleado;}
+        else if(d.vehiculo){label='Vehículo:';ico='directions_car';extra=d.vehiculo;}
+        if(extra){el('party-extra-row').style.display='flex';el('party-extra-label').innerHTML=`<span class="material-icons-round" style="color:var(--text-light);">${ico}</span> ${label}`;el('party-extra-val').textContent=extra;}
+        else{el('party-extra-row').style.display='none';}
+        el('confirm-modal').style.display='flex';
+    }
+    function closeConfirmModal(){ el('confirm-modal').style.display='none'; }
+
+    async function finalizarRegistro(){
+        if(!tempPayload)return;
+        closeConfirmModal();
+        showToast("Guardando operación...",true);
+        const payload=tempPayload; const btn=el('btn-registrar'); btn.disabled=true;
+
+        // Fuel check
+        if(payload.categoria==='Combustible'&&payload.vehiculo&&!fuelWarningBypass){
+            const w=await api('checkCombustibleWarning',{vehiculo:payload.vehiculo});
+            if(w.ok&&w.isWarning){
+                btn.disabled=false;
+                showModal("⛽ Alerta de Carga",`¡Cuidado! Esta sería la carga N° ${w.currentLoads+1} del ${payload.vehiculo} en la semana.`,"local_gas_station","var(--accent)",()=>{fuelWarningBypass=true;finalizarRegistro();},()=>{showToast("Carga cancelada.",false);},"Sí, Registrar","No, Cancelar");
+                return;
+            }
+        }
+        fuelWarningBypass=false;
+
+        const res=await api('registrarMovimientoCaja',payload);
+        btn.disabled=false;
+        if(res&&res.ok){
+            resetForm();
+            refreshBalance(); cargarMovimientos();
+        }else{ showToast(res?.error||"Error al guardar",false); }
+    }
+
+    // QUICK ACTIONS
+    function buildQuickActions(){
+        const actions=[
+            {label:'⛽ Combustible',tipo:'Egreso',pago:'Efectivo',cat:'Combustible'},
+            {label:'🏢 Proveedor',tipo:'Egreso',pago:'Efectivo',cat:'Pago a Proveedor'},
+            {label:'💰 Adelanto',tipo:'Egreso',pago:'Efectivo',cat:'Adelanto de Sueldo'},
+            {label:'🟢 Venta',tipo:'Ingreso',pago:'Efectivo',cat:'Venta Local'},
+            {label:'💸 Retiro Pablo',tipo:'Egreso',pago:'Efectivo',cat:'Retiro de Efectivo (Pablo)'},
+        ];
+        const c=el('quick-actions'); c.innerHTML='';
+        actions.forEach(a=>{
+            const chip=document.createElement('div'); chip.className='quick-chip'; chip.textContent=a.label;
+            chip.addEventListener('click',()=>{
+                el('mov-tipo').value=a.tipo; el('mov-pago').value=a.pago; actualizarCategorias(); el('mov-categoria').value=a.cat; checkExtras();
+                if(a.cat==='Pago de Haberes') verificarAdelantosSemana();
+                el('mov-importe').focus();
+                $$('.quick-chip').forEach(c=>c.classList.remove('active')); chip.classList.add('active');
+            });
+            c.appendChild(chip);
+        });
+    }
+
+    // SELECTS INIT
+    function initSelects(){
+        const sv=el('mov-vehiculo'); sv.innerHTML='<option value="" disabled selected>Vehículo</option>'; VEHICULOS.forEach(v=>sv.add(new Option(v,v)));
+        const inp=el('mov-proveedor'), box=el('prov-suggestions');
+        inp.addEventListener('input',function(){
+            const val=this.value.toLowerCase(); box.innerHTML='';
+            if(val.length<1){box.style.display='none';return;}
+            const matches=PROVEEDORES.filter(p=>p.toLowerCase().includes(val));
+            if(matches.length>0){box.style.display='block';matches.forEach(p=>{const d=document.createElement('div');d.innerText=p;d.onclick=()=>{inp.value=p;box.style.display='none';};box.appendChild(d);});}else box.style.display='none';
+        });
+        document.addEventListener('click',e=>{if(e.target!==inp)box.style.display='none';});
+    }
+
+    async function cargarConfigEmpleados(){
+        const res=await api('getConfigEmpleados'), sel=el('mov-empleado');
+        sel.innerHTML='<option value="" disabled selected>Empleado</option>';
+        if(res?.ok&&res.data){
+            configEmpleados=res.data; res.data.forEach(e=>sel.add(new Option(e.nombre,e.nombre)));
+        }else{
+            ["Nicolás","Laura","Ignacio","Martín","Lucas","Tomas"].forEach(n=>sel.add(new Option(n,n)));
+        }
+    }
+
+    // HABERES FLOW — EXACT ORIGINAL LOGIC
+    async function verificarAdelantosSemana(){
+        showLoading("Verificando Pagos...");
+        const hoy=new Date(); const diaSemana=hoy.getDay();
+        const diffLunes=hoy.getDate()-diaSemana+(diaSemana==0?-6:1);
+        const lunes=new Date(hoy.setDate(diffLunes)); const fechas=[];
+        for(let d=new Date(lunes);d<=new Date();d.setDate(d.getDate()+1)) fechas.push(d.toISOString().split('T')[0]);
+        deudasSemanal={};
+        for(const f of fechas){
+            const res=await api('getMovimientos',{fechaStr:f+"T12:00:00"});
+            if(res&&res.length>0){
+                res.forEach(m=>{
+                    if(m.categoria&&m.categoria.includes("Adelanto de Sueldo")){
+                        const match=m.observacion.match(/\[(.*?)\]/);
+                        if(match&&match[1]){const nombre=match[1].trim(),monto=parseInt(m.importe)||0;if(!deudasSemanal[nombre])deudasSemanal[nombre]=0;deudasSemanal[nombre]+=monto;}
+                    }
                 });
-            } else {
-                const BACKUP_EMPS = ["Nicolás", "Laura", "Ignacio", "Martín", "Lucas", "Tomas"];
-                select.innerHTML = '<option value="" disabled selected>Empleado</option>';
-                BACKUP_EMPS.forEach(x => { const opt = document.createElement('option'); opt.value = x; opt.textContent = x; select.appendChild(opt); }); 
             }
         }
+        hideLoading();
+        const nombres=Object.keys(deudasSemanal);
+        if(nombres.length>0) showToast(`ℹ️ ${nombres.length} empleados con adelantos.`,true);
+    }
 
-        async function verificarAdelantosSemana() {
-            showLoading("Verificando Pagos...");
-            const hoy = new Date();
-            const diaSemana = hoy.getDay(); 
-            const diffLunes = hoy.getDate() - diaSemana + (diaSemana == 0 ? -6 : 1);
-            const lunes = new Date(hoy.setDate(diffLunes));
-            const fechas = [];
-            for (let d = new Date(lunes); d <= new Date(); d.setDate(d.getDate() + 1)) fechas.push(d.toISOString().split('T')[0]);
-            deudasSemanalGlobal = {}; 
-            for (const f of fechas) {
-                const res = await api("getMovimientos", { fechaStr: f + "T12:00:00" });
-                if (res && res.length > 0) {
-                    res.forEach(m => {
-                        if (m.categoria && m.categoria.includes("Adelanto de Sueldo")) {
-                            const match = m.observacion.match(/\[(.*?)\]/);
-                            if (match && match[1]) {
-                                const nombre = match[1].trim(); const monto = parseInt(m.importe) || 0;
-                                if (!deudasSemanalGlobal[nombre]) deudasSemanalGlobal[nombre] = 0; deudasSemanalGlobal[nombre] += monto;
-                            }
-                        }
-                    });
-                }
-            }
+    function calcularPagoHaberes(){
+        if(el('mov-categoria').value!=='Pago de Haberes') return;
+        const nombre=el('mov-empleado').value; if(!nombre) return;
+        const emp=configEmpleados.find(e=>e.nombre.toLowerCase()===nombre.toLowerCase());
+        const base=emp?emp.sueldoBase:0;
+        let adelantos=0; const keys=Object.keys(deudasSemanal); const key=keys.find(k=>k.toLowerCase()===nombre.toLowerCase());
+        if(key) adelantos=deudasSemanal[key];
+        const neto=base-adelantos;
+        const inp=el('mov-importe'); inp.value=neto.toLocaleString('es-AR'); inp.setAttribute('data-clean-value',neto);
+        const obs=el('mov-obs');
+        if(adelantos>0){obs.value=`[${nombre}] Sueldo Base $${base} - Adelantos $${adelantos}`;showToast(`💰 Se descontaron $${adelantos}`,true);}
+        else{obs.value=`[${nombre}] Pago de Haberes Completo`;}
+    }
+
+    // CHEQUES CARTERA
+    async function cargarChequesCartera(){
+        const sel=el('mov-cheque-cartera'); sel.classList.add('loading-cheques'); sel.innerHTML='<option value="" disabled selected>⏳ Buscando...</option>'; sel.disabled=true;
+        const res=await api('getChequesCartera'); sel.classList.remove('loading-cheques'); sel.disabled=false;
+        if(res?.ok&&res.data?.length>0){
+            chequesCartera=res.data; sel.innerHTML='<option value="" selected>-- Seleccionar Cheque --</option>';
+            chequesCartera.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=`${c.banco} (#${c.nro}) - $${parseInt(c.importe).toLocaleString('es-AR')}`;sel.appendChild(o);});
+        }else{sel.innerHTML='<option value="" disabled selected>Sin cheques</option>';}
+    }
+
+    function seleccionarChequeCartera(){
+        const id=el('mov-cheque-cartera').value, ch=chequesCartera.find(c=>String(c.id)===String(id));
+        if(ch){
+            const imp=parseInt(ch.importe), inp=el('mov-importe');
+            inp.value=imp.toLocaleString('es-AR'); inp.setAttribute('data-clean-value',imp);
+            inp.classList.add('importe-cheque-lock'); inp.disabled=true;
+            el('mov-banco').value=ch.banco; el('mov-cheque-nro').value=ch.nro;
+            idChequeSeleccionado=ch.id; showToast(`Cheque de $${inp.value} seleccionado`,true);
+        }
+    }
+
+    // FUEL CHECK
+    async function checkFuelWarningFlow(){
+        const cat=el('mov-categoria').value, veh=el('mov-vehiculo').value;
+        if(cat==='Combustible'&&veh){
+            const w=await api('checkCombustibleWarning',{vehiculo:veh});
+            if(w.ok&&w.isWarning) showToast(w.message.replace('¡ALERTA!','⛽ Atención:'),false);
+        }
+    }
+
+    // AI OBSERVATION
+    async function generateAiObs(){
+        const btn=el('btn-ai'), obs=el('mov-obs');
+        btn.innerHTML='<span class="material-icons-round spin">auto_awesome</span>';
+        const tipo=el('mov-tipo').value, cat=el('mov-categoria').value, imp=el('mov-importe').value;
+        const extra=el('mov-empleado').value||el('mov-proveedor').value;
+        if(!cat){showToast("Seleccioná un motivo",false);btn.innerHTML='✨';return;}
+        const prompt=`Genera una observación muy corta (max 8 palabras), natural, para caja. Datos: ${tipo}, ${cat}, ${imp}, ${extra||''}. Solo texto.`;
+        try{
+            const r=await fetch(`${GEMINI_API_URL}${API_KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+            const d=await r.json(); obs.value=d.candidates[0].content.parts[0].text.trim();
+        }catch(e){obs.value=cat;} btn.innerHTML='✨';
+    }
+
+    // BILLS GRID
+    function buildBillsGrid(containerId){
+        const g=el(containerId); g.innerHTML='';
+        BILLETES.forEach(d=>{
+            const item=document.createElement('div'); item.className='billete-item';
+            item.innerHTML=`<div class="billete-label">$ ${d.toLocaleString()}</div><input type="number" class="billete-input" data-val="${d}" placeholder="0" inputmode="numeric">`;
+            item.querySelector('input').addEventListener('input',function(){this.value=this.value.replace(/[^0-9]/g,'');monitor.logEdit();calcBills(containerId.includes('rend')?'rend':'arq');});
+            g.appendChild(item);
+        });
+    }
+
+    function calcBills(type){
+        const c=type==='rend'?'bills-rend':'bills-arq'; let total=0;
+        el(c).querySelectorAll('.billete-input').forEach(i=>{total+=(parseInt(i.value)||0)*parseInt(i.dataset.val);});
+        if(type==='rend'){
+            el('rend-contado').textContent=fmt(total); el('rend-contado').dataset.numeric=total; updateRendDiff(total); monitor.logEdit(total);
+        }else{
+            el('arqueo-total').textContent=fmt(total); el('arqueo-fisico').value=total; monitor.logEdit(total);
+        }
+    }
+    function clearBills(type){el(type==='rend'?'bills-rend':'bills-arq').querySelectorAll('.billete-input').forEach(i=>i.value='');calcBills(type);monitor.logDelete();}
+
+    // RENDICIÓN — EXACT ORIGINAL LOGIC
+    // localStorage helpers
+    function getHoyKey(){ return todayISO(); }
+    function leerEstadoLocal(){
+        const k=getHoyKey();
+        return { hoyKey:k, ayerHecha:localStorage.getItem(`rend_${k}_AyerTarde`)==='1', hoyHecha:localStorage.getItem(`rend_${k}_HoyManana`)==='1',
+            resumen:(()=>{try{return JSON.parse(localStorage.getItem(`rend_ultima_${k}`));}catch(e){return null;}})() };
+    }
+    function guardarRendicionLocal(res){
+        const {hoyKey}=leerEstadoLocal();
+        localStorage.setItem(`rend_ultima_${hoyKey}`,JSON.stringify({fecha:res.fecha,turno:res.turno,repartidor:res.repartidor,efectivoEsperado:res.efectivoEsperado,efectivoContado:res.efectivoContado,diferencia:res.diferencia}));
+        if(res.turno==='Tarde') localStorage.setItem(`rend_${hoyKey}_AyerTarde`,'1');
+        else if(res.turno==='Mañana') localStorage.setItem(`rend_${hoyKey}_HoyManana`,'1');
+    }
+
+    async function buscarRendicion(){
+        el('rend-loading').style.display='block'; el('rend-data').style.display='none'; el('rend-bills-card').style.display='none'; el('zen-state').style.display='none';
+        rendicionPendiente=null;
+        const res=await api('getDatosRendicionEsperada',{repartidor:REPARTIDOR,turno:'Mañana'});
+        el('rend-loading').style.display='none';
+        if(res?.ok&&res.hayPendiente&&res.efectivoEsperado>0){
+            rendicionPendiente=res;
+            el('rend-data').style.display='block'; el('rend-bills-card').style.display='block';
+            el('rend-narrativa').innerHTML=`Planilla de <b>${res.repartidor}</b><br>Turno: <b>${res.turno}</b><br>Fecha: <b>${res.fecha}</b>`;
+            el('rend-esperado').textContent=fmt(res.efectivoEsperado); calcBills('rend');
+        }else{
+            aplicarUIsinPendientes();
+        }
+    }
+
+    function aplicarUIsinPendientes(){
+        const {ayerHecha,hoyHecha,resumen}=leerEstadoLocal();
+        el('rend-data').style.display='none'; el('rend-bills-card').style.display='none';
+        el('zen-state').style.display='block';
+        if(ayerHecha&&hoyHecha&&resumen){
+            el('zen-state').querySelector('.zen-title').textContent='✅ Rendiciones del día completas';
+            el('zen-msg').innerHTML=`Última: ${resumen.repartidor} (${resumen.turno}) del ${formatoFechaHumano(resumen.fecha)}. Caja al día ✨`;
+        }else if(ayerHecha||hoyHecha){
+            el('zen-state').querySelector('.zen-title').textContent='✅ Una rendición procesada';
+            el('zen-msg').innerHTML='Apenas llegue la próxima planilla, te la mostramos acá.';
+        }else{
+            el('zen-state').querySelector('.zen-title').textContent='💤 Sin planillas listas';
+            el('zen-msg').innerHTML='Cuando el repartidor genere la rendición, aparece acá automáticamente.';
+        }
+    }
+
+    function updateRendDiff(contado){
+        if(!rendicionPendiente)return;
+        const diff=contado-parseInt(rendicionPendiente.efectivoEsperado), bar=el('rend-diff');
+        if(contado===0){bar.className='diff-bar';bar.textContent='Ingresá la cantidad de billetes';bar.style.cssText='background:#f5f5f5;color:#999;padding:12px;border-radius:12px;text-align:center;font-weight:800;';return;}
+        bar.style.cssText='';bar.className='diff-bar';
+        if(diff===0){bar.classList.add('exacto');bar.textContent='¡EXACTO! Coincide perfecto 🎉';}
+        else if(diff<0){bar.classList.add('falta');bar.textContent=`FALTAN ${fmt(Math.abs(diff))}`;}
+        else{bar.classList.add('sobra');bar.innerHTML=`<div style="font-weight:900;">SOBRAN ${fmt(diff)}</div><div style="font-weight:600;font-size:0.85rem;margin-top:4px;">Tranquila, cargá el conteo tal cual. El sistema ajusta automáticamente.</div>`;}
+    }
+
+    async function intentarRendicion(){
+        if(!rendicionPendiente) return;
+        const total=parseInt(el('rend-contado').dataset.numeric)||0;
+        if(total===0){showToast("⚠️ Contá los billetes primero",false);monitor.logAttempt();return;}
+        showModal("Confirmar Rendición","¿Estás segura?","verified","var(--success)",async()=>{
+            showLoading("Procesando...");
+            const res=await api('procesarRendicionDesdeRecibo',{
+                fechaStr:rendicionPendiente.fecha,turno:rendicionPendiente.turno,repartidor:rendicionPendiente.repartidor,
+                efectivoEsperado:rendicionPendiente.efectivoEsperado,efectivoContado:total,usuario:USER,monitorData:monitor.report()
+            });
             hideLoading();
-            const nombres = Object.keys(deudasSemanalGlobal);
-            if (nombres.length > 0) showToast(`ℹ️ ${nombres.length} empleados con adelantos.`, true);
-        }
+            if(res?.ok){
+                showToast(res.mensaje||"✅ Rendición procesada",true); confetti(); guardarRendicionLocal({...rendicionPendiente,efectivoContado:total,diferencia:res.diferencia});
+                refreshBalance(); monitor.reset(); clearBills('rend');
+                buscarRendicion();
+                setTimeout(()=>{if(el('zen-state').style.display!=='none'){$$('.nav-item')[0].click();setFechaHoy();}},2500);
+            }else{showToast(res?.error||"Error",false);}
+        });
+    }
 
-        function calcularPagoHaberes() {
-            const cat = document.getElementById('mov-categoria').value;
-            if (cat !== "Pago de Haberes") return;
-            const nombreSel = document.getElementById('mov-empleado').value;
-            if (!nombreSel) return;
-            const empleadoConfig = configEmpleadosGlobal.find(e => e.nombre.toLowerCase() === nombreSel.toLowerCase());
-            const sueldoBase = empleadoConfig ? empleadoConfig.sueldoBase : 0;
-            let adelantos = 0;
-            const keys = Object.keys(deudasSemanalGlobal);
-            const keyMatch = keys.find(k => k.toLowerCase() === nombreSel.toLowerCase());
-            if (keyMatch) adelantos = deudasSemanalGlobal[keyMatch];
-            const neto = sueldoBase - adelantos;
-            const inputImporte = document.getElementById('mov-importe');
-            inputImporte.value = neto.toLocaleString('es-AR'); inputImporte.setAttribute('data-clean-value', neto);
-            const inputObs = document.getElementById('mov-obs');
-            if (adelantos > 0) { inputObs.value = `[${nombreSel}] Sueldo Base $${sueldoBase} - Adelantos $${adelantos}`; showToast(`💰 Se descontaron $${adelantos}`, true); }
-            else { inputObs.value = `[${nombreSel}] Pago de Haberes Completo`; }
-        }
-
-        async function generateAiObservation() {
-            const btn = document.getElementById('btn-ai-magic');
-            const obsInput = document.getElementById('mov-obs');
-            btn.classList.add('jbl-active');
-            const tipo = document.getElementById('mov-tipo').value;
-            const categoria = document.getElementById('mov-categoria').value;
-            const importe = document.getElementById('mov-importe').value;
-            const extra = document.getElementById('mov-empleado').value || document.getElementById('mov-proveedor').value;
-            if (!categoria) { showToast("Seleccioná un motivo", false); btn.classList.remove('jbl-active'); return; }
-            const prompt = `Genera una observación muy corta (max 8 palabras), natural, para caja. Datos: ${tipo}, ${categoria}, ${importe}, ${extra||''}. Ej: "Pago semanal a Martín", "Compra de lavandina". Solo texto.`;
-            try {
-                const response = await fetch(`${GEMINI_API_URL}${API_KEY}`, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await response.json();
-                obsInput.value = data.candidates[0].content.parts[0].text.trim();
-            } catch (error) { obsInput.value = categoria; } finally { btn.classList.remove('jbl-active'); }
-        }
-
-        // --- ARQUEO & RENDICION ---
-        window.calcBilletes = (tipo) => {
-            const inputs = document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`);
-            let total = 0;
-            inputs.forEach(inp => { total += (parseInt(inp.value) || 0) * parseInt(inp.getAttribute('data-val')); });
-            const totalFmt = "$ " + total.toLocaleString('es-AR');
-            if (tipo === 'rend') {
-                const el = document.getElementById('rendicion-contado-display'); el.textContent = totalFmt; el.setAttribute('data-numeric', total); actualizarDiferenciaRendicion(total); monitor.logEdit(total);
-            } else {
-                document.getElementById('arqueo-total-display').textContent = totalFmt; document.getElementById('arqueo-fisico').value = total; monitor.logEdit(total);
-            }
-        };
-        window.limpiarBilletes = (tipo) => { document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`).forEach(i => i.value = ''); calcBilletes(tipo); monitor.logDelete(); }
-
-        async function buscarRendicionPendiente() {
-            const zen = document.getElementById('zen-state-container'); const content = document.getElementById('rendicion-content'); const load = document.getElementById('rendicion-loading-card'); const dataCard = document.getElementById('card-rendicion-data');
-            zen.style.display = 'none'; content.style.display = 'block'; load.style.display = 'block'; dataCard.style.display = 'none'; document.getElementById('card-billetes-rendicion').style.display = 'none';
-            rendicionPendiente = null;
-            const res = await api("getDatosRendicionEsperada", { repartidor: RENDICION_REPARTIDOR, turno: RENDICION_TURNO_DEFECTO }); 
-            load.style.display = 'none';
-            // V3 LOGIC CHANGE: Check for hayPendiente explicitly
-            if (res && res.ok && res.hayPendiente) {
-                rendicionPendiente = res; dataCard.style.display = 'block'; document.getElementById('card-billetes-rendicion').style.display = 'block';
-                document.getElementById('rendicion-narrativa').innerHTML = `Planilla de <b>${res.repartidor}</b><br>Turno: <b>${res.turno}</b><br>Fecha: <b>${res.fecha}</b>`;
-                document.getElementById('rendicion-esperado').textContent = "$ " + parseInt(res.efectivoEsperado).toLocaleString('es-AR');
-                calcBilletes('rend'); 
-            } else { content.style.display = 'none'; zen.style.display = 'block'; }
-        }
-
-        function actualizarDiferenciaRendicion(totalContado) {
-            const div = document.getElementById('rendicion-diferencia-container');
-            if (!rendicionPendiente) return;
-            const dif = totalContado - parseInt(rendicionPendiente.efectivoEsperado);
-            if (totalContado === 0) { div.innerHTML = ''; return; }
-            let color = dif === 0 ? 'var(--success)' : (dif > 0 ? 'var(--primary)' : 'var(--accent)');
-            let texto;
-
-            if (dif > 0) {
-                // 🔥 MENSAJE DE TRANQUILIDAD PARA SOBRANTE 🔥
-                color = 'var(--success)';
-                texto = `
-                    <div style="font-size:0.95rem; line-height:1.4; color:var(--text-main);">
-                        <span style="font-weight:900; color:${color};">SOBRAN $ ${dif.toLocaleString('es-AR')}.</span>
-                        <br>
-                        <span style="font-weight:600; font-size:0.9rem;">Tranquila, cargá el conteo tal cual está. El sistema automáticamente registrará el ajuste para que la caja cuadre perfectamente con el dinero físico.</span>
-                    </div>
-                `;
-                div.innerHTML = `<div style="text-align:center; background:#e8f5e9; padding:10px; border-radius:10px; border:2px solid ${color};">${texto}</div>`;
-                return;
-            } else if (dif < 0) {
-                texto = `FALTAN $ ${Math.abs(dif).toLocaleString('es-AR')}`;
-                color = 'var(--accent)';
-                div.innerHTML = `<div style="text-align:center; font-weight:800; color:${color}; background:#fff0f3; padding:10px; border-radius:10px; border:2px solid ${color};">FALTAN $ ${Math.abs(dif).toLocaleString('es-AR')}</div>`;
-                return;
-            } else {
-                texto = '✨ PERFECTO';
-                color = 'var(--success)';
-                div.innerHTML = `<div style="text-align:center; font-weight:800; color:${color}; background:#e8f5e9; padding:10px; border-radius:10px; border:2px solid ${color};">${texto}</div>`;
-                return;
-            }
-        }
-
-        // 🔥 FUNCION CLAVE: MANEJA LA RESPUESTA CORRECTAMENTE 🔥
-        async function intentarRendicion() {
-            if(!rendicionPendiente) return;
-            const total = parseInt(document.getElementById('rendicion-contado-display').getAttribute('data-numeric')) || 0;
-            if (total === 0) return showToast("⚠️ Contá los billetes primero", false);
-            showModal("Confirmar Rendición", "¿Estás segura?", "verified", "var(--success)", async () => {
-                showLoading("Procesando...");
-                // Se envía el Efectivo Contado (físico) para que el backend haga el ajuste (Esperado + Diferencia = Contado)
-                const res = await api("procesarRendicionDesdeRecibo", {
-                    fechaStr: rendicionPendiente.fecha, turno: rendicionPendiente.turno, repartidor: rendicionPendiente.repartidor, efectivoEsperado: rendicionPendiente.efectivoEsperado, efectivoContado: total, usuario: USUARIO_APP
-                });
-                hideLoading();
-                
-                if (res && res.ok) { 
-                    showToast(res.mensaje || "✅ Éxito: Rendición procesada", true); 
-                    lanzarConfeti(); 
-                    
-                    // 1. UPDATE BALANCE (MONEY CAME IN)
-                    actualizarSaldoHeader();
-                    
-                    // 2. RESET UI & CHECK FOR NEXT OR ZEN
-                    monitor.reset(); 
-                    limpiarBilletes('rend');
-                    buscarRendicionPendiente(); 
-                    
-                    // 3. Optional: Redirect to Caja after delay?
-                    setTimeout(() => { 
-                             // Optional: if Zen Mode is active, maybe go to Caja
-                             if(document.getElementById('zen-state-container').style.display !== 'none') {
-                                 showScreen('caja', document.querySelector('.nav-item')); 
-                                 setFechaHoy(true); 
-                             }
-                    }, 2500); 
-                } 
-                else { showToast(res.error || "Error al procesar la rendición", false); }
-            });
-        }
-
-        async function intentarArqueo() {
-            const fisico = parseFloat(document.getElementById('arqueo-fisico').value) || 0;
-            if (fisico === 0) return showToast("⚠️ Ingresa el efectivo físico", false);
-            showModal("Cierre de Caja", `Registrar físico: <b>$ ${fisico.toLocaleString('es-AR')}</b>`, "lock", "#D63031", async () => {
-                showLoading("Cerrando caja...");
-                const res = await api("registrarArqueo", { usuario: USUARIO_APP, efectivoFisico: fisico, monitorData: monitor.getReport() });
-                hideLoading();
-                if (res && res.ok) { 
-                    lanzarConfeti(); 
-                    
-                    // 🔥 LOGICA DE RESUMEN 6 SEGUNDOS 🔥
-                    const dif = fisico - saldoSistema;
-                    const colorDif = dif === 0 ? 'var(--success)' : (dif > 0 ? 'var(--success)' : 'var(--danger)');
-                    const simbolo = dif > 0 ? '+' : '';
-                    
-                    const htmlResumen = `
-                        <div style="height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px;">
-                            <span class="material-icons-round" style="font-size:80px; color:var(--success); animation:popIn 0.5s;">check_circle</span>
-                            <h1 style="margin:10px 0;">¡Caja Cerrada!</h1>
-                            
-                            <div class="resumen-card">
-                                <h3 style="margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">📊 Resumen del Día</h3>
-                                <div class="resumen-row">
-                                    <span style="color:#aaa;">Físico (Tu conteo)</span>
-                                    <span class="resumen-val">$ ${fisico.toLocaleString('es-AR')}</span>
-                                </div>
-                                <div class="resumen-row">
-                                    <span style="color:#aaa;">Sistema</span>
-                                    <!-- Aquí mostramos el sistema POR ÚLTIMA VEZ para que Laura vea si cuadró o no -->
-                                    <span class="resumen-val">$ ${saldoSistema.toLocaleString('es-AR')}</span>
-                                </div>
-                                <div class="resumen-row">
-                                    <span style="color:#aaa;">Diferencia</span>
-                                    <span class="resumen-val" style="color:${colorDif};">${simbolo}$ ${dif.toLocaleString('es-AR')}</span>
-                                </div>
-                                <div style="margin-top:20px; padding-top:15px; border-top:2px dashed #ddd;">
-                                    <div style="font-size:0.9rem; color:#aaa; font-weight:700;">CAJA INICIAL MAÑANA</div>
-                                    <div style="font-size:2rem; font-weight:900; color:var(--primary);">$ ${fisico.toLocaleString('es-AR')}</div>
-                                </div>
-                            </div>
-
-                            <div style="margin-top:30px; color:#aaa; font-weight:600; font-size:0.9rem;">
-                                <span class="material-icons-round" style="font-size:14px; vertical-align:middle;">timer</span> 
-                                Cerrando sistema en 6s...
-                            </div>
+    // ARQUEO
+    async function intentarArqueo(){
+        const fisico=parseFloat(el('arqueo-fisico').value)||0;
+        if(fisico===0){showToast("⚠️ Ingresá el efectivo físico",false);return;}
+        showModal("Cierre de Caja",`Registrar físico: <b>${fmt(fisico)}</b>`,"lock","#D63031",async()=>{
+            showLoading("Cerrando caja...");
+            const res=await api('registrarArqueo',{usuario:USER,efectivoFisico:fisico,monitorData:monitor.report()});
+            hideLoading();
+            if(res?.ok){
+                confetti(); const dif=fisico-saldoSistema; const colorDif=dif===0?'var(--success)':'var(--danger)';
+                el('screen-arqueo').innerHTML=`
+                    <div style="height:80vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;">
+                        <span class="material-icons-round" style="font-size:80px;color:var(--success);animation:popIn 0.5s;">check_circle</span>
+                        <h1 style="margin:10px 0;">¡Caja Cerrada!</h1>
+                        <div style="background:white;border-radius:20px;padding:25px;box-shadow:0 10px 40px rgba(0,0,0,0.1);text-align:center;margin-top:20px;width:90%;max-width:350px;">
+                            <h3 style="margin-bottom:15px;border-bottom:2px solid #eee;padding-bottom:10px;">📊 Resumen del Día</h3>
+                            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;"><span style="color:#aaa;">Físico</span><span style="font-weight:800;font-size:1.2rem;">${fmt(fisico)}</span></div>
+                            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;"><span style="color:#aaa;">Sistema</span><span style="font-weight:800;font-size:1.2rem;">${fmt(saldoSistema)}</span></div>
+                            <div style="display:flex;justify-content:space-between;padding:10px 0;"><span style="color:#aaa;">Diferencia</span><span style="font-weight:800;font-size:1.2rem;color:${colorDif};">${dif>=0?'+':''}${fmt(dif)}</span></div>
+                            <div style="margin-top:20px;padding-top:15px;border-top:2px dashed #ddd;"><div style="font-size:0.9rem;color:#aaa;font-weight:700;">CAJA INICIAL MAÑANA</div><div style="font-size:2rem;font-weight:900;color:var(--primary);">${fmt(fisico)}</div></div>
                         </div>
-                    `;
-                    
-                    document.getElementById('screen-arqueo').innerHTML = htmlResumen;
-                    
-                    setTimeout(() => window.location.reload(), 6000); 
-                } 
-                else { showToast(res.error || "Error al cerrar", false); }
-            });
+                        <div style="margin-top:30px;color:#aaa;font-weight:600;font-size:0.9rem;">Cerrando sistema en 6s...</div>
+                    </div>`;
+                setTimeout(()=>window.location.reload(),6000);
+            }else{showToast(res?.error||"Error al cerrar",false);}
+        });
+    }
+
+    // QC
+    function buildQC(){
+        const g=el('qc-grid'); g.innerHTML='';
+        BILLETES.forEach(d=>{
+            const item=document.createElement('div'); item.className='qc-item';
+            item.innerHTML=`<div class="qc-label">$ ${d.toLocaleString()}</div><input type="number" class="qc-input" data-val="${d}" inputmode="numeric" placeholder="0">`;
+            item.querySelector('input').addEventListener('input',function(){this.value=this.value.replace(/[^0-9]/g,'');calcQC();});
+            g.appendChild(item);
+        });
+    }
+    function calcQC(){let t=0;$$('.qc-input').forEach(i=>{t+=(parseInt(i.value)||0)*parseInt(i.dataset.val);});el('qc-total').textContent=fmt(t);}
+    function toggleQC(){const m=el('quick-counter-modal');m.style.display=m.style.display==='flex'?'none':'flex';}
+    function clearQC(){$$('.qc-input').forEach(i=>i.value='');calcQC();}
+    function transferQC(){
+        const t=parseInt(el('qc-total').textContent.replace(/\D/g,''))||0;
+        if(t>0){el('mov-importe').value=t.toLocaleString('es-AR');el('mov-importe').setAttribute('data-clean-value',t);showToast(`Monto cargado: ${fmt(t)}`,true);toggleQC();}
+        else showToast("El contador está en cero",false);
+    }
+
+    // ARQUEO REMINDER
+    function checkArqueoReminder(){
+        const now=new Date(),day=now.getDay(),h=now.getHours(),m=now.getMinutes();
+        if(day>=1&&day<=5&&h===15&&m>=30&&m<=34&&localStorage.getItem('lastArqueoReminder')!==now.toDateString()){
+            if(document.visibilityState==='hidden'&&Notification.permission==='granted'){
+                const n=new Notification('⏰ Hora de Arqueo',{body:'Son las 15:30. Toca para cerrar la caja.'});
+                n.onclick=()=>{window.focus();n.close();showArqueoReminder();};
+            }else showArqueoReminder();
+            localStorage.setItem('lastArqueoReminder',now.toDateString());
         }
+    }
+    function showArqueoReminder(){el('arqueo-reminder-modal').style.display='flex';}
+    function goToArqueo(){
+        const m=el('arqueo-reminder-modal');m.style.opacity='0';
+        setTimeout(()=>{m.style.display='none';m.style.opacity='1';$$('.nav-item')[2].click();},300);
+    }
 
-        function lanzarConfeti() {
-            for(let i=0; i<30; i++) {
-                const c = document.createElement('div'); c.className = 'confetti'; c.style.left = Math.random() * 100 + 'vw'; c.style.animationDuration = (Math.random() * 2 + 1) + 's'; c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`; document.body.appendChild(c); setTimeout(() => c.remove(), 3000);
-            }
-        }
+    // ====== INIT ======
+    function init(){
+        startClock(); initNav(); buildQuickActions(); initSelects(); actualizarCategorias();
+        buildBillsGrid('bills-rend'); buildBillsGrid('bills-arq'); buildQC();
 
-        // 🔥 FUNCIONES NUEVAS: CONTADOR RÁPIDO FLOTANTE 🔥
-        function toggleQuickCounter() {
-            const modal = document.getElementById('quick-counter-modal');
-            if (modal.style.display === 'flex') {
-                modal.style.display = 'none';
-            } else {
-                modal.style.display = 'flex';
-            }
-        }
+        fechaMovimientos=todayISO(); el('fecha-historial').value=fechaMovimientos;
+        el('fecha-historial').addEventListener('change',cargarMovimientos);
 
-        function calcQuickCounter() {
-            const inputs = document.querySelectorAll('#quick-counter-modal .qc-input');
-            let total = 0;
-            inputs.forEach(inp => {
-                const val = parseInt(inp.value) || 0;
-                const denomination = parseInt(inp.getAttribute('data-val'));
-                total += val * denomination;
-            });
-            const display = document.getElementById('qc-total-display');
-            display.innerText = "$ " + total.toLocaleString('es-AR');
-        }
+        el('mov-tipo').addEventListener('change',()=>{actualizarCategorias();checkExtras();});
+        el('mov-pago').addEventListener('change',checkExtras);
+        el('mov-categoria').addEventListener('change',()=>{
+            checkExtras();
+            if(el('mov-categoria').value==='Pago de Haberes') verificarAdelantosSemana();
+            if(el('mov-categoria').value==='Combustible') checkFuelWarningFlow();
+        });
+        el('mov-vehiculo').addEventListener('change',checkFuelWarningFlow);
+        el('mov-empleado').addEventListener('change',calcularPagoHaberes);
+        el('mov-cheque-cartera').addEventListener('change',seleccionarChequeCartera);
+        el('mov-importe').addEventListener('input',function(){formatearImporte(this);});
+        el('btn-registrar').addEventListener('click',registrarMovimiento);
+        el('btn-rendicion').addEventListener('click',intentarRendicion);
+        el('btn-arqueo').addEventListener('click',intentarArqueo);
 
-        function clearQuickCounter() {
-            const inputs = document.querySelectorAll('#quick-counter-modal .qc-input');
-            inputs.forEach(inp => inp.value = '');
-            calcQuickCounter();
-        }
+        refreshBalance(); cargarMovimientos(); buscarRendicion(); cargarConfigEmpleados();
+        checkWelcome();
+        if('Notification' in window) Notification.requestPermission();
+        setInterval(()=>{refreshBalance();cargarMovimientos();if(!rendicionPendiente)buscarRendicion();},60000);
+        setInterval(checkArqueoReminder,60000);
+    }
 
-        function transferAndClose() {
-            // 1. Obtenemos el total visual y numérico
-            const displayEl = document.getElementById('qc-total-display');
-            const totalText = displayEl.innerText; // Ej: "$ 15.000"
-            const totalVal = parseInt(totalText.replace(/[^0-9]/g, '')) || 0;
+    return { init, closeWelcome, closeConfirmModal, finalizarRegistro, clearBills, toggleQC, clearQC, transferQC, setFechaHoy, goToArqueo, refreshBalance, generateAiObs:generateAiObs };
+})();
 
-            if (totalVal > 0) {
-                // 2. Buscamos el campo de importe principal
-                const inputImporte = document.getElementById('mov-importe');
-                
-                // 3. Pegamos los valores
-                inputImporte.value = totalText.replace('$ ', ''); // Pone "15.000"
-                inputImporte.setAttribute('data-clean-value', totalVal); // Pone 15000 (int)
-
-                // 4. Feedback y cierre
-                showToast(`Importe cargado: ${totalText}`, true);
-                toggleQuickCounter();
-                
-                // 5. Opcional: Borrar el contador para la próxima
-                // clearQuickCounter(); 
-            } else {
-                showToast("El contador está en cero", false);
-            }
-        }
-    </script>
+document.addEventListener('DOMContentLoaded', ML.init);
+</script>
 </body>
 </html>
