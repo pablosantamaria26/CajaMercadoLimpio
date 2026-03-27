@@ -663,7 +663,11 @@
             const end = currentDateStr;
             d.setDate(d.getDate() - 6);
             const start = d.toISOString().split('T')[0];
-            const res = await api("getMovimientosRango", {startDateStr: start, endDateStr: end});
+            // Agregamos las horas límite para asegurar que traiga todo el día completo
+            const res = await api("getMovimientosRango", {
+            startDateStr: start + "T00:00:00", 
+            endDateStr: end + "T23:59:59"
+        });
             if(res && res.ok && res.data) renderTrendsCharts(res.data);
         }
 
