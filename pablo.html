@@ -194,7 +194,7 @@
     <!-- ===== 0: RESUMEN ===== -->
     <div class="screen" id="s0">
         <div class="hero">
-            <div class="hero-label">Resultado del día</div>
+            <div class="hero-label" id="h-week-label">Semana --</div>
             <div class="hero-amount" id="h-neto">--</div>
             <div class="hero-grid">
                 <div class="hero-cell">
@@ -214,25 +214,27 @@
 
         <!-- Estado Arqueo -->
         <div class="card">
-            <div class="card-hdr">Estado de Caja</div>
-            <div class="status-row" id="arqueo-status-row">
+            <div class="card-hdr">Estado de Caja — Semana</div>
+            <div class="status-row">
                 <div>
-                    <div style="font-size:0.85rem; font-weight:600;">Arqueo de hoy</div>
+                    <div style="font-size:0.85rem; font-weight:600;">Arqueo hoy</div>
                     <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;" id="arqueo-hora">Sin datos</div>
                 </div>
                 <div class="status-badge badge-pending" id="arqueo-badge">
                     <span class="material-icons-round" style="font-size:14px;">schedule</span> Pendiente
                 </div>
             </div>
-            <div class="status-row" id="cruce-status-row">
+            <div class="status-row">
                 <div>
-                    <div style="font-size:0.85rem; font-weight:600;">Cruce rendición</div>
+                    <div style="font-size:0.85rem; font-weight:600;">Cruce semana</div>
                     <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;" id="cruce-status-sub">Calculando...</div>
                 </div>
                 <div class="status-badge badge-pending" id="cruce-badge">
                     <span class="material-icons-round" style="font-size:14px;">sync</span> --
                 </div>
             </div>
+            <!-- Días de la semana con estado de arqueo -->
+            <div id="week-dias" style="margin-top:8px;"></div>
         </div>
 
 
@@ -268,7 +270,7 @@
         </div>
 
         <div class="card">
-            <div class="card-hdr">Últimos 7 días <span class="badge" id="cruce-alertas-badge"></span></div>
+            <div class="card-hdr">Días de la semana <span class="badge" id="cruce-alertas-badge"></span></div>
             <div id="cruce-historial">
                 <div class="empty-state"><span class="material-icons-round">history</span>Sin historial</div>
             </div>
@@ -391,10 +393,11 @@
 <!-- Modal Calendario -->
 <div class="overlay" id="modal-cal" onclick="if(event.target===this)closeCalendar()">
     <div class="modal">
-        <h3><span class="material-icons-round" style="color:var(--primary)">calendar_today</span> Ir a fecha</h3>
+        <h3><span class="material-icons-round" style="color:var(--primary)">calendar_today</span> Ir a semana</h3>
+        <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Elegí cualquier día — se mostrará la semana lunes a viernes que lo contiene.</p>
         <input type="date" id="date-input">
         <button class="btn-primary" onclick="confirmDate()">
-            <span class="material-icons-round">check</span> Ver datos
+            <span class="material-icons-round">check</span> Ver semana
         </button>
     </div>
 </div>
@@ -420,11 +423,34 @@ const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
 
 const PROVEEDORES = ["Marwiplast","Bio Bag","Broche plastico","Bumerang","Carol","Colores","Coolbazar","Cotton","Da Silva","Desesplast","Diawara","Emege","Entresol","Fedata","Fibran","Flexal","Hechicera","Infinity import","K&K","La Americana","La gauchita","Macetex","Make Fresh","Matriplaster","Mis Plast","Modoplast","Molmar","POP","Rigolleau","Romyl","Samantha","Santamaria","Sasha","Soifer","lumilagro","Make","Suka","Supy","Tauro","Tecnomatric","Yesi","Durax","Javi"].sort();
 
-let currentDate = "";
+let currentDate = "";      // día seleccionado para movimientos/arqueo de hoy
+let weekStart = "";        // lunes de la semana activa
+let weekEnd = "";          // viernes de la semana activa
 let currentMovs = [];
 let chartsLoaded = false;
 let chartEgresos = null, chartRanking = null, chartBrecha = null;
 let currentScreen = 0;
+
+// Calcula el rango lun-vie que contiene la fecha dada
+function getWeekRange(iso) {
+    const d = new Date(iso + 'T12:00:00');
+    const dow = d.getDay(); // 0=dom,1=lun,...,6=sab
+    const daysFromMon = dow === 0 ? 6 : dow - 1;
+    const mon = new Date(d);
+    mon.setDate(d.getDate() - daysFromMon);
+    const fri = new Date(mon);
+    fri.setDate(mon.getDate() + 4);
+    return {
+        start: mon.toISOString().split('T')[0],
+        end:   fri.toISOString().split('T')[0],
+        label: `Semana ${mon.getDate()}/${mon.getMonth()+1} — ${fri.getDate()}/${fri.getMonth()+1}`,
+        days: Array.from({length: 5}, (_, i) => {
+            const day = new Date(mon);
+            day.setDate(mon.getDate() + i);
+            return day.toISOString().split('T')[0];
+        })
+    };
+}
 
 // ========================
 // INIT
@@ -482,27 +508,29 @@ function goTo(idx) {
 }
 
 // ========================
-// DATE
+// SEMANA / DATE
 // ========================
 function setDate(iso) {
     currentDate = iso;
+    const wk = getWeekRange(iso);
+    weekStart = wk.start;
+    weekEnd   = wk.end;
+
     chartsLoaded = false;
     if (chartEgresos) { chartEgresos.destroy(); chartEgresos = null; }
     if (chartRanking) { chartRanking.destroy(); chartRanking = null; }
     if (chartBrecha)  { chartBrecha.destroy();  chartBrecha  = null; }
 
-    const d = new Date(iso + "T12:00:00");
-    const today = new Date(); today.setHours(12,0,0,0);
-    const diff = Math.round((d - today) / 86400000);
-    let label = d.toLocaleDateString('es-AR', {day:'numeric', month:'short'});
-    if (diff === 0) label = "Hoy"; else if (diff === -1) label = "Ayer";
-    document.getElementById('date-pill').textContent = label;
+    // Header: muestra rango de semana
+    document.getElementById('date-pill').textContent = `${wk.start.slice(5).replace('-','/')} — ${wk.end.slice(5).replace('-','/')}`;
     document.getElementById('date-input').value = iso;
+    $('h-week-label').textContent = wk.label;
 
-    fetchDay();
+    fetchWeek(wk);
     fetchBancos();
-    fetchArqueoStatus();
-    fetchCruceStatus();
+    fetchArqueoStatus();       // solo hoy
+    fetchCruceStatus();        // solo hoy
+    fetchWeekArqueoStatus(wk); // todos los días lun-vie
     if (currentScreen === 1) loadCruce();
     if (currentScreen === 2) loadTrends();
     if (currentScreen === 8) loadAlerts();
@@ -513,6 +541,38 @@ function closeCalendar() { document.getElementById('modal-cal').classList.remove
 function confirmDate() {
     const v = document.getElementById('date-input').value;
     if (v) { setDate(v); closeCalendar(); }
+}
+
+// Muestra una fila por cada día lun-vie con el estado del arqueo
+async function fetchWeekArqueoStatus(wk) {
+    const dias = ['Lun','Mar','Mié','Jue','Vie'];
+    const container = $('week-dias');
+    container.innerHTML = wk.days.map((d, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border);">
+            <span style="font-size:0.8rem;color:var(--muted);width:30px;">${dias[i]}</span>
+            <span style="font-size:0.78rem;color:var(--muted);">${d.slice(8)}/${d.slice(5,7)}</span>
+            <span id="wd-${d}" style="font-size:0.75rem;color:var(--muted);">...</span>
+        </div>
+    `).join('');
+
+    // Fetch paralelo para los 5 días
+    await Promise.all(wk.days.map(async d => {
+        const res = await api("getArqueoStatus", { dateStr: d });
+        const el = $('wd-' + d);
+        if (!el || !res) return;
+        if (res.status === 'ok') {
+            el.innerHTML = `<span style="color:#34d399;font-weight:700;">✓ OK ${res.closeTime}</span>`;
+        } else if (res.status === 'discrepancy') {
+            const sign = res.difference > 0 ? '+' : '';
+            el.innerHTML = `<span style="color:#fbbf24;font-weight:700;">⚠ ${sign}${fm(res.difference)}</span>`;
+        } else {
+            // ¿Es un día futuro?
+            const today = new Date().toISOString().split('T')[0];
+            el.innerHTML = d > today
+                ? `<span style="color:var(--border);">—</span>`
+                : `<span style="color:#64748b;">Pendiente</span>`;
+        }
+    }));
 }
 
 // ========================
@@ -531,11 +591,39 @@ const fm = (n) => "$ " + Number(n||0).toLocaleString('es-AR');
 // ========================
 // RESUMEN
 // ========================
-async function fetchDay() {
+async function fetchWeek(wk) {
+    // Para los KPIs del hero usamos el rango semana completa
+    const res = await api("getMovimientosRango", {
+        startDateStr: wk.start,
+        endDateStr:   wk.end
+    });
+    const weekMovs = res?.ok && res.data ? res.data : [];
+
+    // Para la pantalla Movimientos mostramos solo el día seleccionado
     $('movs-list').innerHTML = '<div class="empty-state"><span class="material-icons-round spin">sync</span>Cargando...</div>';
-    const res = await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
-    currentMovs = Array.isArray(res) ? res : [];
+    const dayRes = await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
+    currentMovs = Array.isArray(dayRes) ? dayRes : [];
+
+    processWeekKPIs(weekMovs);
     processMovs();
+}
+
+function processWeekKPIs(movs) {
+    let ing = 0, egr = 0;
+    // Excluimos ajustes auto-generados del KPI principal
+    const autoGen = ['ajuste post-arqueo', 'diferencia rendición - ajuste'];
+    movs.forEach(m => {
+        const cat = (m.categoria || "").toLowerCase();
+        if (autoGen.some(a => cat.includes(a))) return;
+        const imp = Number(m.importe) || 0;
+        if (m.tipo === 'Ingreso') ing += imp; else egr += imp;
+    });
+    const neto = ing - egr;
+    $('h-ing').textContent  = fm(ing);
+    $('h-egr').textContent  = fm(egr);
+    $('h-movs').textContent = movs.length;
+    $('h-neto').textContent = fm(Math.abs(neto));
+    $('h-neto').className   = 'hero-amount ' + (neto >= 0 ? 't-green' : 't-red');
 }
 
 function processMovs() {
@@ -744,14 +832,12 @@ async function fetchBancos() {
 // SEGURIDAD / CRUCE
 // ========================
 async function loadCruce() {
+    // Cruce del día de hoy (detallado)
     const res = await api("getResumenCruceDiario", { fechaStr: currentDate });
     renderCruce(res);
 
-    // Historial 7 días
-    const d7 = new Date(currentDate + "T12:00:00");
-    d7.setDate(d7.getDate() - 6);
-    const start = d7.toISOString().split('T')[0];
-    const rango = await api("getResumenCruceRango", { startDateStr: start, endDateStr: currentDate });
+    // Historial = todos los días de la semana lun-vie
+    const rango = await api("getResumenCruceRango", { startDateStr: weekStart, endDateStr: weekEnd });
     renderCruceHist(rango);
 }
 
@@ -872,13 +958,15 @@ async function loadTrends() {
     if (chartsLoaded) return;
     chartsLoaded = true;
 
-    const d = new Date(currentDate + "T12:00:00");
-    d.setDate(d.getDate() - 6);
-    const start = d.toISOString().split('T')[0];
+    // Últimas 4 semanas completas (lun-vie) hasta la semana actual
+    const refFri = new Date(weekEnd + "T12:00:00");
+    const start4w = new Date(refFri);
+    start4w.setDate(refFri.getDate() - 27); // ~4 semanas atrás
+    const start = start4w.toISOString().split('T')[0];
 
     const [movRes, cruceRes] = await Promise.all([
-        api("getMovimientosRango", { startDateStr: start, endDateStr: currentDate }),
-        api("getResumenCruceRango", { startDateStr: start, endDateStr: currentDate })
+        api("getMovimientosRango", { startDateStr: start, endDateStr: weekEnd }),
+        api("getResumenCruceRango", { startDateStr: weekStart, endDateStr: weekEnd })
     ]);
 
     if (movRes?.ok && movRes.data) renderTrendCharts(movRes.data);
@@ -1103,7 +1191,7 @@ function buildPDF(prov, start, end, pagos) {
 async function refresh() {
     const ico = $('fab-icon'); ico.classList.add('spin');
     chartsLoaded = false;
-    await setDate(currentDate);
+    setDate(currentDate);
     if (currentScreen === 8) loadAlerts();
     setTimeout(() => ico.classList.remove('spin'), 700);
 }
