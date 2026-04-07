@@ -4,880 +4,1123 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Dueño - Mercado Limpio</title>
-    
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    
-    <!-- Librerías para generar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    
     <style>
-        /* =========================================
-           ESTILOS V6.0: NATIVE SNAP SCROLL
-           ========================================= */
         :root {
-            --bg-body: #000000;        
-            --bg-card: #151a23;        
-            --bg-header: rgba(11, 14, 20, 0.95);
-            --primary: #3b82f6;        
-            --success: #10b981;        
-            --danger: #ef4444;        
-            --warning: #f59e0b;        
+            --bg: #08090d;
+            --card: #111318;
+            --card2: #181c24;
+            --border: rgba(255,255,255,0.06);
+            --primary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
             --info: #06b6d4;
             --purple: #8b5cf6;
-            --text-muted: #94a3b8;
+            --muted: #64748b;
+            --text: #e2e8f0;
             --safe-top: env(safe-area-inset-top);
-            --safe-bottom: env(safe-area-inset-bottom);
+            --safe-bot: env(safe-area-inset-bottom);
         }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-        
-        body {
-            margin: 0; padding: 0;
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-body);
-            color: white;
-            height: 100vh;
-            display: flex; flex-direction: column;
-            overflow: hidden; /* Evita rebote general */
-        }
-
-        /* --- HEADER FIJO --- */
-        .header-fixed {
-            flex: 0 0 auto; /* No se encoge */
-            height: calc(60px + var(--safe-top));
+        /* HEADER */
+        .hdr {
+            flex: 0 0 auto;
+            height: calc(56px + var(--safe-top));
             padding-top: var(--safe-top);
-            background: var(--bg-header);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            background: rgba(8,9,13,0.95);
+            border-bottom: 1px solid var(--border);
             display: flex; align-items: center; justify-content: space-between;
-            padding-left: 20px; padding-right: 20px;
+            padding-left: 18px; padding-right: 18px;
+            backdrop-filter: blur(10px);
             z-index: 100;
         }
-        .header-title { font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
-        .btn-calendar {
-            background: rgba(255,255,255,0.1); border: none; color: white;
-            width: 36px; height: 36px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center; cursor: pointer;
-        }
-        .date-display { font-size: 0.8rem; font-weight: 700; margin-right: 10px; color: var(--primary); }
+        .hdr-left { display: flex; align-items: center; gap: 8px; }
+        .hdr-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .hdr-title { font-size: 1rem; font-weight: 700; }
+        .hdr-right { display: flex; align-items: center; gap: 8px; }
+        .date-pill { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); color: var(--primary); font-size: 0.75rem; font-weight: 700; padding: 5px 10px; border-radius: 20px; }
+        .btn-ico { background: var(--card2); border: 1px solid var(--border); color: var(--text); width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; }
 
-        /* --- CONTENEDOR PRINCIPAL (LA MAGIA DEL SNAP) --- */
-        .snap-container {
-            flex: 1; /* Ocupa el resto de la pantalla */
-            display: flex;
-            overflow-x: auto; /* Scroll horizontal */
-            overflow-y: hidden;
-            scroll-snap-type: x mandatory; /* Esto hace que se clave en cada pantalla */
-            -webkit-overflow-scrolling: touch; /* Suavidad en iOS */
-            scrollbar-width: none; /* Ocultar barra scroll Firefox */
-        }
-        .snap-container::-webkit-scrollbar { display: none; /* Ocultar barra scroll Chrome/Safari */ }
+        /* SNAP */
+        .snap { flex: 1; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .snap::-webkit-scrollbar { display: none; }
+        .screen { flex: 0 0 100%; width: 100vw; height: 100%; scroll-snap-align: start; overflow-y: auto; padding: 16px 16px 110px; }
 
-        /* CADA PANTALLA */
-        .screen {
-            flex: 0 0 100%; /* Ancho completo */
-            width: 100vw;
-            height: 100%;
-            scroll-snap-align: start; /* Punto de anclaje */
-            overflow-y: auto; /* Scroll vertical interno */
-            padding: 20px;
-            padding-bottom: 100px; /* Espacio para el FAB */
+        /* NAV BAR */
+        .nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            height: calc(62px + var(--safe-bot));
+            padding-bottom: var(--safe-bot);
+            background: rgba(8,9,13,0.97);
+            border-top: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-around;
+            z-index: 200;
+            backdrop-filter: blur(12px);
         }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; flex: 1; padding: 8px 0; border: none; background: none; color: var(--muted); transition: color 0.2s; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item .material-icons-round { font-size: 22px; }
+        .nav-item span:last-child { font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        /* --- PUNTOS INDICADORES --- */
-        .dots-container {
-            position: fixed; bottom: 25px; left: 25px;
-            display: flex; gap: 6px; z-index: 90;
-            background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 20px;
-            backdrop-filter: blur(4px);
-        }
-        .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.3); transition: 0.3s; }
-        .dot.active { background: var(--primary); width: 18px; border-radius: 10px; }
+        /* CARDS */
+        .card { background: var(--card); border-radius: 20px; padding: 18px; margin-bottom: 14px; border: 1px solid var(--border); }
+        .card-hdr { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+        .card-hdr .badge { background: rgba(255,255,255,0.08); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; }
 
-        /* --- CARDS & WIDGETS --- */
-        .card {
-            background: var(--bg-card); border-radius: 24px; padding: 24px;
-            margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.03);
-        }
-        .card-header { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
+        /* HERO */
+        .hero { background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 100%); border-radius: 24px; padding: 24px; margin-bottom: 14px; border: 1px solid rgba(99,102,241,0.2); }
+        .hero-label { font-size: 0.7rem; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 2px; }
+        .hero-amount { font-size: 2.8rem; font-weight: 900; letter-spacing: -2px; background: linear-gradient(90deg, #fff 0%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.1; margin: 6px 0 16px; }
+        .hero-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .hero-cell { background: rgba(255,255,255,0.04); border-radius: 14px; padding: 12px 10px; text-align: center; border: 1px solid rgba(255,255,255,0.04); }
+        .hero-cell-val { font-size: 0.95rem; font-weight: 800; }
+        .hero-cell-lbl { font-size: 0.62rem; color: var(--muted); font-weight: 600; margin-top: 3px; text-transform: uppercase; }
 
-        /* Hero */
-        .hero-card { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); text-align: center; padding: 30px 20px; }
-        .balance-amount { 
-            font-size: 3.5rem; font-weight: 800; letter-spacing: -2px; margin: 10px 0;
-            background: -webkit-linear-gradient(90deg, #fff, #94a3b8);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .kpi-row { display: flex; gap: 15px; margin-top: 25px; }
-        .kpi-pill { flex: 1; background: rgba(255,255,255,0.03); border-radius: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.02); display:flex; flex-direction:column; align-items:center; }
-        
-        /* Widget Banco */
-        .bank-widget {
-            background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);
-            border-radius: 20px; padding: 20px; color: white;
-            position: relative; overflow: hidden;
-            display: flex; flex-direction: column; gap: 10px;
-        }
-        .pulse-ring {
-            position: absolute; right: -20px; top: -20px; width: 100px; height: 100px; border-radius: 50%;
-            border: 4px solid rgba(255,255,255,0.1); animation: pulse 2s infinite; display: none;
-        }
-        @keyframes pulse { 0% { transform: scale(1); opacity: 0.5; } 100% { transform: scale(2); opacity: 0; } }
+        /* STATUS BADGE */
+        .status-row { display: flex; align-items: center; justify-content: space-between; padding: 14px; background: var(--card2); border-radius: 14px; margin-bottom: 10px; border: 1px solid var(--border); }
+        .status-badge { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; }
+        .badge-ok { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+        .badge-warn { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .badge-danger { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .badge-pending { background: rgba(100,116,139,0.2); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
 
-        /* --- LISTAS Y DETALLES --- */
-        .clean-list { display: flex; flex-direction: column; }
-        .list-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; }
-        .list-row:active { background: rgba(255,255,255,0.05); }
-        
-        /* Detalle desplegable */
-        .row-detail-panel {
-            display: none; background: rgba(0,0,0,0.3); margin-top: -1px; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05);
-            animation: slideDown 0.2s ease-out;
-        }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-        .detail-line { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; color: #cbd5e1; }
+        /* CRUCE / SEGURIDAD */
+        .cruce-hero { border-radius: 20px; padding: 20px; margin-bottom: 14px; border: 1px solid; }
+        .cruce-ok { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.25); }
+        .cruce-danger { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.25); }
+        .cruce-warn { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.25); }
+        .cruce-pending { background: rgba(100,116,139,0.08); border-color: rgba(100,116,139,0.2); }
 
-        /* Utils */
-        .text-green { color:#34d399; -webkit-text-fill-color: #34d399; }
-        .text-red { color:#f87171; -webkit-text-fill-color: #f87171; }
-        .pm-label { font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; font-weight: 700; }
-        
-        .fab-refresh { position: fixed; bottom: 25px; right: 25px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: white; border: none; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; cursor: pointer; }
-        .spin { animation: spin 1s infinite linear; } @keyframes spin { to { transform: rotate(360deg); } }
+        .cruce-big { font-size: 2.4rem; font-weight: 900; letter-spacing: -1.5px; margin: 6px 0; }
+        .cruce-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+        .cruce-row:last-child { border-bottom: none; }
+        .cruce-label { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+        .cruce-val { font-weight: 700; }
 
-        /* Modal */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 2000; display: none; align-items: center; justify-content: center; }
-        .modal-content { background: #1e293b; padding: 25px; border-radius: 20px; width: 90%; max-width: 350px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
-        .modal-overlay.active { display: flex; }
+        /* HIST LIST */
+        .hist-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .hist-row:last-child { border-bottom: none; }
+        .hist-date { font-size: 0.82rem; font-weight: 600; }
+        .hist-sub { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
 
-        /* Inputs */
-        .clean-input { background: transparent; border: 1px solid transparent; color: white; text-align: right; width: 100px; padding: 5px; border-radius: 8px; outline: none; font-weight: 700; }
-        .clean-input:focus { background: rgba(255,255,255,0.1); border-color: var(--info); }
-        .mini-save-btn { background: var(--info); color: white; border: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-left: 8px; }
+        /* MOV LIST */
+        .mov-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+        .mov-item:last-child { border-bottom: none; }
+        .mov-icon { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0; font-size: 18px; }
+        .mov-info { flex: 1; min-width: 0; }
+        .mov-cat { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mov-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+        .mov-amount { font-weight: 800; font-size: 0.92rem; flex-shrink: 0; }
+        .mov-detail { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; margin: 4px 0 8px; display: none; }
+        .mov-detail-row { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px; color: #94a3b8; }
+        .mov-detail-row:last-child { margin-bottom: 0; }
+
+        /* FUEL / PROV */
+        .veh-card { background: var(--card2); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); }
+        .veh-name { font-weight: 700; font-size: 0.9rem; }
+        .veh-sub { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+
+        /* ALERTS */
+        .alert-item { padding: 14px; border-radius: 14px; margin-bottom: 10px; border-left: 3px solid; }
+        .alert-high { background: rgba(239,68,68,0.08); border-color: var(--danger); }
+        .alert-med { background: rgba(245,158,11,0.08); border-color: var(--warning); }
+        .alert-low { background: rgba(6,182,212,0.08); border-color: var(--info); }
+        .alert-title { font-weight: 700; font-size: 0.88rem; margin-bottom: 4px; }
+        .alert-msg { font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
+        .alert-time { font-size: 0.7rem; color: var(--muted); margin-top: 6px; }
+
+        /* CHART */
+        .chart-wrap { height: 220px; position: relative; margin-top: 8px; }
+
+        /* EDIT INLINE */
+        .edit-input { background: transparent; border: 1px solid transparent; color: white; text-align: right; width: 110px; padding: 4px 8px; border-radius: 8px; font-weight: 700; font-family: 'Inter', sans-serif; font-size: 0.9rem; }
+        .edit-input:focus { background: rgba(255,255,255,0.07); border-color: var(--info); outline: none; }
+
+        /* FAB */
+        .fab { position: fixed; bottom: 78px; right: 16px; width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: white; border: none; box-shadow: 0 8px 20px rgba(59,130,246,0.4); display: flex; align-items: center; justify-content: center; z-index: 150; cursor: pointer; font-size: 20px; }
+
+        /* MODALS */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); z-index: 300; display: none; align-items: center; justify-content: center; }
+        .overlay.on { display: flex; }
+        .modal { background: #1a1f2e; padding: 24px; border-radius: 22px; width: 90%; max-width: 380px; border: 1px solid var(--border); }
+        .modal h3 { font-size: 1rem; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+        .modal input, .modal select { width: 100%; padding: 13px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: white; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 0.95rem; margin-bottom: 12px; color-scheme: dark; }
+        .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-primary { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary.purple { background: var(--purple); }
+        label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+
+        /* BANK WIDGET */
+        .bank-widget { background: linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%); border-radius: 20px; padding: 18px; margin-bottom: 14px; border: 1px solid rgba(139,92,246,0.2); }
+
+        /* UTILS */
+        .t-green { color: #34d399; -webkit-text-fill-color: #34d399; }
+        .t-red { color: #f87171; -webkit-text-fill-color: #f87171; }
+        .t-yellow { color: #fbbf24; -webkit-text-fill-color: #fbbf24; }
+        .t-muted { color: var(--muted); }
+        .spin { animation: spin 0.9s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state { text-align: center; padding: 32px 0; color: var(--muted); font-size: 0.88rem; }
+        .empty-state .material-icons-round { font-size: 36px; display: block; margin-bottom: 8px; opacity: 0.4; }
+        .divider { height: 1px; background: var(--border); margin: 4px 0; }
     </style>
 </head>
 <body>
 
-    <div class="header-fixed">
-        <div class="header-title">
-            <span class="material-icons-round" style="color:var(--primary)">analytics</span>
-            <span id="header-page-title">Resumen</span>
+<div class="hdr">
+    <div class="hdr-left">
+        <div class="hdr-icon" id="hdr-icon" style="background:rgba(59,130,246,0.15);">
+            <span class="material-icons-round" style="color:var(--primary);font-size:17px;">dashboard</span>
         </div>
-        <div style="display: flex; align-items: center;">
-            <span class="date-display" id="date-label">Hoy</span>
-            <button class="btn-calendar" onclick="toggleCalendar()">
-                <span class="material-icons-round">calendar_today</span>
-            </button>
+        <span class="hdr-title" id="hdr-title">Resumen</span>
+    </div>
+    <div class="hdr-right">
+        <span class="date-pill" id="date-pill">Hoy</span>
+        <button class="btn-ico" onclick="openCalendar()">
+            <span class="material-icons-round" style="font-size:18px;">calendar_today</span>
+        </button>
+    </div>
+</div>
+
+<div class="snap" id="snap">
+
+    <!-- ===== 0: RESUMEN ===== -->
+    <div class="screen" id="s0">
+        <div class="hero">
+            <div class="hero-label">Resultado del día</div>
+            <div class="hero-amount" id="h-neto">--</div>
+            <div class="hero-grid">
+                <div class="hero-cell">
+                    <div class="hero-cell-val t-green" id="h-ing">--</div>
+                    <div class="hero-cell-lbl">Ingresos</div>
+                </div>
+                <div class="hero-cell">
+                    <div class="hero-cell-val t-red" id="h-egr">--</div>
+                    <div class="hero-cell-lbl">Egresos</div>
+                </div>
+                <div class="hero-cell">
+                    <div class="hero-cell-val" id="h-movs" style="color:#94a3b8;">--</div>
+                    <div class="hero-cell-lbl">Movs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estado Arqueo -->
+        <div class="card">
+            <div class="card-hdr">Estado de Caja</div>
+            <div class="status-row" id="arqueo-status-row">
+                <div>
+                    <div style="font-size:0.85rem; font-weight:600;">Arqueo de hoy</div>
+                    <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;" id="arqueo-hora">Sin datos</div>
+                </div>
+                <div class="status-badge badge-pending" id="arqueo-badge">
+                    <span class="material-icons-round" style="font-size:14px;">schedule</span> Pendiente
+                </div>
+            </div>
+            <div class="status-row" id="cruce-status-row">
+                <div>
+                    <div style="font-size:0.85rem; font-weight:600;">Cruce rendición</div>
+                    <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;" id="cruce-status-sub">Calculando...</div>
+                </div>
+                <div class="status-badge badge-pending" id="cruce-badge">
+                    <span class="material-icons-round" style="font-size:14px;">sync</span> --
+                </div>
+            </div>
+        </div>
+
+        <!-- Caja Física -->
+        <div class="card">
+            <div class="card-hdr">Caja Física</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom:10px;">
+                <div style="background:var(--card2); border-radius:12px; padding:12px; border:1px solid var(--border);">
+                    <div style="font-size:0.65rem; color:var(--muted); font-weight:700; text-transform:uppercase; margin-bottom:4px;">Efectivo</div>
+                    <div style="font-weight:800; font-size:1rem;" id="caja-ef">--</div>
+                </div>
+                <div style="background:var(--card2); border-radius:12px; padding:12px; border:1px solid var(--border);">
+                    <div style="font-size:0.65rem; color:var(--muted); font-weight:700; text-transform:uppercase; margin-bottom:4px;">Cheques</div>
+                    <div style="font-weight:800; font-size:1rem;" id="caja-ch">--</div>
+                </div>
+            </div>
+            <div style="background: linear-gradient(90deg, rgba(59,130,246,0.12), rgba(16,185,129,0.08)); border-radius:12px; padding:12px; border:1px solid rgba(59,130,246,0.15); display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase;">Total en caja</span>
+                <span style="font-weight:900; font-size:1.1rem; color:var(--primary);" id="caja-total">--</span>
+            </div>
+        </div>
+
+        <!-- Transferencias -->
+        <div class="bank-widget">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div style="font-size:0.7rem; font-weight:700; color:rgba(233,213,255,0.7); text-transform:uppercase; letter-spacing:1px;">Transferencias Hoy</div>
+                <div id="bank-status-icon"><span class="material-icons-round spin" style="font-size:16px; color:rgba(255,255,255,0.5);">sync</span></div>
+            </div>
+            <div style="font-size:2rem; font-weight:800;" id="bank-dia">--</div>
+            <div style="font-size:0.8rem; opacity:0.6; margin-top:2px;" id="bank-msg">Escaneando...</div>
+            <div style="height:1px; background:rgba(255,255,255,0.1); margin:12px 0;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:0.7rem; font-weight:700; color:rgba(233,213,255,0.7); text-transform:uppercase;">Acum. Mes</div>
+                <div style="font-weight:700; font-size:1rem;" id="bank-mes">--</div>
+            </div>
         </div>
     </div>
 
-    <div class="snap-container" id="snap-scroll">
-
-        <div class="screen" id="screen-0">
-            <div class="card hero-card">
-                <div style="color:var(--text-muted); font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; font-weight:700;">Resultado Operativo</div>
-                <div class="balance-amount" id="kpi-neto">--</div>
-                <div class="kpi-row">
-                    <div class="kpi-pill">
-                        <div style="font-size:1.1rem; font-weight:700;" class="text-green" id="kpi-ingreso">--</div>
-                        <div class="kpi-pill-lbl">Ingresos</div>
-                    </div>
-                    <div class="kpi-pill">
-                        <div style="font-size:1.1rem; font-weight:700;" class="text-red" id="kpi-egreso">--</div>
-                        <div class="kpi-pill-lbl">Egresos</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card bank-widget">
-                <div class="pulse-ring" id="bank-pulse"></div>
-                <div style="z-index: 1;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div class="pm-label" style="opacity:0.9; color:#e9d5ff;">TRANSFERENCIAS HOY</div>
-                        <div id="bank-icon-status"><span class="material-icons-round spin" style="font-size:16px;">sync</span></div>
-                    </div>
-                    <div style="margin-top:5px;">
-                        <div style="font-size:2rem; font-weight:800;" id="kpi-banco-dia">$ 0</div>
-                        <div style="font-size:0.8rem; opacity:0.7;" id="bank-status-msg">Escaneando...</div>
-                    </div>
-                </div>
-                <div style="height:1px; background:rgba(255,255,255,0.2); margin:5px 0;"></div>
-                <div style="display:flex; justify-content:space-between; align-items:center; z-index: 1;">
-                    <div class="pm-label" style="opacity:0.8;">ACUMULADO MES</div>
-                    <div style="font-size:1.4rem; font-weight:700;" id="kpi-banco-mes">--</div>
-                </div>
-            </div>
-
-            <div class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                    <div class="pm-label">CAJA FÍSICA TOTAL</div>
-                    <div class="pm-label text-green" id="kpi-caja-total" style="font-size:1rem;">$ 0</div>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px;">
-                        <div style="font-size:0.7rem; color:#94a3b8;">Efectivo</div>
-                        <div style="font-weight:700;" id="kpi-caja-efectivo">--</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px;">
-                        <div style="font-size:0.7rem; color:#94a3b8;">Cheques</div>
-                        <div style="font-weight:700;" id="kpi-caja-cheques">--</div>
-                    </div>
-                </div>
+    <!-- ===== 1: SEGURIDAD ===== -->
+    <div class="screen" id="s1">
+        <div id="cruce-hero-wrap">
+            <div class="cruce-pending cruce-hero" style="text-align:center;">
+                <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted);">Cargando cruce...</div>
             </div>
         </div>
 
-        <div class="screen" id="screen-1">
-             <div class="card">
-                <div class="card-header">Evolución Egresos (7 Días)</div>
-                <div style="height:250px; position:relative;"><canvas id="chartEgresos"></canvas></div>
-             </div>
-             <div class="card">
-                <div class="card-header">Ranking de Gastos</div>
-                <div style="height:250px; position:relative;"><canvas id="chartRanking"></canvas></div>
-             </div>
+        <div class="card">
+            <div class="card-hdr">Desglose del día</div>
+            <div id="cruce-detalle">
+                <div class="empty-state"><span class="material-icons-round">pending</span>Sin datos</div>
+            </div>
         </div>
 
-        <div class="screen" id="screen-2">
-            <div class="card">
-                <div class="card-header">
-                    <span>Historial del Día</span>
-                    <span id="mov-count" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:6px; font-size:0.75rem; color:white;">0</span>
+        <div class="card">
+            <div class="card-hdr">Últimos 7 días <span class="badge" id="cruce-alertas-badge"></span></div>
+            <div id="cruce-historial">
+                <div class="empty-state"><span class="material-icons-round">history</span>Sin historial</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 2: TENDENCIAS ===== -->
+    <div class="screen" id="s2">
+        <div class="card">
+            <div class="card-hdr">Egresos — últimos 7 días</div>
+            <div class="chart-wrap"><canvas id="chartEgresos"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-hdr">Ranking de categorías</div>
+            <div class="chart-wrap"><canvas id="chartRanking"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-hdr">Brecha diaria (rendición vs declarado)</div>
+            <div class="chart-wrap"><canvas id="chartBrecha"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ===== 3: MOVIMIENTOS ===== -->
+    <div class="screen" id="s3">
+        <div class="card">
+            <div class="card-hdr">Movimientos del día <span class="badge" id="mov-count">0</span></div>
+            <div id="movs-list"><div class="empty-state"><span class="material-icons-round spin">sync</span>Cargando...</div></div>
+        </div>
+    </div>
+
+    <!-- ===== 4: COMBUSTIBLE ===== -->
+    <div class="screen" id="s4">
+        <div class="card" style="background:linear-gradient(135deg,#78350f,#451a03); border-color:rgba(245,158,11,0.2); text-align:center;">
+            <div style="font-size:0.7rem; font-weight:700; color:rgba(255,255,255,0.6); text-transform:uppercase;">Gasto Combustible Hoy</div>
+            <div style="font-size:2.5rem; font-weight:900; margin:8px 0;" id="fuel-total">$ 0</div>
+        </div>
+        <div id="fuel-list"><div class="empty-state"><span class="material-icons-round">local_gas_station</span>Sin cargas</div></div>
+    </div>
+
+    <!-- ===== 5: GASTOS FIJOS ===== -->
+    <div class="screen" id="s5">
+        <div class="card" style="background:rgba(6,182,212,0.07); border-color:rgba(6,182,212,0.2); text-align:center;">
+            <div style="font-size:0.7rem; font-weight:700; color:var(--info); text-transform:uppercase;">Proyección Mensual</div>
+            <div style="font-size:2.5rem; font-weight:900; color:var(--info); margin:8px 0;" id="fijos-total">--</div>
+        </div>
+        <div class="card">
+            <div class="card-hdr">Gastos fijos</div>
+            <div id="fijos-list"><div class="empty-state"><span class="material-icons-round">sync</span>Cargando...</div></div>
+        </div>
+    </div>
+
+    <!-- ===== 6: EMPLEADOS ===== -->
+    <div class="screen" id="s6">
+        <div class="card">
+            <div class="card-hdr">Sueldos base</div>
+            <div id="emp-list"><div class="empty-state"><span class="material-icons-round">sync</span>Cargando...</div></div>
+        </div>
+    </div>
+
+    <!-- ===== 7: PROVEEDORES ===== -->
+    <div class="screen" id="s7">
+        <div class="card" style="background:linear-gradient(135deg,#3b0764,#1e1b4b); border-color:rgba(139,92,246,0.2);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-size:0.7rem; font-weight:700; color:rgba(233,213,255,0.6); text-transform:uppercase;">Pagos a Proveedores Hoy</div>
+                    <div style="font-size:2.2rem; font-weight:900; margin-top:4px;" id="prov-total">$ 0</div>
                 </div>
-                <div id="movimientos-list"></div>
-            </div>
-        </div>
-
-        <div class="screen" id="screen-3">
-             <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); text-align:center;">
-                <div style="opacity:0.9; font-size:0.8rem; font-weight:700;">GASTO COMBUSTIBLE (DÍA)</div>
-                <div style="font-size:2.5rem; font-weight:800;" id="fuel-day-total">$ 0</div>
-            </div>
-            <div id="fuel-container" style="margin-top:20px;"></div>
-        </div>
-
-        <div class="screen" id="screen-4">
-             <div class="card" style="background:rgba(6, 182, 212, 0.1); border:1px solid rgba(6, 182, 212, 0.3); text-align:center;">
-                <div style="color:var(--info); font-size:0.8rem; font-weight:700; text-transform:uppercase;">Proyección Mensual</div>
-                <div style="font-size:2.5rem; font-weight:800; color:var(--info); margin:10px 0;" id="total-fijos-mensual">--</div>
-            </div>
-            <div class="card">
-                <div class="card-header">Detalle Gastos Fijos</div>
-                <div id="fijos-list" class="clean-list"></div>
-            </div>
-        </div>
-
-        <div class="screen" id="screen-5">
-            <div class="card">
-                <div class="card-header">Sueldos Base</div>
-                <div id="empleados-list" class="clean-list"></div>
-            </div>
-        </div>
-
-        <div class="screen" id="screen-6">
-             <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); text-align:center; position:relative;">
-                
-                <!-- BOTÓN REPORTE PDF -->
-                <button onclick="openReportModal()" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.2); border:none; color:white; padding:8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; gap:5px; font-weight:600; font-size:0.8rem;">
-                    <span class="material-icons-round" style="font-size:18px;">picture_as_pdf</span> Reporte
+                <button onclick="openPDF()" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.1); color:white; padding:10px 14px; border-radius:12px; display:flex; align-items:center; gap:6px; font-weight:700; font-size:0.8rem; cursor:pointer;">
+                    <span class="material-icons-round" style="font-size:18px;">picture_as_pdf</span> PDF
                 </button>
-
-                <div style="opacity:0.9; font-size:0.8rem; font-weight:700;">PAGOS PROVEEDORES</div>
-                <div style="font-size:2.5rem; font-weight:800;" id="prov-day-total">$ 0</div>
-            </div>
-            <div class="card" style="margin-top:15px;">
-                <div id="prov-list" class="clean-list"></div>
             </div>
         </div>
-
-        <div class="screen" id="screen-7">
-            <div class="card">
-                <div class="card-header">Centro de Alertas</div>
-                <div id="alerts-list"></div>
-            </div>
+        <div class="card">
+            <div id="prov-list"><div class="empty-state"><span class="material-icons-round">inventory_2</span>Sin pagos</div></div>
         </div>
-
     </div>
 
-    <div class="dots-container" id="dots-container"></div>
+    <!-- ===== 8: ALERTAS ===== -->
+    <div class="screen" id="s8">
+        <div id="alerts-list"><div class="empty-state"><span class="material-icons-round">sync</span>Cargando...</div></div>
+    </div>
 
-    <button class="fab-refresh" onclick="forceRefresh()">
-        <span class="material-icons-round" style="font-size:24px;">sync</span>
+</div>
+
+<!-- NAV BAR -->
+<nav class="nav-bar" id="nav-bar">
+    <button class="nav-item active" onclick="goTo(0)" data-i="0">
+        <span class="material-icons-round">dashboard</span><span>Inicio</span>
     </button>
+    <button class="nav-item" onclick="goTo(1)" data-i="1">
+        <span class="material-icons-round">security</span><span>Seguridad</span>
+    </button>
+    <button class="nav-item" onclick="goTo(2)" data-i="2">
+        <span class="material-icons-round">show_chart</span><span>Tendencias</span>
+    </button>
+    <button class="nav-item" onclick="goTo(3)" data-i="3">
+        <span class="material-icons-round">receipt_long</span><span>Movs</span>
+    </button>
+    <button class="nav-item" onclick="goTo(4)" data-i="4">
+        <span class="material-icons-round">local_gas_station</span><span>Combustible</span>
+    </button>
+    <button class="nav-item" onclick="goTo(5)" data-i="5">
+        <span class="material-icons-round">home</span><span>Fijos</span>
+    </button>
+    <button class="nav-item" onclick="goTo(6)" data-i="6">
+        <span class="material-icons-round">people</span><span>Empleados</span>
+    </button>
+    <button class="nav-item" onclick="goTo(7)" data-i="7">
+        <span class="material-icons-round">inventory_2</span><span>Proveed.</span>
+    </button>
+    <button class="nav-item" onclick="goTo(8)" data-i="8">
+        <span class="material-icons-round">notifications</span><span>Alertas</span>
+    </button>
+</nav>
 
-    <div class="modal-overlay" id="calendar-modal" onclick="if(event.target===this) toggleCalendar()">
-        <div class="modal-content">
-            <h3 style="margin-top:0; color:white;">Ir a fecha</h3>
-            <input type="date" id="date-picker-input" style="width:100%; padding:15px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:10px; font-size:1.1rem; margin:20px 0;">
-            <button onclick="confirmDate()" style="width:100%; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:700; font-size:1rem;">Ver Datos</button>
-        </div>
+<button class="fab" onclick="refresh()">
+    <span class="material-icons-round" id="fab-icon">sync</span>
+</button>
+
+<!-- Modal Calendario -->
+<div class="overlay" id="modal-cal" onclick="if(event.target===this)closeCalendar()">
+    <div class="modal">
+        <h3><span class="material-icons-round" style="color:var(--primary)">calendar_today</span> Ir a fecha</h3>
+        <input type="date" id="date-input">
+        <button class="btn-primary" onclick="confirmDate()">
+            <span class="material-icons-round">check</span> Ver datos
+        </button>
     </div>
+</div>
 
-    <!-- MODAL REPORTE PROVEEDOR -->
-    <div class="modal-overlay" id="report-modal" onclick="if(event.target===this) closeReportModal()">
-        <div class="modal-content" style="max-width: 400px; text-align:left;">
-            <h3 style="margin-top:0; color:white; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; display:flex; align-items:center; gap:8px;">
-                <span class="material-icons-round" style="color:var(--purple);">receipt_long</span> Generar Reporte
-            </h3>
-            
-            <label style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Proveedor</label>
-            <select id="report-prov-select" style="width:100%; padding:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:white; border-radius:8px; margin-bottom:15px; outline:none; font-family:'Inter', sans-serif;"></select>
-            
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px;">
-                <div>
-                    <label style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Desde</label>
-                    <input type="date" id="report-date-start" style="width:100%; padding:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:white; border-radius:8px; outline:none; color-scheme: dark; font-family:'Inter', sans-serif;">
+<!-- Modal PDF -->
+<div class="overlay" id="modal-pdf" onclick="if(event.target===this)closePDF()">
+    <div class="modal">
+        <h3><span class="material-icons-round" style="color:var(--purple)">receipt_long</span> Reporte Proveedor</h3>
+        <label>Proveedor</label>
+        <select id="pdf-prov"></select>
+        <div class="modal-grid">
+            <div><label>Desde</label><input type="date" id="pdf-start"></div>
+            <div><label>Hasta</label><input type="date" id="pdf-end"></div>
+        </div>
+        <button class="btn-primary purple" id="pdf-btn" onclick="generatePDF()">
+            <span class="material-icons-round">download</span> Descargar PDF
+        </button>
+    </div>
+</div>
+
+<script>
+const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
+
+const PROVEEDORES = ["Marwiplast","Bio Bag","Broche plastico","Bumerang","Carol","Colores","Coolbazar","Cotton","Da Silva","Desesplast","Diawara","Emege","Entresol","Fedata","Fibran","Flexal","Hechicera","Infinity import","K&K","La Americana","La gauchita","Macetex","Make Fresh","Matriplaster","Mis Plast","Modoplast","Molmar","POP","Rigolleau","Romyl","Samantha","Santamaria","Sasha","Soifer","lumilagro","Make","Suka","Supy","Tauro","Tecnomatric","Yesi","Durax","Javi"].sort();
+
+let currentDate = "";
+let currentMovs = [];
+let chartsLoaded = false;
+let chartEgresos = null, chartRanking = null, chartBrecha = null;
+let currentScreen = 0;
+
+// ========================
+// INIT
+// ========================
+document.addEventListener("DOMContentLoaded", () => {
+    const hoy = new Date();
+    const offset = hoy.getTimezoneOffset() * 60000;
+    const iso = new Date(hoy.getTime() - offset).toISOString().split('T')[0];
+    setDate(iso);
+
+    // Snap observer
+    const obs = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+            if (e.isIntersecting) {
+                const idx = parseInt(e.target.id.replace('s',''));
+                activateScreen(idx);
+            }
+        });
+    }, { threshold: 0.55 });
+    document.querySelectorAll('.screen').forEach(s => obs.observe(s));
+});
+
+// ========================
+// NAVEGACIÓN
+// ========================
+const screenMeta = [
+    { title: "Resumen",    icon: "dashboard",         color: "var(--primary)"  },
+    { title: "Seguridad",  icon: "security",          color: "var(--danger)"   },
+    { title: "Tendencias", icon: "show_chart",        color: "var(--success)"  },
+    { title: "Movimientos",icon: "receipt_long",      color: "var(--info)"     },
+    { title: "Combustible",icon: "local_gas_station", color: "var(--warning)"  },
+    { title: "Fijos",      icon: "home",              color: "var(--info)"     },
+    { title: "Empleados",  icon: "people",            color: "var(--purple)"   },
+    { title: "Proveedores",icon: "inventory_2",       color: "var(--purple)"   },
+    { title: "Alertas",    icon: "notifications",     color: "var(--warning)"  },
+];
+
+function activateScreen(idx) {
+    currentScreen = idx;
+    const m = screenMeta[idx];
+    document.getElementById('hdr-title').textContent = m.title;
+    document.getElementById('hdr-icon').style.background = m.color + '22';
+    document.getElementById('hdr-icon').querySelector('span').style.color = m.color;
+    document.getElementById('hdr-icon').querySelector('span').textContent = m.icon;
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', parseInt(b.dataset.i) === idx));
+
+    // Lazy loads
+    if (idx === 1) loadCruce();
+    if (idx === 2) loadTrends();
+    if (idx === 8) loadAlerts();
+}
+
+function goTo(idx) {
+    document.getElementById('s' + idx).scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+}
+
+// ========================
+// DATE
+// ========================
+function setDate(iso) {
+    currentDate = iso;
+    chartsLoaded = false;
+    if (chartEgresos) { chartEgresos.destroy(); chartEgresos = null; }
+    if (chartRanking) { chartRanking.destroy(); chartRanking = null; }
+    if (chartBrecha)  { chartBrecha.destroy();  chartBrecha  = null; }
+
+    const d = new Date(iso + "T12:00:00");
+    const today = new Date(); today.setHours(12,0,0,0);
+    const diff = Math.round((d - today) / 86400000);
+    let label = d.toLocaleDateString('es-AR', {day:'numeric', month:'short'});
+    if (diff === 0) label = "Hoy"; else if (diff === -1) label = "Ayer";
+    document.getElementById('date-pill').textContent = label;
+    document.getElementById('date-input').value = iso;
+
+    fetchDay();
+    fetchCaja();
+    fetchBancos();
+    fetchArqueoStatus();
+    fetchCruceStatus();
+    if (currentScreen === 1) loadCruce();
+    if (currentScreen === 2) loadTrends();
+    if (currentScreen === 8) loadAlerts();
+}
+
+function openCalendar() { document.getElementById('modal-cal').classList.add('on'); }
+function closeCalendar() { document.getElementById('modal-cal').classList.remove('on'); }
+function confirmDate() {
+    const v = document.getElementById('date-input').value;
+    if (v) { setDate(v); closeCalendar(); }
+}
+
+// ========================
+// API
+// ========================
+async function api(fn, params = {}) {
+    try {
+        const r = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({fn, params}) });
+        return await r.json();
+    } catch { return null; }
+}
+
+const $ = (id) => document.getElementById(id);
+const fm = (n) => "$ " + Number(n||0).toLocaleString('es-AR');
+
+// ========================
+// RESUMEN
+// ========================
+async function fetchDay() {
+    $('movs-list').innerHTML = '<div class="empty-state"><span class="material-icons-round spin">sync</span>Cargando...</div>';
+    const res = await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
+    currentMovs = Array.isArray(res) ? res : [];
+    processMovs();
+}
+
+function processMovs() {
+    let ing = 0, egr = 0;
+    let fuelTotal = 0, fuelByVeh = {};
+    let provTotal = 0, provList = [];
+
+    currentMovs.forEach(m => {
+        const imp = Number(m.importe) || 0;
+        const cat = (m.categoria || "").toLowerCase();
+        const obs = (m.observacion || "").toLowerCase();
+        if (m.tipo === 'Ingreso') ing += imp; else egr += imp;
+
+        if (cat.includes('combustible')) {
+            fuelTotal += imp;
+            let v = '';
+            const vm = obs.match(/\[veh: (.*?)\]/i);
+            if (vm) v = vm[1];
+            else if (cat.includes('saveiro')) v = 'VW Saveiro';
+            else if (cat.includes('toyota') || cat.includes('hiace')) v = 'Toyota Hiace';
+            else if (cat.includes('fiat') || cat.includes('uno')) v = 'Fiat Uno';
+            else v = 'Otros';
+            if (!fuelByVeh[v]) fuelByVeh[v] = { count: 0, total: 0 };
+            fuelByVeh[v].count++; fuelByVeh[v].total += imp;
+        }
+        if (cat.includes('proveedor')) {
+            provTotal += imp;
+            const pm = obs.match(/\[prov: (.*?)\]/i);
+            const name = pm ? pm[1] : (m.proveedor || m.categoria);
+            provList.push({ name, amount: imp, hora: m.hora });
+        }
+    });
+
+    const neto = ing - egr;
+    $('h-ing').textContent = fm(ing);
+    $('h-egr').textContent = fm(egr);
+    $('h-movs').textContent = currentMovs.length;
+    $('h-neto').textContent = fm(Math.abs(neto));
+    $('h-neto').className = 'hero-amount ' + (neto >= 0 ? 't-green' : 't-red');
+
+    renderMovs();
+    renderFuel(fuelTotal, fuelByVeh);
+    renderProv(provTotal, provList);
+}
+
+function renderMovs() {
+    const c = $('movs-list');
+    $('mov-count').textContent = currentMovs.length;
+    if (!currentMovs.length) {
+        c.innerHTML = '<div class="empty-state"><span class="material-icons-round">receipt_long</span>Sin movimientos</div>';
+        return;
+    }
+    c.innerHTML = currentMovs.map((m, i) => {
+        const ing = m.tipo === 'Ingreso';
+        const col = ing ? '#34d399' : '#f87171';
+        const bgI = ing ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)';
+        const cat = (m.categoria||"").toLowerCase();
+        const ico = cat.includes('combustible') ? 'local_gas_station' : cat.includes('rend') ? 'delivery_dining' : ing ? 'south_west' : 'north_east';
+        return `
+        <div>
+            <div class="mov-item" onclick="toggleMov(${i})">
+                <div class="mov-icon" style="background:${bgI}">
+                    <span class="material-icons-round" style="color:${col}">${ico}</span>
                 </div>
+                <div class="mov-info">
+                    <div class="mov-cat">${m.categoria}</div>
+                    <div class="mov-sub">${(m.hora||"").substring(0,5)} · ${m.formaPago}</div>
+                </div>
+                <div class="mov-amount" style="color:${col}">${ing?'+':'-'}${fm(m.importe).replace('$ ','')}</div>
+            </div>
+            <div class="mov-detail" id="md${i}">
+                <div class="mov-detail-row"><span>Obs.</span><span style="color:white;text-align:right;max-width:60%;">${m.observacion||'-'}</span></div>
+                <div class="mov-detail-row"><span>ID</span><span style="font-family:monospace">#${m.id}</span></div>
+            </div>
+        </div>`;
+    }).join('');
+}
+window.toggleMov = (i) => {
+    const el = $('md'+i);
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+};
+
+function renderFuel(total, byVeh) {
+    $('fuel-total').textContent = fm(total);
+    const c = $('fuel-list');
+    if (!Object.keys(byVeh).length) {
+        c.innerHTML = '<div class="empty-state"><span class="material-icons-round">local_gas_station</span>Sin cargas hoy</div>';
+        return;
+    }
+    c.innerHTML = Object.entries(byVeh).map(([v, d]) => `
+        <div class="veh-card">
+            <div>
+                <div class="veh-name">${v}</div>
+                <div class="veh-sub">${d.count} carga(s)</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-weight:800; color:var(--warning);">${fm(d.total)}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderProv(total, list) {
+    $('prov-total').textContent = fm(total);
+    const c = $('prov-list');
+    if (!list.length) {
+        c.innerHTML = '<div class="empty-state"><span class="material-icons-round">inventory_2</span>Sin pagos a proveedores</div>';
+        return;
+    }
+    c.innerHTML = list.map(p => `
+        <div class="mov-item">
+            <div class="mov-icon" style="background:rgba(139,92,246,0.1)">
+                <span class="material-icons-round" style="color:var(--purple)">inventory_2</span>
+            </div>
+            <div class="mov-info">
+                <div class="mov-cat">${p.name}</div>
+                <div class="mov-sub">${(p.hora||"").substring(0,5)} hs</div>
+            </div>
+            <div class="mov-amount t-red">-${fm(p.amount).replace('$ ','')}</div>
+        </div>
+    `).join('');
+}
+
+async function fetchCaja() {
+    const res = await api("getEstadoCaja");
+    if (res) {
+        $('caja-ef').textContent = fm(res.efectivo);
+        $('caja-ch').textContent = fm(res.cheques);
+        $('caja-total').textContent = fm((res.efectivo||0)+(res.cheques||0));
+    }
+}
+
+async function fetchArqueoStatus() {
+    const res = await api("getArqueoStatus", { dateStr: currentDate });
+    if (!res) return;
+    const badge = $('arqueo-badge');
+    const hora  = $('arqueo-hora');
+
+    if (res.status === 'ok') {
+        badge.className = 'status-badge badge-ok';
+        badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">check_circle</span> OK';
+        hora.textContent = `Cerrado ${res.closeTime}`;
+    } else if (res.status === 'discrepancy') {
+        const d = res.difference;
+        badge.className = 'status-badge badge-warn';
+        badge.innerHTML = `<span class="material-icons-round" style="font-size:14px">warning</span> ${d > 0 ? '+':''}${fm(d)}`;
+        hora.textContent = `Cerrado ${res.closeTime} · con diferencia`;
+    } else {
+        badge.className = 'status-badge badge-pending';
+        badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">schedule</span> Pendiente';
+        hora.textContent = 'Aún no se hizo el arqueo';
+    }
+}
+
+async function fetchCruceStatus() {
+    const res = await api("getResumenCruceDiario", { fechaStr: currentDate });
+    if (!res || !res.ok) return;
+    const badge = $('cruce-badge');
+    const sub   = $('cruce-status-sub');
+
+    if (res.sinArqueo) {
+        badge.className = 'status-badge badge-pending';
+        badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">schedule</span> Sin arqueo';
+        sub.textContent = 'El arqueo no fue realizado aún';
+        return;
+    }
+    if (res.brecha === null) {
+        badge.className = 'status-badge badge-pending';
+        badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">sync</span> --';
+        return;
+    }
+    if (Math.abs(res.brecha) < 1000) {
+        badge.className = 'status-badge badge-ok';
+        badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">verified</span> Cuadra';
+        sub.textContent = `Brecha: ${fm(res.brecha)}`;
+    } else if (res.brecha < 0) {
+        badge.className = 'status-badge badge-danger';
+        badge.innerHTML = `<span class="material-icons-round" style="font-size:14px">warning</span> -${fm(Math.abs(res.brecha))}`;
+        sub.textContent = 'Declaró menos de lo esperado';
+    } else {
+        badge.className = 'status-badge badge-warn';
+        badge.innerHTML = `<span class="material-icons-round" style="font-size:14px">help</span> +${fm(res.brecha)}`;
+        sub.textContent = 'Declaró más de lo esperado';
+    }
+}
+
+async function fetchBancos() {
+    $('bank-status-icon').innerHTML = '<span class="material-icons-round spin" style="font-size:16px;color:rgba(255,255,255,0.5)">sync</span>';
+    const res = await api("getResumenBancosDueño");
+    if (res && res.ok) {
+        $('bank-dia').textContent = fm(res.totalDia);
+        $('bank-mes').textContent = fm(res.totalMes);
+        if (res.totalDia > 0) {
+            $('bank-msg').innerHTML = '<span style="color:#34d399;font-weight:700;">Rendición recibida ✓</span>';
+            $('bank-status-icon').innerHTML = '<span class="material-icons-round" style="color:#34d399;font-size:18px">check_circle</span>';
+        } else {
+            $('bank-msg').textContent = 'Esperando archivo...';
+            $('bank-status-icon').innerHTML = '<span class="material-icons-round" style="color:var(--muted);font-size:18px">schedule</span>';
+        }
+    }
+}
+
+// ========================
+// SEGURIDAD / CRUCE
+// ========================
+async function loadCruce() {
+    const res = await api("getResumenCruceDiario", { fechaStr: currentDate });
+    renderCruce(res);
+
+    // Historial 7 días
+    const d7 = new Date(currentDate + "T12:00:00");
+    d7.setDate(d7.getDate() - 6);
+    const start = d7.toISOString().split('T')[0];
+    const rango = await api("getResumenCruceRango", { startDateStr: start, endDateStr: currentDate });
+    renderCruceHist(rango);
+}
+
+function renderCruce(res) {
+    if (!res || !res.ok) {
+        $('cruce-hero-wrap').innerHTML = '<div class="cruce-hero cruce-pending"><div style="color:var(--muted);text-align:center;">Error al cargar datos</div></div>';
+        return;
+    }
+    if (res.sinArqueo) {
+        $('cruce-hero-wrap').innerHTML = `
+        <div class="cruce-hero cruce-pending">
+            <div style="font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Arqueo pendiente</div>
+            <div style="font-size:1.4rem;font-weight:800;margin:8px 0;color:#94a3b8;">Aún no cerrado</div>
+            <div style="font-size:0.82rem;color:var(--muted);">El cruce se calcula al confirmar el arqueo</div>
+        </div>`;
+        $('cruce-detalle').innerHTML = '<div class="empty-state"><span class="material-icons-round">lock_clock</span>Disponible tras el arqueo</div>';
+        return;
+    }
+
+    const brecha = res.brecha || 0;
+    let cls = 'cruce-ok', label = '✓ Cuadra perfectamente', color = '#34d399';
+    if (Math.abs(brecha) >= 1000 && brecha < 0) { cls = 'cruce-danger'; label = '⚠ Menos de lo esperado'; color = '#f87171'; }
+    else if (Math.abs(brecha) >= 1000 && brecha > 0) { cls = 'cruce-warn'; label = '? Más de lo esperado'; color = '#fbbf24'; }
+    else if (Math.abs(brecha) >= 100) { cls = 'cruce-warn'; label = '≈ Diferencia mínima'; color = '#fbbf24'; }
+
+    $('cruce-hero-wrap').innerHTML = `
+    <div class="cruce-hero ${cls}">
+        <div style="font-size:0.7rem;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:1px;opacity:0.8;">Cruce rendición vs arqueo</div>
+        <div class="cruce-big" style="color:${color}">${fm(Math.abs(brecha))}</div>
+        <div style="font-size:0.85rem;font-weight:700;color:${color}">${label}</div>
+        ${res.alerta ? `<div style="margin-top:8px;font-size:0.78rem;background:rgba(239,68,68,0.15);padding:6px 10px;border-radius:8px;color:#f87171;">Notificación enviada</div>` : ''}
+    </div>`;
+
+    const arqueoFisico = res.arqueo ? res.arqueo.fisico : 0;
+    const rCont = res.rendiciones?.totalContado || 0;
+    const rEsp  = res.rendiciones?.totalEsperado || 0;
+    const ingM  = res.movimientosManuales?.ingresos || 0;
+    const egrM  = res.movimientosManuales?.egresos || 0;
+    const esp   = res.saldoEsperado || 0;
+
+    $('cruce-detalle').innerHTML = `
+        <div class="cruce-row">
+            <span class="cruce-label"><span class="material-icons-round" style="font-size:16px;color:var(--muted)">account_balance_wallet</span>Saldo apertura</span>
+            <span class="cruce-val">${fm(res.saldoApertura)}</span>
+        </div>
+        <div class="cruce-row">
+            <span class="cruce-label"><span class="material-icons-round" style="font-size:16px;color:#34d399">delivery_dining</span>Rendiciones (Drive)</span>
+            <span class="cruce-val t-green">+${fm(rCont)}</span>
+        </div>
+        ${rCont !== rEsp ? `<div class="cruce-row" style="padding-left:20px;">
+            <span class="cruce-label" style="font-size:0.78rem;">Dif. en rendición</span>
+            <span style="font-size:0.8rem;color:${rCont>rEsp?'#fbbf24':'#f87171'}">${fm(rCont-rEsp)}</span>
+        </div>` : ''}
+        <div class="cruce-row">
+            <span class="cruce-label"><span class="material-icons-round" style="font-size:16px;color:var(--primary)">add_circle</span>Ingresos manuales</span>
+            <span class="cruce-val t-green">+${fm(ingM)}</span>
+        </div>
+        <div class="cruce-row">
+            <span class="cruce-label"><span class="material-icons-round" style="font-size:16px;color:#f87171">remove_circle</span>Egresos manuales</span>
+            <span class="cruce-val t-red">-${fm(egrM)}</span>
+        </div>
+        <div class="cruce-row" style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;margin-top:6px;border:none;">
+            <span style="font-weight:700;">Esperado al cierre</span>
+            <span style="font-weight:800;font-size:1rem;">${fm(esp)}</span>
+        </div>
+        <div class="cruce-row" style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;border:none;">
+            <span style="font-weight:700;">Laura declaró</span>
+            <span style="font-weight:800;font-size:1rem;color:${color}">${fm(arqueoFisico)}</span>
+        </div>
+    `;
+}
+
+function renderCruceHist(res) {
+    const c = $('cruce-historial');
+    if (!res || !res.ok || !res.data?.length) {
+        c.innerHTML = '<div class="empty-state"><span class="material-icons-round">history</span>Sin historial</div>';
+        return;
+    }
+    const alertas = res.data.filter(d => d.alerta).length;
+    $('cruce-alertas-badge').textContent = alertas > 0 ? `${alertas} alertas` : '';
+    $('cruce-alertas-badge').style.color = alertas > 0 ? '#f87171' : '';
+
+    c.innerHTML = res.data.slice().reverse().map(d => {
+        const b = d.brecha || 0;
+        let ico = 'check_circle', color = '#34d399', badge = 'Cuadra';
+        if (Math.abs(b) >= 1000 && b < 0) { ico = 'warning'; color = '#f87171'; badge = fm(b); }
+        else if (Math.abs(b) >= 1000 && b > 0) { ico = 'help'; color = '#fbbf24'; badge = '+'+fm(b); }
+        else if (Math.abs(b) >= 100) { ico = 'info'; color = '#fbbf24'; badge = fm(b); }
+
+        const [y,mo,day] = d.fecha.split('-');
+        return `
+        <div class="hist-row">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span class="material-icons-round" style="color:${color};font-size:20px;">${ico}</span>
                 <div>
-                    <label style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Hasta</label>
-                    <input type="date" id="report-date-end" style="width:100%; padding:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:white; border-radius:8px; outline:none; color-scheme: dark; font-family:'Inter', sans-serif;">
+                    <div class="hist-date">${day}/${mo}/${y}</div>
+                    <div class="hist-sub">Esp: ${fm(d.saldoEsperado)} · Rend: ${fm(d.rendContado)}</div>
                 </div>
             </div>
-            
-            <button id="btn-generate-pdf" onclick="crearPDFProveedor()" style="width:100%; padding:15px; background:var(--purple); color:white; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:0.2s;">
-                <span class="material-icons-round">download</span> DESCARGAR PDF
-            </button>
+            <div style="font-weight:800;font-size:0.9rem;color:${color}">${badge}</div>
+        </div>`;
+    }).join('');
+}
+
+// ========================
+// TENDENCIAS
+// ========================
+async function loadTrends() {
+    if (chartsLoaded) return;
+    chartsLoaded = true;
+
+    const d = new Date(currentDate + "T12:00:00");
+    d.setDate(d.getDate() - 6);
+    const start = d.toISOString().split('T')[0];
+
+    const [movRes, cruceRes] = await Promise.all([
+        api("getMovimientosRango", { startDateStr: start, endDateStr: currentDate }),
+        api("getResumenCruceRango", { startDateStr: start, endDateStr: currentDate })
+    ]);
+
+    if (movRes?.ok && movRes.data) renderTrendCharts(movRes.data);
+    if (cruceRes?.ok && cruceRes.data) renderBrechaChart(cruceRes.data);
+}
+
+function renderTrendCharts(data) {
+    const days = {}, cats = {};
+    data.forEach(m => {
+        if (m.tipo !== 'Egreso') return;
+        const cat = (m.categoria || "").toLowerCase();
+        if (cat.includes('ajuste') || cat.includes('base')) return;
+        const imp = Number(m.importe) || 0;
+        if (!days[m.fecha]) days[m.fecha] = 0; days[m.fecha] += imp;
+        if (!cats[m.categoria]) cats[m.categoria] = 0; cats[m.categoria] += imp;
+    });
+
+    const sortedDays = Object.keys(days).sort();
+    const ctx1 = $('chartEgresos');
+    if (ctx1 && !chartEgresos) {
+        chartEgresos = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: sortedDays.map(d => d.substring(5)),
+                datasets: [{ label: 'Egresos', data: sortedDays.map(k => days[k]), backgroundColor: 'rgba(239,68,68,0.6)', borderColor: '#ef4444', borderRadius: 6, borderWidth: 1 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false},ticks:{color:'#64748b'}}, y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b'}} } }
+        });
+    }
+
+    const top5 = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const ctx2 = $('chartRanking');
+    if (ctx2 && !chartRanking) {
+        chartRanking = new Chart(ctx2, {
+            type: 'doughnut',
+            data: { labels: top5.map(x=>x[0]), datasets: [{ data: top5.map(x=>x[1]), backgroundColor: ['#ef4444','#f59e0b','#3b82f6','#8b5cf6','#10b981'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:10}}}} }
+        });
+    }
+}
+
+function renderBrechaChart(data) {
+    const sorted = [...data].sort((a,b) => a.fecha.localeCompare(b.fecha));
+    const ctx = $('chartBrecha');
+    if (!ctx || chartBrecha) return;
+    chartBrecha = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sorted.map(d => d.fecha.substring(5)),
+            datasets: [{
+                label: 'Brecha $',
+                data: sorted.map(d => d.brecha || 0),
+                backgroundColor: sorted.map(d => {
+                    const b = d.brecha || 0;
+                    if (Math.abs(b) < 1000) return 'rgba(16,185,129,0.6)';
+                    return b < 0 ? 'rgba(239,68,68,0.7)' : 'rgba(245,158,11,0.7)';
+                }),
+                borderRadius: 6,
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fm(ctx.raw) } } },
+            scales: {
+                x: { grid:{display:false}, ticks:{color:'#64748b'} },
+                y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#64748b', callback: v => fm(v)} }
+            }
+        }
+    });
+}
+
+// ========================
+// GASTOS FIJOS & EMPLEADOS
+// ========================
+async function fetchGastosFijos() {
+    const res = await api("getConfigGastosFijos");
+    if (!res?.ok) return;
+    let total = 0;
+    const list = res.data || [];
+    if (!list.length) { $('fijos-list').innerHTML = '<div class="empty-state">Sin gastos fijos</div>'; return; }
+    $('fijos-list').innerHTML = list.map(g => {
+        total += Number(g.montoMensual) || 0;
+        return `<div class="mov-item">
+            <div class="mov-info"><div class="mov-cat">${g.nombre}</div><div class="mov-sub">Mensual</div></div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="color:var(--muted);font-size:0.9rem;">$</span>
+                <input class="edit-input" type="number" value="${g.montoMensual}" onchange="saveGasto('${g.nombre}',this.value)">
+            </div>
+        </div>`;
+    }).join('');
+    $('fijos-total').textContent = fm(total);
+}
+window.saveGasto = async (n, v) => { await api("updateConfigGastoFijo", {nombre:n, montoMensual:v, lastUpdate: new Date().toISOString().split('T')[0]}); fetchGastosFijos(); };
+
+async function fetchEmpleados() {
+    const res = await api("getConfigEmpleados");
+    if (!res?.ok) return;
+    const list = res.data || [];
+    if (!list.length) { $('emp-list').innerHTML = '<div class="empty-state">Sin empleados</div>'; return; }
+    $('emp-list').innerHTML = list.map(e => `
+        <div class="mov-item">
+            <div class="mov-info"><div class="mov-cat">${e.nombre}</div></div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="color:var(--muted);font-size:0.9rem;">$</span>
+                <input class="edit-input" type="number" value="${e.sueldoBase}" onchange="saveSueldo('${e.nombre}',this.value)">
+            </div>
         </div>
-    </div>
+    `).join('');
+}
+window.saveSueldo = async (n, v) => { await api("updateConfigEmpleado", {nombre:n, sueldoBase:v, lastUpdate: new Date().toISOString().split('T')[0]}); };
 
-    <script>
-        const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
-        
-        let currentDateStr = "";
-        const pageTitles = ["Resumen", "Tendencias", "Movimientos", "Combustible", "Gastos Fijos", "Empleados", "Proveedores", "Alertas"];
-        let currentMovs = [];
-        let fuelMovsByVehicle = {};
-        
-        let chartEgresos = null;
-        let chartRanking = null;
+// ========================
+// ALERTAS
+// ========================
+async function loadAlerts() {
+    $('alerts-list').innerHTML = '<div class="empty-state"><span class="material-icons-round spin">sync</span>Cargando...</div>';
+    const res = await api("getNotificacionesCaja", { soloActivas: true });
+    if (!res || !Array.isArray(res) || !res.length) {
+        $('alerts-list').innerHTML = '<div class="empty-state"><span class="material-icons-round">check_circle</span>Sin alertas activas</div>';
+        return;
+    }
+    const sorted = res.filter(a => !a.borrada).sort((a,b) => {
+        const ord = { ALTA: 0, MEDIA: 1, BAJA: 2 };
+        return (ord[a.severidad]||2) - (ord[b.severidad]||2);
+    });
 
-        // INICIO
-        document.addEventListener("DOMContentLoaded", () => {
-            const today = new Date();
-            const offset = today.getTimezoneOffset() * 60000;
-            const localIso = new Date(today.getTime() - offset).toISOString().split('T')[0];
-            
-            setDate(localIso);
-            
-            // Generar puntitos
-            const dotsC = document.getElementById('dots-container');
-            pageTitles.forEach((_, i) => {
-                const d = document.createElement('div');
-                d.className = `dot ${i===0?'active':''}`;
-                dotsC.appendChild(d);
-            });
+    $('alerts-list').innerHTML = sorted.map(a => {
+        const cls = a.severidad === 'ALTA' ? 'alert-high' : a.severidad === 'MEDIA' ? 'alert-med' : 'alert-low';
+        const col = a.severidad === 'ALTA' ? 'var(--danger)' : a.severidad === 'MEDIA' ? 'var(--warning)' : 'var(--info)';
+        const ico = a.tipo?.includes('CRUCE') ? 'security' : a.tipo?.includes('ANOMALIA') ? 'warning' : a.tipo?.includes('COMBUSTIBLE') ? 'local_gas_station' : 'notifications';
+        const fecha = a.fecha ? new Date(a.fecha).toLocaleDateString('es-AR', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+        return `
+        <div class="alert-item ${cls}">
+            <div class="alert-title" style="color:${col}; display:flex; align-items:center; gap:6px;">
+                <span class="material-icons-round" style="font-size:16px">${ico}</span>${a.titulo}
+            </div>
+            <div class="alert-msg">${a.mensaje}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                <div class="alert-time">${fecha}</div>
+                <button onclick="dismissAlert(${a.id})" style="background:rgba(255,255,255,0.08);border:none;color:#94a3b8;padding:4px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;">Descartar</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+window.dismissAlert = async (id) => {
+    await api("borrarNotificacion", { id });
+    loadAlerts();
+};
 
-            // Observer para saber en qué pantalla estamos (Scroll Snap Detection)
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if(entry.isIntersecting) {
-                        const index = parseInt(entry.target.id.split('-')[1]);
-                        document.getElementById('header-page-title').innerText = pageTitles[index];
-                        document.querySelectorAll('.dot').forEach((d, i) => d.className = `dot ${i===index?'active':''}`);
-                        
-                        // Carga perezosa de gráficos
-                        if(index === 1) loadTrendsData();
-                    }
-                });
-            }, { threshold: 0.6 });
+// ========================
+// PDF
+// ========================
+function openPDF() {
+    const sel = $('pdf-prov');
+    if (!sel.options.length) PROVEEDORES.forEach(p => { const o=document.createElement('option'); o.value=o.textContent=p; sel.appendChild(o); });
+    const hoy = new Date().toISOString().split('T')[0];
+    const hace30 = new Date(Date.now()-30*86400000).toISOString().split('T')[0];
+    $('pdf-end').value = hoy; $('pdf-start').value = hace30;
+    $('modal-pdf').classList.add('on');
+}
+function closePDF() { $('modal-pdf').classList.remove('on'); }
 
-            document.querySelectorAll('.screen').forEach(s => observer.observe(s));
-            
-            // Cargas iniciales
-            fetchStatusCaja();
-            fetchBancosDia();
-            fetchGastosFijos();
-            fetchEmpleados();
-        });
+async function generatePDF() {
+    const prov = $('pdf-prov').value, start = $('pdf-start').value, end = $('pdf-end').value;
+    if (!start||!end) return;
+    const btn = $('pdf-btn');
+    btn.innerHTML = '<span class="material-icons-round spin">sync</span> Procesando...';
+    btn.disabled = true;
 
-        // --- BANCO / TRANSFERENCIAS ---
-        async function fetchBancosDia() {
-            const diaEl = document.getElementById('kpi-banco-dia');
-            const mesEl = document.getElementById('kpi-banco-mes');
-            const statusEl = document.getElementById('bank-status-msg');
-            const iconEl = document.getElementById('bank-icon-status');
-            const pulseEl = document.getElementById('bank-pulse');
+    const res = await api("getMovimientosRango", {startDateStr:start, endDateStr:end});
+    btn.innerHTML = '<span class="material-icons-round">download</span> Descargar PDF';
+    btn.disabled = false;
+    if (!res?.ok) return;
 
-            // Animación buscando
-            pulseEl.style.display = 'block';
-            statusEl.innerText = "Buscando rendición...";
-            iconEl.innerHTML = '<span class="material-icons-round spin">sync</span>';
+    const provLC = prov.toLowerCase();
+    const pagos = res.data.filter(m => {
+        if (m.tipo !== 'Egreso') return false;
+        const cat = (m.categoria||"").toLowerCase(), obs = (m.observacion||"").toLowerCase(), p = (m.proveedor||"").toLowerCase();
+        return cat.includes('proveedor') && (p.includes(provLC) || obs.includes(provLC));
+    });
+    if (!pagos.length) { alert(`Sin pagos a "${prov}" en ese período`); return; }
 
-            const res = await api("getResumenBancosDueño");
-            
-            pulseEl.style.display = 'none'; // Fin animación
+    buildPDF(prov, start, end, pagos);
+    closePDF();
+}
 
-            if (res && res.ok) {
-                diaEl.textContent = formatMoney(res.totalDia);
-                mesEl.textContent = formatMoney(res.totalMes); // ✅ ACUMULADO CONFIRMADO DESDE DIA 1
+function buildPDF(prov, start, end, pagos) {
+    window.jsPDF = window.jspdf.jsPDF;
+    const doc = new jsPDF('p','mm','a4');
+    const fmt = iso => { const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
+    let total = 0;
+    const rows = pagos.slice().reverse().map(p => {
+        const imp = parseInt(p.importe)||0; total += imp;
+        let det = p.observacion||"-";
+        if (p.formaPago==='Cheque') det=`Ch. ${p.banco||''} #${p.nroCheque||''}`;
+        else if (p.formaPago==='Banco') det='Transferencia';
+        return [fmt((p.fecha||"").split('T')[0]), (p.hora||"").substring(0,5), p.formaPago, det.substring(0,40), "$ "+imp.toLocaleString('es-AR')];
+    });
+    doc.setFillColor(15,23,42); doc.rect(0,0,210,38,'F');
+    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(20);
+    doc.text("MERCADO LIMPIO",14,22);
+    doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.text("Reporte de Pagos a Proveedores",14,30);
+    doc.setTextColor(50,50,50); doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.text("CUENTA CORRIENTE",14,52);
+    doc.setFontSize(10); doc.setFont("helvetica","normal");
+    doc.text(`Proveedor:`,14,62); doc.setFont("helvetica","bold"); doc.text(prov.toUpperCase(),38,62);
+    doc.setFont("helvetica","normal"); doc.text(`Período:`,14,69); doc.setFont("helvetica","bold"); doc.text(`${fmt(start)} — ${fmt(end)}`,32,69);
+    doc.autoTable({ startY:78, head:[['Fecha','Hora','Pago','Detalle','Importe']], body:rows, theme:'striped', headStyles:{fillColor:[59,130,246],textColor:255,fontStyle:'bold'}, styles:{fontSize:9,cellPadding:4}, columnStyles:{0:{cellWidth:24},1:{cellWidth:14},2:{cellWidth:26},3:{cellWidth:'auto'},4:{cellWidth:30,halign:'right',fontStyle:'bold'}} });
+    const fy = doc.lastAutoTable.finalY+12;
+    doc.setFillColor(241,245,249); doc.rect(120,fy-8,76,18,'F');
+    doc.setFontSize(11); doc.setTextColor(50,50,50); doc.text("Total:",126,fy);
+    doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(16,185,129);
+    doc.text("$ "+total.toLocaleString('es-AR'),150,fy);
+    doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(160,160,160);
+    doc.text("Documento generado por el sistema de gestión de Mercado Limpio.",14,282);
+    doc.save(`ML_Pagos_${prov.replace(/\s/g,'')}.pdf`);
+}
 
-                if (res.totalDia > 0) {
-                    statusEl.innerHTML = '<span style="color:#34d399; font-weight:700;">Rendición Recibida ✅</span>';
-                    iconEl.innerHTML = '<span class="material-icons-round" style="color:#34d399;">check_circle</span>';
-                } else {
-                    statusEl.innerText = "Esperando archivo... ⏳";
-                    iconEl.innerHTML = '<span class="material-icons-round" style="color:#94a3b8;">schedule</span>';
-                }
-            } else {
-                statusEl.innerText = "Error conexión";
-                iconEl.innerHTML = '<span class="material-icons-round" style="color:#ef4444;">error</span>';
-            }
-        }
+// ========================
+// REFRESH
+// ========================
+async function refresh() {
+    const ico = $('fab-icon'); ico.classList.add('spin');
+    chartsLoaded = false;
+    await setDate(currentDate);
+    if (currentScreen === 8) loadAlerts();
+    setTimeout(() => ico.classList.remove('spin'), 700);
+}
 
-        // --- MOVIMIENTOS Y DETALLES ---
-        function renderMovs(list) {
-            const c = document.getElementById('movimientos-list');
-            document.getElementById('mov-count').textContent = list.length;
-            
-            if(list.length === 0) { c.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-style:italic;">Sin movimientos</div>'; return; }
-            
-            c.innerHTML = list.map((m, i) => {
-                const isIng = m.tipo === 'Ingreso';
-                const color = isIng ? '#34d399' : '#f87171';
-                const bgIcon = isIng ? 'rgba(52, 211, 153, 0.1)' : 'rgba(248, 113, 113, 0.1)';
-                const icon = m.categoria.toLowerCase().includes('combustible') ? 'local_gas_station' : (isIng ? 'arrow_downward' : 'arrow_upward');
-                const id = `det-${i}`;
-
-                return `
-                <div style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <div class="list-row" onclick="toggleDetail('${id}')" style="border:none;">
-                        <div style="display:flex; align-items:center;">
-                            <div style="background:${bgIcon}; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-right:15px;">
-                                <span class="material-icons-round" style="color:${color}">${icon}</span>
-                            </div>
-                            <div>
-                                <div style="font-weight:600; font-size:0.95rem;">${m.categoria}</div>
-                                <div style="font-size:0.8rem; color:#64748b;">${(m.hora||"").substring(0,5)} • ${m.formaPago}</div>
-                            </div>
-                        </div>
-                        <div style="font-weight:700; color:${color}">${isIng?'+':'-'} ${formatMoney(m.importe).replace('$ ','')}</div>
-                    </div>
-                    <div id="${id}" class="row-detail-panel">
-                        <div class="detail-line"><span>Obs:</span> <span style="color:white; text-align:right;">${m.observacion||"-"}</span></div>
-                        <div class="detail-line"><span>Usuario:</span> <span style="color:white;">${m.usuario||"Sistema"}</span></div>
-                        <div class="detail-line"><span>ID:</span> <span style="font-family:monospace;">#${m.id}</span></div>
-                    </div>
-                </div>
-                `;
-            }).join('');
-        }
-
-        window.toggleDetail = (id) => {
-            const el = document.getElementById(id);
-            if(el.style.display === "block") el.style.display = "none";
-            else el.style.display = "block";
-        };
-
-        // --- FECHAS ---
-        function setDate(isoDate) {
-            currentDateStr = isoDate;
-            const d = new Date(isoDate + "T12:00:00");
-            const today = new Date(); today.setHours(12,0,0,0);
-            const diff = Math.round((d - today) / (1000 * 60 * 60 * 24));
-            
-            let label = d.toLocaleDateString('es-AR', {day:'numeric', month:'short'});
-            if(diff === 0) label = "Hoy"; else if(diff === -1) label = "Ayer";
-            
-            document.getElementById('date-label').textContent = label;
-            document.getElementById('date-picker-input').value = isoDate;
-            fetchDataForDate(isoDate);
-        }
-
-        function toggleCalendar() {
-            const m = document.getElementById('calendar-modal');
-            m.classList.toggle('active');
-        }
-        
-        function confirmDate() {
-            const val = document.getElementById('date-picker-input').value;
-            if(val) {
-                setDate(val);
-                toggleCalendar();
-                fetchBancosDia(); // Re-chequear banco si cambia fecha
-            }
-        }
-
-        // --- API CORE ---
-        async function api(fn, params = {}) {
-            try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'text/plain;charset=utf-8'},
-                    body: JSON.stringify({fn, params})
-                });
-                return await res.json();
-            } catch (e) { return null; }
-        }
-
-        async function fetchDataForDate(dateStr) {
-            const listEl = document.getElementById('movimientos-list');
-            listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Cargando...</div>';
-            
-            const res = await api("getMovimientos", { fechaStr: dateStr + "T12:00:00" });
-            if(Array.isArray(res)) currentMovs = res; else currentMovs = [];
-            
-            processData(); 
-        }
-
-        function fetchStatusCaja() {
-             api("getEstadoCaja").then(res => {
-                if(res) {
-                    const ef = parseInt(res.efectivo||0), ch = parseInt(res.cheques||0);
-                    document.getElementById('kpi-caja-efectivo').textContent = formatMoney(ef);
-                    document.getElementById('kpi-caja-cheques').textContent = formatMoney(ch);
-                    document.getElementById('kpi-caja-total').textContent = formatMoney(ef+ch);
-                }
-            });
-        }
-
-        function processData() {
-            let ingresos = 0, egresos = 0;
-            const fuelMap = { total: 0, vehicles: {} };
-            const provMap = { total: 0, list: [] };
-            const alerts = [];
-            fuelMovsByVehicle = {};
-
-            currentMovs.forEach(m => {
-                const imp = Number(m.importe) || 0;
-                const cat = (m.categoria || "").toLowerCase();
-                const obs = (m.observacion || "").toLowerCase();
-                
-                if(m.tipo === 'Ingreso') ingresos += imp; else egresos += imp;
-
-                // Combustible
-                if(cat.includes('combustible')) {
-                    fuelMap.total += imp;
-                    let veh = m.vehiculo || "Otros";
-                    if(veh==="Otros"||veh==="") {
-                         if(cat.includes('saveiro')) veh="VW Saveiro";
-                         else if(cat.includes('toyota')||cat.includes('hiace')) veh="Toyota Hiace";
-                         else if(cat.includes('fiat')||cat.includes('uno')) veh="Fiat Uno";
-                    }
-                    if(!fuelMap.vehicles[veh]) fuelMap.vehicles[veh] = { count: 0, total: 0 };
-                    fuelMap.vehicles[veh].count++;
-                    fuelMap.vehicles[veh].total += imp;
-                    if(!fuelMovsByVehicle[veh]) fuelMovsByVehicle[veh] = [];
-                    fuelMovsByVehicle[veh].push({amount:imp, time:m.hora});
-                }
-                
-                // Proveedores
-                if(cat.includes('proveedor')) {
-                    provMap.total += imp;
-                    let name = m.proveedor || obs.replace('pago a ', '').trim() || m.categoria;
-                    const provMatch = obs.match(/\[Prov: (.*?)\]/i);
-                    if(provMatch && provMatch[1]) name = provMatch[1];
-                    name = name.charAt(0).toUpperCase() + name.slice(1);
-                    provMap.list.push({ name, amount: imp, time: m.hora });
-                }
-
-                // Alertas
-                if(cat.includes('diferencia') || obs.includes('faltante') || obs.includes('sobrante')) {
-                    if(Math.abs(imp) > 1000) alerts.push({ type: 'danger', title: 'Diferencia Caja', msg: `${m.categoria}: ${formatMoney(imp)}` });
-                }
-            });
-
-            // Update KPIs
-            document.getElementById('kpi-ingreso').textContent = formatMoney(ingresos);
-            document.getElementById('kpi-egreso').textContent = formatMoney(egresos);
-            const neto = ingresos - egresos;
-            const nEl = document.getElementById('kpi-neto');
-            nEl.textContent = formatMoney(neto);
-            nEl.className = `balance-amount ${neto>=0?'text-green':'text-red'}`;
-
-            renderMovs(currentMovs);
-            renderFuel(fuelMap);
-            renderProv(provMap);
-            renderAlerts(alerts);
-        }
-
-        // Renderers auxiliares
-        function renderFuel(map) {
-            document.getElementById('fuel-day-total').textContent = formatMoney(map.total);
-            const c = document.getElementById('fuel-container');
-            if(map.total===0) { c.innerHTML = '<div style="text-align:center; color:#64748b;">Sin cargas</div>'; return; }
-            c.innerHTML = Object.entries(map.vehicles).map(([v, d]) => `
-                <div class="card" style="padding:15px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-weight:700;">${v}</div>
-                    <div style="text-align:right;">
-                        <div style="color:var(--warning); font-weight:800;">${formatMoney(d.total)}</div>
-                        <div style="font-size:0.7rem; color:#64748b;">${d.count} carga(s)</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderProv(map) {
-            document.getElementById('prov-day-total').textContent = formatMoney(map.total);
-            const c = document.getElementById('prov-list');
-            if(map.list.length === 0) { c.innerHTML = '<div style="text-align:center; color:#64748b;">Sin pagos</div>'; return; }
-            c.innerHTML = map.list.map(p => `
-                <div class="list-row">
-                    <div style="display:flex; align-items:center;">
-                        <div style="background:rgba(139, 92, 246, 0.1); width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-right:15px;">
-                            <span class="material-icons-round" style="color:var(--purple)">inventory_2</span>
-                        </div>
-                        <div><div style="font-weight:600;">${p.name}</div><div style="font-size:0.8rem; color:#64748b;">${p.time} hs</div></div>
-                    </div>
-                    <div class="text-red">- ${formatMoney(p.amount).replace('$ ','')}</div>
-                </div>
-            `).join('');
-        }
-
-        function renderAlerts(alerts) {
-            const c = document.getElementById('alerts-list');
-            if(alerts.length === 0) { c.innerHTML = '<div style="text-align:center; color:#64748b;">✅ Todo normal</div>'; return; }
-            c.innerHTML = alerts.map(a => `<div style="padding:15px; border-radius:12px; margin-bottom:10px; background:rgba(239, 68, 68, 0.1); border-left:4px solid var(--danger);"><div style="font-weight:700; color:var(--danger);">${a.title}</div><div style="color:#94a3b8; font-size:0.9rem;">${a.msg}</div></div>`).join('');
-        }
-
-        // Otros
-        async function fetchGastosFijos() {
-            const container = document.getElementById('fijos-list');
-            const res = await api("getConfigGastosFijos");
-            if (!res || !res.ok) return;
-            const list = res.data || [];
-            let total = 0;
-            if(list.length === 0) container.innerHTML = '<div style="text-align:center;">Sin gastos</div>';
-            else {
-                container.innerHTML = list.map(g => {
-                    total += parseInt(g.montoMensual)||0;
-                    return `<div class="list-row"><div><div>${g.nombre}</div><div style="font-size:0.8rem; color:#64748b;">Mensual</div></div><div style="display:flex; align-items:center;"><span style="margin-right:5px;">$</span><input type="number" class="clean-input" onchange="saveGastoFijo('${g.nombre}', this.value)" value="${g.montoMensual}"></div></div>`;
-                }).join('');
-            }
-            document.getElementById('total-fijos-mensual').textContent = formatMoney(total);
-        }
-        async function saveGastoFijo(nombre, val) { await api("updateConfigGastoFijo", { nombre, montoMensual: val, lastUpdate: new Date().toISOString().split('T')[0] }); fetchGastosFijos(); }
-
-        async function fetchEmpleados() {
-             const c = document.getElementById('empleados-list');
-             const res = await api("getConfigEmpleados");
-             if(!res || !res.ok) return;
-             c.innerHTML = (res.data || []).map(e => `<div class="list-row"><div>${e.nombre}</div><div style="display:flex; align-items:center;"><span style="margin-right:5px;">$</span><input type="number" class="clean-input" onchange="saveSueldo('${e.nombre}', this.value)" value="${e.sueldoBase}"></div></div>`).join('');
-        }
-        async function saveSueldo(nombre, val) { await api("updateConfigEmpleado", {nombre, sueldoBase: val, lastUpdate: new Date().toISOString().split('T')[0]}); }
-
-        async function loadTrendsData() {
-            if(chartEgresos) return; 
-            const d = new Date(currentDateStr + "T12:00:00");
-            const end = currentDateStr;
-            d.setDate(d.getDate() - 6);
-            const start = d.toISOString().split('T')[0];
-            // Agregamos las horas límite para asegurar que traiga todo el día completo
-            const res = await api("getMovimientosRango", {
-            startDateStr: start + "T00:00:00", 
-            endDateStr: end + "T23:59:59"
-        });
-            if(res && res.ok && res.data) renderTrendsCharts(res.data);
-        }
-
-        function renderTrendsCharts(data) {
-            const days = {}; const cats = {};
-            data.forEach(m => {
-                if(m.tipo === 'Egreso') {
-                    if(!days[m.fecha]) days[m.fecha] = 0; days[m.fecha] += parseInt(m.importe);
-                    if(!cats[m.categoria]) cats[m.categoria] = 0; cats[m.categoria] += parseInt(m.importe);
-                }
-            });
-            const ctx1 = document.getElementById('chartEgresos');
-            if(ctx1) chartEgresos = new Chart(ctx1, { type: 'line', data: { labels: Object.keys(days).sort().map(d => d.substring(5)), datasets: [{ label: 'Egresos', data: Object.keys(days).sort().map(k => days[k]), borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: {legend:{display:false}}, scales: { x: {grid:{display:false}, ticks:{color:'#94a3b8'}}, y: {grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#94a3b8'}} } } });
-            const sortedCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
-            const ctx2 = document.getElementById('chartRanking');
-            if(ctx2) chartRanking = new Chart(ctx2, { type: 'doughnut', data: { labels: sortedCats.map(x=>x[0]), datasets: [{ data: sortedCats.map(x=>x[1]), backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: {legend:{position:'right', labels:{color:'#94a3b8', font:{size:10}}}} } });
-        }
-
-        function forceRefresh() { 
-            const i = document.querySelector('.fab-refresh span'); i.classList.add('spin');
-            setDate(currentDateStr); fetchStatusCaja(); fetchBancosDia();
-            setTimeout(() => i.classList.remove('spin'), 800);
-        }
-
-        function formatMoney(n) { return "$ " + Number(n).toLocaleString('es-AR'); }
-
-        // ==========================================
-        // 🔥 MÓDULO GENERADOR DE PDF PROVEEDORES 🔥
-        // ==========================================
-        const LISTA_PROVEEDORES = ["Marwiplast", "Bio Bag", "Broche plastico", "Bumerang", "Carol", "Colores", "Coolbazar", "Cotton", "Santamaria Escobillones", "Desesplast", "Diawara", "Emege", "Entresol", "Fedata", "Fibran", "Flexal", "Hechicera", "Infinity import", "K&K", "La Americana", "La gauchita", "Macetex", "Make Fresh", "Matriplaster", "Mis Plast", "Modoplast", "Molmar", "POP", "Rigolleau", "Romyl", "Samantha", "Santamaria", "Sasha", "Soifer", "lumilagro", "Make", "Suka", "Supy", "Tauro", "Tecnomatric", "Yesi", "Durax", "Javi"].sort();
-
-        function openReportModal() {
-            const select = document.getElementById('report-prov-select');
-            if(select.options.length === 0) {
-                LISTA_PROVEEDORES.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p; opt.textContent = p; select.appendChild(opt);
-                });
-            }
-            
-            // Setear fechas por defecto (Desde hace 30 días hasta hoy)
-            const hoy = new Date();
-            const haceUnMes = new Date(); haceUnMes.setDate(hoy.getDate() - 30);
-            
-            document.getElementById('report-date-end').value = hoy.toISOString().split('T')[0];
-            document.getElementById('report-date-start').value = haceUnMes.toISOString().split('T')[0];
-            
-            document.getElementById('report-modal').classList.add('active');
-        }
-
-        function closeReportModal() {
-            document.getElementById('report-modal').classList.remove('active');
-        }
-
-        async function crearPDFProveedor() {
-            const prov = document.getElementById('report-prov-select').value;
-            const start = document.getElementById('report-date-start').value;
-            const end = document.getElementById('report-date-end').value;
-            const btn = document.getElementById('btn-generate-pdf');
-
-            if(!start || !end) { alert("Completa las fechas"); return; }
-
-            btn.innerHTML = '<span class="material-icons-round spin">sync</span> Procesando...';
-            btn.style.opacity = '0.7';
-            btn.disabled = true;
-
-            // 1. Buscar movimientos en la base de datos
-            const res = await api("getMovimientosRango", {startDateStr: start, endDateStr: end});
-            
-            btn.innerHTML = '<span class="material-icons-round">download</span> DESCARGAR PDF';
-            btn.style.opacity = '1';
-            btn.disabled = false;
-
-            if(!res || !res.ok || !res.data) { alert("Error al buscar datos del rango de fechas"); return; }
-
-            // 2. Filtrar solo los pagos a ESE proveedor específico
-            const nombreProvLC = prov.toLowerCase();
-            const pagos = res.data.filter(m => {
-                if (m.tipo !== 'Egreso') return false;
-                const cat = (m.categoria || "").toLowerCase();
-                const obs = (m.observacion || "").toLowerCase();
-                const p = (m.proveedor || "").toLowerCase();
-                
-                // Si la categoría es proveedor y el nombre está en el campo proveedor O en la observación
-                return cat.includes('proveedor') && (p.includes(nombreProvLC) || obs.includes(nombreProvLC));
-            });
-
-            if(pagos.length === 0) {
-                alert(`No se encontraron pagos a "${prov}" en ese rango de fechas.`);
-                return;
-            }
-
-            // 3. Generar el Documento PDF
-            generarEstructuraPDF(prov, start, end, pagos);
-            closeReportModal();
-        }
-
-        function generarEstructuraPDF(proveedor, startStr, endStr, pagosData) {
-            window.jsPDF = window.jspdf.jsPDF;
-            const doc = new jsPDF('p', 'mm', 'a4'); // A4 Vertical
-
-            // Formatear Fechas
-            const formatDate = (iso) => {
-                const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`;
-            };
-            
-            let totalAbonado = 0;
-            const tableRows = [];
-
-            // Armar las filas de la tabla cronológicamente
-            // Invertimos porque suelen venir del más nuevo al más viejo, y un PDF queda mejor cronológico
-            pagosData.reverse().forEach(p => {
-                const importe = parseInt(p.importe) || 0;
-                totalAbonado += importe;
-                
-                // Extraer detalles importantes para justificar el pago (cheques, bancos)
-                let detalleStr = p.observacion || "-";
-                if(p.formaPago === 'Cheque') detalleStr = `Cheque ${p.banco||''} #${p.nroCheque||''} | ${detalleStr}`;
-                else if(p.formaPago === 'Banco') detalleStr = `Transferencia | ${detalleStr}`;
-
-                // Solo tomamos la parte de la fecha (YYYY-MM-DD)
-                const fechaCorta = p.fecha ? formatDate(p.fecha.split('T')[0]) : "N/A";
-
-                tableRows.push([
-                    fechaCorta,
-                    p.hora ? p.hora.substring(0,5) : "-",
-                    p.formaPago,
-                    detalleStr.substring(0, 45), // Truncar si es muy largo
-                    "$ " + importe.toLocaleString('es-AR')
-                ]);
-            });
-
-            // --- DISEÑO DEL MEMBRETE ---
-            doc.setFillColor(44, 62, 80); // Color azul oscuro corporativo
-            doc.rect(0, 0, 210, 40, 'F'); // Franja superior
-            
-            doc.setTextColor(255, 255, 255);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(22);
-            doc.text("MERCADO LIMPIO", 15, 22);
-            
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
-            doc.text("Reporte de Auditoría de Pagos", 15, 30);
-
-            // --- DATOS DEL REPORTE ---
-            doc.setTextColor(50, 50, 50);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(14);
-            doc.text("RESUMEN DE CUENTA CORRIENTE", 15, 55);
-            
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
-            doc.text(`Proveedor:`, 15, 65);
-            doc.setFont("helvetica", "bold");
-            doc.text(proveedor.toUpperCase(), 38, 65);
-
-            doc.setFont("helvetica", "normal");
-            doc.text(`Período de análisis:`, 15, 72);
-            doc.setFont("helvetica", "bold");
-            doc.text(`${formatDate(startStr)} al ${formatDate(endStr)}`, 48, 72);
-
-            doc.setFont("helvetica", "normal");
-            doc.text(`Fecha de emisión:`, 140, 65);
-            doc.text(new Date().toLocaleDateString('es-AR'), 172, 65);
-
-            // --- TABLA DE DATOS (AutoTable) ---
-            doc.autoTable({
-                startY: 82,
-                head: [['Fecha', 'Hora', 'Modo de Pago', 'Detalles / Ref.', 'Importe']],
-                body: tableRows,
-                theme: 'striped',
-                headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
-                styles: { fontSize: 9, cellPadding: 4 },
-                columnStyles: { 
-                    0: { cellWidth: 25 },
-                    1: { cellWidth: 15 }, 
-                    2: { cellWidth: 25 }, 
-                    3: { cellWidth: 'auto' }, 
-                    4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' } 
-                }
-            });
-
-            // --- TOTALES ---
-            const finalY = doc.lastAutoTable.finalY + 15;
-            
-            doc.setFillColor(241, 245, 249); // Fondo gris claro
-            doc.rect(120, finalY - 8, 75, 20, 'F');
-
-            doc.setFontSize(12);
-            doc.setTextColor(50, 50, 50);
-            doc.text("Total Pagado:", 125, finalY);
-            
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(14);
-            doc.setTextColor(16, 185, 129); // Verde success
-            doc.text("$ " + totalAbonado.toLocaleString('es-AR'), 155, finalY);
-
-            // --- FIRMA DIGITAL / PIE DE PÁGINA ---
-            doc.setFont("helvetica", "italic");
-            doc.setFontSize(8);
-            doc.setTextColor(150, 150, 150);
-            doc.text("Este documento es un extracto oficial generado por el sistema de gestión de Mercado Limpio.", 15, 280);
-            doc.text("Para cualquier consulta sobre estos comprobantes, comunicarse con Administración.", 15, 285);
-
-            // --- DESCARGAR ---
-            const nombreArchivo = `MercadoLimpio_Pagos_${proveedor.replace(/\s/g, '')}.pdf`;
-            doc.save(nombreArchivo);
-        }
-
-    </script>
+// Init loads for static screens
+document.addEventListener("DOMContentLoaded", () => {
+    fetchGastosFijos();
+    fetchEmpleados();
+});
+</script>
 </body>
 </html>
