@@ -235,24 +235,6 @@
             </div>
         </div>
 
-        <!-- Caja Física -->
-        <div class="card">
-            <div class="card-hdr">Caja Física</div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom:10px;">
-                <div style="background:var(--card2); border-radius:12px; padding:12px; border:1px solid var(--border);">
-                    <div style="font-size:0.65rem; color:var(--muted); font-weight:700; text-transform:uppercase; margin-bottom:4px;">Efectivo</div>
-                    <div style="font-weight:800; font-size:1rem;" id="caja-ef">--</div>
-                </div>
-                <div style="background:var(--card2); border-radius:12px; padding:12px; border:1px solid var(--border);">
-                    <div style="font-size:0.65rem; color:var(--muted); font-weight:700; text-transform:uppercase; margin-bottom:4px;">Cheques</div>
-                    <div style="font-weight:800; font-size:1rem;" id="caja-ch">--</div>
-                </div>
-            </div>
-            <div style="background: linear-gradient(90deg, rgba(59,130,246,0.12), rgba(16,185,129,0.08)); border-radius:12px; padding:12px; border:1px solid rgba(59,130,246,0.15); display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase;">Total en caja</span>
-                <span style="font-weight:900; font-size:1.1rem; color:var(--primary);" id="caja-total">--</span>
-            </div>
-        </div>
 
         <!-- Transferencias -->
         <div class="bank-widget">
@@ -518,7 +500,6 @@ function setDate(iso) {
     document.getElementById('date-input').value = iso;
 
     fetchDay();
-    fetchCaja();
     fetchBancos();
     fetchArqueoStatus();
     fetchCruceStatus();
@@ -721,23 +702,25 @@ async function fetchCruceStatus() {
         sub.textContent = 'El arqueo no fue realizado aún';
         return;
     }
-    if (res.brecha === null) {
+    // Usamos arqueo.diferencia (fisico - sistema), que es el dato real del GAS
+    const dif = res.arqueo ? res.arqueo.diferencia : null;
+    if (dif === null) {
         badge.className = 'status-badge badge-pending';
         badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">sync</span> --';
         return;
     }
-    if (Math.abs(res.brecha) < 1000) {
+    if (Math.abs(dif) < 1000) {
         badge.className = 'status-badge badge-ok';
         badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">verified</span> Cuadra';
-        sub.textContent = `Brecha: ${fm(res.brecha)}`;
-    } else if (res.brecha < 0) {
+        sub.textContent = dif === 0 ? 'Arqueo exacto' : `Dif. mínima: ${fm(dif)}`;
+    } else if (dif < 0) {
         badge.className = 'status-badge badge-danger';
-        badge.innerHTML = `<span class="material-icons-round" style="font-size:14px">warning</span> -${fm(Math.abs(res.brecha))}`;
-        sub.textContent = 'Declaró menos de lo esperado';
+        badge.innerHTML = `<span class="material-icons-round" style="font-size:14px">warning</span> Faltó ${fm(Math.abs(dif))}`;
+        sub.textContent = 'Diferencia registrada en arqueo';
     } else {
         badge.className = 'status-badge badge-warn';
-        badge.innerHTML = `<span class="material-icons-round" style="font-size:14px">help</span> +${fm(res.brecha)}`;
-        sub.textContent = 'Declaró más de lo esperado';
+        badge.innerHTML = `<span class="material-icons-round" style="font-size:14px">help</span> Sobró ${fm(dif)}`;
+        sub.textContent = 'Diferencia registrada en arqueo';
     }
 }
 
@@ -788,56 +771,64 @@ function renderCruce(res) {
         return;
     }
 
-    const brecha = res.brecha || 0;
-    let cls = 'cruce-ok', label = '✓ Cuadra perfectamente', color = '#34d399';
-    if (Math.abs(brecha) >= 1000 && brecha < 0) { cls = 'cruce-danger'; label = '⚠ Menos de lo esperado'; color = '#f87171'; }
-    else if (Math.abs(brecha) >= 1000 && brecha > 0) { cls = 'cruce-warn'; label = '? Más de lo esperado'; color = '#fbbf24'; }
-    else if (Math.abs(brecha) >= 100) { cls = 'cruce-warn'; label = '≈ Diferencia mínima'; color = '#fbbf24'; }
+    // Usamos arqueo.diferencia (fisico - sistema): dato real calculado en el GAS
+    const dif   = res.arqueo ? res.arqueo.diferencia : 0;
+    const fisico = res.arqueo ? res.arqueo.fisico : 0;
+    const sistema = res.arqueo ? res.arqueo.sistema : 0;
+    const hora  = res.arqueo ? res.arqueo.hora : '';
+
+    let cls = 'cruce-ok', label = '✓ Arqueo exacto', color = '#34d399';
+    if (Math.abs(dif) >= 1000 && dif < 0) { cls = 'cruce-danger'; label = '⚠ Faltó plata en arqueo'; color = '#f87171'; }
+    else if (Math.abs(dif) >= 1000 && dif > 0) { cls = 'cruce-warn'; label = '↑ Sobró en arqueo'; color = '#fbbf24'; }
+    else if (Math.abs(dif) >= 100) { cls = 'cruce-warn'; label = '≈ Diferencia mínima'; color = '#fbbf24'; }
 
     $('cruce-hero-wrap').innerHTML = `
     <div class="cruce-hero ${cls}">
-        <div style="font-size:0.7rem;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:1px;opacity:0.8;">Cruce rendición vs arqueo</div>
-        <div class="cruce-big" style="color:${color}">${fm(Math.abs(brecha))}</div>
+        <div style="font-size:0.7rem;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:1px;opacity:0.8;">Diferencia en arqueo</div>
+        <div class="cruce-big" style="color:${color}">${dif === 0 ? '$ 0' : (dif > 0 ? '+' : '') + fm(dif)}</div>
         <div style="font-size:0.85rem;font-weight:700;color:${color}">${label}</div>
-        ${res.alerta ? `<div style="margin-top:8px;font-size:0.78rem;background:rgba(239,68,68,0.15);padding:6px 10px;border-radius:8px;color:#f87171;">Notificación enviada</div>` : ''}
+        <div style="font-size:0.75rem;color:${color};opacity:0.7;margin-top:4px;">Cerrado a las ${hora}</div>
     </div>`;
 
-    const arqueoFisico = res.arqueo ? res.arqueo.fisico : 0;
+    // Rendición: fuente independiente (archivos de Drive)
     const rCont = res.rendiciones?.totalContado || 0;
     const rEsp  = res.rendiciones?.totalEsperado || 0;
-    const ingM  = res.movimientosManuales?.ingresos || 0;
-    const egrM  = res.movimientosManuales?.egresos || 0;
-    const esp   = res.saldoEsperado || 0;
+    const rendDif = rCont - rEsp;
+    const rendDets = res.rendiciones?.detalle || [];
 
     $('cruce-detalle').innerHTML = `
-        <div class="cruce-row">
-            <span class="cruce-label"><span class="material-icons-round" style="font-size:16px;color:var(--muted)">account_balance_wallet</span>Saldo apertura</span>
-            <span class="cruce-val">${fm(res.saldoApertura)}</span>
+        <div class="cruce-row" style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;margin-bottom:8px;border:none;">
+            <span style="font-weight:700;font-size:0.88rem;">Arqueo (físico vs sistema)</span>
         </div>
         <div class="cruce-row">
-            <span class="cruce-label"><span class="material-icons-round" style="font-size:16px;color:#34d399">delivery_dining</span>Rendiciones (Drive)</span>
-            <span class="cruce-val t-green">+${fm(rCont)}</span>
+            <span class="cruce-label"><span class="material-icons-round" style="font-size:15px;color:var(--muted)">computer</span>Sistema calculó</span>
+            <span class="cruce-val">${fm(sistema)}</span>
         </div>
-        ${rCont !== rEsp ? `<div class="cruce-row" style="padding-left:20px;">
-            <span class="cruce-label" style="font-size:0.78rem;">Dif. en rendición</span>
-            <span style="font-size:0.8rem;color:${rCont>rEsp?'#fbbf24':'#f87171'}">${fm(rCont-rEsp)}</span>
+        <div class="cruce-row">
+            <span class="cruce-label"><span class="material-icons-round" style="font-size:15px;color:#34d399">person</span>Laura declaró</span>
+            <span class="cruce-val" style="color:${color}">${fm(fisico)}</span>
+        </div>
+        <div class="cruce-row" style="border-bottom:none;padding-bottom:0;">
+            <span style="font-weight:700;">Diferencia</span>
+            <span style="font-weight:800;color:${color}">${dif === 0 ? '$ 0 ✓' : fm(dif)}</span>
+        </div>
+        ${rendDets.length ? `
+        <div class="cruce-row" style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;margin-top:14px;margin-bottom:8px;border:none;">
+            <span style="font-weight:700;font-size:0.88rem;">Rendición Nico (Drive)</span>
+        </div>
+        ${rendDets.map(r => `
+        <div class="cruce-row">
+            <span class="cruce-label"><span class="material-icons-round" style="font-size:15px;color:#34d399">delivery_dining</span>${r.turno}</span>
+            <div style="text-align:right;">
+                <div style="font-weight:700;">${fm(r.contado)}</div>
+                <div style="font-size:0.72rem;color:var(--muted);">esp: ${fm(r.esperado)}</div>
+            </div>
+        </div>`).join('')}
+        ${rendDif !== 0 ? `<div class="cruce-row" style="border-bottom:none;">
+            <span style="font-weight:700;">Dif. en rendición</span>
+            <span style="font-weight:800;color:${rendDif<0?'#f87171':'#fbbf24'}">${fm(rendDif)}</span>
         </div>` : ''}
-        <div class="cruce-row">
-            <span class="cruce-label"><span class="material-icons-round" style="font-size:16px;color:var(--primary)">add_circle</span>Ingresos manuales</span>
-            <span class="cruce-val t-green">+${fm(ingM)}</span>
-        </div>
-        <div class="cruce-row">
-            <span class="cruce-label"><span class="material-icons-round" style="font-size:16px;color:#f87171">remove_circle</span>Egresos manuales</span>
-            <span class="cruce-val t-red">-${fm(egrM)}</span>
-        </div>
-        <div class="cruce-row" style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;margin-top:6px;border:none;">
-            <span style="font-weight:700;">Esperado al cierre</span>
-            <span style="font-weight:800;font-size:1rem;">${fm(esp)}</span>
-        </div>
-        <div class="cruce-row" style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;border:none;">
-            <span style="font-weight:700;">Laura declaró</span>
-            <span style="font-weight:800;font-size:1rem;color:${color}">${fm(arqueoFisico)}</span>
-        </div>
+        ` : `<div style="padding:12px 0;color:var(--muted);font-size:0.82rem;">Sin rendiciones registradas hoy</div>`}
     `;
 }
 
@@ -851,11 +842,12 @@ function renderCruceHist(res) {
     $('cruce-alertas-badge').textContent = alertas > 0 ? `${alertas} alertas` : '';
     $('cruce-alertas-badge').style.color = alertas > 0 ? '#f87171' : '';
 
+    // Usamos d.diferencia (arqueo.diferencia del GAS), no el brecha calculado
     c.innerHTML = res.data.slice().reverse().map(d => {
-        const b = d.brecha || 0;
-        let ico = 'check_circle', color = '#34d399', badge = 'Cuadra';
-        if (Math.abs(b) >= 1000 && b < 0) { ico = 'warning'; color = '#f87171'; badge = fm(b); }
-        else if (Math.abs(b) >= 1000 && b > 0) { ico = 'help'; color = '#fbbf24'; badge = '+'+fm(b); }
+        const b = d.diferencia || 0;
+        let ico = 'check_circle', color = '#34d399', badge = 'Exacto';
+        if (Math.abs(b) >= 1000 && b < 0) { ico = 'warning'; color = '#f87171'; badge = 'Faltó '+fm(Math.abs(b)); }
+        else if (Math.abs(b) >= 1000 && b > 0) { ico = 'help'; color = '#fbbf24'; badge = 'Sobró '+fm(b); }
         else if (Math.abs(b) >= 100) { ico = 'info'; color = '#fbbf24'; badge = fm(b); }
 
         const [y,mo,day] = d.fecha.split('-');
@@ -865,10 +857,10 @@ function renderCruceHist(res) {
                 <span class="material-icons-round" style="color:${color};font-size:20px;">${ico}</span>
                 <div>
                     <div class="hist-date">${day}/${mo}/${y}</div>
-                    <div class="hist-sub">Esp: ${fm(d.saldoEsperado)} · Rend: ${fm(d.rendContado)}</div>
+                    <div class="hist-sub">Rend: ${fm(d.rendContado)} · ${d.rendContado > 0 ? 'Recibida' : 'Sin rendición'}</div>
                 </div>
             </div>
-            <div style="font-weight:800;font-size:0.9rem;color:${color}">${badge}</div>
+            <div style="font-weight:800;font-size:0.88rem;color:${color}">${badge}</div>
         </div>`;
     }).join('');
 }
@@ -937,10 +929,10 @@ function renderBrechaChart(data) {
         data: {
             labels: sorted.map(d => d.fecha.substring(5)),
             datasets: [{
-                label: 'Brecha $',
-                data: sorted.map(d => d.brecha || 0),
+                label: 'Diferencia arqueo $',
+                data: sorted.map(d => d.diferencia || 0),
                 backgroundColor: sorted.map(d => {
-                    const b = d.brecha || 0;
+                    const b = d.diferencia || 0;
                     if (Math.abs(b) < 1000) return 'rgba(16,185,129,0.6)';
                     return b < 0 ? 'rgba(239,68,68,0.7)' : 'rgba(245,158,11,0.7)';
                 }),
