@@ -1622,28 +1622,39 @@
         window.limpiarBilletes = (tipo) => { document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`).forEach(i => i.value = ''); calcBilletes(tipo); monitor.logDelete(); }
 
         async function buscarRendicionPendiente() {
-            const zen = document.getElementById('zen-state-container'); const content = document.getElementById('rendicion-content'); const load = document.getElementById('rendicion-loading-card'); const dataCard = document.getElementById('card-rendicion-data');
-            zen.style.display = 'none'; content.style.display = 'block'; load.style.display = 'block'; dataCard.style.display = 'none'; document.getElementById('card-billetes-rendicion').style.display = 'none';
+            const zen = document.getElementById('zen-state-container');
+            const content = document.getElementById('rendicion-content');
+            const load = document.getElementById('rendicion-loading-card');
+            const dataCard = document.getElementById('card-rendicion-data');
+            zen.style.display = 'none'; content.style.display = 'block'; load.style.display = 'block';
+            dataCard.style.display = 'none'; document.getElementById('card-billetes-rendicion').style.display = 'none';
             rendicionPendiente = null;
-            const res = await api("getDatosRendicionEsperada", { repartidor: RENDICION_REPARTIDOR, turno: RENDICION_TURNO_DEFECTO }); 
+
+            const res = await api("getDatosRendicionEsperada", { repartidor: RENDICION_REPARTIDOR, turno: RENDICION_TURNO_DEFECTO });
             load.style.display = 'none';
-            // V3 LOGIC CHANGE: Check for hayPendiente explicitly
+
             if (res && res.ok && res.hayPendiente) {
+                // 🛡️ GUARD anti-duplicado: el GAS devuelve la misma fila aunque ya fue procesada
+                // porque no actualiza el estado en Supabase. Usamos localStorage como memoria local.
+                const guardKey = `rend_ok_${res.fecha}_${res.turno}_${res.repartidor || RENDICION_REPARTIDOR}`;
+                const procesadaTs = localStorage.getItem(guardKey);
+                if (procesadaTs && (Date.now() - parseInt(procesadaTs)) < 20 * 60 * 60 * 1000) {
+                    content.style.display = 'none'; zen.style.display = 'block';
+                    return;
+                }
+
                 rendicionPendiente = res;
                 const ef = parseInt(res.efectivoEsperado || 0);
                 const tr = parseInt(res.transferencia || 0);
                 const ch = parseInt(res.cheque || 0);
                 const tot = ef + tr + ch;
-                const esSoloDigital = (ef === 0); // todo transferencia/cheque, sin efectivo
+                const esSoloDigital = (ef === 0);
 
                 dataCard.style.display = 'block';
-                // Ocultar grilla de billetes si no hay efectivo que contar
                 document.getElementById('card-billetes-rendicion').style.display = esSoloDigital ? 'none' : 'block';
-
                 document.getElementById('rendicion-narrativa').innerHTML = `Planilla de <b>${res.repartidor}</b><br>Turno: <b>${res.turno}</b><br>Fecha: <b>${res.fecha}</b>`;
                 document.getElementById('rendicion-esperado').textContent = esSoloDigital ? '$ 0 (sin efectivo)' : "$ " + ef.toLocaleString('es-AR');
 
-                // Si no hay efectivo: auto-setear conteo en $0 y mostrar PERFECTO de entrada
                 if (esSoloDigital) {
                     const contEl = document.getElementById('rendicion-contado-display');
                     contEl.textContent = '$ 0'; contEl.setAttribute('data-numeric', '0');
@@ -1651,7 +1662,6 @@
                         `<div style="text-align:center; background:#f0f2ff; padding:10px; border-radius:10px; border:2px solid var(--primary); font-weight:800; color:var(--primary);">💳 Sin efectivo — todo cobrado digitalmente. Confirmá para cerrar.</div>`;
                 }
 
-                // Desglose por forma de pago (datos desde Supabase)
                 const desgEl = document.getElementById('rendicion-desglose-pagos');
                 if (desgEl) {
                     let html = '';
@@ -1669,7 +1679,9 @@
                     desgEl.innerHTML = html;
                 }
                 if (!esSoloDigital) calcBilletes('rend');
-            } else { content.style.display = 'none'; zen.style.display = 'block'; }
+            } else {
+                content.style.display = 'none'; zen.style.display = 'block';
+            }
         }
 
         function actualizarDiferenciaRendicion(totalContado) {
@@ -1724,15 +1736,22 @@
                 });
                 hideLoading();
                 
-                if (res && res.ok) { 
-                    showToast(res.mensaje || "✅ Éxito: Rendición procesada", true); 
-                    lanzarConfeti(); 
-                    
+                if (res && res.ok) {
+                    showToast(res.mensaje || "✅ Éxito: Rendición procesada", true);
+                    lanzarConfeti();
+
+                    // 🛡️ Marcar como procesada en localStorage para que buscarRendicionPendiente()
+                    // no la vuelva a mostrar si el GAS no actualiza el estado en Supabase
+                    try {
+                        const guardKey = `rend_ok_${rendicionPendiente.fecha}_${rendicionPendiente.turno}_${rendicionPendiente.repartidor || RENDICION_REPARTIDOR}`;
+                        localStorage.setItem(guardKey, Date.now().toString());
+                    } catch(_) {}
+
                     // 1. UPDATE BALANCE (MONEY CAME IN)
                     actualizarSaldoHeader();
-                    
+
                     // 2. RESET UI & CHECK FOR NEXT OR ZEN
-                    monitor.reset(); 
+                    monitor.reset();
                     limpiarBilletes('rend');
                     buscarRendicionPendiente(); 
                     
@@ -1863,40 +1882,131 @@
                 showToast("El contador está en cero", false);
             }
         }
-        // === MODAL RENDICION COMPLETA ===
+        // === MODAL RENDICION COMPLETA v2 ===
         window.abrirModalRendicionCompleta = function() {
             if (!rendicionPendiente || !rendicionPendiente.detalleClientes) return;
-            const modal = document.getElementById('modal-rendicion-completa');
-            const body  = document.getElementById('rendicion-completa-body');
+            const modal  = document.getElementById('modal-rendicion-completa');
+            const body   = document.getElementById('rendicion-completa-body');
             const detalle = rendicionPendiente.detalleClientes;
-            const ef  = parseInt(rendicionPendiente.efectivoEsperado || 0);
-            const tr  = parseInt(rendicionPendiente.transferencia || 0);
-            const ch  = parseInt(rendicionPendiente.cheque || 0);
+            const ef = parseInt(rendicionPendiente.efectivoEsperado || 0);
+            const tr = parseInt(rendicionPendiente.transferencia   || 0);
+            const ch = parseInt(rendicionPendiente.cheque          || 0);
+
+            // ── Estadísticas rápidas ──
+            const totalClientes  = detalle.length;
+            const conDevolucion  = detalle.filter(c => parseFloat(c.devolucion || 0) > 0).length;
+            const conParcial     = detalle.filter(c => {
+                const fact = parseFloat(c.importeFact || 0);
+                const pag  = parseFloat(c.totalPagado || (parseFloat(c.importe1||0)+parseFloat(c.importe2||0)));
+                return fact > 0 && pag < fact - 1;
+            }).length;
+
             let html = '';
-            // Resumen totales
-            html += `<div style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap;">`;
-            html += `<div style="flex:1; min-width:70px; background:#e8f5e9; border-radius:10px; padding:10px; text-align:center; border:2px solid #00b894;"><div style="font-size:0.65rem; font-weight:700; color:#00b894;">EFECTIVO</div><div style="font-weight:900; color:#00b894; font-size:0.95rem;">$ ${ef.toLocaleString('es-AR')}</div></div>`;
-            if (tr > 0) html += `<div style="flex:1; min-width:70px; background:#f0f2ff; border-radius:10px; padding:10px; text-align:center; border:2px solid #6C63FF;"><div style="font-size:0.65rem; font-weight:700; color:#6C63FF;">TRANSFER.</div><div style="font-weight:900; color:#6C63FF; font-size:0.95rem;">$ ${tr.toLocaleString('es-AR')}</div></div>`;
-            if (ch > 0) html += `<div style="flex:1; min-width:70px; background:#fff4f0; border-radius:10px; padding:10px; text-align:center; border:2px solid #e17055;"><div style="font-size:0.65rem; font-weight:700; color:#e17055;">CHEQUE</div><div style="font-weight:900; color:#e17055; font-size:0.95rem;">$ ${ch.toLocaleString('es-AR')}</div></div>`;
+
+            // ── Chips de resumen ──
+            html += `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:13px;">`;
+            html += `<span style="background:#f0f2ff; color:var(--primary); border-radius:20px; padding:4px 11px; font-size:0.77rem; font-weight:700;">${totalClientes} cliente${totalClientes !== 1 ? 's' : ''}</span>`;
+            if (conDevolucion > 0) html += `<span style="background:#fff3cd; color:#c0392b; border-radius:20px; padding:4px 11px; font-size:0.77rem; font-weight:700;">⚠️ ${conDevolucion} dev.</span>`;
+            if (conParcial    > 0) html += `<span style="background:#ffe8e8; color:#c0392b; border-radius:20px; padding:4px 11px; font-size:0.77rem; font-weight:700;">📉 ${conParcial} parcial${conParcial !== 1 ? 'es' : ''}</span>`;
             html += `</div>`;
-            // Lista clientes
-            detalle.forEach(c => {
-                const fp1 = String(c.formaPago1 || '').toLowerCase();
-                const colorPago = fp1.includes('transfer') ? '#6C63FF' : fp1.includes('cheque') ? '#e17055' : '#00b894';
-                const iconoPago = fp1.includes('transfer') ? '📲' : fp1.includes('cheque') ? '📋' : '💵';
-                const imp1 = parseFloat(c.importe1 || 0);
-                const imp2 = parseFloat(c.importe2 || 0);
-                const totalC = imp1 + imp2;
-                const fp2str = c.formaPago2 ? ` + ${c.formaPago2}` : '';
-                html += `<div style="background:#f8f9fa; border-radius:12px; padding:12px; margin-bottom:8px; border-left:4px solid ${colorPago};">`;
-                html += `<div style="display:flex; justify-content:space-between; align-items:center;">`;
-                html += `<div><div style="font-weight:700; font-size:0.9rem; color:#333;">${c.nombre || c.numCliente || '—'}</div>`;
-                html += `<div style="font-size:0.75rem; color:#888;">${iconoPago} ${c.formaPago1 || ''}${fp2str}</div></div>`;
-                html += `<div style="font-weight:900; color:${colorPago}; font-size:1rem;">$ ${totalC.toLocaleString('es-AR')}</div>`;
+
+            // ── Tiles de totales (solo los no-cero) ──
+            if (ef > 0 || tr > 0 || ch > 0) {
+                html += `<div style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap;">`;
+                if (ef > 0) html += `<div style="flex:1;min-width:70px;background:#e8f5e9;border-radius:10px;padding:10px;text-align:center;border:2px solid #00b894;"><div style="font-size:0.63rem;font-weight:700;color:#00b894;">EFECTIVO</div><div style="font-weight:900;color:#00b894;font-size:0.93rem;">$ ${ef.toLocaleString('es-AR')}</div></div>`;
+                if (tr > 0) html += `<div style="flex:1;min-width:70px;background:#f0f2ff;border-radius:10px;padding:10px;text-align:center;border:2px solid #6C63FF;"><div style="font-size:0.63rem;font-weight:700;color:#6C63FF;">TRANSFER.</div><div style="font-weight:900;color:#6C63FF;font-size:0.93rem;">$ ${tr.toLocaleString('es-AR')}</div></div>`;
+                if (ch > 0) html += `<div style="flex:1;min-width:70px;background:#fff4f0;border-radius:10px;padding:10px;text-align:center;border:2px solid #e17055;"><div style="font-size:0.63rem;font-weight:700;color:#e17055;">CHEQUE</div><div style="font-weight:900;color:#e17055;font-size:0.93rem;">$ ${ch.toLocaleString('es-AR')}</div></div>`;
                 html += `</div>`;
-                if (c.notas) html += `<div style="font-size:0.75rem; color:#888; margin-top:5px; font-style:italic;">📝 ${c.notas}</div>`;
+            }
+
+            // ── Helpers de color por forma de pago ──
+            const fpColor = fp => {
+                const f = String(fp || '').toLowerCase();
+                if (f.includes('transfer')) return '#6C63FF';
+                if (f.includes('cheque'))   return '#e17055';
+                return '#00b894';
+            };
+            const fpIcon = fp => {
+                const f = String(fp || '').toLowerCase();
+                if (f.includes('transfer')) return '📲';
+                if (f.includes('cheque'))   return '📋';
+                return '💵';
+            };
+            const fpOrder = fp => {
+                const f = String(fp || '').toLowerCase();
+                if (f.includes('transfer')) return 2;
+                if (f.includes('cheque'))   return 3;
+                if (!f) return 4;
+                return 1; // efectivo primero
+            };
+
+            // ── Ordenar: efectivo → mixto → transfer → cheque ──
+            const sorted = [...detalle].sort((a, b) => fpOrder(a.formaPago1) - fpOrder(b.formaPago1));
+
+            // ── Lista de clientes ──
+            let lastGroup = null;
+            sorted.forEach(c => {
+                const fp1      = String(c.formaPago1 || '');
+                const fp2      = String(c.formaPago2 || '');
+                const hasMixed = !!c.formaPago2;
+                const imp1     = parseFloat(c.importe1   || 0);
+                const imp2     = parseFloat(c.importe2   || 0);
+                const totalPag = parseFloat(c.totalPagado || 0) || (imp1 + imp2);
+                const importeFact = parseFloat(c.importeFact || 0);
+                const devolucion  = parseFloat(c.devolucion  || 0);
+                const esParcial   = importeFact > 0 && totalPag < importeFact - 1;
+
+                const color1 = fpColor(fp1);
+                const icon1  = fpIcon(fp1);
+                const borderColor = hasMixed ? '#f39c12' : color1;
+
+                // Separador de grupo
+                const group = hasMixed ? 'mixto' : fp1.toLowerCase().includes('transfer') ? 'transfer' : fp1.toLowerCase().includes('cheque') ? 'cheque' : fp1 ? 'efectivo' : 'sin-dato';
+                if (group !== lastGroup) {
+                    const gLabels = { efectivo:'💵 Efectivo', transfer:'📲 Transferencia', cheque:'📋 Cheque', mixto:'🔀 Pago mixto', 'sin-dato':'— Sin dato' };
+                    const gColors = { efectivo:'#00b894', transfer:'#6C63FF', cheque:'#e17055', mixto:'#f39c12', 'sin-dato':'#aaa' };
+                    html += `<div style="font-size:0.7rem;font-weight:800;color:${gColors[group]||'#aaa'};text-transform:uppercase;letter-spacing:0.5px;margin:10px 0 5px;padding-left:4px;">${gLabels[group]||group}</div>`;
+                    lastGroup = group;
+                }
+
+                // Etiqueta de pago
+                let pagoLabel = fp1;
+                if (hasMixed) pagoLabel = `${fp1} $${imp1.toLocaleString('es-AR')} + ${fp2} $${imp2.toLocaleString('es-AR')}`;
+
+                html += `<div style="background:#f8f9fa;border-radius:12px;padding:10px 12px;margin-bottom:7px;border-left:4px solid ${borderColor};">`;
+                // Fila principal: número | datos | importe
+                html += `<div style="display:flex;align-items:flex-start;gap:10px;">`;
+                // ── Número de cliente (grande, para recibo) ──
+                html += `<div style="background:${borderColor};color:white;border-radius:10px;padding:6px 9px;font-size:1.05rem;font-weight:900;min-width:42px;text-align:center;flex-shrink:0;line-height:1.1;letter-spacing:-0.5px;">`;
+                html += `<div style="font-size:0.55rem;font-weight:700;opacity:0.8;margin-bottom:1px;">CLI</div>`;
+                html += `${c.numCliente || '?'}`;
+                html += `</div>`;
+                // ── Datos del cliente ──
+                html += `<div style="flex:1;min-width:0;">`;
+                html += `<div style="font-weight:700;font-size:0.88rem;color:#333;display:flex;align-items:center;flex-wrap:wrap;gap:5px;">`;
+                html += `<span>${c.nombre || '—'}</span>`;
+                if (devolucion > 0) html += `<span style="background:#fff3cd;color:#c0392b;border-radius:8px;padding:1px 7px;font-size:0.66rem;font-weight:800;">⚠️ DEV</span>`;
+                if (c.comprobanteId) html += `<span style="color:#6C63FF;font-size:0.78rem;" title="Comprobante subido">📎</span>`;
+                html += `</div>`;
+                html += `<div style="font-size:0.72rem;color:#888;margin-top:2px;">${icon1} ${pagoLabel}</div>`;
+                if (esParcial) html += `<div style="font-size:0.69rem;color:#c0392b;font-weight:700;margin-top:2px;">📉 Parcial · Factura: $${importeFact.toLocaleString('es-AR')}</div>`;
+                if (devolucion > 0) html += `<div style="font-size:0.69rem;color:#d35400;font-weight:700;margin-top:2px;">↩ Devolución: $${devolucion.toLocaleString('es-AR')}</div>`;
+                html += `</div>`;
+                // ── Importe ──
+                html += `<div style="font-weight:900;color:${borderColor};font-size:0.97rem;white-space:nowrap;padding-top:2px;">$ ${totalPag.toLocaleString('es-AR')}</div>`;
+                html += `</div>`;
+                // Notas
+                if (c.notas) html += `<div style="font-size:0.71rem;color:#888;margin-top:6px;font-style:italic;border-top:1px solid #eee;padding-top:5px;">📝 ${c.notas}</div>`;
                 html += `</div>`;
             });
+
+            // ── Total general ──
+            const totalGeneral = ef + tr + ch;
+            html += `<div style="margin-top:13px;padding:11px 14px;background:#f0f2ff;border-radius:10px;display:flex;justify-content:space-between;align-items:center;border:2px solid var(--primary);">`;
+            html += `<span style="font-weight:800;color:var(--primary);font-size:0.87rem;">TOTAL COBRADO</span>`;
+            html += `<span style="font-weight:900;color:var(--primary);font-size:1.05rem;">$ ${totalGeneral.toLocaleString('es-AR')}</span>`;
+            html += `</div>`;
+
             body.innerHTML = html;
             modal.style.display = 'flex';
         };
@@ -1906,7 +2016,7 @@
     </script>
 
     <!-- MODAL RENDICION COMPLETA -->
-    <div id="modal-rendicion-completa" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); z-index:8000; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px 15px; box-sizing:border-box;">
+    <div id="modal-rendicion-completa" onclick="if(event.target===this)cerrarModalRendicionCompleta()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); z-index:8000; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px 15px; box-sizing:border-box;">
         <div style="background:white; width:100%; max-width:500px; border-radius:20px; padding:20px; margin:0 auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #f0f0f0; padding-bottom:10px;">
                 <h3 style="margin:0; font-size:1.1rem; color:var(--primary);">📋 Rendición Completa</h3>
