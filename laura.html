@@ -2014,8 +2014,11 @@
                 if (esParcial) html += `<div style="font-size:0.69rem;color:#c0392b;font-weight:700;margin-top:2px;">📉 Parcial · Factura: $${importeFact.toLocaleString('es-AR')}</div>`;
                 if (devolucion > 0) html += `<div style="font-size:0.69rem;color:#d35400;font-weight:700;margin-top:2px;">↩ Devolución: $${devolucion.toLocaleString('es-AR')}</div>`;
                 html += `</div>`;
-                // ── Importe ──
-                html += `<div style="font-weight:900;color:${borderColor};font-size:0.97rem;white-space:nowrap;padding-top:2px;">$ ${totalPag.toLocaleString('es-AR')}</div>`;
+                // ── Importe + botón editar ──
+                html += `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;">`;
+                html += `<div style="font-weight:900;color:${borderColor};font-size:0.97rem;white-space:nowrap;">$ ${totalPag.toLocaleString('es-AR')}</div>`;
+                html += `<button onclick="abrirEditarCliente('${c.numCliente}')" style="background:none;border:1px solid #ddd;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:0.7rem;color:#999;font-family:Quicksand;font-weight:700;">✏️ editar</button>`;
+                html += `</div>`;
                 html += `</div>`;
                 // Notas
                 if (c.notas) html += `<div style="font-size:0.71rem;color:#888;margin-top:6px;font-style:italic;border-top:1px solid #eee;padding-top:5px;">📝 ${c.notas}</div>`;
@@ -2035,6 +2038,156 @@
         window.cerrarModalRendicionCompleta = function() {
             document.getElementById('modal-rendicion-completa').style.display = 'none';
         };
+
+        // ── EDICIÓN DE FORMA DE PAGO POR CLIENTE ──
+        window.abrirEditarCliente = function(numCliente) {
+            const c = rendicionPendiente && rendicionPendiente.detalleClientes &&
+                      rendicionPendiente.detalleClientes.find(x => String(x.numCliente) === String(numCliente));
+            if (!c) return;
+            const body = document.getElementById('rendicion-completa-body');
+            const imp1 = parseFloat(c.importe1 || 0);
+            const imp2 = parseFloat(c.importe2 || 0);
+            const totalPag = parseFloat(c.totalPagado || 0) || (imp1 + imp2);
+            const hasFp2 = !!c.formaPago2;
+            const opts = (sel) => ['Efectivo','Transferencia','Cheque'].map(fp =>
+                `<option value="${fp}" ${(sel||'').toLowerCase()===fp.toLowerCase()?'selected':''}>${fp}</option>`
+            ).join('');
+            const selStyle = `width:100%;padding:9px 10px;border-radius:8px;border:2px solid #e0e0e0;font-family:Quicksand;font-weight:600;font-size:0.88rem;color:#333;appearance:auto;`;
+            const impStyle = `width:100%;padding:9px 10px;border-radius:8px;border:2px solid #e0e0e0;font-family:Quicksand;font-weight:700;font-size:0.9rem;color:#333;`;
+            body.innerHTML = `
+              <div style="padding:4px 2px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #f0f0f0;">
+                  <div style="background:var(--primary);color:white;border-radius:10px;padding:5px 10px;font-size:1rem;font-weight:900;min-width:40px;text-align:center;">
+                    <div style="font-size:0.5rem;opacity:0.8;">CLI</div>${c.numCliente||'?'}
+                  </div>
+                  <div>
+                    <div style="font-weight:700;font-size:0.9rem;color:#333;">${c.nombre||'—'}</div>
+                    <div style="font-size:0.72rem;color:#aaa;">Total: $${totalPag.toLocaleString('es-AR')}</div>
+                  </div>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                  <label style="font-size:0.77rem;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Forma de pago 1</label>
+                  <select id="edit-fp1" style="${selStyle}"><option value="">— elegir —</option>${opts(c.formaPago1)}</select>
+                  <label style="font-size:0.72rem;color:#888;display:block;margin-top:6px;margin-bottom:3px;">Importe</label>
+                  <input type="number" id="edit-imp1" value="${imp1}" min="0" style="${impStyle}" placeholder="0">
+                </div>
+
+                <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;font-weight:700;color:#555;cursor:pointer;margin-bottom:12px;">
+                  <input type="checkbox" id="edit-has-fp2" ${hasFp2?'checked':''} onchange="toggleFp2Edit(this.checked)" style="width:17px;height:17px;cursor:pointer;">
+                  Tiene segundo método de pago
+                </label>
+
+                <div id="edit-fp2-section" style="display:${hasFp2?'block':'none'};margin-bottom:12px;">
+                  <label style="font-size:0.77rem;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Forma de pago 2</label>
+                  <select id="edit-fp2" style="${selStyle}"><option value="">— elegir —</option>${opts(c.formaPago2)}</select>
+                  <label style="font-size:0.72rem;color:#888;display:block;margin-top:6px;margin-bottom:3px;">Importe</label>
+                  <input type="number" id="edit-imp2" value="${imp2}" min="0" style="${impStyle}" placeholder="0">
+                </div>
+
+                <div style="background:#f8f9fa;border-radius:8px;padding:8px 12px;margin-bottom:16px;font-size:0.78rem;color:#888;">
+                  💡 Los importes deben sumar <b>$${totalPag.toLocaleString('es-AR')}</b> (total original del cliente)
+                </div>
+
+                <div style="display:flex;gap:10px;">
+                  <button onclick="guardarEdicionCliente('${numCliente}')"
+                    style="flex:1;padding:12px;background:var(--success);color:white;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:Quicksand;">
+                    ✅ Guardar cambio
+                  </button>
+                  <button onclick="abrirModalRendicionCompleta()"
+                    style="flex:1;padding:12px;background:#f1f2f6;color:#555;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:Quicksand;">
+                    Cancelar
+                  </button>
+                </div>
+              </div>`;
+        };
+
+        window.toggleFp2Edit = function(show) {
+            document.getElementById('edit-fp2-section').style.display = show ? 'block' : 'none';
+        };
+
+        window.guardarEdicionCliente = function(numCliente) {
+            const c = rendicionPendiente && rendicionPendiente.detalleClientes &&
+                      rendicionPendiente.detalleClientes.find(x => String(x.numCliente) === String(numCliente));
+            if (!c) return;
+            const newFp1  = document.getElementById('edit-fp1').value;
+            const newImp1 = parseFloat(document.getElementById('edit-imp1').value) || 0;
+            const hasFp2  = document.getElementById('edit-has-fp2').checked;
+            const newFp2  = hasFp2 ? document.getElementById('edit-fp2').value : '';
+            const newImp2 = hasFp2 ? (parseFloat(document.getElementById('edit-imp2').value) || 0) : 0;
+            if (!newFp1) { showToast('Elegí la forma de pago', false); return; }
+            const originalTotal = parseFloat(c.totalPagado || 0) || (parseFloat(c.importe1||0)+parseFloat(c.importe2||0));
+            if (originalTotal > 0 && Math.abs((newImp1 + newImp2) - originalTotal) > 1) {
+                showToast(`Los importes deben sumar $${originalTotal.toLocaleString('es-AR')}`, false);
+                return;
+            }
+            // Actualizar cliente en memoria
+            c.formaPago1 = newFp1; c.importe1 = newImp1;
+            c.formaPago2 = newFp2; c.importe2 = newImp2;
+            c.totalPagado = newImp1 + newImp2;
+            // Recalcular totales generales y actualizar pantalla
+            recalcularTotalesRendicion();
+            // Intentar guardar en backend (no bloqueante)
+            api("actualizarFormaPagoCliente", {
+                fecha: rendicionPendiente.fecha, turno: rendicionPendiente.turno,
+                repartidor: rendicionPendiente.repartidor, numCliente: c.numCliente,
+                formaPago1: newFp1, importe1: newImp1, formaPago2: newFp2, importe2: newImp2
+            });
+            // Volver a la lista actualizada
+            abrirModalRendicionCompleta();
+            showToast('✅ Forma de pago actualizada', true);
+        };
+
+        function recalcularTotalesRendicion() {
+            if (!rendicionPendiente || !rendicionPendiente.detalleClientes) return;
+            let ef = 0, tr = 0, ch = 0;
+            rendicionPendiente.detalleClientes.forEach(c => {
+                const imp1 = parseFloat(c.importe1 || 0);
+                const imp2 = parseFloat(c.importe2 || 0);
+                const fp1  = String(c.formaPago1 || '').toLowerCase();
+                const fp2  = String(c.formaPago2 || '').toLowerCase();
+                if      (fp1.includes('transfer')) tr += imp1;
+                else if (fp1.includes('cheque'))   ch += imp1;
+                else if (imp1 > 0)                 ef += imp1;
+                if (fp2) {
+                    if      (fp2.includes('transfer')) tr += imp2;
+                    else if (fp2.includes('cheque'))   ch += imp2;
+                    else if (imp2 > 0)                 ef += imp2;
+                }
+            });
+            rendicionPendiente.efectivoEsperado = ef;
+            rendicionPendiente.transferencia    = tr;
+            rendicionPendiente.cheque           = ch;
+            const tot = ef + tr + ch;
+            const esSoloDigital = (ef === 0);
+            // — actualizar pantalla principal —
+            const efEl = document.getElementById('rendicion-esperado');
+            if (efEl) efEl.textContent = esSoloDigital ? '$ 0 (sin efectivo)' : '$ ' + ef.toLocaleString('es-AR');
+            document.getElementById('card-billetes-rendicion').style.display = esSoloDigital ? 'none' : 'block';
+            if (esSoloDigital) {
+                const contEl = document.getElementById('rendicion-contado-display');
+                if (contEl) { contEl.textContent = '$ 0'; contEl.setAttribute('data-numeric','0'); }
+                const difEl = document.getElementById('rendicion-diferencia-container');
+                if (difEl) difEl.innerHTML = `<div style="text-align:center;background:#f0f2ff;padding:10px;border-radius:10px;border:2px solid var(--primary);font-weight:800;color:var(--primary);">💳 Sin efectivo — todo cobrado digitalmente. Confirmá para cerrar.</div>`;
+            } else {
+                limpiarBilletes('rend');
+            }
+            // — actualizar desglose —
+            const desgEl = document.getElementById('rendicion-desglose-pagos');
+            if (!desgEl) return;
+            let dHtml = '';
+            if (tr > 0 || ch > 0) {
+                dHtml += `<div style="background:#f8f9fa;border-radius:10px;padding:10px;margin-top:8px;font-size:0.85rem;">`;
+                if (ef > 0) dHtml += `<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="color:#00b894;font-weight:700;">💵 Efectivo:</span><span style="color:#00b894;font-weight:800;">$ ${ef.toLocaleString('es-AR')}</span></div>`;
+                if (tr > 0) dHtml += `<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="color:#6C63FF;font-weight:700;">📲 Transferencia:</span><span style="color:#6C63FF;font-weight:800;">$ ${tr.toLocaleString('es-AR')}</span></div>`;
+                if (ch > 0) dHtml += `<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="color:#e17055;font-weight:700;">📋 Cheque:</span><span style="color:#e17055;font-weight:800;">$ ${ch.toLocaleString('es-AR')}</span></div>`;
+                dHtml += `<div style="display:flex;justify-content:space-between;border-top:1px solid #dee2e6;padding-top:5px;margin-top:5px;"><span style="font-weight:700;color:#555;">Total Cobrado:</span><span style="font-weight:900;color:var(--text-main);">$ ${tot.toLocaleString('es-AR')}</span></div>`;
+                dHtml += `</div>`;
+            }
+            dHtml += `<button onclick="abrirModalRendicionCompleta()" style="width:100%;margin-top:8px;padding:9px;border:2px solid var(--primary);border-radius:10px;background:transparent;color:var(--primary);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:Quicksand;">📋 Ver rendición completa</button>`;
+            dHtml += `<div style="text-align:center;margin-top:12px;"><button onclick="marcarRendicionYaProcesada()" style="background:none;border:none;color:#bbb;font-size:0.75rem;cursor:pointer;font-family:Quicksand;text-decoration:underline;">¿Ya fue procesada antes? Ocultarla</button></div>`;
+            desgEl.innerHTML = dHtml;
+        }
     </script>
 
     <!-- MODAL RENDICION COMPLETA -->
