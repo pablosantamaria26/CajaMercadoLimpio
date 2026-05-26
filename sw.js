@@ -1,5 +1,5 @@
 // Service Worker para Caja Mercado Limpio
-const CACHE_NAME = 'caja-ml-v15-editar-forma-pago';
+const CACHE_NAME = 'caja-ml-v16-contadores-plus-minus';
 
 // Archivos vitales para que la app arranque sin internet o cargue instantáneo
 const urlsToCache = [

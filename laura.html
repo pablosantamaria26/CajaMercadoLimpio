@@ -208,11 +208,17 @@
         .arqueo-header-card .label { font-size: 0.9rem; font-weight: 700; color: rgba(0,0,0,0.5); text-transform: uppercase; margin-bottom: 5px; }
         .arqueo-header-card .value { font-size: 3rem; font-weight: 900; color: #D63031; text-shadow: 0 2px 0 rgba(255,255,255,0.5); }
         .arqueo-sistema-pill { background: rgba(255,255,255,0.85); padding: 8px 15px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.9rem; font-weight: 700; color: #555; }
-        .billetes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-        .billete-item { background: #fff; border-radius: 18px; padding: 12px; text-align: center; border: 2px solid #f0f0f0; transition: all 0.2s; }
-        .billete-item:focus-within { border-color: var(--primary); box-shadow: 0 4px 10px rgba(108, 99, 255, 0.12); }
-        .billete-label { font-size: 1.1rem; color: #888; font-weight: 700; margin-bottom: 2px; }
-        .billete-input { width: 100%; border: none; text-align: center; font-size: 1.6rem; font-weight: 800; color: var(--text-main); outline: none; background: transparent; padding: 5px 0; font-family: 'Quicksand'; }
+        .billetes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .billete-item { background: #fff; border-radius: 16px; padding: 10px 12px 8px; text-align: center; border: 2px solid #f0f0f0; transition: border-color 0.18s, background 0.18s; }
+        .billete-item.tiene-valor { border-color: var(--success); background: #f0faf6; }
+        .billete-label { font-size: 0.88rem; color: #bbb; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.2px; }
+        .billete-item.tiene-valor .billete-label { color: var(--success); font-weight: 800; }
+        .billete-ctrl { display: flex; align-items: center; gap: 5px; }
+        .billete-btn { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #eee; background: #f8f9fa; font-size: 1.15rem; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #aaa; transition: all 0.12s; -webkit-tap-highlight-color: transparent; user-select: none; line-height: 1; padding: 0; }
+        .billete-btn:active { transform: scale(0.85); background: var(--primary); color: white; border-color: var(--primary); }
+        .billete-item.tiene-valor .billete-btn { border-color: #b2dfdb; color: var(--success); background: white; }
+        .billete-input { flex: 1; border: none; text-align: center; font-size: 1.55rem; font-weight: 900; color: var(--text-main); outline: none; background: transparent; padding: 3px 0; font-family: 'Quicksand'; width: 0; min-width: 0; }
+        .billete-sub { font-size: 0.67rem; color: var(--success); font-weight: 700; margin-top: 5px; min-height: 12px; opacity: 0.85; }
 
         /* --- CONTROLES FORM --- */
         .form-control { width: 100%; padding: 16px; border: 2px solid #eee; border-radius: 16px; font-size: 1rem; font-family: 'Quicksand'; outline: none; transition: all 0.3s; background: #fafafa; color: var(--text-main); font-weight: 700; margin-bottom: 15px; }
@@ -672,17 +678,17 @@
                     <span style="color:var(--accent); cursor:pointer; font-size:0.8rem;" onclick="limpiarBilletes('rend')">Borrar</span>
                 </div>
                 <div class="billetes-grid">
-                    <div class="billete-item"><div class="billete-label">$ 20.000</div><input type="number" class="billete-input" data-val="20000" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 10.000</div><input type="number" class="billete-input" data-val="10000" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 5.000</div><input type="number" class="billete-input" data-val="5000" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 2.000</div><input type="number" class="billete-input" data-val="2000" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 1.000</div><input type="number" class="billete-input" data-val="1000" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 500</div><input type="number" class="billete-input" data-val="500" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 200</div><input type="number" class="billete-input" data-val="200" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 100</div><input type="number" class="billete-input" data-val="100" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 50</div><input type="number" class="billete-input" data-val="50" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 20</div><input type="number" class="billete-input" data-val="20" oninput="calcBilletes('rend')" placeholder="0"></div>
-                    <div class="billete-item"><div class="billete-label">$ 10</div><input type="number" class="billete-input" data-val="10" oninput="calcBilletes('rend')" placeholder="0"></div>
+                    <div class="billete-item"><div class="billete-label">$ 20.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="20000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 10.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="10000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 5.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="5000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 2.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="2000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 1.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="1000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 500</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="500" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 200</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="200" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 100</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="100" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 50</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="50" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 20</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="20" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 10</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="10" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
                 </div>
             </div>
         </div>
@@ -714,17 +720,17 @@
                 <span style="color:var(--accent); cursor:pointer; font-size:0.8rem;" onclick="limpiarBilletes('arq')">Reiniciar</span>
             </div>
             <div class="billetes-grid">
-                <div class="billete-item"><div class="billete-label">$ 20.000</div><input type="number" class="billete-input" data-val="20000" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 10.000</div><input type="number" class="billete-input" data-val="10000" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 5.000</div><input type="number" class="billete-input" data-val="5000" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 2.000</div><input type="number" class="billete-input" data-val="2000" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 1.000</div><input type="number" class="billete-input" data-val="1000" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 500</div><input type="number" class="billete-input" data-val="500" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 200</div><input type="number" class="billete-input" data-val="200" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 100</div><input type="number" class="billete-input" data-val="100" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 50</div><input type="number" class="billete-input" data-val="50" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 20</div><input type="number" class="billete-input" data-val="20" oninput="calcBilletes('arq')" placeholder="0"></div>
-                <div class="billete-item"><div class="billete-label">$ 10</div><input type="number" class="billete-input" data-val="10" oninput="calcBilletes('arq')" placeholder="0"></div>
+                <div class="billete-item"><div class="billete-label">$ 20.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="20000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 10.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="10000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 5.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="5000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 2.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="2000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 1.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="1000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 500</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="500" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 200</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="200" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 100</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="100" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 50</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="50" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 20</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="20" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 10</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="10" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
             </div>
             <input type="hidden" id="arqueo-fisico">
             <div style="margin-top:30px;">
@@ -1609,15 +1615,39 @@
 
         // --- ARQUEO & RENDICION ---
         window.calcBilletes = (tipo) => {
-            const inputs = document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`);
+            const screen = tipo === 'rend' ? 'rendicion' : 'arqueo';
+            const inputs = document.querySelectorAll(`#screen-${screen} .billete-input`);
             let total = 0;
-            inputs.forEach(inp => { total += (parseInt(inp.value) || 0) * parseInt(inp.getAttribute('data-val')); });
-            const totalFmt = "$ " + total.toLocaleString('es-AR');
+            inputs.forEach(inp => {
+                const qty = parseInt(inp.value) || 0;
+                const val = parseInt(inp.getAttribute('data-val'));
+                const sub = qty * val;
+                total += sub;
+                const item = inp.closest('.billete-item');
+                const subEl = item && item.querySelector('.billete-sub');
+                if (qty > 0) {
+                    item && item.classList.add('tiene-valor');
+                    if (subEl) subEl.textContent = qty + ' × $' + val.toLocaleString('es-AR') + ' = $' + sub.toLocaleString('es-AR');
+                } else {
+                    item && item.classList.remove('tiene-valor');
+                    if (subEl) subEl.textContent = '';
+                }
+            });
+            const totalFmt = '$ ' + total.toLocaleString('es-AR');
             if (tipo === 'rend') {
-                const el = document.getElementById('rendicion-contado-display'); el.textContent = totalFmt; el.setAttribute('data-numeric', total); actualizarDiferenciaRendicion(total); monitor.logEdit(total);
+                const el = document.getElementById('rendicion-contado-display');
+                el.textContent = totalFmt; el.setAttribute('data-numeric', total);
+                actualizarDiferenciaRendicion(total); monitor.logEdit(total);
             } else {
-                document.getElementById('arqueo-total-display').textContent = totalFmt; document.getElementById('arqueo-fisico').value = total; monitor.logEdit(total);
+                document.getElementById('arqueo-total-display').textContent = totalFmt;
+                document.getElementById('arqueo-fisico').value = total; monitor.logEdit(total);
             }
+        };
+        window.incBillete = function(btn, delta, tipo) {
+            const input = btn.parentElement.querySelector('.billete-input');
+            const next = Math.max(0, (parseInt(input.value) || 0) + delta);
+            input.value = next === 0 ? '' : next;
+            calcBilletes(tipo);
         };
         window.limpiarBilletes = (tipo) => { document.querySelectorAll(`#screen-${tipo === 'rend' ? 'rendicion' : 'arqueo'} .billete-input`).forEach(i => i.value = ''); calcBilletes(tipo); monitor.logDelete(); }
 
