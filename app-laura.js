@@ -1,4 +1,4 @@
-// ===============================
+﻿// ===============================
 // CONFIGURACIÓN
 // ===============================
 const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/"; 
@@ -460,45 +460,135 @@ function initFormMovimiento() {
 // RENDICIÓN INTELIGENTE
 // ===============================
 async function buscarRendicionInteligente() {
-    const statusText = document.getElementById("rendicion-status-text");
-    const detalleEl = document.getElementById("rendicion-detalle-humano");
+    const statusText = document.getElementById("rendicion-status-text");
+    const detalleEl  = document.getElementById("rendicion-detalle-humano");
 
-    if (statusText) statusText.textContent = "Buscando planillas...";
+    if (statusText) statusText.textContent = "Buscando planillas...";
 
-    const ayer = new Date(); 
-    ayer.setDate(ayer.getDate() - 1);
-    const offset = ayer.getTimezoneOffset() * 60000;
-    const fAyer = new Date(ayer.getTime() - offset).toISOString().split('T')[0];
-    const fHoy = estado.fechaMovimientos; // Hoy local
+    const ayer = new Date();
+    ayer.setDate(ayer.getDate() - 1);
+    const offset = ayer.getTimezoneOffset() * 60000;
+    const fAyer = new Date(ayer.getTime() - offset).toISOString().split('T')[0];
+    const fHoy  = estado.fechaMovimientos;
 
-    // 1) Primero buscamos Ayer - Tarde
-    let res = await api("getDatosRendicionEsperada", { fechaStr: getFechaSegura(fAyer), turno: "Tarde", repartidor: "Nico" });
-    // 2) Si no hay nada, probamos Hoy - Mañana
-    if (!res || !res.ok || !res.efectivoEsperado) {
-        res = await api("getDatosRendicionEsperada", { fechaStr: getFechaSegura(fHoy), turno: "Mañana", repartidor: "Nico" });
-    }
+    // 1) Primero buscamos Ayer - Tarde
+    let res = await api("getDatosRendicionEsperada", { fechaStr: getFechaSegura(fAyer), turno: "Tarde", repartidor: "Nico" });
+    // 2) Si no hay nada, probamos Hoy - Manana
+    // FIX: usamos hayPendiente en vez de efectivoEsperado para no ignorar rendiciones 100% por transferencia
+    if (!res || !res.ok || !res.hayPendiente) {
+        res = await api("getDatosRendicionEsperada", { fechaStr: getFechaSegura(fHoy), turno: "Mañana", repartidor: "Nico" });
+    }
 
-    if (res && res.ok && res.efectivoEsperado > 0) {
-        estado.rendicionEncontrada = true;
-        estado.rendicion = { ...res, esperado: res.efectivoEsperado };
-        
-        if (statusText) statusText.textContent = "Rendición encontrada:";
-        if (detalleEl) {
-            detalleEl.textContent = `Planilla de ${res.repartidor} (${res.turno}) del ${formatoFechaHumano(res.fecha)}`;
-        }
-        const esperadoEl = document.getElementById("rendicion-esperado");
-        if (esperadoEl) esperadoEl.textContent = formatoMoneda(res.efectivoEsperado);
+    if (res && res.ok && res.hayPendiente) {
+        estado.rendicionEncontrada = true;
+        estado.rendicion = {
+            ...res,
+            esperado:        res.efectivoEsperado || 0,
+            transferencia:   res.transferencia    || 0,
+            cheque:          res.cheque           || 0,
+            total:           res.total            || res.efectivoEsperado || 0,
+            detalleClientes: res.detalleClientes  || []
+        };
 
-        // Activamos UI para rendición pendiente
-        habilitarRendicionPendienteUI();
-        // Calculamos diferencia con lo que ya esté cargado (por si había algo)
-        calculateBillTotal();
-    } else {
-        // No hay planillas nuevas -> aplicamos lógica según localStorage
-        aplicarUIEstadoSinPendientes();
-    }
+        if (statusText) statusText.textContent = "Rendición encontrada:";
+        if (detalleEl) {
+            detalleEl.textContent = `Planilla de ${res.repartidor} (${res.turno}) del ${formatoFechaHumano(res.fecha)}`;
+        }
+        const esperadoEl = document.getElementById("rendicion-esperado");
+        if (esperadoEl) esperadoEl.textContent = formatoMoneda(res.efectivoEsperado || 0);
+
+        // Mostrar transferencia / cheque / boton "Ver completa" si vienen de Supabase
+        mostrarDesglosePagos_(res);
+
+        habilitarRendicionPendienteUI();
+        calculateBillTotal();
+    } else {
+        aplicarUIEstadoSinPendientes();
+    }
 }
 
+// Desglose de pagos (efectivo + transferencia + cheque + boton detalle)
+function mostrarDesglosePagos_(res) {
+    let desglose = document.getElementById("rendicion-desglose-pagos");
+    if (!desglose) {
+        const esperadoEl = document.getElementById("rendicion-esperado");
+        if (!esperadoEl) return;
+        desglose = document.createElement("div");
+        desglose.id = "rendicion-desglose-pagos";
+        desglose.style.cssText = "margin-top:8px;font-size:0.85rem;color:#546e7a;";
+        esperadoEl.parentElement.appendChild(desglose);
+    }
+
+    let html = "";
+    if (res.transferencia > 0) {
+        html += `<div>🏦 Transferencia: <b>${formatoMoneda(res.transferencia)}</b></div>`;
+    }
+    if (res.cheque > 0) {
+        html += `<div>📄 Cheque: <b>${formatoMoneda(res.cheque)}</b></div>`;
+    }
+    if ((res.transferencia > 0 || res.cheque > 0) && res.total > 0) {
+        html += `<div style="margin-top:4px;color:#1565c0;font-weight:bold;">Total general: ${formatoMoneda(res.total)}</div>`;
+    }
+    if (res.detalleClientes && res.detalleClientes.length > 0) {
+        html += `<button onclick="abrirModalRendicionCompleta()" style="margin-top:10px;background:#1565c0;color:white;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:0.82rem;display:inline-flex;align-items:center;gap:6px;"><span class="material-icons-round" style="font-size:16px;">list_alt</span> Ver rendición completa</button>`;
+    }
+    desglose.innerHTML = html;
+}
+
+// Modal "Ver Rendicion Completa"
+function abrirModalRendicionCompleta() {
+    const clientes = estado.rendicion?.detalleClientes || [];
+    if (clientes.length === 0) {
+        showToast("Detalle no disponible (rendición desde Drive)", "error");
+        return;
+    }
+
+    const totalEf  = estado.rendicion.esperado      || 0;
+    const totalTr  = estado.rendicion.transferencia  || 0;
+    const totalCh  = estado.rendicion.cheque         || 0;
+    const totalGen = estado.rendicion.total          || 0;
+
+    const filas = clientes.map(c => {
+        const dev  = c.devolucion ? " ⬅️" : "";
+        const p1   = c.importe1 > 0 ? `${c.formaPago1}: ${formatoMoneda(c.importe1)}` : "";
+        const p2   = c.importe2 > 0 ? ` / ${c.formaPago2}: ${formatoMoneda(c.importe2)}` : "";
+        const pago = (p1 + p2) || "Sin pago";
+        return `<tr style="border-bottom:1px solid #eee;"><td style="padding:8px 4px;font-weight:bold;color:#1565c0;">${c.numCliente}</td><td style="padding:8px 4px;">${c.nombre}${dev}</td><td style="padding:8px 4px;font-size:0.78rem;color:#546e7a;">${pago}</td><td style="padding:8px 4px;text-align:right;font-weight:bold;">${formatoMoneda(c.totalPagado)}</td></tr>`;
+    }).join("");
+
+    const pill = (label, valor, color) =>
+        `<div style="flex:1;min-width:70px;text-align:center;background:white;border-radius:8px;padding:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);"><div style="font-size:0.7rem;color:#546e7a;text-transform:uppercase;">${label}</div><div style="font-weight:bold;color:${color};">${formatoMoneda(valor)}</div></div>`;
+
+    document.body.insertAdjacentHTML("beforeend", `
+        <div id="modal-rendicion-completa" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-end;justify-content:center;" onclick="if(event.target===this) cerrarModalRendicionCompleta()">
+            <div style="background:white;width:100%;max-width:600px;max-height:90vh;border-radius:16px 16px 0 0;overflow:hidden;display:flex;flex-direction:column;">
+                <div style="background:#1565c0;color:white;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                    <div>
+                        <div style="font-weight:bold;font-size:1rem;">Rendición Completa</div>
+                        <div style="font-size:0.8rem;opacity:.85;">${estado.rendicion.repartidor} · ${estado.rendicion.turno} · ${formatoFechaHumano(estado.rendicion.fecha)}</div>
+                    </div>
+                    <button onclick="cerrarModalRendicionCompleta()" style="background:none;border:none;color:white;cursor:pointer;padding:4px;"><span class="material-icons-round">close</span></button>
+                </div>
+                <div style="display:flex;gap:8px;padding:12px 16px;background:#e3f2fd;flex-shrink:0;flex-wrap:wrap;">
+                    ${pill("Efectivo", totalEf, "#2e7d32")}
+                    ${totalTr > 0 ? pill("Transfer.", totalTr, "#1565c0") : ""}
+                    ${totalCh > 0 ? pill("Cheque", totalCh, "#6a1b9a") : ""}
+                    <div style="flex:1;min-width:70px;text-align:center;background:#1565c0;border-radius:8px;padding:8px;color:white;"><div style="font-size:0.7rem;text-transform:uppercase;opacity:.85;">Total</div><div style="font-weight:bold;">${formatoMoneda(totalGen)}</div></div>
+                </div>
+                <div style="overflow-y:auto;flex:1;padding:0 8px 16px;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                        <thead><tr style="background:#f5f5f5;position:sticky;top:0;"><th style="padding:8px 4px;text-align:left;color:#546e7a;font-size:.75rem;">N°</th><th style="padding:8px 4px;text-align:left;color:#546e7a;font-size:.75rem;">Cliente</th><th style="padding:8px 4px;text-align:left;color:#546e7a;font-size:.75rem;">Forma de pago</th><th style="padding:8px 4px;text-align:right;color:#546e7a;font-size:.75rem;">Total</th></tr></thead>
+                        <tbody>${filas}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`);
+}
+
+function cerrarModalRendicionCompleta() {
+    const m = document.getElementById("modal-rendicion-completa");
+    if (m) m.remove();
+}
 function createBillCounterHero() {
   const container = document.getElementById("bill-counter-container");
   container.innerHTML = "";
