@@ -209,16 +209,16 @@
         .arqueo-header-card .value { font-size: 3rem; font-weight: 900; color: #D63031; text-shadow: 0 2px 0 rgba(255,255,255,0.5); }
         .arqueo-sistema-pill { background: rgba(255,255,255,0.85); padding: 8px 15px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.9rem; font-weight: 700; color: #555; }
         .billetes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .billete-item { background: #fff; border-radius: 16px; padding: 10px 12px 8px; text-align: center; border: 2px solid #f0f0f0; transition: border-color 0.18s, background 0.18s; }
+        .billete-item { background: #fff; border-radius: 16px; padding: 10px 12px 7px; text-align: center; border: 2px solid #f0f0f0; transition: border-color 0.18s, background 0.18s; cursor: text; }
         .billete-item.tiene-valor { border-color: var(--success); background: #f0faf6; }
-        .billete-label { font-size: 0.88rem; color: #bbb; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.2px; }
+        .billete-label { font-size: 0.82rem; color: #ccc; font-weight: 700; margin-bottom: 2px; }
         .billete-item.tiene-valor .billete-label { color: var(--success); font-weight: 800; }
-        .billete-ctrl { display: flex; align-items: center; gap: 5px; }
-        .billete-btn { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #eee; background: #f8f9fa; font-size: 1.15rem; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #aaa; transition: all 0.12s; -webkit-tap-highlight-color: transparent; user-select: none; line-height: 1; padding: 0; }
-        .billete-btn:active { transform: scale(0.85); background: var(--primary); color: white; border-color: var(--primary); }
+        .billete-input { width: 100%; border: none; text-align: center; font-size: 1.75rem; font-weight: 900; color: var(--text-main); outline: none; background: transparent; padding: 2px 0 4px; font-family: 'Quicksand'; display: block; }
+        .billete-row { display: flex; align-items: center; justify-content: space-between; gap: 5px; margin-top: 1px; min-height: 22px; }
+        .billete-btn { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #e0e0e0; background: #f8f9fa; font-size: 0.9rem; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #ccc; transition: all 0.1s; -webkit-tap-highlight-color: transparent; user-select: none; padding: 0; line-height: 1; }
+        .billete-btn:active { background: var(--primary); color: white; border-color: var(--primary); transform: scale(0.82); }
         .billete-item.tiene-valor .billete-btn { border-color: #b2dfdb; color: var(--success); background: white; }
-        .billete-input { flex: 1; border: none; text-align: center; font-size: 1.55rem; font-weight: 900; color: var(--text-main); outline: none; background: transparent; padding: 3px 0; font-family: 'Quicksand'; width: 0; min-width: 0; }
-        .billete-sub { font-size: 0.67rem; color: var(--success); font-weight: 700; margin-top: 5px; min-height: 12px; opacity: 0.85; }
+        .billete-sub { font-size: 0.63rem; color: var(--success); font-weight: 700; flex: 1; text-align: center; opacity: 0.9; }
 
         /* --- CONTROLES FORM --- */
         .form-control { width: 100%; padding: 16px; border: 2px solid #eee; border-radius: 16px; font-size: 1rem; font-family: 'Quicksand'; outline: none; transition: all 0.3s; background: #fafafa; color: var(--text-main); font-weight: 700; margin-bottom: 15px; }
@@ -406,6 +406,13 @@
             margin: 0;
         }
         .qc-input::placeholder { color: #dfe6e9; }
+        .qc-item.tiene-valor { border-color: var(--success) !important; background: #f0fff4 !important; }
+        .qc-item.tiene-valor .qc-label { color: var(--success); }
+        .qc-row { display: flex; align-items: center; justify-content: space-between; gap: 5px; margin-top: 3px; min-height: 20px; width: 100%; }
+        .qc-btn { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #e0e0e0; background: #f0f3f5; font-size: 0.85rem; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #ccc; transition: all 0.1s; -webkit-tap-highlight-color: transparent; user-select: none; padding: 0; line-height: 1; }
+        .qc-btn:active { background: var(--success); color: white; border-color: var(--success); transform: scale(0.82); }
+        .qc-item.tiene-valor .qc-btn { border-color: #b2dfdb; color: var(--success); background: white; }
+        .qc-sub { font-size: 0.6rem; color: var(--success); font-weight: 700; flex: 1; text-align: center; }
 
         .qc-actions { 
             margin-top: 15px; 
@@ -678,17 +685,17 @@
                     <span style="color:var(--accent); cursor:pointer; font-size:0.8rem;" onclick="limpiarBilletes('rend')">Borrar</span>
                 </div>
                 <div class="billetes-grid">
-                    <div class="billete-item"><div class="billete-label">$ 20.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="20000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                    <div class="billete-item"><div class="billete-label">$ 10.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="10000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                    <div class="billete-item"><div class="billete-label">$ 5.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="5000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                    <div class="billete-item"><div class="billete-label">$ 2.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="2000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                    <div class="billete-item"><div class="billete-label">$ 1.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="1000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                    <div class="billete-item"><div class="billete-label">$ 500</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="500" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                    <div class="billete-item"><div class="billete-label">$ 200</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="200" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                    <div class="billete-item"><div class="billete-label">$ 100</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="100" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                    <div class="billete-item"><div class="billete-label">$ 50</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="50" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                    <div class="billete-item"><div class="billete-label">$ 20</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="20" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                    <div class="billete-item"><div class="billete-label">$ 10</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="10" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 20.000</div><input type="number" class="billete-input" data-val="20000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 10.000</div><input type="number" class="billete-input" data-val="10000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 5.000</div><input type="number" class="billete-input" data-val="5000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 2.000</div><input type="number" class="billete-input" data-val="2000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 1.000</div><input type="number" class="billete-input" data-val="1000" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 500</div><input type="number" class="billete-input" data-val="500" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 200</div><input type="number" class="billete-input" data-val="200" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 100</div><input type="number" class="billete-input" data-val="100" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 50</div><input type="number" class="billete-input" data-val="50" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 20</div><input type="number" class="billete-input" data-val="20" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
+                    <div class="billete-item"><div class="billete-label">$ 10</div><input type="number" class="billete-input" data-val="10" inputmode="numeric" min="0" oninput="calcBilletes('rend')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'rend')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'rend')" tabindex="-1">+</button></div></div>
                 </div>
             </div>
         </div>
@@ -720,17 +727,17 @@
                 <span style="color:var(--accent); cursor:pointer; font-size:0.8rem;" onclick="limpiarBilletes('arq')">Reiniciar</span>
             </div>
             <div class="billetes-grid">
-                <div class="billete-item"><div class="billete-label">$ 20.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="20000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                <div class="billete-item"><div class="billete-label">$ 10.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="10000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                <div class="billete-item"><div class="billete-label">$ 5.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="5000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                <div class="billete-item"><div class="billete-label">$ 2.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="2000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                <div class="billete-item"><div class="billete-label">$ 1.000</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="1000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                <div class="billete-item"><div class="billete-label">$ 500</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="500" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                <div class="billete-item"><div class="billete-label">$ 200</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="200" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                <div class="billete-item"><div class="billete-label">$ 100</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="100" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                <div class="billete-item"><div class="billete-label">$ 50</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="50" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                <div class="billete-item"><div class="billete-label">$ 20</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="20" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
-                <div class="billete-item"><div class="billete-label">$ 10</div><div class="billete-ctrl"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><input type="number" class="billete-input" data-val="10" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div><div class="billete-sub"></div></div>
+                <div class="billete-item"><div class="billete-label">$ 20.000</div><input type="number" class="billete-input" data-val="20000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
+                <div class="billete-item"><div class="billete-label">$ 10.000</div><input type="number" class="billete-input" data-val="10000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
+                <div class="billete-item"><div class="billete-label">$ 5.000</div><input type="number" class="billete-input" data-val="5000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
+                <div class="billete-item"><div class="billete-label">$ 2.000</div><input type="number" class="billete-input" data-val="2000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
+                <div class="billete-item"><div class="billete-label">$ 1.000</div><input type="number" class="billete-input" data-val="1000" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
+                <div class="billete-item"><div class="billete-label">$ 500</div><input type="number" class="billete-input" data-val="500" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
+                <div class="billete-item"><div class="billete-label">$ 200</div><input type="number" class="billete-input" data-val="200" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
+                <div class="billete-item"><div class="billete-label">$ 100</div><input type="number" class="billete-input" data-val="100" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
+                <div class="billete-item"><div class="billete-label">$ 50</div><input type="number" class="billete-input" data-val="50" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
+                <div class="billete-item"><div class="billete-label">$ 20</div><input type="number" class="billete-input" data-val="20" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
+                <div class="billete-item"><div class="billete-label">$ 10</div><input type="number" class="billete-input" data-val="10" inputmode="numeric" min="0" oninput="calcBilletes('arq')" onfocus="this.select()" placeholder="0"><div class="billete-row"><button class="billete-btn" onclick="incBillete(this,-1,'arq')" tabindex="-1">−</button><div class="billete-sub"></div><button class="billete-btn" onclick="incBillete(this,1,'arq')" tabindex="-1">+</button></div></div>
             </div>
             <input type="hidden" id="arqueo-fisico">
             <div style="margin-top:30px;">
@@ -760,60 +767,17 @@
             <div class="qc-scroll-area">
                 <div class="qc-grid">
                     <!-- $20.000 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 20.000</div>
-                        <input type="number" class="qc-input" data-val="20000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $10.000 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 10.000</div>
-                        <input type="number" class="qc-input" data-val="10000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $5.000 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 5.000</div>
-                        <input type="number" class="qc-input" data-val="5000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $2.000 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 2.000</div>
-                        <input type="number" class="qc-input" data-val="2000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $1.000 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 1.000</div>
-                        <input type="number" class="qc-input" data-val="1000" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $500 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 500</div>
-                        <input type="number" class="qc-input" data-val="500" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $200 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 200</div>
-                        <input type="number" class="qc-input" data-val="200" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $100 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 100</div>
-                        <input type="number" class="qc-input" data-val="100" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $50 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 50</div>
-                        <input type="number" class="qc-input" data-val="50" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $20 -->
-                    <div class="qc-item">
-                        <div class="qc-label">$ 20</div>
-                        <input type="number" class="qc-input" data-val="20" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
-                    <!-- $10 -->
-                     <div class="qc-item" style="grid-column: span 2;">
-                        <div class="qc-label" style="display:inline;">$ 10</div>
-                        <input type="number" class="qc-input" style="display:inline; width:50%;" data-val="10" inputmode="numeric" oninput="calcQuickCounter()" onfocus="if(this.value==0) this.value='';" placeholder="0">
-                    </div>
+                    <div class="qc-item"><div class="qc-label">$ 20.000</div><input type="number" class="qc-input" data-val="20000" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
+                    <div class="qc-item"><div class="qc-label">$ 10.000</div><input type="number" class="qc-input" data-val="10000" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
+                    <div class="qc-item"><div class="qc-label">$ 5.000</div><input type="number" class="qc-input" data-val="5000" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
+                    <div class="qc-item"><div class="qc-label">$ 2.000</div><input type="number" class="qc-input" data-val="2000" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
+                    <div class="qc-item"><div class="qc-label">$ 1.000</div><input type="number" class="qc-input" data-val="1000" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
+                    <div class="qc-item"><div class="qc-label">$ 500</div><input type="number" class="qc-input" data-val="500" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
+                    <div class="qc-item"><div class="qc-label">$ 200</div><input type="number" class="qc-input" data-val="200" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
+                    <div class="qc-item"><div class="qc-label">$ 100</div><input type="number" class="qc-input" data-val="100" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
+                    <div class="qc-item"><div class="qc-label">$ 50</div><input type="number" class="qc-input" data-val="50" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
+                    <div class="qc-item"><div class="qc-label">$ 20</div><input type="number" class="qc-input" data-val="20" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
+                    <div class="qc-item" style="grid-column:span 2;"><div class="qc-label">$ 10</div><input type="number" class="qc-input" data-val="10" inputmode="numeric" min="0" oninput="calcQuickCounter()" onfocus="this.select()" placeholder="0"><div class="qc-row"><button class="qc-btn" onclick="incQcBillete(this,-1)" tabindex="-1">−</button><div class="qc-sub"></div><button class="qc-btn" onclick="incQcBillete(this,1)" tabindex="-1">+</button></div></div>
                 </div>
 
                 <div class="qc-actions">
@@ -1644,7 +1608,7 @@
             }
         };
         window.incBillete = function(btn, delta, tipo) {
-            const input = btn.parentElement.querySelector('.billete-input');
+            const input = btn.closest('.billete-item').querySelector('.billete-input');
             const next = Math.max(0, (parseInt(input.value) || 0) + delta);
             input.value = next === 0 ? '' : next;
             calcBilletes(tipo);
@@ -1896,17 +1860,36 @@
             const inputs = document.querySelectorAll('#quick-counter-modal .qc-input');
             let total = 0;
             inputs.forEach(inp => {
-                const val = parseInt(inp.value) || 0;
-                const denomination = parseInt(inp.getAttribute('data-val'));
-                total += val * denomination;
+                const qty = parseInt(inp.value) || 0;
+                const val = parseInt(inp.getAttribute('data-val'));
+                const sub = qty * val;
+                total += sub;
+                const item = inp.closest('.qc-item');
+                const subEl = item && item.querySelector('.qc-sub');
+                if (qty > 0) {
+                    item && item.classList.add('tiene-valor');
+                    if (subEl) subEl.textContent = qty + ' × $' + val.toLocaleString('es-AR') + ' = $' + sub.toLocaleString('es-AR');
+                } else {
+                    item && item.classList.remove('tiene-valor');
+                    if (subEl) subEl.textContent = '';
+                }
             });
-            const display = document.getElementById('qc-total-display');
-            display.innerText = "$ " + total.toLocaleString('es-AR');
+            document.getElementById('qc-total-display').innerText = '$ ' + total.toLocaleString('es-AR');
         }
 
+        window.incQcBillete = function(btn, delta) {
+            const input = btn.closest('.qc-item').querySelector('.qc-input');
+            const next = Math.max(0, (parseInt(input.value) || 0) + delta);
+            input.value = next === 0 ? '' : next;
+            calcQuickCounter();
+        };
+
         function clearQuickCounter() {
-            const inputs = document.querySelectorAll('#quick-counter-modal .qc-input');
-            inputs.forEach(inp => inp.value = '');
+            document.querySelectorAll('#quick-counter-modal .qc-input').forEach(inp => {
+                inp.value = '';
+                const item = inp.closest('.qc-item');
+                if (item) { item.classList.remove('tiene-valor'); const s = item.querySelector('.qc-sub'); if (s) s.textContent = ''; }
+            });
             calcQuickCounter();
         }
 
