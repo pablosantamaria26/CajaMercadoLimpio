@@ -1,5 +1,5 @@
 // Service Worker para Caja Mercado Limpio
-const CACHE_NAME = 'caja-ml-v8-rendicion-supabase';
+const CACHE_NAME = 'caja-ml-v9-perf-denom10';
 
 // Archivos vitales para que la app arranque sin internet o cargue instantáneo
 const urlsToCache = [
