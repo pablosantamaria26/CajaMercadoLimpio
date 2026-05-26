@@ -1,5 +1,5 @@
 // Service Worker para Caja Mercado Limpio
-const CACHE_NAME = 'caja-ml-v13-rendicion-guard';
+const CACHE_NAME = 'caja-ml-v14-ocultar-rendicion';
 
 // Archivos vitales para que la app arranque sin internet o cargue instantáneo
 const urlsToCache = [

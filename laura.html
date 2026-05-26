@@ -1676,12 +1676,34 @@
                     if (res.detalleClientes && res.detalleClientes.length > 0) {
                         html += `<button onclick="abrirModalRendicionCompleta()" style="width:100%; margin-top:8px; padding:9px; border:2px solid var(--primary); border-radius:10px; background:transparent; color:var(--primary); font-weight:700; font-size:0.85rem; cursor:pointer; font-family:Quicksand;">📋 Ver rendición completa</button>`;
                     }
+                    // Botón de escape: por si la rendición ya fue procesada antes del fix
+                    html += `<div style="text-align:center; margin-top:12px;"><button onclick="marcarRendicionYaProcesada()" style="background:none; border:none; color:#bbb; font-size:0.75rem; cursor:pointer; font-family:Quicksand; text-decoration:underline;">¿Ya fue procesada antes? Ocultarla</button></div>`;
                     desgEl.innerHTML = html;
                 }
                 if (!esSoloDigital) calcBilletes('rend');
             } else {
                 content.style.display = 'none'; zen.style.display = 'block';
             }
+        }
+
+        function marcarRendicionYaProcesada() {
+            if (!rendicionPendiente) return;
+            showModal(
+                "Ocultar rendición",
+                `¿Confirmás que la rendición de <b>${rendicionPendiente.turno} del ${rendicionPendiente.fecha}</b> ya fue procesada antes?`,
+                "check_circle", "var(--success)",
+                () => {
+                    try {
+                        const guardKey = `rend_ok_${rendicionPendiente.fecha}_${rendicionPendiente.turno}_${rendicionPendiente.repartidor || RENDICION_REPARTIDOR}`;
+                        localStorage.setItem(guardKey, Date.now().toString());
+                    } catch(_) {}
+                    rendicionPendiente = null;
+                    const zen = document.getElementById('zen-state-container');
+                    const content = document.getElementById('rendicion-content');
+                    content.style.display = 'none'; zen.style.display = 'block';
+                    showToast("✅ Rendición ocultada. Modo Zen activado.", true);
+                }
+            );
         }
 
         function actualizarDiferenciaRendicion(totalContado) {
