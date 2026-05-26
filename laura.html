@@ -1629,20 +1629,35 @@
             load.style.display = 'none';
             // V3 LOGIC CHANGE: Check for hayPendiente explicitly
             if (res && res.ok && res.hayPendiente) {
-                rendicionPendiente = res; dataCard.style.display = 'block'; document.getElementById('card-billetes-rendicion').style.display = 'block';
+                rendicionPendiente = res;
+                const ef = parseInt(res.efectivoEsperado || 0);
+                const tr = parseInt(res.transferencia || 0);
+                const ch = parseInt(res.cheque || 0);
+                const tot = ef + tr + ch;
+                const esSoloDigital = (ef === 0); // todo transferencia/cheque, sin efectivo
+
+                dataCard.style.display = 'block';
+                // Ocultar grilla de billetes si no hay efectivo que contar
+                document.getElementById('card-billetes-rendicion').style.display = esSoloDigital ? 'none' : 'block';
+
                 document.getElementById('rendicion-narrativa').innerHTML = `Planilla de <b>${res.repartidor}</b><br>Turno: <b>${res.turno}</b><br>Fecha: <b>${res.fecha}</b>`;
-                document.getElementById('rendicion-esperado').textContent = "$ " + parseInt(res.efectivoEsperado).toLocaleString('es-AR');
+                document.getElementById('rendicion-esperado').textContent = esSoloDigital ? '$ 0 (sin efectivo)' : "$ " + ef.toLocaleString('es-AR');
+
+                // Si no hay efectivo: auto-setear conteo en $0 y mostrar PERFECTO de entrada
+                if (esSoloDigital) {
+                    const contEl = document.getElementById('rendicion-contado-display');
+                    contEl.textContent = '$ 0'; contEl.setAttribute('data-numeric', '0');
+                    document.getElementById('rendicion-diferencia-container').innerHTML =
+                        `<div style="text-align:center; background:#f0f2ff; padding:10px; border-radius:10px; border:2px solid var(--primary); font-weight:800; color:var(--primary);">💳 Sin efectivo — todo cobrado digitalmente. Confirmá para cerrar.</div>`;
+                }
+
                 // Desglose por forma de pago (datos desde Supabase)
                 const desgEl = document.getElementById('rendicion-desglose-pagos');
                 if (desgEl) {
-                    const ef = parseInt(res.efectivoEsperado || 0);
-                    const tr = parseInt(res.transferencia || 0);
-                    const ch = parseInt(res.cheque || 0);
-                    const tot = ef + tr + ch;
                     let html = '';
                     if (tr > 0 || ch > 0) {
                         html += `<div style="background:#f8f9fa; border-radius:10px; padding:10px; margin-top:8px; font-size:0.85rem;">`;
-                        html += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:#00b894; font-weight:700;">💵 Efectivo:</span><span style="color:#00b894; font-weight:800;">$ ${ef.toLocaleString('es-AR')}</span></div>`;
+                        if (ef > 0) html += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:#00b894; font-weight:700;">💵 Efectivo:</span><span style="color:#00b894; font-weight:800;">$ ${ef.toLocaleString('es-AR')}</span></div>`;
                         if (tr > 0) html += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:#6C63FF; font-weight:700;">📲 Transferencia:</span><span style="color:#6C63FF; font-weight:800;">$ ${tr.toLocaleString('es-AR')}</span></div>`;
                         if (ch > 0) html += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:#e17055; font-weight:700;">📋 Cheque:</span><span style="color:#e17055; font-weight:800;">$ ${ch.toLocaleString('es-AR')}</span></div>`;
                         html += `<div style="display:flex; justify-content:space-between; border-top:1px solid #dee2e6; padding-top:5px; margin-top:5px;"><span style="font-weight:700; color:#555;">Total Cobrado:</span><span style="font-weight:900; color:var(--text-main);">$ ${tot.toLocaleString('es-AR')}</span></div>`;
@@ -1653,14 +1668,17 @@
                     }
                     desgEl.innerHTML = html;
                 }
-                calcBilletes('rend');
+                if (!esSoloDigital) calcBilletes('rend');
             } else { content.style.display = 'none'; zen.style.display = 'block'; }
         }
 
         function actualizarDiferenciaRendicion(totalContado) {
             const div = document.getElementById('rendicion-diferencia-container');
             if (!rendicionPendiente) return;
-            const dif = totalContado - parseInt(rendicionPendiente.efectivoEsperado);
+            const efectivoEsperado = parseInt(rendicionPendiente.efectivoEsperado) || 0;
+            const dif = totalContado - efectivoEsperado;
+            // Si no hay efectivo esperado Y no hay contado → es rendición 100% digital, ya se maneja arriba
+            if (totalContado === 0 && efectivoEsperado === 0) return;
             if (totalContado === 0) { div.innerHTML = ''; return; }
             let color = dif === 0 ? 'var(--success)' : (dif > 0 ? 'var(--primary)' : 'var(--accent)');
             let texto;
@@ -1694,7 +1712,10 @@
         async function intentarRendicion() {
             if(!rendicionPendiente) return;
             const total = parseInt(document.getElementById('rendicion-contado-display').getAttribute('data-numeric')) || 0;
-            if (total === 0) return showToast("⚠️ Contá los billetes primero", false);
+            const efectivoEsperado = parseInt(rendicionPendiente.efectivoEsperado) || 0;
+            // Solo bloquear si hay efectivo esperado y no se contó nada
+            // Si efectivoEsperado=0 (todo digital), total=0 es correcto → no bloquear
+            if (total === 0 && efectivoEsperado > 0) return showToast("⚠️ Contá los billetes primero", false);
             showModal("Confirmar Rendición", "¿Estás segura?", "verified", "var(--success)", async () => {
                 showLoading("Procesando...");
                 // Se envía el Efectivo Contado (físico) para que el backend haga el ajuste (Esperado + Diferencia = Contado)
