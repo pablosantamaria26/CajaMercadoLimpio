@@ -1638,9 +1638,13 @@
                 }
 
                 rendicionPendiente = res;
-                const ef = parseInt(res.efectivoEsperado || 0);
-                const tr = parseInt(res.transferencia || 0);
-                const ch = parseInt(res.cheque || 0);
+                // 🔧 Normalizar: Supabase usa snake_case, el GAS puede devolver cualquiera
+                rendicionPendiente.efectivoEsperado = parseInt(res.efectivoEsperado ?? res.efectivo ?? 0);
+                rendicionPendiente.detalleClientes  = res.detalleClientes || res.detalle_clientes || [];
+
+                const ef  = rendicionPendiente.efectivoEsperado;
+                const tr  = parseInt(res.transferencia || 0);
+                const ch  = parseInt(res.cheque || 0);
                 const tot = ef + tr + ch;
                 const esSoloDigital = (ef === 0);
 
@@ -1667,10 +1671,9 @@
                         html += `<div style="display:flex; justify-content:space-between; border-top:1px solid #dee2e6; padding-top:5px; margin-top:5px;"><span style="font-weight:700; color:#555;">Total Cobrado:</span><span style="font-weight:900; color:var(--text-main);">$ ${tot.toLocaleString('es-AR')}</span></div>`;
                         html += `</div>`;
                     }
-                    if (res.detalleClientes && res.detalleClientes.length > 0) {
+                    if (rendicionPendiente.detalleClientes.length > 0) {
                         html += `<button onclick="abrirModalRendicionCompleta()" style="width:100%; margin-top:8px; padding:9px; border:2px solid var(--primary); border-radius:10px; background:transparent; color:var(--primary); font-weight:700; font-size:0.85rem; cursor:pointer; font-family:Quicksand;">📋 Ver rendición completa</button>`;
                     }
-                    // Botón de escape: por si la rendición ya fue procesada antes del fix
                     html += `<div style="text-align:center; margin-top:12px;"><button onclick="marcarRendicionYaProcesada()" style="background:none; border:none; color:#bbb; font-size:0.75rem; cursor:pointer; font-family:Quicksand; text-decoration:underline;">¿Ya fue procesada antes? Ocultarla</button></div>`;
                     desgEl.innerHTML = html;
                 }
@@ -2152,7 +2155,9 @@
         };
 
         function recalcularTotalesRendicion() {
-            if (!rendicionPendiente || !rendicionPendiente.detalleClientes) return;
+            if (!rendicionPendiente) return;
+            if (!rendicionPendiente.detalleClientes) rendicionPendiente.detalleClientes = rendicionPendiente.detalle_clientes || [];
+            if (!rendicionPendiente.detalleClientes.length) return;
             let ef = 0, tr = 0, ch = 0;
             rendicionPendiente.detalleClientes.forEach(c => {
                 const imp1 = parseFloat(c.importe1 || 0);
