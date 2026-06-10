@@ -1744,47 +1744,142 @@
             if(!rendicionPendiente) return;
             const total = parseInt(document.getElementById('rendicion-contado-display').getAttribute('data-numeric')) || 0;
             const efectivoEsperado = parseInt(rendicionPendiente.efectivoEsperado) || 0;
-            // Solo bloquear si hay efectivo esperado y no se contó nada
-            // Si efectivoEsperado=0 (todo digital), total=0 es correcto → no bloquear
             if (total === 0 && efectivoEsperado > 0) return showToast("⚠️ Contá los billetes primero", false);
             showModal("Confirmar Rendición", "¿Estás segura?", "verified", "var(--success)", async () => {
+                // Capturar billetes ANTES de que se limpie el contador
+                const billsSnapshot = [];
+                document.querySelectorAll('#screen-rendicion .billete-item').forEach(item => {
+                    const inp = item.querySelector('.billete-input');
+                    const qty = parseInt(inp.value) || 0;
+                    const val = parseInt(inp.getAttribute('data-val'));
+                    if (qty > 0) billsSnapshot.push({ val, qty, sub: qty * val });
+                });
+
                 showLoading("Procesando...");
-                // Se envía el Efectivo Contado (físico) para que el backend haga el ajuste (Esperado + Diferencia = Contado)
                 const res = await api("procesarRendicionDesdeRecibo", {
-                    fechaStr: rendicionPendiente.fecha, turno: rendicionPendiente.turno, repartidor: rendicionPendiente.repartidor, efectivoEsperado: rendicionPendiente.efectivoEsperado, efectivoContado: total, usuario: USUARIO_APP
+                    fechaStr: rendicionPendiente.fecha, turno: rendicionPendiente.turno,
+                    repartidor: rendicionPendiente.repartidor,
+                    efectivoEsperado: rendicionPendiente.efectivoEsperado,
+                    efectivoContado: total, usuario: USUARIO_APP
                 });
                 hideLoading();
-                
-                if (res && res.ok) {
-                    showToast(res.mensaje || "✅ Éxito: Rendición procesada", true);
-                    lanzarConfeti();
 
-                    // 🛡️ Marcar como procesada en localStorage para que buscarRendicionPendiente()
-                    // no la vuelva a mostrar si el GAS no actualiza el estado en Supabase
+                if (res && res.ok) {
+                    const dif = total - efectivoEsperado;
+                    const hayFaltante = efectivoEsperado > 0 && dif < 0;
+
+                    // 🛡️ Marcar procesada en localStorage
                     try {
                         const guardKey = `rend_ok_${rendicionPendiente.fecha}_${rendicionPendiente.turno}_${rendicionPendiente.repartidor || RENDICION_REPARTIDOR}`;
                         localStorage.setItem(guardKey, Date.now().toString());
                     } catch(_) {}
 
-                    // 1. UPDATE BALANCE (MONEY CAME IN)
+                    // Reset completo — siempre ocurre independientemente del faltante
                     actualizarSaldoHeader();
-
-                    // 2. RESET UI & CHECK FOR NEXT OR ZEN
                     monitor.reset();
                     limpiarBilletes('rend');
-                    buscarRendicionPendiente(); 
-                    
-                    // 3. Optional: Redirect to Caja after delay?
-                    setTimeout(() => { 
-                             // Optional: if Zen Mode is active, maybe go to Caja
-                             if(document.getElementById('zen-state-container').style.display !== 'none') {
-                                 showScreen('caja', document.querySelector('.nav-item')); 
-                                 setFechaHoy(true); 
-                             }
-                    }, 2500); 
-                } 
+                    buscarRendicionPendiente();
+
+                    if (hayFaltante) {
+                        // Modal de faltante reemplaza el confeti cuando hay diferencia negativa
+                        mostrarModalFaltante(
+                            efectivoEsperado, total, Math.abs(dif),
+                            rendicionPendiente.turno, rendicionPendiente.fecha,
+                            rendicionPendiente.repartidor || RENDICION_REPARTIDOR,
+                            billsSnapshot
+                        );
+                    } else {
+                        showToast(res.mensaje || "✅ Rendición procesada", true);
+                        lanzarConfeti();
+                        setTimeout(() => {
+                            if (document.getElementById('zen-state-container').style.display !== 'none') {
+                                showScreen('caja', document.querySelector('.nav-item'));
+                                setFechaHoy(true);
+                            }
+                        }, 2500);
+                    }
+                }
                 else { showToast(res.error || "Error al procesar la rendición", false); }
             });
+        }
+
+        function mostrarModalFaltante(esperado, contado, faltante, turno, fecha, repartidor, billetes) {
+            const fechaFmt = fecha ? fecha.split('-').reverse().join('/') : '';
+            const fmt = n => Number(n).toLocaleString('es-AR');
+
+            let waMsg = `⚠️ *FALTANTE EN RENDICIÓN*\n\n`;
+            waMsg += `📅 *${turno}* — ${fechaFmt}\n`;
+            waMsg += `👤 Repartidor: ${repartidor}\n\n`;
+            waMsg += `💰 Efectivo esperado: *$${fmt(esperado)}*\n`;
+            waMsg += `📦 Efectivo contado: $${fmt(contado)}\n`;
+            waMsg += `❌ *FALTANTE: $${fmt(faltante)}*\n`;
+            if (billetes && billetes.length > 0) {
+                waMsg += `\n📋 *Detalle del conteo:*\n`;
+                billetes.forEach(b => { waMsg += `  • $${fmt(b.val)} × ${b.qty} = $${fmt(b.sub)}\n`; });
+                waMsg += `Total contado: $${fmt(contado)}\n`;
+            }
+            waMsg += `\nPor favor revisá si quedó algún billete sin entregar.`;
+            const waUrl = `https://wa.me/5491125660380?text=${encodeURIComponent(waMsg)}`;
+
+            const billetesHtml = (billetes && billetes.length > 0) ? `
+                <div style="background:#f6ffed;border:1.5px solid #b7eb8f;border-radius:14px;padding:14px 16px;margin-bottom:16px;">
+                    <div style="font-size:0.68rem;font-weight:800;color:#52c41a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">📋 Billetes contados</div>
+                    ${billetes.map(b => `
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:0.83rem;border-bottom:1px solid #e9f7df;">
+                            <span style="color:#666;">$${fmt(b.val)} × ${b.qty}</span>
+                            <span style="font-weight:700;color:#2d6a1f;">$${fmt(b.sub)}</span>
+                        </div>`).join('')}
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 2px;margin-top:2px;">
+                        <span style="font-size:0.8rem;font-weight:800;color:#52c41a;">Total</span>
+                        <span style="font-weight:900;color:#52c41a;font-size:0.9rem;">$${fmt(contado)}</span>
+                    </div>
+                </div>` : '';
+
+            const overlay = document.createElement('div');
+            overlay.id = 'overlay-faltante';
+            overlay.style.cssText = `position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;`;
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:26px 26px 0 0;width:100%;max-width:480px;padding:28px 20px calc(24px + env(safe-area-inset-bottom,0px));max-height:92vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,0.3);">
+                    <div style="text-align:center;margin-bottom:22px;">
+                        <div style="width:76px;height:76px;border-radius:50%;background:#fff1f0;border:3px solid #ff4d4f;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:0 0 0 10px rgba(255,77,79,0.08);">
+                            <span style="font-size:2.2rem;">⚠️</span>
+                        </div>
+                        <div style="font-size:0.72rem;font-weight:800;color:#cf1322;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Faltante en efectivo</div>
+                        <div style="font-size:3.2rem;font-weight:900;color:#cf1322;line-height:1;letter-spacing:-1px;">−$${fmt(faltante)}</div>
+                        <div style="font-size:0.78rem;color:#aaa;margin-top:8px;font-weight:600;">${turno} · ${fechaFmt} · ${repartidor}</div>
+                    </div>
+                    <div style="background:#fafafa;border-radius:14px;padding:14px 16px;margin-bottom:16px;border:1.5px solid #f0f0f0;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;">
+                            <span style="font-size:0.82rem;color:#bbb;font-weight:600;">Efectivo esperado</span>
+                            <span style="font-weight:800;color:#555;font-size:0.88rem;">$${fmt(esperado)}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;">
+                            <span style="font-size:0.82rem;color:#bbb;font-weight:600;">Efectivo contado</span>
+                            <span style="font-weight:800;color:#555;font-size:0.88rem;">$${fmt(contado)}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 2px;">
+                            <span style="font-size:0.88rem;font-weight:800;color:#cf1322;">Faltante</span>
+                            <span style="font-weight:900;color:#cf1322;font-size:1.05rem;">−$${fmt(faltante)}</span>
+                        </div>
+                    </div>
+                    ${billetesHtml}
+                    <a href="${waUrl}" target="_blank"
+                       onclick="setTimeout(cerrarModalFaltante,500)"
+                       style="display:flex;align-items:center;justify-content:center;gap:12px;background:linear-gradient(135deg,#25d366,#128c7e);color:white;border-radius:16px;padding:16px;text-decoration:none;font-weight:800;font-size:1rem;margin-bottom:10px;box-shadow:0 6px 20px rgba(37,211,102,0.38);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        Avisar a Nico por WhatsApp
+                    </a>
+                    <button onclick="cerrarModalFaltante()"
+                        style="width:100%;padding:13px;background:none;border:none;color:#ccc;font-size:0.85rem;cursor:pointer;font-family:Quicksand;font-weight:600;">
+                        Continuar sin avisar
+                    </button>
+                </div>`;
+            document.body.appendChild(overlay);
+            window.cerrarModalFaltante = function() {
+                const el = document.getElementById('overlay-faltante');
+                if (el) el.remove();
+                delete window.cerrarModalFaltante;
+            };
         }
 
         async function intentarArqueo() {
@@ -2063,13 +2158,12 @@
             const body = document.getElementById('rendicion-completa-body');
             const imp1 = parseFloat(c.importe1 || 0);
             const imp2 = parseFloat(c.importe2 || 0);
-            const totalPag = parseFloat(c.totalPagado || 0) || (imp1 + imp2);
-            const hasFp2 = !!c.formaPago2;
+            const hasFp2 = !!c.formaPago2 && imp2 > 0;
             const opts = (sel) => ['Efectivo','Transferencia','Cheque'].map(fp =>
                 `<option value="${fp}" ${(sel||'').toLowerCase()===fp.toLowerCase()?'selected':''}>${fp}</option>`
             ).join('');
             const selStyle = `width:100%;padding:9px 10px;border-radius:8px;border:2px solid #e0e0e0;font-family:Quicksand;font-weight:600;font-size:0.88rem;color:#333;appearance:auto;`;
-            const impStyle = `width:100%;padding:9px 10px;border-radius:8px;border:2px solid #e0e0e0;font-family:Quicksand;font-weight:700;font-size:0.9rem;color:#333;`;
+            const amtStyle = `display:flex;align-items:center;justify-content:space-between;background:#f4f5f7;border-radius:8px;padding:8px 12px;margin-top:6px;border:1.5px dashed #ddd;`;
             body.innerHTML = `
               <div style="padding:4px 2px;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #f0f0f0;">
@@ -2078,34 +2172,30 @@
                   </div>
                   <div>
                     <div style="font-weight:700;font-size:0.9rem;color:#333;">${c.nombre||'—'}</div>
-                    <div style="font-size:0.72rem;color:#aaa;">Total: $${totalPag.toLocaleString('es-AR')}</div>
+                    <div style="font-size:0.72rem;color:#aaa;">Corregir forma de pago</div>
                   </div>
                 </div>
 
-                <div style="margin-bottom:12px;">
-                  <label style="font-size:0.77rem;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Forma de pago 1</label>
+                <div style="margin-bottom:14px;">
+                  <label style="font-size:0.77rem;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Forma de pago${hasFp2 ? ' 1' : ''}</label>
                   <select id="edit-fp1" style="${selStyle}"><option value="">— elegir —</option>${opts(c.formaPago1)}</select>
-                  <label style="font-size:0.72rem;color:#888;display:block;margin-top:6px;margin-bottom:3px;">Importe</label>
-                  <input type="number" id="edit-imp1" value="${imp1}" min="0" style="${impStyle}" placeholder="0">
+                  <div style="${amtStyle}">
+                    <span style="font-size:0.71rem;color:#bbb;font-weight:700;">🔒 importe fijo</span>
+                    <span style="font-weight:900;color:#555;font-size:0.92rem;">$${imp1.toLocaleString('es-AR')}</span>
+                  </div>
                 </div>
 
-                <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;font-weight:700;color:#555;cursor:pointer;margin-bottom:12px;">
-                  <input type="checkbox" id="edit-has-fp2" ${hasFp2?'checked':''} onchange="toggleFp2Edit(this.checked)" style="width:17px;height:17px;cursor:pointer;">
-                  Tiene segundo método de pago
-                </label>
-
-                <div id="edit-fp2-section" style="display:${hasFp2?'block':'none'};margin-bottom:12px;">
+                ${hasFp2 ? `
+                <div style="margin-bottom:14px;">
                   <label style="font-size:0.77rem;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Forma de pago 2</label>
                   <select id="edit-fp2" style="${selStyle}"><option value="">— elegir —</option>${opts(c.formaPago2)}</select>
-                  <label style="font-size:0.72rem;color:#888;display:block;margin-top:6px;margin-bottom:3px;">Importe</label>
-                  <input type="number" id="edit-imp2" value="${imp2}" min="0" style="${impStyle}" placeholder="0">
-                </div>
+                  <div style="${amtStyle}">
+                    <span style="font-size:0.71rem;color:#bbb;font-weight:700;">🔒 importe fijo</span>
+                    <span style="font-weight:900;color:#555;font-size:0.92rem;">$${imp2.toLocaleString('es-AR')}</span>
+                  </div>
+                </div>` : ''}
 
-                <div style="background:#f8f9fa;border-radius:8px;padding:8px 12px;margin-bottom:16px;font-size:0.78rem;color:#888;">
-                  💡 Los importes deben sumar <b>$${totalPag.toLocaleString('es-AR')}</b> (total original del cliente)
-                </div>
-
-                <div style="display:flex;gap:10px;">
+                <div style="display:flex;gap:10px;margin-top:18px;">
                   <button onclick="guardarEdicionCliente('${numCliente}')"
                     style="flex:1;padding:12px;background:var(--success);color:white;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:Quicksand;">
                     ✅ Guardar cambio
@@ -2118,38 +2208,31 @@
               </div>`;
         };
 
-        window.toggleFp2Edit = function(show) {
-            document.getElementById('edit-fp2-section').style.display = show ? 'block' : 'none';
-        };
 
         window.guardarEdicionCliente = function(numCliente) {
             const c = rendicionPendiente && rendicionPendiente.detalleClientes &&
                       rendicionPendiente.detalleClientes.find(x => String(x.numCliente) === String(numCliente));
             if (!c) return;
-            const newFp1  = document.getElementById('edit-fp1').value;
-            const newImp1 = parseFloat(document.getElementById('edit-imp1').value) || 0;
-            const hasFp2  = document.getElementById('edit-has-fp2').checked;
-            const newFp2  = hasFp2 ? document.getElementById('edit-fp2').value : '';
-            const newImp2 = hasFp2 ? (parseFloat(document.getElementById('edit-imp2').value) || 0) : 0;
+            const newFp1 = document.getElementById('edit-fp1').value;
             if (!newFp1) { showToast('Elegí la forma de pago', false); return; }
-            const originalTotal = parseFloat(c.totalPagado || 0) || (parseFloat(c.importe1||0)+parseFloat(c.importe2||0));
-            if (originalTotal > 0 && Math.abs((newImp1 + newImp2) - originalTotal) > 1) {
-                showToast(`Los importes deben sumar $${originalTotal.toLocaleString('es-AR')}`, false);
-                return;
-            }
-            // Actualizar cliente en memoria
-            c.formaPago1 = newFp1; c.importe1 = newImp1;
-            c.formaPago2 = newFp2; c.importe2 = newImp2;
-            c.totalPagado = newImp1 + newImp2;
+            const hasFp2  = !!c.formaPago2 && parseFloat(c.importe2 || 0) > 0;
+            const newFp2  = hasFp2 ? (document.getElementById('edit-fp2').value || '') : '';
+            if (hasFp2 && !newFp2) { showToast('Elegí la forma de pago 2', false); return; }
+            // Importes originales sin cambio — solo se actualiza el método
+            const imp1 = parseFloat(c.importe1 || 0);
+            const imp2 = hasFp2 ? parseFloat(c.importe2 || 0) : 0;
+            // Actualizar en memoria
+            c.formaPago1 = newFp1; c.importe1 = imp1;
+            c.formaPago2 = newFp2; c.importe2 = imp2;
+            c.totalPagado = imp1 + imp2;
             // Recalcular totales generales y actualizar pantalla
             recalcularTotalesRendicion();
-            // Intentar guardar en backend (no bloqueante)
+            // Guardar en backend (no bloqueante)
             api("actualizarFormaPagoCliente", {
                 fecha: rendicionPendiente.fecha, turno: rendicionPendiente.turno,
                 repartidor: rendicionPendiente.repartidor, numCliente: c.numCliente,
-                formaPago1: newFp1, importe1: newImp1, formaPago2: newFp2, importe2: newImp2
+                formaPago1: newFp1, importe1: imp1, formaPago2: newFp2, importe2: imp2
             });
-            // Volver a la lista actualizada
             abrirModalRendicionCompleta();
             showToast('✅ Forma de pago actualizada', true);
         };
