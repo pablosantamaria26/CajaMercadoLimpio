@@ -653,6 +653,9 @@
             <div class="zen-icon">🧘</div>
             <div class="zen-title">Modo Zen Activado</div>
             <div class="zen-msg" id="zen-msg-text" style="color:var(--text-light);">No hay rendiciones pendientes.<br>Disfrutá del día.</div>
+            <button onclick="abrirHistorialRendiciones()" style="margin-top:18px;background:none;border:1.5px solid #ddd;border-radius:12px;padding:9px 20px;font-family:Quicksand;font-weight:700;font-size:0.82rem;color:#aaa;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                <span class="material-icons-round" style="font-size:1rem;">history</span> Ver historial
+            </button>
         </div>
         <div id="rendicion-content" style="display:none;">
             <div class="card" id="rendicion-loading-card" style="text-align:center; padding:40px;">
@@ -678,6 +681,11 @@
                 <button class="btn-main btn-success" id="btn-rendicion" onclick="intentarRendicion()" style="margin-top:20px;">
                     <span class="material-icons-round">check_circle</span> CONFIRMAR
                 </button>
+                <div style="text-align:center;margin-top:10px;">
+                    <button onclick="abrirHistorialRendiciones()" style="background:none;border:none;color:#ccc;font-size:0.78rem;font-family:Quicksand;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:4px 8px;">
+                        <span class="material-icons-round" style="font-size:0.9rem;">history</span> Historial
+                    </button>
+                </div>
             </div>
             <div class="card" id="card-billetes-rendicion" style="display:none;">
                 <div class="section-title" style="justify-content:space-between;">
@@ -1847,6 +1855,9 @@
                         <div style="font-size:0.72rem;font-weight:800;color:#cf1322;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Faltante en efectivo</div>
                         <div style="font-size:3.2rem;font-weight:900;color:#cf1322;line-height:1;letter-spacing:-1px;">−$${fmt(faltante)}</div>
                         <div style="font-size:0.78rem;color:#aaa;margin-top:8px;font-weight:600;">${turno} · ${fechaFmt} · ${repartidor}</div>
+                        <div style="display:inline-flex;align-items:center;gap:5px;background:#f6ffed;border:1px solid #b7eb8f;border-radius:20px;padding:4px 12px;margin-top:10px;font-size:0.7rem;font-weight:700;color:#52c41a;">
+                            <span>✅</span> Registrado como egreso en caja automáticamente
+                        </div>
                     </div>
                     <div style="background:#fafafa;border-radius:14px;padding:14px 16px;margin-bottom:16px;border:1.5px solid #f0f0f0;">
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;">
@@ -1880,6 +1891,61 @@
                 if (el) el.remove();
                 delete window.cerrarModalFaltante;
             };
+        }
+
+        async function abrirHistorialRendiciones() {
+            showLoading("Cargando historial...");
+            const data = await api("obtenerHistorialRendiciones", {});
+            hideLoading();
+            if (!Array.isArray(data) || data.length === 0) {
+                showToast("No hay rendiciones registradas aún", false);
+                return;
+            }
+            const fmt = n => Number(n).toLocaleString('es-AR');
+            const rows = data.map(r => {
+                const esFaltante = r.tipo === 'Faltante';
+                const esSobrante = r.tipo === 'Sobrante';
+                const difColor  = esFaltante ? '#cf1322' : esSobrante ? '#096dd9' : '#52c41a';
+                const difBg     = esFaltante ? '#fff1f0' : esSobrante ? '#e6f7ff' : '#f6ffed';
+                const difBorder = esFaltante ? '#ffa39e' : esSobrante ? '#91d5ff' : '#b7eb8f';
+                const difLabel  = esFaltante ? `−$${fmt(Math.abs(r.diferencia))}` :
+                                  esSobrante ? `+$${fmt(Math.abs(r.diferencia))}` : 'Exacto';
+                const fechaFmt  = r.fecha ? r.fecha.split('-').reverse().join('/') : '';
+                return `
+                <div style="background:#fff;border-radius:14px;padding:13px 14px;margin-bottom:10px;border:1.5px solid #f0f0f0;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                        <div>
+                            <span style="font-weight:800;font-size:0.9rem;color:#333;">${r.turno}</span>
+                            <span style="color:#bbb;font-size:0.8rem;margin-left:6px;">${fechaFmt}</span>
+                        </div>
+                        <span style="background:${difBg};border:1px solid ${difBorder};color:${difColor};font-size:0.75rem;font-weight:800;border-radius:20px;padding:2px 10px;">${difLabel}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#999;margin-top:2px;">
+                        <span>Esperado <b style="color:#555;">$${fmt(r.esperado)}</b></span>
+                        <span>Contado <b style="color:#555;">$${fmt(r.contado)}</b></span>
+                    </div>
+                    <div style="font-size:0.7rem;color:#ccc;margin-top:5px;">Procesado por ${r.usuario} · ${r.ts}</div>
+                </div>`;
+            }).join('');
+
+            const overlay = document.createElement('div');
+            overlay.id = 'overlay-historial';
+            overlay.style.cssText = `position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.75);backdrop-filter:blur(5px);display:flex;align-items:flex-end;justify-content:center;`;
+            overlay.innerHTML = `
+                <div style="background:#f5f6fa;border-radius:26px 26px 0 0;width:100%;max-width:480px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,0.25);">
+                    <div style="padding:20px 20px 12px;display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:26px 26px 0 0;border-bottom:1px solid #f0f0f0;flex-shrink:0;">
+                        <div>
+                            <div style="font-weight:900;font-size:1rem;color:#333;">📋 Historial de rendiciones</div>
+                            <div style="font-size:0.72rem;color:#aaa;margin-top:2px;">Solo lectura · ${data.length} registros</div>
+                        </div>
+                        <button onclick="document.getElementById('overlay-historial').remove()" style="background:#f0f0f0;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>
+                    </div>
+                    <div style="overflow-y:auto;padding:14px 16px calc(20px + env(safe-area-inset-bottom,0px));flex:1;">
+                        ${rows}
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
         }
 
         async function intentarArqueo() {

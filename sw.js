@@ -1,5 +1,5 @@
 // Service Worker para Caja Mercado Limpio
-const CACHE_NAME = 'caja-ml-v20-faltante-wa';
+const CACHE_NAME = 'caja-ml-v21-historial';
 
 // Archivos vitales para que la app arranque sin internet o cargue instantáneo
 const urlsToCache = [
