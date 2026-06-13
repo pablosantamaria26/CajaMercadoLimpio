@@ -913,12 +913,13 @@
         });
 
         function initApp() {
-            setFechaHoy(false); 
+            setFechaHoy(false);
             actualizarCategorias();
             cargarMovimientos();
-            actualizarSaldoHeader(); 
+            actualizarSaldoHeader();
             buscarRendicionPendiente();
             cargarConfigEmpleados();
+            _iniciarPolling();
             
             // 🔥 PEDIR PERMISO DE NOTIFICACIONES AL INICIAR 🔥
             if ("Notification" in window) {
@@ -1129,6 +1130,58 @@
         // Movimientos optimistas pendientes de confirmación
         let _pendingMovs = [];
 
+        // ── Polling silencioso: detecta cambios de Pablo sin que Laura lo note ──
+        let _pollTimer = null;
+        let _lastMovsHash = '';
+        const POLL_INTERVAL = 30000; // 30 segundos
+
+        function _movsHash(movs) {
+            // Firma rápida: cantidad + suma de IDs + suma de importes
+            if (!movs.length) return '0';
+            const ids  = movs.reduce((s, m) => s + Number(m.id || 0), 0);
+            const imps = movs.reduce((s, m) => s + Number(m.importe || 0), 0);
+            return `${movs.length}|${ids}|${imps}`;
+        }
+
+        function _iniciarPolling() {
+            _detenerPolling();
+            _pollTimer = setInterval(_pollMovimientos, POLL_INTERVAL);
+        }
+
+        function _detenerPolling() {
+            if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+        }
+
+        async function _pollMovimientos() {
+            // No pollear si hay pendientes optimistas ni si la pestaña está oculta
+            if (_pendingMovs.length > 0) return;
+            if (document.visibilityState === 'hidden') return;
+
+            const fechaStr = document.getElementById('fecha-historial')?.value;
+            if (!fechaStr) return;
+
+            const sbRes = await sb(`movimientos?fecha=${fechaStr}`);
+            if (!sbRes?.ok) return;
+
+            const hash = _movsHash(sbRes.data);
+            if (hash === _lastMovsHash) return; // Sin cambios
+
+            // Algo cambió (Pablo editó o eliminó) → actualizar silenciosamente
+            _lastMovsHash = hash;
+            const lista = document.getElementById('lista-movimientos');
+            if (lista) _renderMovimientos(lista, sbRes.data);
+        }
+
+        // Pausar polling cuando la app pasa a segundo plano, reanudar al volver
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                _pollMovimientos(); // Chequeo inmediato al volver
+                _iniciarPolling();
+            } else {
+                _detenerPolling();
+            }
+        });
+
         function navFecha(delta) {
             const el = document.getElementById('fecha-historial');
             const [y, mo, d] = el.value.split('-').map(Number);
@@ -1226,6 +1279,7 @@
             }
 
             lista.dataset.loaded = '1';
+            _lastMovsHash = _movsHash(movs || []);
             _renderMovimientos(lista, movs || []);
         }
 
