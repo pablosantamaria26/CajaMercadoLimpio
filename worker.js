@@ -190,22 +190,41 @@ async function handleSb(request, env, url, cors) {
   const p    = url.searchParams;
 
   if (seg === "saldo") {
-    const r    = await fetch(`${SB_URL}/movimientos_caja?select=tipo,forma_pago,importe&deleted_at=is.null`, { headers: rH });
-    const movs = await r.json();
-    if (!Array.isArray(movs)) return json({ error: "Error Supabase", detail: movs }, 502, cors);
-    const s = { efectivo: 0, cheques: 0, banco: 0 };
-    for (const m of movs) {
-      const v = Number(m.importe || 0), sign = m.tipo === "Ingreso" ? 1 : -1;
-      const fp = (m.forma_pago || "").toLowerCase();
-      if (fp === "efectivo") s.efectivo += sign * v;
-      else if (fp === "cheque") s.cheques += sign * v;
-      else if (fp === "banco" || fp === "transferencia") s.banco += sign * v;
+    // Paginar de a 1000 filas (límite de Supabase free tier)
+    const allMovs = [];
+    let offset = 0;
+    while (true) {
+      const r = await fetch(
+        `${SB_URL}/movimientos_caja?select=tipo,forma_pago,importe,estado&deleted_at=is.null&limit=1000&offset=${offset}`,
+        { headers: rH }
+      );
+      const page = await r.json();
+      if (!Array.isArray(page)) return json({ error: "Error Supabase", detail: page }, 502, cors);
+      allMovs.push(...page);
+      if (page.length < 1000) break;
+      offset += 1000;
     }
-    return json({ ok: true, ...s }, 200, cors);
+    const s = { efectivo: 0, cheques: 0, banco: 0 };
+    for (const m of allMovs) {
+      const v  = Number(m.importe || 0);
+      const fp = (m.forma_pago || "").toLowerCase();
+      const st = (m.estado || "").toUpperCase();
+      if (fp === "efectivo") {
+        s.efectivo += m.tipo === "Ingreso" ? v : -v;
+      } else if (fp === "cheque") {
+        // Solo cheques RECIBIDOS (ingreso) que aún no fueron entregados/cobrados
+        if (m.tipo === "Ingreso" && !st.startsWith("ENTREGADO") && st !== "COBRADO" && st !== "DEPOSITADO") {
+          s.cheques += v;
+        }
+      } else if (fp === "banco" || fp === "transferencia") {
+        s.banco += m.tipo === "Ingreso" ? v : -v;
+      }
+    }
+    return json({ ok: true, ...s, total: allMovs.length }, 200, cors);
   }
 
   if (seg === "movimientos") {
-    let q = `${SB_URL}/movimientos_caja?deleted_at=is.null&order=fecha.asc,hora.asc`;
+    let q = `${SB_URL}/movimientos_caja?deleted_at=is.null&order=fecha.asc,hora.asc&limit=9999`;
     if (p.get("fecha"))            q += `&fecha=eq.${p.get("fecha")}`;
     else if (p.get("from") && p.get("to")) q += `&fecha=gte.${p.get("from")}&fecha=lte.${p.get("to")}`;
     const r    = await fetch(q, { headers: rH });
@@ -255,6 +274,7 @@ export default {
 
     // ── Supabase read endpoints
     if (url.pathname.startsWith("/sb/")) return handleSb(request, env, url, cors);
+
 
     // ── GAS proxy + doble escritura
     if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);

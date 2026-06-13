@@ -1,5 +1,5 @@
 // Service Worker — Caja Mercado Limpio
-const CACHE_NAME = 'caja-ml-v30-saldo-gas';
+const CACHE_NAME = 'caja-ml-v31-full-supabase-ok';
 
 const urlsToCache = [
   './',
