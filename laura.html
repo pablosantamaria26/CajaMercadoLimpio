@@ -255,11 +255,20 @@
         .jbl-active { animation: spin 1s infinite linear !important; color: var(--text-main) !important; }
 
         /* --- HISTORIAL --- */
-        .mov-item { padding: 15px; background: white; border-radius: 16px; margin-bottom: 10px; border-bottom: 2px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .mov-item { padding: 14px 15px; background: white; border-radius: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #e0e0e0; }
         .amount-in { color: var(--success); font-weight: 800; }
         .amount-out { color: var(--accent); font-weight: 800; }
         .mov-title { font-weight: 700; font-size: 0.95rem; }
-        .mov-sub { font-size: 0.8rem; color: #aaa; margin-top: 3px; display: block; }
+        .mov-sub { font-size: 0.78rem; color: #aaa; margin-top: 3px; display: block; }
+        .mov-totales { display:flex; justify-content:space-between; align-items:center; padding:10px 15px; background:#f8f9ff; border-radius:12px; margin-bottom:10px; font-weight:800; font-size:0.88rem; list-style:none; }
+        .mov-optimistic { opacity:0.65; }
+        @keyframes fadeInDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+        .mov-new { animation: fadeInDown 0.2s ease; }
+        .mov-nav { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
+        .nav-arrow { background:none; border:1.5px solid #e0e0e0; border-radius:12px; width:42px; height:42px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; color:var(--text-main); }
+        .nav-arrow:active { background:#f0f0f0; }
+        .fecha-chip { background:none; border:1.5px solid var(--primary); border-radius:20px; padding:4px 14px; font-family:Quicksand; font-weight:700; font-size:0.76rem; cursor:pointer; color:var(--primary); }
+        .fecha-chip:active, .fecha-chip.active { background:var(--primary); color:white; border-color:var(--primary); }
 
         /* --- ZEN STATE --- */
         .zen-state { text-align: center; padding: 40px 20px; }
@@ -638,10 +647,19 @@
         <div class="card">
             <div class="section-title">
                 <span class="material-icons-round" style="color:var(--text-light);">history</span> Historial
-                <button onclick="setFechaHoy(true)" style="margin-left:auto; background:none; border:none; color:var(--primary); font-weight:700; font-size:0.8rem;">HOY</button>
             </div>
-            <input type="date" id="fecha-historial" class="form-control" style="padding:10px;" onchange="cargarMovimientos()">
-            <ul class="mov-list" id="lista-movimientos" style="list-style:none; padding:0; margin-top:10px;">
+            <div class="mov-nav">
+                <button class="nav-arrow" onclick="navFecha(-1)"><span class="material-icons-round">chevron_left</span></button>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                    <input type="date" id="fecha-historial" class="form-control" style="padding:8px 12px;width:auto;text-align:center;margin-bottom:0;" onchange="cargarMovimientos()">
+                    <div style="display:flex;gap:8px;">
+                        <button class="fecha-chip" id="chip-hoy" onclick="setFechaHoy(true)">Hoy</button>
+                        <button class="fecha-chip" id="chip-ayer" onclick="setFechaAyer()">Ayer</button>
+                    </div>
+                </div>
+                <button class="nav-arrow" onclick="navFecha(1)"><span class="material-icons-round">chevron_right</span></button>
+            </div>
+            <ul class="mov-list" id="lista-movimientos" style="list-style:none; padding:0; margin-top:0;">
                 <li style="text-align:center; color:#aaa; padding: 20px;">Cargando...</li>
             </ul>
         </div>
@@ -1096,6 +1114,47 @@
             } catch (error) { return { ok: false, error: "Error de conexión" }; }
         }
 
+        async function sb(endpoint) {
+            try {
+                const r = await fetch(API_URL.replace(/\/$/, '') + '/sb/' + endpoint);
+                const d = await r.json();
+                if (d?.ok && Array.isArray(d.data)) d.data = d.data.map(normMovimiento);
+                return d;
+            } catch { return null; }
+        }
+        function normMovimiento(m) {
+            return m.forma_pago !== undefined ? { ...m, formaPago: m.forma_pago } : m;
+        }
+
+        // Movimientos optimistas pendientes de confirmación
+        let _pendingMovs = [];
+
+        function navFecha(delta) {
+            const el = document.getElementById('fecha-historial');
+            const [y, mo, d] = el.value.split('-').map(Number);
+            const fecha = new Date(y, mo - 1, d);
+            fecha.setDate(fecha.getDate() + delta);
+            const pad = n => String(n).padStart(2, '0');
+            el.value = `${fecha.getFullYear()}-${pad(fecha.getMonth()+1)}-${pad(fecha.getDate())}`;
+            cargarMovimientos();
+        }
+        function setFechaAyer() {
+            const el = document.getElementById('fecha-historial');
+            const [y, mo, d] = el.value.split('-').map(Number);
+            const ayer = new Date(y, mo - 1, d - 1);
+            const pad = n => String(n).padStart(2, '0');
+            el.value = `${ayer.getFullYear()}-${pad(ayer.getMonth()+1)}-${pad(ayer.getDate())}`;
+            cargarMovimientos();
+        }
+        function _actualizarChipsFecha() {
+            const el = document.getElementById('fecha-historial');
+            const val = el.value;
+            const hoyStr = (() => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().split('T')[0]; })();
+            const ayerStr = (() => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0]; })();
+            document.getElementById('chip-hoy')?.classList.toggle('active', val === hoyStr);
+            document.getElementById('chip-ayer')?.classList.toggle('active', val === ayerStr);
+        }
+
         async function actualizarSaldoHeader() {
             const el = document.getElementById('big-balance');
             const sysEl = document.getElementById('arqueo-sistema');
@@ -1147,23 +1206,74 @@
 
         // --- MOVIMIENTOS ---
         async function cargarMovimientos() {
-            const fechaStr = document.getElementById('fecha-historial').value; 
+            const fechaStr = document.getElementById('fecha-historial').value;
             const lista = document.getElementById('lista-movimientos');
-            lista.innerHTML = '<li style="text-align:center; padding:20px; color:#aaa;">Cargando...</li>';
-            const res = await api("getMovimientos", { fechaStr: fechaStr + "T12:00:00" });
-            lista.innerHTML = "";
-            if (!res || res.length === 0) return lista.innerHTML = `<li style="text-align:center; padding:20px; color:#aaa;">Sin movimientos 🦗</li>`;
-            res.forEach(m => {
-                const color = m.tipo === 'Ingreso' ? 'amount-in' : 'amount-out';
-                const obs = m.observacion ? `<span class="mov-sub" style="font-style:italic;">${m.observacion}</span>` : "";
+            _actualizarChipsFecha();
+
+            // Si no hay nada todavía, mostrar skeleton
+            if (!lista.dataset.loaded) {
+                lista.innerHTML = '<li style="padding:18px;text-align:center;color:#ccc;font-size:0.85rem;">Cargando...</li>';
+            }
+
+            // Supabase primero (rápido), GAS como fallback
+            let movs = null;
+            const sbRes = await sb(`movimientos?fecha=${fechaStr}`);
+            if (sbRes?.ok) {
+                movs = sbRes.data;
+            } else {
+                const res = await api("getMovimientos", { fechaStr: fechaStr + "T12:00:00" });
+                if (Array.isArray(res)) movs = res;
+            }
+
+            lista.dataset.loaded = '1';
+            _renderMovimientos(lista, movs || []);
+        }
+
+        function _fpIcon(fp) {
+            if (fp === 'Cheque') return '🧾';
+            if (fp === 'Banco' || fp === 'Transferencia') return '🏦';
+            return '💵';
+        }
+
+        function _renderMovimientos(lista, movs) {
+            // Agregar pending que no estén ya en la lista confirmada
+            const confirmIds = new Set(movs.map(m => m._tempId).filter(Boolean));
+            const pendientes = _pendingMovs.filter(p => !confirmIds.has(p._tempId));
+            const todos = [...pendientes, ...[...movs].reverse()];
+
+            lista.innerHTML = '';
+            if (!todos.length) {
+                lista.innerHTML = '<li style="text-align:center;padding:20px;color:#aaa;">Sin movimientos 🦗</li>';
+                return;
+            }
+
+            // Totales (solo de los confirmados)
+            let totalIn = 0, totalOut = 0;
+            movs.forEach(m => {
+                if (m.tipo === 'Ingreso') totalIn += Number(m.importe);
+                else totalOut += Number(m.importe);
+            });
+            lista.innerHTML = `<li class="mov-totales">
+                <span style="color:var(--success);">+ $ ${totalIn.toLocaleString('es-AR')}</span>
+                <span style="color:#ccc;font-size:0.7rem;font-weight:600;">BALANCE</span>
+                <span style="color:var(--accent);">- $ ${totalOut.toLocaleString('es-AR')}</span>
+            </li>`;
+
+            todos.forEach(m => {
+                const esIngreso = m.tipo === 'Ingreso';
+                const obs = m.observacion ? `<span class="mov-sub" style="font-style:italic;color:#b2bec3;">${m.observacion}</span>` : '';
+                const syncBadge = m._optimistic ? '<div style="font-size:0.65rem;color:#b2bec3;text-align:right;margin-top:2px;">sincronizando...</div>' : '';
                 lista.innerHTML += `
-                    <li class="mov-item">
+                    <li class="mov-item${m._optimistic ? ' mov-optimistic mov-new' : ''}" style="border-left-color:${esIngreso ? 'var(--success)' : 'var(--accent)'};">
                         <div class="mov-info">
                             <span class="mov-title">${m.categoria}</span>
-                            <span class="mov-sub">${m.hora} • ${m.formaPago}</span>
+                            <span class="mov-sub">${m.hora || '--:--'} · ${_fpIcon(m.formaPago)} ${m.formaPago}</span>
                             ${obs}
                         </div>
-                        <div class="${color}">${m.tipo==='Ingreso'?'+':'-'} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
+                        <div style="text-align:right;">
+                            <div class="${esIngreso ? 'amount-in' : 'amount-out'}">${esIngreso ? '+' : '-'} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
+                            ${syncBadge}
+                        </div>
                     </li>`;
             });
         }
@@ -1276,72 +1386,69 @@
         async function finalizarRegistro() {
             if (!tempMovimientoPayload) return;
 
-            // 1. Cerrar modal instantáneamente (Sensación de rapidez)
             closeConfirmModal();
-
-            // 2. Feedback inmediato al usuario
             showToast("Guardando operación...", true);
 
-            // 3. Ejecutar la lógica real (Segundo plano relativo)
             const payload = tempMovimientoPayload;
-            
-            // Solamente deshabilitamos el boton de registrar original para evitar doble click si fuera visible
             const btn = document.getElementById('btn-registrar');
             btn.disabled = true;
 
-            // 🚀 VALIDACIÓN DIFERIDA DE COMBUSTIBLE
+            // Validación diferida de combustible (antes del optimistic para no duplicar)
             if (payload.categoria === 'Combustible' && payload.vehiculo && !fuelWarningBypass) {
                 const warning = await api("checkCombustibleWarning", { vehiculo: payload.vehiculo });
                 if (warning.ok && warning.isWarning) {
-                    btn.disabled = false; // Rehabilitar botón por si cancela
+                    btn.disabled = false;
                     showModal(
                         "⛽ Alerta de Carga",
                         `¡Cuidado! Esta sería la **carga N° ${warning.currentLoads + 1}** del ${payload.vehiculo} en la semana. Normalmente solo se hacen 2. ¿Deseas registrar este egreso de todas formas?`,
                         "local_gas_station",
-                        "var(--accent)", 
-                        () => {
-                            fuelWarningBypass = true;
-                            finalizarRegistro(); // Re-intentar guardado ignorando alerta
-                        },
-                        () => {
-                            showToast("Carga cancelada. Revisá el vehículo.", false);
-                        },
+                        "var(--accent)",
+                        () => { fuelWarningBypass = true; finalizarRegistro(); },
+                        () => { showToast("Carga cancelada. Revisá el vehículo.", false); },
                         "Sí, Registrar",
                         "No, Cancelar"
                     );
-                    return; // Detenemos el guardado hasta que confirme la alerta
+                    return;
                 }
             }
-            fuelWarningBypass = false; 
+            fuelWarningBypass = false;
+
+            // UI optimista: agregar movimiento a la lista al instante
+            const tempId = Date.now();
+            const nowH = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+            const movOptimista = { ...payload, hora: nowH, _optimistic: true, _tempId: tempId };
+            _pendingMovs.unshift(movOptimista);
+            const lista = document.getElementById('lista-movimientos');
+            lista.dataset.loaded = '1';
+            _renderMovimientos(lista, []); // Muestra el pending inmediatamente
 
             const res = await api("registrarMovimientoCaja", payload);
             btn.disabled = false;
-            
-            if(res && res.ok) {
-                // RESETEO DE CAMPOS AUTOMATICO
+
+            if (res && res.ok) {
+                // Reseteo de campos
                 const inputImporte = document.getElementById('mov-importe');
                 const inputObs = document.getElementById('mov-obs');
                 const selectCat = document.getElementById('mov-categoria');
                 const selectEmp = document.getElementById('mov-empleado');
                 const selectChequeCartera = document.getElementById('mov-cheque-cartera');
 
-                inputImporte.value = ""; 
+                inputImporte.value = "";
                 inputImporte.setAttribute('data-clean-value', '0');
-                inputObs.value = ""; 
-
+                inputObs.value = "";
                 document.getElementById('mov-banco').value = '';
                 document.getElementById('mov-cheque-nro').value = '';
 
                 if (payload.categoria !== "Pago de Haberes") {
-                    selectCat.value = ''; 
-                    document.getElementById('mov-tipo').value = 'Egreso'; 
+                    selectCat.value = '';
+                    document.getElementById('mov-tipo').value = 'Egreso';
                 } else {
                     if (selectEmp) selectEmp.value = '';
                 }
 
                 document.getElementById('mov-proveedor').value = '';
                 if (document.getElementById('mov-vehiculo')) document.getElementById('mov-vehiculo').value = '';
-                
+
                 if (inputImporte.classList.contains('importe-cheque-lock')) {
                     inputImporte.classList.remove('importe-cheque-lock');
                     inputImporte.disabled = false;
@@ -1349,14 +1456,20 @@
                     if (selectChequeCartera) selectChequeCartera.value = '';
                 }
 
-                actualizarCategorias(); 
-                checkCamposExtra(); 
-                
-                // Actualizar saldos en "vivo"
+                actualizarCategorias();
+                checkCamposExtra();
                 actualizarSaldoHeader();
-                cargarMovimientos();
-            } else { 
-                showToast(res.error || "Error al guardar (API)", false); 
+
+                // Esperar un momento para que el Worker termine el sync a Supabase
+                setTimeout(() => {
+                    _pendingMovs = _pendingMovs.filter(p => p._tempId !== tempId);
+                    cargarMovimientos();
+                }, 1000);
+            } else {
+                // Error: quitar el optimista y mostrar error
+                _pendingMovs = _pendingMovs.filter(p => p._tempId !== tempId);
+                _renderMovimientos(lista, []);
+                showToast(res?.error || "Error al guardar", false);
             }
         }
 
