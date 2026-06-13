@@ -604,6 +604,41 @@
   </div>
 </div>
 
+<!-- MODAL: Editar movimiento -->
+<div class="overlay" id="sheet-edit-mov" onclick="if(event.target===this)closeSheet('edit-mov')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="sheet-title" style="margin-bottom:0">Editar movimiento</div>
+      <span id="edit-mov-id" style="font-size:12px;color:var(--text3);font-weight:600"></span>
+    </div>
+    <label class="sheet-input-lbl">Tipo</label>
+    <select class="sheet-input" id="edit-tipo">
+      <option value="Egreso">Egreso</option>
+      <option value="Ingreso">Ingreso</option>
+    </select>
+    <label class="sheet-input-lbl">Categoría</label>
+    <input type="text" class="sheet-input" id="edit-categoria" placeholder="Ej: Pago proveedor">
+    <label class="sheet-input-lbl">Forma de pago</label>
+    <select class="sheet-input" id="edit-forma-pago">
+      <option value="Efectivo">Efectivo</option>
+      <option value="Cheque">Cheque</option>
+      <option value="Banco">Banco</option>
+    </select>
+    <label class="sheet-input-lbl">Importe ($)</label>
+    <input type="number" class="sheet-input" id="edit-importe" inputmode="numeric" placeholder="0">
+    <label class="sheet-input-lbl">Observación</label>
+    <input type="text" class="sheet-input" id="edit-observacion" placeholder="Opcional">
+    <button class="sheet-btn sheet-btn-primary" onclick="confirmEditMov()">Guardar cambios</button>
+    <div id="delete-confirm-box" style="display:none;background:rgba(255,59,48,0.08);border-radius:12px;padding:14px;margin-top:6px;">
+      <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:10px;">¿Eliminar este movimiento de Sheets y Supabase?</div>
+      <button class="sheet-btn sheet-btn-danger" onclick="doDeleteMov()" style="margin-top:0">Sí, eliminar para siempre</button>
+    </div>
+    <button class="sheet-btn sheet-btn-danger" id="btn-delete-mov" onclick="showDeleteConfirm()">Eliminar movimiento</button>
+    <button class="sheet-btn sheet-btn-gray" onclick="closeSheet('edit-mov')">Cancelar</button>
+  </div>
+</div>
+
 <!-- MODAL: PDF proveedor -->
 <div class="overlay" id="sheet-pdf" onclick="if(event.target===this)closeSheet('pdf')">
   <div class="sheet">
@@ -640,6 +675,7 @@ let weekMovs = [];
 let chartEgr = null, chartRank = null;
 let empleadosData = [], fijosData = [];
 let addMode = "";
+let editMovId = null;
 let alertsLoaded = false;
 let gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:false, proveedores:false };
 
@@ -1191,6 +1227,7 @@ function renderMovsList() {
       <div class="mov-detail-row"><span>Observación</span><span style="text-align:right;max-width:55%">${m.observacion||'-'}</span></div>
       <div class="mov-detail-row"><span>Forma de pago</span><span>${m.formaPago||'-'}</span></div>
       <div class="mov-detail-row"><span>ID</span><span>#${m.id}</span></div>
+      <button onclick="openEditMov(${m.id})" style="width:100%;margin-top:10px;padding:11px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✎ Editar movimiento</button>
     </div>`;
   }).join('');
 }
@@ -1199,6 +1236,66 @@ window.toggleMovDetail = (i, prefix) => {
   const el = $(prefix + i);
   if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
 };
+
+window.openEditMov = (id) => {
+  const m = currentMovs.find(x => Number(x.id) === Number(id));
+  if (!m) { toast('No se encontró el movimiento'); return; }
+  editMovId = m.id;
+  $('edit-mov-id').textContent = '#' + m.id;
+  $('edit-tipo').value = m.tipo || 'Egreso';
+  $('edit-categoria').value = m.categoria || '';
+  $('edit-forma-pago').value = m.formaPago || 'Efectivo';
+  $('edit-importe').value = m.importe || '';
+  $('edit-observacion').value = m.observacion || '';
+  $('delete-confirm-box').style.display = 'none';
+  $('btn-delete-mov').style.display = 'block';
+  openSheet('edit-mov');
+};
+
+async function confirmEditMov() {
+  if (!editMovId) return;
+  const params = {
+    id:          editMovId,
+    tipo:        $('edit-tipo').value,
+    formaPago:   $('edit-forma-pago').value,
+    importe:     Number($('edit-importe').value) || 0,
+    categoria:   $('edit-categoria').value.trim(),
+    observacion: $('edit-observacion').value.trim(),
+  };
+  if (!params.categoria || !params.importe) { toast('Completá categoría e importe'); return; }
+  closeSheet('edit-mov');
+  toast('Guardando...');
+  const res = await api("editarMovimientoCaja", params);
+  if (res?.ok) {
+    const idx = currentMovs.findIndex(m => Number(m.id) === Number(editMovId));
+    if (idx !== -1) currentMovs[idx] = { ...currentMovs[idx], ...params, forma_pago: params.formaPago };
+    renderMovimientosTab2();
+    toast('✓ Movimiento actualizado');
+  } else {
+    toast(res?.error || 'Error al guardar');
+  }
+  editMovId = null;
+}
+
+function showDeleteConfirm() {
+  $('delete-confirm-box').style.display = 'block';
+  $('btn-delete-mov').style.display = 'none';
+}
+
+async function doDeleteMov() {
+  const id = editMovId;
+  closeSheet('edit-mov');
+  toast('Eliminando...');
+  const res = await api("eliminarMovimientoCaja", { id });
+  if (res?.ok) {
+    currentMovs = currentMovs.filter(m => Number(m.id) !== Number(id));
+    renderMovimientosTab2();
+    toast('✓ Movimiento eliminado');
+  } else {
+    toast(res?.error || 'Error al eliminar');
+  }
+  editMovId = null;
+}
 
 // ═══════════════════════════════════════════════════════
 // TAB 3: GESTIÓN
