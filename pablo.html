@@ -722,6 +722,33 @@ async function sb(endpoint) {
 function normMovimiento(m) {
   return m.forma_pago !== undefined ? { ...m, formaPago: m.forma_pago } : m;
 }
+function normRendicion(r) {
+  if (r.tipo != null && r.esperado != null) return r; // already GAS shape
+  return {
+    ...r,
+    tipo:     r.tipo_diferencia,
+    esperado: r.efectivo_esperado,
+    contado:  r.efectivo_contado,
+    ts:       r.hora_rendicion ? r.hora_rendicion.replace('T', ' ').substring(0, 16) : '',
+  };
+}
+function mapArqueo(data) {
+  if (!data) return null;
+  const closeTime = data.hora_cierre ? data.hora_cierre.split('T')[1]?.substring(0, 5) : '';
+  const res = data.resultado;
+  return {
+    status:     res === 'OK' ? 'ok' : (res === 'Faltante' || res === 'Sobrante') ? 'discrepancy' : 'pending',
+    closeTime,
+    difference: data.diferencia,
+  };
+}
+function computeBancos(hoyMovs, mesMovs) {
+  const isBanco = m => ['banco', 'transferencia'].includes((m.formaPago || m.forma_pago || '').toLowerCase());
+  const hoyB = hoyMovs.filter(isBanco);
+  const totalDia = hoyB.reduce((s, m) => s + Number(m.importe || 0), 0);
+  const totalMes = Array.isArray(mesMovs) ? mesMovs.filter(isBanco).reduce((s, m) => s + Number(m.importe || 0), 0) : 0;
+  return { ok: true, totalDia, cantidadDia: hoyB.length, totalMes };
+}
 
 function toast(msg, duration = 2200) {
   const w = $('toast-wrap');
@@ -869,21 +896,28 @@ function renderInicioData({ caja, arqueo, cruce, movs, rends, bancos }) {
 }
 
 async function loadInicio() {
-  // Mostrar datos cacheados al instante (hasta 5 min de antigüedad)
   const cached = cacheGet('inicio_' + currentDate);
   if (cached) renderInicioData(cached);
 
-  // Lectura mixta: Supabase para datos tabulares (rápido), GAS para lógica de negocio
-  const [caja, arqueo, cruce, movsR, rendsR, bancos] = await Promise.all([
-    api("getEstadoCaja"),
-    api("getArqueoStatus",       { dateStr: currentDate }),
-    api("getResumenCruceDiario", { fechaStr: currentDate }),
-    sb(`movimientos?fecha=${currentDate}`),           // Supabase (~150ms)
-    sb(`rendiciones?limit=40`),                       // Supabase (~150ms)
-    api("getResumenBancosDueño")
+  const mesStart = currentDate.substring(0, 8) + '01';
+  const [sbSaldo, sbArqueo, movsR, rendsR, mesMovsR] = await Promise.all([
+    sb('saldo'),
+    sb(`arqueos?fecha=${currentDate}`),
+    sb(`movimientos?fecha=${currentDate}`),
+    sb(`rendiciones?limit=40`),
+    sb(`movimientos?from=${mesStart}&to=${currentDate}`),
   ]);
+
   const movs  = movsR?.ok  ? movsR.data  : await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
-  const rends = rendsR?.ok ? rendsR.data : await api("obtenerHistorialRendiciones", {});
+  const rends = rendsR?.ok ? rendsR.data.map(normRendicion) : await api("obtenerHistorialRendiciones", {});
+
+  const caja      = sbSaldo;
+  const arqueoData = sbArqueo?.ok ? sbArqueo.data : null;
+  const arqueo    = mapArqueo(arqueoData);
+  const cruce     = arqueoData
+    ? { ok: true, sinArqueo: false, brecha: arqueoData.diferencia }
+    : { ok: true, sinArqueo: true };
+  const bancos    = computeBancos(movs, mesMovsR?.ok ? mesMovsR.data : null);
 
   const fresh = { caja, arqueo, cruce, movs, rends, bancos };
   cacheSet('inicio_' + currentDate, fresh);
@@ -1013,15 +1047,26 @@ async function loadSemana() {
   semanaLoaded = false;
   $('week-label').textContent = wk.label;
 
-  const [movsR, cruceSem] = await Promise.all([
-    sb(`movimientos?from=${wk.start}&to=${wk.end}`),   // Supabase (~150ms)
-    api("getResumenCruceRango", { startDateStr: wk.start, endDateStr: wk.end })
+  const [movsR, wkArqueosR] = await Promise.all([
+    sb(`movimientos?from=${wk.start}&to=${wk.end}`),
+    sb(`arqueos?from=${wk.start}&to=${wk.end}`),
   ]);
-  // Fallback a GAS si Supabase falla
-  const movsRango = movsR?.ok ? movsR : await api("getMovimientosRango", { startDateStr: wk.start, endDateStr: wk.end });
-  weekMovs = movsRango?.ok && movsRango.data ? movsRango.data : [];
+  weekMovs = movsR?.ok ? movsR.data : [];
+
+  // Cruce semanal desde arqueos de Supabase (sin GAS)
+  const wkArqueos = wkArqueosR?.ok && Array.isArray(wkArqueosR.data) ? wkArqueosR.data : [];
+  const cruceSem = wkArqueos.length ? {
+    ok: true,
+    data: wkArqueos.map(a => ({
+      fecha:         a.fecha,
+      brecha:        a.diferencia,
+      saldoEsperado: a.efectivo_sistema,
+      declarado:     a.efectivo_fisico,
+    })),
+  } : { ok: true, data: [] };
+
   renderWeekKPIs(weekMovs);
-  renderWeekGrid(wk);
+  renderWeekGrid(wk, wkArqueos);
   renderCruceRange(cruceSem);
   renderCharts(weekMovs, wk);
   semanaLoaded = true;
@@ -1044,30 +1089,32 @@ function renderWeekKPIs(movs) {
   $('week-movs').textContent = movs.length;
 }
 
-async function renderWeekGrid(wk) {
+function renderWeekGrid(wk, wkArqueos = []) {
   const DAY_NAMES = ['Lun','Mar','Mié','Jue','Vie'];
   const today = todayISO();
   const grid = $('week-grid');
+  const arqueoByFecha = {};
+  wkArqueos.forEach(a => { arqueoByFecha[a.fecha] = a; });
+
   grid.innerHTML = wk.days.map((d, i) => {
     const isToday = d === today;
     const num = d.slice(8);
+    const future = d > today;
+    const a = arqueoByFecha[d];
+    let statusCls = 'wd-miss', statusTxt = '·';
+    if (future) { statusCls = 'wd-future'; statusTxt = '—'; }
+    else if (a) {
+      const mapped = mapArqueo(a);
+      if (mapped.status === 'ok') { statusCls = 'wd-ok'; statusTxt = '✓'; }
+      else if (mapped.status === 'discrepancy') { statusCls = 'wd-warn'; statusTxt = `${mapped.difference > 0 ? '+' : ''}${fmk(mapped.difference)}`; }
+      else { statusCls = 'wd-miss'; statusTxt = 'Pend'; }
+    }
     return `<div class="week-day" style="${isToday ? 'background:rgba(0,122,255,0.08);border:1.5px solid rgba(0,122,255,0.25)' : ''}">
       <div class="week-day-name">${DAY_NAMES[i]}</div>
       <div class="week-day-num" style="${isToday ? 'color:var(--primary)' : ''}">${num}</div>
-      <div class="week-day-status wd-miss" id="wds-${d}">·</div>
+      <div class="week-day-status ${statusCls}">${statusTxt}</div>
     </div>`;
   }).join('');
-
-  await Promise.all(wk.days.map(async d => {
-    const r = await api("getArqueoStatus", { dateStr: d });
-    const el = $('wds-' + d);
-    if (!el || !r) return;
-    const future = d > today;
-    if (future) { el.className = 'week-day-status wd-future'; el.textContent = '—'; return; }
-    if (r.status === 'ok') { el.className = 'week-day-status wd-ok'; el.textContent = '✓'; }
-    else if (r.status === 'discrepancy') { el.className = 'week-day-status wd-warn'; el.textContent = `${r.difference > 0 ? '+' : ''}${fmk(r.difference)}`; }
-    else { el.className = 'week-day-status wd-miss'; el.textContent = 'Pend'; }
-  }));
 }
 
 function renderCruceRange(r) {
@@ -1188,8 +1235,8 @@ function renderCharts(movs, wk) {
 // ═══════════════════════════════════════════════════════
 async function loadMovimientos() {
   $('movs-list').innerHTML = '<div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>';
-  const res = await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
-  currentMovs = Array.isArray(res) ? res : [];
+  const r = await sb(`movimientos?fecha=${currentDate}`);
+  currentMovs = r?.ok ? r.data : await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" }) || [];
   renderMovsList();
 }
 
@@ -1329,7 +1376,8 @@ async function loadGestionContent() {
 }
 
 async function loadGReparto() {
-  const data = await api("obtenerHistorialRendiciones", {});
+  const r = await sb('rendiciones?limit=100');
+  const data = r?.ok ? r.data.map(normRendicion) : await api("obtenerHistorialRendiciones", {});
   const c = $('g-reparto-list');
   if (!Array.isArray(data) || !data.length) {
     c.innerHTML = '<div class="empty"><span class="material-icons-round">history</span><span>Sin rendiciones</span></div>';
@@ -1356,8 +1404,8 @@ async function loadGReparto() {
 async function loadGCombustible() {
   if (!weekMovs.length) {
     const wk = getWeekRange(currentDate);
-    const res = await api("getMovimientosRango", { startDateStr: wk.start, endDateStr: wk.end });
-    weekMovs = res?.ok && res.data ? res.data : [];
+    const r = await sb(`movimientos?from=${wk.start}&to=${wk.end}`);
+    weekMovs = r?.ok ? r.data : [];
   }
   let fuelTotal = 0;
   const byVeh = {};
@@ -1448,8 +1496,8 @@ async function saveFijo(i) {
 
 async function loadGProveedores() {
   if (!currentMovs.length) {
-    const res = await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
-    currentMovs = Array.isArray(res) ? res : [];
+    const r = await sb(`movimientos?fecha=${currentDate}`);
+    currentMovs = r?.ok ? r.data : await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" }) || [];
   }
   let provTotal = 0;
   const provList = [];
@@ -1675,8 +1723,8 @@ async function generatePDF() {
   if (!from || !to) { toast('Elegí fechas'); return; }
   closeSheet('pdf');
   toast('Generando PDF...');
-  const res = await api("getMovimientosRango", { startDateStr: from, endDateStr: to });
-  const movs2 = (res?.ok && res.data) ? res.data : [];
+  const r2 = await sb(`movimientos?from=${from}&to=${to}`);
+  const movs2 = r2?.ok ? r2.data : [];
   const filtrados = movs2.filter(m => {
     const obs = (m.observacion||'').toLowerCase();
     const cat = (m.categoria||'').toLowerCase();

@@ -215,11 +215,16 @@ async function handleSb(request, env, url, cors) {
   }
 
   if (seg === "arqueos") {
-    let q = `${SB_URL}/arqueos_caja?order=id.desc&limit=1`;
-    if (p.get("fecha")) q += `&fecha=eq.${p.get("fecha")}`;
+    const hasFecha = !!p.get("fecha");
+    const hasRange = !!(p.get("from") && p.get("to"));
+    let q = `${SB_URL}/arqueos_caja?order=fecha.asc`;
+    if (hasFecha)       q += `&fecha=eq.${p.get("fecha")}&limit=1`;
+    else if (hasRange)  q += `&fecha=gte.${p.get("from")}&fecha=lte.${p.get("to")}`;
+    else                q += `&limit=1`;
     const r    = await fetch(q, { headers: rH });
     const data = await r.json();
     if (!Array.isArray(data)) return json({ error: "Error Supabase", detail: data }, 502, cors);
+    if (hasRange) return json({ ok: true, data }, 200, cors);
     return json({ ok: true, data: data[0] || null }, 200, cors);
   }
 
