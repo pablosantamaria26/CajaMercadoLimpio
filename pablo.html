@@ -540,6 +540,10 @@
 
       <div class="section">
         <div class="section-hdr" id="alerts-hdr">Notificaciones</div>
+        <div id="alerts-bulk-actions" style="display:none;gap:8px;margin-bottom:10px;">
+          <button onclick="markAllRead()" style="flex:1;padding:10px;background:rgba(0,122,255,0.1);color:var(--primary);border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✓ Marcar todas leídas</button>
+          <button onclick="deleteAllAlerts()" style="flex:1;padding:10px;background:rgba(255,59,48,0.1);color:var(--danger);border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">🗑 Borrar todas</button>
+        </div>
         <div class="card" id="alerts-list">
           <div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>
         </div>
@@ -1534,6 +1538,8 @@ function updateAlertBadge() {
 function renderAlertas() {
   const c = $('alerts-list');
   const active = allAlerts.filter(a => !a.borrada);
+  const bulk = $('alerts-bulk-actions');
+  if (bulk) bulk.style.display = active.length ? 'flex' : 'none';
   if (!active.length) {
     c.innerHTML = '<div class="empty"><span class="material-icons-round">notifications_none</span><span>Sin notificaciones</span></div>';
     return;
@@ -1573,6 +1579,25 @@ window.deleteAlert = async (id) => {
   await api("borrarNotificacion", { id });
   const a = allAlerts.find(x => x.id === id);
   if (a) { a.borrada = true; renderAlertas(); updateAlertBadge(); }
+};
+
+window.markAllRead = async () => {
+  const unread = allAlerts.filter(a => !a.leida && !a.borrada);
+  if (!unread.length) return;
+  await Promise.all(unread.map(a => api("marcarNotificacionLeida", { id: a.id })));
+  unread.forEach(a => { a.leida = true; });
+  renderAlertas();
+  updateAlertBadge();
+};
+
+window.deleteAllAlerts = async () => {
+  const active = allAlerts.filter(a => !a.borrada);
+  if (!active.length) return;
+  if (!confirm(`¿Borrar las ${active.length} notificaciones?`)) return;
+  await Promise.all(active.map(a => api("borrarNotificacion", { id: a.id })));
+  active.forEach(a => { a.borrada = true; });
+  renderAlertas();
+  updateAlertBadge();
 };
 
 // ═══════════════════════════════════════════════════════
