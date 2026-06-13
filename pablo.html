@@ -308,8 +308,8 @@
           <div class="card-row">
             <span class="material-icons-round" style="color:var(--purple);font-size:20px;">security</span>
             <div style="flex:1">
-              <div class="card-row-label">Cruce de caja</div>
-              <div class="card-row-sub" id="cruce-sub">Verificando...</div>
+              <div class="card-row-label">Control de caja</div>
+              <div class="card-row-sub" id="cruce-sub">Compara arqueo vs rendiciones reales</div>
             </div>
             <span class="pill pill-gray" id="cruce-pill">—</span>
           </div>
@@ -384,7 +384,10 @@
       </div>
 
       <div class="section">
-        <div class="section-hdr">Cruce semanal</div>
+        <div class="section-hdr">Control de caja semanal</div>
+        <div style="font-size:12px;color:var(--text2);padding:0 4px;margin-bottom:10px;line-height:1.5;">
+          Compara lo que Laura contó físicamente en el arqueo vs lo que el sistema espera según las rendiciones independientes del repartidor y los movimientos del día. Un faltante puede indicar dinero no declarado.
+        </div>
         <div class="cruce-big cruce-pend" id="cruce-semana">
           <div class="cruce-big-val">—</div>
           <div class="cruce-big-lbl">Cargando...</div>
@@ -645,13 +648,39 @@ let gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:f
 // ═══════════════════════════════════════════════════════
 const $ = id => document.getElementById(id);
 const fm = n => "$ " + Number(n || 0).toLocaleString('es-AR');
-const fmk = n => { const v = Math.abs(Number(n||0)); return v >= 1000 ? "$" + (v/1000).toFixed(1).replace(/\.0$/,'') + "k" : "$" + v.toLocaleString('es-AR'); };
+const fmk = n => { const v = Math.abs(Number(n||0)); if (v >= 1000000) return "$ " + (v/1000000).toFixed(1).replace('.', ',').replace(/,0$/, '') + " M"; return "$ " + v.toLocaleString('es-AR'); };
+
+// ── localStorage cache (carga instantánea desde último estado conocido) ──
+function cacheSet(key, val) {
+  try { localStorage.setItem('ml_' + key, JSON.stringify({ d: val, t: Date.now() })); } catch {}
+}
+function cacheGet(key, ttlMs = 5 * 60 * 1000) {
+  try {
+    const s = JSON.parse(localStorage.getItem('ml_' + key));
+    if (s && (Date.now() - s.t) < ttlMs) return s.d;
+  } catch {}
+  return null;
+}
 
 async function api(fn, params = {}) {
   try {
     const r = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({fn, params}) });
     return await r.json();
   } catch { return null; }
+}
+
+// Lectura rápida desde Supabase via Worker (100-400ms vs 1-3s de GAS)
+async function sb(endpoint) {
+  try {
+    const r = await fetch(API_URL.replace(/\/$/, '') + '/sb/' + endpoint);
+    const d = await r.json();
+    // Normalizar snake_case → camelCase para compatibilidad con código existente
+    if (d?.ok && Array.isArray(d.data)) d.data = d.data.map(normMovimiento);
+    return d;
+  } catch { return null; }
+}
+function normMovimiento(m) {
+  return m.forma_pago !== undefined ? { ...m, formaPago: m.forma_pago } : m;
 }
 
 function toast(msg, duration = 2200) {
@@ -789,16 +818,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ═══════════════════════════════════════════════════════
 // TAB 0: INICIO
 // ═══════════════════════════════════════════════════════
-async function loadInicio() {
-  const [caja, arqueo, cruce, movs, rends, bancos] = await Promise.all([
-    api("getEstadoCaja"),
-    api("getArqueoStatus",     { dateStr: currentDate }),
-    api("getResumenCruceDiario", { fechaStr: currentDate }),
-    api("getMovimientos",      { fechaStr: currentDate + "T12:00:00" }),
-    api("obtenerHistorialRendiciones", {}),
-    api("getResumenBancosDueño")
-  ]);
-
+function renderInicioData({ caja, arqueo, cruce, movs, rends, bancos }) {
   renderCaja(caja);
   renderArqueoHoy(arqueo);
   renderCruceHoy(cruce);
@@ -806,6 +826,28 @@ async function loadInicio() {
   renderInicioMovs();
   renderInicioRends(rends);
   renderBancos(bancos);
+}
+
+async function loadInicio() {
+  // Mostrar datos cacheados al instante (hasta 5 min de antigüedad)
+  const cached = cacheGet('inicio_' + currentDate);
+  if (cached) renderInicioData(cached);
+
+  // Lectura mixta: Supabase para datos tabulares (rápido), GAS para lógica de negocio
+  const [caja, arqueo, cruce, movsR, rendsR, bancos] = await Promise.all([
+    api("getEstadoCaja"),
+    api("getArqueoStatus",       { dateStr: currentDate }),
+    api("getResumenCruceDiario", { fechaStr: currentDate }),
+    sb(`movimientos?fecha=${currentDate}`),           // Supabase (~150ms)
+    sb(`rendiciones?limit=40`),                       // Supabase (~150ms)
+    api("getResumenBancosDueño")
+  ]);
+  const movs  = movsR?.ok  ? movsR.data  : await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
+  const rends = rendsR?.ok ? rendsR.data : await api("obtenerHistorialRendiciones", {});
+
+  const fresh = { caja, arqueo, cruce, movs, rends, bancos };
+  cacheSet('inicio_' + currentDate, fresh);
+  renderInicioData(fresh);
   loadAlertaBadge();
 }
 
@@ -847,17 +889,19 @@ function renderCruceHoy(r) {
     sub.textContent = 'Esperando cierre de caja';
     return;
   }
-  const dif = r.arqueo ? r.arqueo.diferencia : null;
-  if (dif === null) return;
-  if (Math.abs(dif) < 1000) {
+  // r.brecha = arqueo físico - saldo esperado según rendiciones + movimientos
+  // Es la diferencia contra fuentes independientes (anti-fraude real)
+  const brecha = (r.brecha !== undefined && r.brecha !== null) ? Number(r.brecha) : null;
+  if (brecha === null) return;
+  if (Math.abs(brecha) < 1000) {
     pill.className = 'pill pill-green'; pill.textContent = '✓ Cuadra';
-    sub.textContent = dif === 0 ? 'Exacto' : `Dif. mínima ${fm(dif)}`;
-  } else if (dif < 0) {
-    pill.className = 'pill pill-red'; pill.textContent = `Faltó ${fmk(Math.abs(dif))}`;
-    sub.textContent = 'Diferencia en arqueo';
+    sub.textContent = brecha === 0 ? 'Exacto — todo cuadra' : `Dif. mínima ${fm(brecha)} vs rendiciones`;
+  } else if (brecha < 0) {
+    pill.className = 'pill pill-red'; pill.textContent = `Faltó ${fmk(Math.abs(brecha))}`;
+    sub.textContent = 'Faltante vs rendiciones reales del repartidor';
   } else {
-    pill.className = 'pill pill-orange'; pill.textContent = `Sobró ${fmk(dif)}`;
-    sub.textContent = 'Diferencia en arqueo';
+    pill.className = 'pill pill-orange'; pill.textContent = `Sobró ${fmk(brecha)}`;
+    sub.textContent = 'Sobrante vs rendiciones reales del repartidor';
   }
 }
 
@@ -929,11 +973,12 @@ async function loadSemana() {
   semanaLoaded = false;
   $('week-label').textContent = wk.label;
 
-  const [movsRango, cruceSem] = await Promise.all([
-    api("getMovimientosRango", { startDateStr: wk.start, endDateStr: wk.end }),
+  const [movsR, cruceSem] = await Promise.all([
+    sb(`movimientos?from=${wk.start}&to=${wk.end}`),   // Supabase (~150ms)
     api("getResumenCruceRango", { startDateStr: wk.start, endDateStr: wk.end })
   ]);
-
+  // Fallback a GAS si Supabase falla
+  const movsRango = movsR?.ok ? movsR : await api("getMovimientosRango", { startDateStr: wk.start, endDateStr: wk.end });
   weekMovs = movsRango?.ok && movsRango.data ? movsRango.data : [];
   renderWeekKPIs(weekMovs);
   renderWeekGrid(wk);
@@ -988,27 +1033,65 @@ async function renderWeekGrid(wk) {
 function renderCruceRange(r) {
   const el = $('cruce-semana');
   const det = $('cruce-detalle');
-  if (!r || !r.ok) { el.innerHTML = '<div class="cruce-big-val">—</div><div class="cruce-big-lbl">Sin datos</div>'; return; }
+  if (!r || !r.ok) {
+    el.className = 'cruce-big cruce-pend';
+    el.innerHTML = '<div class="cruce-big-val">—</div><div class="cruce-big-lbl">Sin datos de GAS</div>';
+    det.innerHTML = '';
+    return;
+  }
+  // GAS devuelve { ok: true, data: [{fecha, saldoApertura, rendContado, ingresosManual, egresosManual, saldoEsperado, declarado, brecha, alerta}] }
+  const days = Array.isArray(r.data) ? r.data : [];
+  const diasConArqueo = days.filter(d => d.brecha !== null && d.brecha !== undefined);
 
-  const dif = r.diferenciaTotalSemana || 0;
-  const abs = Math.abs(dif);
-  let cls = 'cruce-pend', label = '—', sub = '';
-  if (r.diasSinArqueo === 5) { sub = 'Sin arqueos esta semana'; }
-  else if (abs < 1000) { cls = 'cruce-ok'; label = dif === 0 ? '$ 0' : fm(dif); sub = 'Semana cuadrada'; }
-  else if (dif < 0) { cls = 'cruce-bad'; label = '−' + fm(abs); sub = 'Faltante acumulado'; }
-  else { cls = 'cruce-warn'; label = '+' + fm(abs); sub = 'Sobrante acumulado'; }
+  if (!diasConArqueo.length) {
+    el.className = 'cruce-big cruce-pend';
+    el.innerHTML = '<div class="cruce-big-val" style="font-size:24px">Sin arqueos</div><div class="cruce-big-lbl">No hubo arqueos esta semana</div>';
+    det.innerHTML = '<div class="empty"><span>No se registraron arqueos</span></div>';
+    return;
+  }
+
+  // Suma de brechas de los días con arqueo
+  const brechaTotal = diasConArqueo.reduce((s, d) => s + Number(d.brecha || 0), 0);
+  const abs = Math.abs(brechaTotal);
+  let cls = 'cruce-ok', label = '—', sub = '';
+  if (abs < 1000) {
+    cls = 'cruce-ok';
+    label = brechaTotal === 0 ? '$ 0' : fm(brechaTotal);
+    sub = 'Semana cuadrada — sin diferencias';
+  } else if (brechaTotal < 0) {
+    cls = 'cruce-bad';
+    label = '−' + fm(abs);
+    sub = 'Faltante acumulado vs rendiciones reales';
+  } else {
+    cls = 'cruce-warn';
+    label = '+' + fm(abs);
+    sub = 'Sobrante acumulado vs rendiciones reales';
+  }
 
   el.className = `cruce-big ${cls}`;
   el.innerHTML = `<div class="cruce-big-val">${label}</div><div class="cruce-big-lbl">${sub}</div>`;
 
-  if (r.detallePorDia && r.detallePorDia.length) {
-    det.innerHTML = r.detallePorDia.map(d => {
-      const dif2 = Number(d.diferencia || 0);
-      const col = Math.abs(dif2) < 500 ? 'var(--success)' : dif2 < 0 ? 'var(--danger)' : 'var(--warn)';
-      const fecha = (d.fecha||'').split('-').reverse().join('/');
-      return `<div class="card-row"><div style="flex:1"><div class="card-row-label">${fecha}</div></div><span style="font-weight:700;color:${col}">${dif2 >= 0 ? '+' : ''}${fm(dif2)}</span></div>`;
-    }).join('');
-  } else { det.innerHTML = '<div class="empty"><span>Sin detalle disponible</span></div>'; }
+  // Detalle por día — solo los días con arqueo tienen datos significativos
+  det.innerHTML = days.map(d => {
+    const b = d.brecha !== null && d.brecha !== undefined ? Number(d.brecha) : null;
+    const fecha = (d.fecha || '').split('-').reverse().join('/');
+    if (b === null) {
+      return `<div class="card-row">
+        <div style="flex:1"><div class="card-row-label">${fecha}</div><div class="card-row-sub">Sin arqueo</div></div>
+        <span style="color:var(--text3);font-size:13px">—</span>
+      </div>`;
+    }
+    const col = Math.abs(b) < 500 ? 'var(--success)' : b < 0 ? 'var(--danger)' : 'var(--warn)';
+    const rendLabel = d.rendContado !== undefined ? `Rend: ${fm(d.rendContado)}` : '';
+    const esperadoLabel = d.saldoEsperado !== undefined ? ` · Esp: ${fm(d.saldoEsperado)}` : '';
+    return `<div class="card-row">
+      <div style="flex:1">
+        <div class="card-row-label">${fecha}</div>
+        <div class="card-row-sub">${rendLabel}${esperadoLabel}</div>
+      </div>
+      <span style="font-weight:700;color:${col}">${b >= 0 ? '+' : ''}${fm(b)}</span>
+    </div>`;
+  }).join('');
 }
 
 function renderCharts(movs, wk) {
