@@ -900,8 +900,8 @@ async function loadInicio() {
   if (cached) renderInicioData(cached);
 
   const mesStart = currentDate.substring(0, 8) + '01';
-  const [sbSaldo, sbArqueo, movsR, rendsR, mesMovsR] = await Promise.all([
-    sb('saldo'),
+  const [cajaSaldo, sbArqueo, movsR, rendsR, mesMovsR] = await Promise.all([
+    api("getEstadoCaja"),                                   // GAS — saldo acumulado histórico (fuente autoritativa)
     sb(`arqueos?fecha=${currentDate}`),
     sb(`movimientos?fecha=${currentDate}`),
     sb(`rendiciones?limit=40`),
@@ -911,7 +911,7 @@ async function loadInicio() {
   const movs  = movsR?.ok  ? movsR.data  : await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
   const rends = rendsR?.ok ? rendsR.data.map(normRendicion) : await api("obtenerHistorialRendiciones", {});
 
-  const caja      = sbSaldo;
+  const caja      = cajaSaldo;
   const arqueoData = sbArqueo?.ok ? sbArqueo.data : null;
   const arqueo    = mapArqueo(arqueoData);
   const cruce     = arqueoData
