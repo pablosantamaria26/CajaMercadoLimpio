@@ -1,1206 +1,1501 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Dueño - Mercado Limpio</title>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <style>
-        :root {
-            --bg: #08090d;
-            --card: #111318;
-            --card2: #181c24;
-            --border: rgba(255,255,255,0.06);
-            --primary: #3b82f6;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --info: #06b6d4;
-            --purple: #8b5cf6;
-            --muted: #64748b;
-            --text: #e2e8f0;
-            --safe-top: env(safe-area-inset-top);
-            --safe-bot: env(safe-area-inset-bottom);
-        }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Admin — Mercado Limpio</title>
+  <link rel="manifest" href="manifest-pablo.json">
+  <meta name="theme-color" content="#f2f2f7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Admin ML">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
-        /* HEADER */
-        .hdr {
-            flex: 0 0 auto;
-            height: calc(56px + var(--safe-top));
-            padding-top: var(--safe-top);
-            background: rgba(8,9,13,0.95);
-            border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between;
-            padding-left: 18px; padding-right: 18px;
-            backdrop-filter: blur(10px);
-            z-index: 100;
-        }
-        .hdr-left { display: flex; align-items: center; gap: 8px; }
-        .hdr-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-        .hdr-title { font-size: 1rem; font-weight: 700; }
-        .hdr-right { display: flex; align-items: center; gap: 8px; }
-        .date-pill { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); color: var(--primary); font-size: 0.75rem; font-weight: 700; padding: 5px 10px; border-radius: 20px; }
-        .btn-ico { background: var(--card2); border: 1px solid var(--border); color: var(--text); width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; }
+  <style>
+    :root {
+      --bg:       #f2f2f7;
+      --card:     #ffffff;
+      --sep:      rgba(60,60,67,0.15);
+      --primary:  #007AFF;
+      --success:  #34C759;
+      --danger:   #FF3B30;
+      --warn:     #FF9500;
+      --purple:   #AF52DE;
+      --teal:     #32ADE6;
+      --text:     #000000;
+      --text2:    rgba(60,60,67,0.6);
+      --text3:    rgba(60,60,67,0.3);
+      --shadow:   0 1px 4px rgba(0,0,0,0.08);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
 
-        /* SNAP */
-        .snap { flex: 1; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .snap::-webkit-scrollbar { display: none; }
-        .screen { flex: 0 0 100%; width: 100vw; height: 100%; scroll-snap-align: start; overflow-y: auto; padding: 16px 16px 110px; }
+    /* HEADER */
+    .hdr {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding-top: var(--safe-top);
+      height: calc(52px + var(--safe-top));
+      background: rgba(242,242,247,0.88);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 0.5px solid var(--sep);
+      display: flex; align-items: center; justify-content: space-between;
+      padding-left: 16px; padding-right: 12px;
+    }
+    .hdr-title { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+    .hdr-actions { display: flex; align-items: center; gap: 4px; }
+    .hdr-btn { background: none; border: none; color: var(--primary); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+    .hdr-btn .material-icons-round { font-size: 22px; }
+    .date-chip { background: rgba(0,122,255,0.1); color: var(--primary); font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; border: none; cursor: pointer; }
+    .notif-badge { position: absolute; top: 4px; right: 4px; background: var(--danger); color: white; font-size: 10px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 8px; display: none; align-items: center; justify-content: center; padding: 0 3px; border: 2px solid var(--bg); }
+    .notif-badge.show { display: flex; }
 
-        /* NAV BAR */
-        .nav-bar {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            height: calc(62px + var(--safe-bot));
-            padding-bottom: var(--safe-bot);
-            background: rgba(8,9,13,0.97);
-            border-top: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-around;
-            z-index: 200;
-            backdrop-filter: blur(12px);
-        }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; flex: 1; padding: 8px 0; border: none; background: none; color: var(--muted); transition: color 0.2s; }
-        .nav-item.active { color: var(--primary); }
-        .nav-item .material-icons-round { font-size: 22px; }
-        .nav-item span:last-child { font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    /* SCREENS */
+    .screens { position: fixed; top: calc(52px + var(--safe-top)); left: 0; right: 0; bottom: calc(49px + var(--safe-bot)); overflow: hidden; }
+    .screen { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; display: none; background: var(--bg); }
+    .screen.active { display: block; animation: fadeUp .18s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .screen-inner { padding: 14px 0 20px; }
 
-        /* CARDS */
-        .card { background: var(--card); border-radius: 20px; padding: 18px; margin-bottom: 14px; border: 1px solid var(--border); }
-        .card-hdr { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
-        .card-hdr .badge { background: rgba(255,255,255,0.08); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; }
+    /* TAB BAR */
+    .tab-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+      height: calc(49px + var(--safe-bot));
+      padding-bottom: var(--safe-bot);
+      background: rgba(242,242,247,0.88);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-top: 0.5px solid var(--sep);
+      display: flex;
+    }
+    .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; border: none; background: none; color: var(--text2); font-family: inherit; padding-top: 5px; position: relative; }
+    .tab-item.active { color: var(--primary); }
+    .tab-item .material-icons-round { font-size: 24px; transition: transform .15s; }
+    .tab-item.active .material-icons-round { transform: scale(1.05); }
+    .tab-item .tab-lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.1px; }
+    .tab-dot { position: absolute; top: 5px; right: calc(50% - 20px); width: 8px; height: 8px; background: var(--danger); border-radius: 50%; border: 2px solid var(--bg); display: none; }
+    .tab-dot.show { display: block; }
 
-        /* HERO */
-        .hero { background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 100%); border-radius: 24px; padding: 24px; margin-bottom: 14px; border: 1px solid rgba(99,102,241,0.2); }
-        .hero-label { font-size: 0.7rem; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 2px; }
-        .hero-amount { font-size: 2.8rem; font-weight: 900; letter-spacing: -2px; background: linear-gradient(90deg, #fff 0%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.1; margin: 6px 0 16px; }
-        .hero-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-        .hero-cell { background: rgba(255,255,255,0.04); border-radius: 14px; padding: 12px 10px; text-align: center; border: 1px solid rgba(255,255,255,0.04); }
-        .hero-cell-val { font-size: 0.95rem; font-weight: 800; }
-        .hero-cell-lbl { font-size: 0.62rem; color: var(--muted); font-weight: 600; margin-top: 3px; text-transform: uppercase; }
+    /* SECTIONS & CARDS */
+    .section { margin: 0 16px 4px; }
+    .section-hdr { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; padding: 14px 4px 6px; }
+    .card { background: var(--card); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); margin-bottom: 16px; }
+    .card-row { display: flex; align-items: center; padding: 13px 16px; border-bottom: 0.5px solid var(--sep); gap: 12px; }
+    .card-row:last-child { border-bottom: none; }
+    .card-row-label { font-size: 15px; font-weight: 500; flex: 1; }
+    .card-row-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .card-row-right { text-align: right; flex-shrink: 0; }
+    .card-row-val { font-size: 15px; font-weight: 700; }
 
-        /* STATUS BADGE */
-        .status-row { display: flex; align-items: center; justify-content: space-between; padding: 14px; background: var(--card2); border-radius: 14px; margin-bottom: 10px; border: 1px solid var(--border); }
-        .status-badge { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; }
-        .badge-ok { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-        .badge-warn { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
-        .badge-danger { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-        .badge-pending { background: rgba(100,116,139,0.2); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
+    /* HERO */
+    .hero { margin: 0 16px 4px; border-radius: 18px; padding: 20px; background: linear-gradient(140deg,#007AFF 0%,#0056D6 100%); box-shadow: 0 6px 20px rgba(0,122,255,0.28); }
+    .hero-lbl { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.72); text-transform: uppercase; letter-spacing: 0.8px; }
+    .hero-amount { font-size: 40px; font-weight: 800; color: white; letter-spacing: -1.5px; line-height: 1.05; margin: 6px 0 16px; }
+    .hero-chips { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .hero-chip { background: rgba(255,255,255,0.15); border-radius: 10px; padding: 8px 6px; text-align: center; }
+    .hero-chip-val { font-size: 13px; font-weight: 700; color: white; }
+    .hero-chip-lbl { font-size: 10px; color: rgba(255,255,255,0.65); font-weight: 600; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.2px; }
 
-        /* CRUCE / SEGURIDAD */
-        .cruce-hero { border-radius: 20px; padding: 20px; margin-bottom: 14px; border: 1px solid; }
-        .cruce-ok { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.25); }
-        .cruce-danger { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.25); }
-        .cruce-warn { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.25); }
-        .cruce-pending { background: rgba(100,116,139,0.08); border-color: rgba(100,116,139,0.2); }
+    /* PILLS / BADGES */
+    .pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .pill-green  { background: rgba(52,199,89,0.12);  color: #1c8c3a; }
+    .pill-red    { background: rgba(255,59,48,0.10);   color: #c0392b; }
+    .pill-orange { background: rgba(255,149,0,0.12);  color: #a06000; }
+    .pill-gray   { background: rgba(60,60,67,0.10);   color: var(--text2); }
+    .pill-blue   { background: rgba(0,122,255,0.10);  color: var(--primary); }
 
-        .cruce-big { font-size: 2.4rem; font-weight: 900; letter-spacing: -1.5px; margin: 6px 0; }
-        .cruce-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
-        .cruce-row:last-child { border-bottom: none; }
-        .cruce-label { color: var(--muted); display: flex; align-items: center; gap: 6px; }
-        .cruce-val { font-weight: 700; }
+    /* WEEK DAYS */
+    .week-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; padding: 4px 0; }
+    .week-day { background: var(--bg); border-radius: 10px; padding: 8px 4px; text-align: center; }
+    .week-day-name { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; }
+    .week-day-num { font-size: 14px; font-weight: 700; margin: 3px 0; }
+    .week-day-status { font-size: 10px; font-weight: 700; }
+    .wd-ok   { color: #1c8c3a; }
+    .wd-warn { color: #a06000; }
+    .wd-miss { color: var(--text3); }
+    .wd-future { color: var(--text3); }
 
-        /* HIST LIST */
-        .hist-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
-        .hist-row:last-child { border-bottom: none; }
-        .hist-date { font-size: 0.82rem; font-weight: 600; }
-        .hist-sub { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    /* CHART */
+    .chart-wrap { height: 200px; position: relative; padding: 4px 0; }
 
-        /* MOV LIST */
-        .mov-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
-        .mov-item:last-child { border-bottom: none; }
-        .mov-icon { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0; font-size: 18px; }
-        .mov-info { flex: 1; min-width: 0; }
-        .mov-cat { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .mov-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
-        .mov-amount { font-weight: 800; font-size: 0.92rem; flex-shrink: 0; }
-        .mov-detail { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; margin: 4px 0 8px; display: none; }
-        .mov-detail-row { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px; color: #94a3b8; }
-        .mov-detail-row:last-child { margin-bottom: 0; }
+    /* MOV ITEM */
+    .mov-item { display: flex; align-items: center; padding: 11px 16px; border-bottom: 0.5px solid var(--sep); cursor: pointer; gap: 12px; }
+    .mov-item:last-child { border-bottom: none; }
+    .mov-icon-wrap { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .mov-icon-wrap .material-icons-round { font-size: 18px; }
+    .mov-body { flex: 1; min-width: 0; }
+    .mov-cat { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mov-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .mov-amount { font-size: 14px; font-weight: 700; flex-shrink: 0; }
+    .mov-detail-box { background: var(--bg); margin: 0 12px 8px; border-radius: 10px; padding: 10px 12px; display: none; }
+    .mov-detail-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); padding: 3px 0; }
 
-        /* FUEL / PROV */
-        .veh-card { background: var(--card2); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); }
-        .veh-name { font-weight: 700; font-size: 0.9rem; }
-        .veh-sub { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+    /* ALERT ITEM */
+    .alert-item { padding: 14px 16px; border-bottom: 0.5px solid var(--sep); cursor: pointer; }
+    .alert-item:last-child { border-bottom: none; }
+    .alert-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .alert-title-text { font-size: 14px; font-weight: 700; }
+    .alert-msg { font-size: 13px; color: var(--text2); margin-top: 4px; line-height: 1.4; }
+    .alert-time { font-size: 11px; color: var(--text3); margin-top: 6px; }
+    .alert-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .alert-btn { flex: 1; padding: 8px; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .alert-btn-read { background: rgba(0,122,255,0.1); color: var(--primary); }
+    .alert-btn-del  { background: rgba(255,59,48,0.1);  color: var(--danger); }
 
-        /* ALERTS */
-        .alert-item { padding: 14px; border-radius: 14px; margin-bottom: 10px; border-left: 3px solid; }
-        .alert-high { background: rgba(239,68,68,0.08); border-color: var(--danger); }
-        .alert-med { background: rgba(245,158,11,0.08); border-color: var(--warning); }
-        .alert-low { background: rgba(6,182,212,0.08); border-color: var(--info); }
-        .alert-title { font-weight: 700; font-size: 0.88rem; margin-bottom: 4px; }
-        .alert-msg { font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
-        .alert-time { font-size: 0.7rem; color: var(--muted); margin-top: 6px; }
+    /* SEGMENTED */
+    .seg-wrap { display: flex; overflow-x: auto; scrollbar-width: none; gap: 6px; padding: 0 16px 10px; }
+    .seg-wrap::-webkit-scrollbar { display: none; }
+    .seg-btn { flex-shrink: 0; padding: 7px 16px; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; background: rgba(60,60,67,0.1); color: var(--text); transition: background .15s, color .15s; }
+    .seg-btn.active { background: var(--primary); color: white; }
 
-        /* CHART */
-        .chart-wrap { height: 220px; position: relative; margin-top: 8px; }
+    /* FUEL CARD */
+    .veh-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 0.5px solid var(--sep); }
+    .veh-row:last-child { border-bottom: none; }
+    .veh-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(255,149,0,0.1); display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0; }
+    .veh-name { font-size: 14px; font-weight: 600; }
+    .veh-sub  { font-size: 12px; color: var(--text2); margin-top: 2px; }
 
-        /* EDIT INLINE */
-        .edit-input { background: transparent; border: 1px solid transparent; color: white; text-align: right; width: 110px; padding: 4px 8px; border-radius: 8px; font-weight: 700; font-family: 'Inter', sans-serif; font-size: 0.9rem; }
-        .edit-input:focus { background: rgba(255,255,255,0.07); border-color: var(--info); outline: none; }
+    /* EDIT INPUT */
+    .edit-row { display: flex; align-items: center; padding: 10px 16px; border-bottom: 0.5px solid var(--sep); gap: 10px; }
+    .edit-row:last-child { border-bottom: none; }
+    .edit-name { font-size: 15px; flex: 1; }
+    .edit-field { border: none; border-bottom: 1.5px solid var(--primary); background: transparent; text-align: right; font-size: 15px; font-weight: 700; font-family: inherit; color: var(--text); width: 120px; padding: 2px 4px; outline: none; }
 
-        /* FAB */
-        .fab { position: fixed; bottom: 78px; right: 16px; width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: white; border: none; box-shadow: 0 8px 20px rgba(59,130,246,0.4); display: flex; align-items: center; justify-content: center; z-index: 150; cursor: pointer; font-size: 20px; }
+    /* RENDICION HIST */
+    .rend-row { display: flex; align-items: center; padding: 12px 16px; border-bottom: 0.5px solid var(--sep); gap: 12px; }
+    .rend-row:last-child { border-bottom: none; }
+    .rend-info { flex: 1; }
+    .rend-title { font-size: 14px; font-weight: 600; }
+    .rend-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
 
-        /* MODALS */
-        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); z-index: 300; display: none; align-items: center; justify-content: center; }
-        .overlay.on { display: flex; }
-        .modal { background: #1a1f2e; padding: 24px; border-radius: 22px; width: 90%; max-width: 380px; border: 1px solid var(--border); }
-        .modal h3 { font-size: 1rem; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
-        .modal input, .modal select { width: 100%; padding: 13px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: white; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 0.95rem; margin-bottom: 12px; color-scheme: dark; }
-        .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .btn-primary { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-primary.purple { background: var(--purple); }
-        label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    /* DATE NAV */
+    .date-nav { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 16px 4px; }
+    .date-nav-btn { background: var(--card); border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow); color: var(--primary); }
+    .date-nav-btn .material-icons-round { font-size: 20px; }
+    .date-nav-label { font-size: 16px; font-weight: 700; flex: 1; text-align: center; }
 
-        /* BANK WIDGET */
-        .bank-widget { background: linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%); border-radius: 20px; padding: 18px; margin-bottom: 14px; border: 1px solid rgba(139,92,246,0.2); }
+    /* WEEK NAV */
+    .week-nav { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 16px 4px; }
+    .week-nav-btn { background: var(--card); border: none; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow); color: var(--primary); }
+    .week-nav-btn .material-icons-round { font-size: 18px; }
+    .week-nav-label { font-size: 13px; font-weight: 700; flex: 1; text-align: center; color: var(--text2); }
 
-        /* UTILS */
-        .t-green { color: #34d399; -webkit-text-fill-color: #34d399; }
-        .t-red { color: #f87171; -webkit-text-fill-color: #f87171; }
-        .t-yellow { color: #fbbf24; -webkit-text-fill-color: #fbbf24; }
-        .t-muted { color: var(--muted); }
-        .spin { animation: spin 0.9s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .empty-state { text-align: center; padding: 32px 0; color: var(--muted); font-size: 0.88rem; }
-        .empty-state .material-icons-round { font-size: 36px; display: block; margin-bottom: 8px; opacity: 0.4; }
-        .divider { height: 1px; background: var(--border); margin: 4px 0; }
-    </style>
+    /* MODALS */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 500; display: none; align-items: flex-end; justify-content: center; }
+    .overlay.open { display: flex; }
+    .sheet { background: var(--card); border-radius: 22px 22px 0 0; width: 100%; max-width: 500px; padding: 20px; padding-bottom: calc(20px + var(--safe-bot)); max-height: 85vh; overflow-y: auto; animation: slideUp .2s ease; }
+    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .sheet-handle { width: 40px; height: 4px; background: var(--text3); border-radius: 2px; margin: 0 auto 18px; }
+    .sheet-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+    .sheet-input { width: 100%; padding: 13px 14px; background: var(--bg); border: 1.5px solid var(--sep); border-radius: 12px; font-size: 15px; font-family: inherit; color: var(--text); margin-bottom: 10px; outline: none; }
+    .sheet-input:focus { border-color: var(--primary); background: var(--card); }
+    .sheet-input-lbl { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; display: block; }
+    .sheet-row { display: flex; gap: 10px; }
+    .sheet-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 6px; }
+    .sheet-btn-primary { background: var(--primary); color: white; }
+    .sheet-btn-danger  { background: rgba(255,59,48,0.1); color: var(--danger); }
+    .sheet-btn-gray    { background: var(--bg); color: var(--text2); }
+
+    /* TOAST */
+    .toast-wrap { position: fixed; top: calc(60px + var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: 900; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+    .toast { background: rgba(30,30,32,0.9); color: white; padding: 10px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; backdrop-filter: blur(10px); animation: toastIn .2s ease; white-space: nowrap; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    .toast.out { animation: toastOut .2s ease forwards; }
+    @keyframes toastOut { to { opacity: 0; transform: translateY(-6px); } }
+
+    /* EMPTY */
+    .empty { text-align: center; padding: 36px 20px; color: var(--text3); }
+    .empty .material-icons-round { font-size: 40px; display: block; margin-bottom: 10px; }
+    .empty span { font-size: 14px; font-weight: 600; }
+
+    /* SPIN */
+    .spin { animation: spin .8s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* PUSH CARD */
+    .push-card { margin: 0 16px 4px; background: linear-gradient(140deg,#f2f2f7,#e8e8f0); border-radius: 14px; padding: 16px; border: 1.5px dashed var(--sep); display: flex; align-items: flex-start; gap: 12px; }
+    .push-icon { font-size: 28px; flex-shrink: 0; }
+    .push-body { flex: 1; }
+    .push-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .push-sub { font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.4; }
+    .push-enable-btn { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+    /* PROV PDF BTN */
+    .action-row { display: flex; gap: 10px; padding: 0 16px 14px; }
+    .action-btn { flex: 1; padding: 12px; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .action-btn .material-icons-round { font-size: 18px; }
+    .action-btn-blue { background: rgba(0,122,255,0.1); color: var(--primary); }
+
+    /* CRUCE BIG */
+    .cruce-big { border-radius: 14px; padding: 18px; margin-bottom: 14px; text-align: center; }
+    .cruce-big-val { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
+    .cruce-big-lbl { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .cruce-ok   { background: rgba(52,199,89,0.08);  border: 1.5px solid rgba(52,199,89,0.25); }
+    .cruce-bad  { background: rgba(255,59,48,0.08);  border: 1.5px solid rgba(255,59,48,0.2); }
+    .cruce-warn { background: rgba(255,149,0,0.08); border: 1.5px solid rgba(255,149,0,0.2); }
+    .cruce-pend { background: var(--bg); border: 1.5px solid var(--sep); }
+
+    /* BANK */
+    .bank-card { margin: 0 16px 14px; background: linear-gradient(140deg,#4c1d95,#2d1b69); border-radius: 14px; padding: 16px; }
+    .bank-lbl { font-size: 11px; font-weight: 600; color: rgba(233,213,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; }
+    .bank-val { font-size: 28px; font-weight: 800; color: white; margin: 4px 0; }
+    .bank-sub { font-size: 12px; color: rgba(233,213,255,0.6); }
+    .bank-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 12px 0; }
+    .bank-row { display: flex; justify-content: space-between; align-items: center; }
+  </style>
 </head>
 <body>
 
+<!-- HEADER -->
 <div class="hdr">
-    <div class="hdr-left">
-        <div class="hdr-icon" id="hdr-icon" style="background:rgba(59,130,246,0.15);">
-            <span class="material-icons-round" style="color:var(--primary);font-size:17px;">dashboard</span>
+  <div class="hdr-title" id="hdr-title">Inicio</div>
+  <div class="hdr-actions">
+    <button class="date-chip" id="date-chip" onclick="openCalSheet()">hoy</button>
+    <button class="hdr-btn" onclick="refresh()" title="Actualizar">
+      <span class="material-icons-round" id="refresh-icon">sync</span>
+    </button>
+    <button class="hdr-btn" onclick="goTab(4)" title="Alertas">
+      <span class="material-icons-round">notifications</span>
+      <span class="notif-badge" id="hdr-notif-badge"></span>
+    </button>
+  </div>
+</div>
+
+<!-- SCREENS -->
+<div class="screens">
+
+  <!-- ══════════════════════════════════ TAB 0: INICIO ══ -->
+  <div class="screen active" id="tab0">
+    <div class="screen-inner">
+
+      <div class="section">
+        <div class="hero" id="hero-caja">
+          <div class="hero-lbl">Efectivo en caja</div>
+          <div class="hero-amount" id="hero-ef">—</div>
+          <div class="hero-chips">
+            <div class="hero-chip">
+              <div class="hero-chip-val" id="chip-ef">—</div>
+              <div class="hero-chip-lbl">Efectivo</div>
+            </div>
+            <div class="hero-chip">
+              <div class="hero-chip-val" id="chip-ch">—</div>
+              <div class="hero-chip-lbl">Cheques</div>
+            </div>
+            <div class="hero-chip">
+              <div class="hero-chip-val" id="chip-bc">—</div>
+              <div class="hero-chip-lbl">Banco</div>
+            </div>
+          </div>
         </div>
-        <span class="hdr-title" id="hdr-title">Resumen</span>
+      </div>
+
+      <div class="section">
+        <div class="section-hdr">Estado de hoy</div>
+        <div class="card">
+          <div class="card-row">
+            <span class="material-icons-round" style="color:var(--primary);font-size:20px;">lock_clock</span>
+            <div style="flex:1">
+              <div class="card-row-label">Arqueo</div>
+              <div class="card-row-sub" id="arqueo-sub">Verificando...</div>
+            </div>
+            <span class="pill pill-gray" id="arqueo-pill">—</span>
+          </div>
+          <div class="card-row">
+            <span class="material-icons-round" style="color:var(--purple);font-size:20px;">security</span>
+            <div style="flex:1">
+              <div class="card-row-label">Cruce de caja</div>
+              <div class="card-row-sub" id="cruce-sub">Verificando...</div>
+            </div>
+            <span class="pill pill-gray" id="cruce-pill">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-hdr">Movimientos de hoy</div>
+        <div class="card">
+          <div class="card-row" style="gap:0">
+            <div style="flex:1;text-align:center;border-right:0.5px solid var(--sep)">
+              <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;">Ingresos</div>
+              <div style="font-size:20px;font-weight:800;color:var(--success);margin-top:3px;" id="day-ing">—</div>
+            </div>
+            <div style="flex:1;text-align:center">
+              <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;">Egresos</div>
+              <div style="font-size:20px;font-weight:800;color:var(--danger);margin-top:3px;" id="day-egr">—</div>
+            </div>
+          </div>
+          <div id="inicio-movs-list"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-hdr">Últimas rendiciones</div>
+        <div class="card" id="inicio-rend-list">
+          <div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>
+        </div>
+      </div>
+
+      <div class="bank-card" id="bank-card" style="display:none">
+        <div class="bank-lbl">Transferencias hoy</div>
+        <div class="bank-val" id="bank-dia">—</div>
+        <div class="bank-sub" id="bank-sub">—</div>
+        <div class="bank-sep"></div>
+        <div class="bank-row">
+          <div class="bank-lbl">Acum. mes</div>
+          <div style="font-weight:700;font-size:15px;color:white;" id="bank-mes">—</div>
+        </div>
+      </div>
+
     </div>
-    <div class="hdr-right">
-        <span class="date-pill" id="date-pill">Hoy</span>
-        <button class="btn-ico" onclick="openCalendar()">
-            <span class="material-icons-round" style="font-size:18px;">calendar_today</span>
+  </div>
+
+  <!-- ══════════════════════════════════ TAB 1: SEMANA ══ -->
+  <div class="screen" id="tab1">
+    <div class="screen-inner">
+
+      <div class="week-nav">
+        <button class="week-nav-btn" onclick="shiftWeek(-7)"><span class="material-icons-round">chevron_left</span></button>
+        <div class="week-nav-label" id="week-label">Semana</div>
+        <button class="week-nav-btn" onclick="shiftWeek(7)"><span class="material-icons-round">chevron_right</span></button>
+      </div>
+
+      <div class="section" style="margin-top:8px">
+        <div class="hero" style="background:linear-gradient(140deg,#1c1c1e,#2c2c2e)">
+          <div class="hero-lbl">Neto de la semana</div>
+          <div class="hero-amount" id="week-neto">—</div>
+          <div class="hero-chips">
+            <div class="hero-chip"><div class="hero-chip-val" id="week-ing">—</div><div class="hero-chip-lbl">Ingresos</div></div>
+            <div class="hero-chip"><div class="hero-chip-val" id="week-egr">—</div><div class="hero-chip-lbl">Egresos</div></div>
+            <div class="hero-chip"><div class="hero-chip-val" id="week-movs">—</div><div class="hero-chip-lbl">Movs</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-hdr">Días de la semana</div>
+        <div class="card" style="padding:14px">
+          <div class="week-grid" id="week-grid"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-hdr">Cruce semanal</div>
+        <div class="cruce-big cruce-pend" id="cruce-semana">
+          <div class="cruce-big-val">—</div>
+          <div class="cruce-big-lbl">Cargando...</div>
+        </div>
+        <div class="card" id="cruce-detalle"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-hdr">Egresos por día</div>
+        <div class="card" style="padding:14px">
+          <div class="chart-wrap"><canvas id="chart-egresos"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-hdr">Ranking de categorías</div>
+        <div class="card" style="padding:14px">
+          <div class="chart-wrap"><canvas id="chart-ranking"></canvas></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ TAB 2: MOVIMIENTOS ══ -->
+  <div class="screen" id="tab2">
+    <div class="screen-inner">
+
+      <div class="date-nav">
+        <button class="date-nav-btn" onclick="shiftDay(-1)"><span class="material-icons-round">chevron_left</span></button>
+        <div class="date-nav-label" id="mov-date-label">—</div>
+        <button class="date-nav-btn" onclick="shiftDay(1)"><span class="material-icons-round">chevron_right</span></button>
+      </div>
+
+      <div class="section">
+        <div class="card">
+          <div class="card-row" style="gap:0">
+            <div style="flex:1;text-align:center;border-right:0.5px solid var(--sep)">
+              <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;">Ingresos</div>
+              <div style="font-size:19px;font-weight:800;color:var(--success);margin-top:3px;" id="mov-ing">—</div>
+            </div>
+            <div style="flex:1;text-align:center">
+              <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;">Egresos</div>
+              <div style="font-size:19px;font-weight:800;color:var(--danger);margin-top:3px;" id="mov-egr">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <button class="seg-btn active" id="f-todos"    onclick="setFilter('todos')"   >Todos</button>
+          <button class="seg-btn"        id="f-ingresos" onclick="setFilter('ingresos')">Ingresos</button>
+          <button class="seg-btn"        id="f-egresos"  onclick="setFilter('egresos')" >Egresos</button>
+        </div>
+
+        <div class="card" id="movs-list">
+          <div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ TAB 3: GESTIÓN ══ -->
+  <div class="screen" id="tab3">
+    <div class="screen-inner">
+      <div class="seg-wrap" style="padding-top:6px">
+        <button class="seg-btn active" onclick="setGestion('reparto')">Reparto</button>
+        <button class="seg-btn"        onclick="setGestion('combustible')">Combustible</button>
+        <button class="seg-btn"        onclick="setGestion('empleados')">Empleados</button>
+        <button class="seg-btn"        onclick="setGestion('fijos')">Gastos fijos</button>
+        <button class="seg-btn"        onclick="setGestion('proveedores')">Proveedores</button>
+      </div>
+
+      <!-- Reparto -->
+      <div id="g-reparto" class="section">
+        <div class="section-hdr">Historial de rendiciones</div>
+        <div class="card" id="g-reparto-list">
+          <div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>
+        </div>
+      </div>
+
+      <!-- Combustible -->
+      <div id="g-combustible" class="section" style="display:none">
+        <div class="section-hdr">Combustible — semana activa</div>
+        <div class="card">
+          <div class="card-row" style="gap:0;padding:16px">
+            <div style="flex:1;text-align:center">
+              <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;">Total semana</div>
+              <div style="font-size:26px;font-weight:800;color:var(--warn);margin-top:3px;" id="fuel-total">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="card" id="fuel-list">
+          <div class="empty"><span class="material-icons-round">local_gas_station</span><span>Sin cargas</span></div>
+        </div>
+      </div>
+
+      <!-- Empleados -->
+      <div id="g-empleados" class="section" style="display:none">
+        <div class="section-hdr">Sueldos base</div>
+        <div class="card" id="g-emp-list">
+          <div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>
+        </div>
+        <button class="sheet-btn sheet-btn-primary" style="margin:0 0 16px" onclick="openAddModal('empleado')">
+          + Agregar empleado
         </button>
+      </div>
+
+      <!-- Gastos fijos -->
+      <div id="g-fijos" class="section" style="display:none">
+        <div class="section-hdr">Proyección mensual</div>
+        <div class="card" style="padding:16px;margin-bottom:14px;text-align:center">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:4px;">Total mensual</div>
+          <div style="font-size:30px;font-weight:800;color:var(--teal);" id="fijos-total">—</div>
+        </div>
+        <div class="section-hdr">Detalle</div>
+        <div class="card" id="g-fijos-list">
+          <div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>
+        </div>
+        <button class="sheet-btn sheet-btn-primary" style="margin:0 0 16px" onclick="openAddModal('gasto')">
+          + Agregar gasto fijo
+        </button>
+      </div>
+
+      <!-- Proveedores -->
+      <div id="g-proveedores" class="section" style="display:none">
+        <div class="section-hdr">Pagos de hoy</div>
+        <div class="card" style="padding:14px;margin-bottom:10px;text-align:center">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:4px;">Total pagado hoy</div>
+          <div style="font-size:26px;font-weight:800;color:var(--purple);" id="prov-total">—</div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn action-btn-blue" onclick="openPDFSheet()">
+            <span class="material-icons-round">picture_as_pdf</span> Generar PDF
+          </button>
+        </div>
+        <div class="card" id="g-prov-list">
+          <div class="empty"><span class="material-icons-round">inventory_2</span><span>Sin pagos hoy</span></div>
+        </div>
+      </div>
+
     </div>
-</div>
+  </div>
 
-<div class="snap" id="snap">
+  <!-- ══════════════════════════════════ TAB 4: ALERTAS ══ -->
+  <div class="screen" id="tab4">
+    <div class="screen-inner">
 
-    <!-- ===== 0: RESUMEN ===== -->
-    <div class="screen" id="s0">
-        <div class="hero">
-            <div class="hero-label" id="h-week-label">Semana --</div>
-            <div class="hero-amount" id="h-neto">--</div>
-            <div class="hero-grid">
-                <div class="hero-cell">
-                    <div class="hero-cell-val t-green" id="h-ing">--</div>
-                    <div class="hero-cell-lbl">Ingresos</div>
-                </div>
-                <div class="hero-cell">
-                    <div class="hero-cell-val t-red" id="h-egr">--</div>
-                    <div class="hero-cell-lbl">Egresos</div>
-                </div>
-                <div class="hero-cell">
-                    <div class="hero-cell-val" id="h-movs" style="color:#94a3b8;">--</div>
-                    <div class="hero-cell-lbl">Movs</div>
-                </div>
-            </div>
+      <div id="push-card-wrap"></div>
+
+      <div class="section">
+        <div class="section-hdr" id="alerts-hdr">Notificaciones</div>
+        <div class="card" id="alerts-list">
+          <div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>
         </div>
+      </div>
 
-        <!-- Estado Arqueo -->
-        <div class="card">
-            <div class="card-hdr">Estado de Caja — Semana</div>
-            <div class="status-row">
-                <div>
-                    <div style="font-size:0.85rem; font-weight:600;">Arqueo hoy</div>
-                    <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;" id="arqueo-hora">Sin datos</div>
-                </div>
-                <div class="status-badge badge-pending" id="arqueo-badge">
-                    <span class="material-icons-round" style="font-size:14px;">schedule</span> Pendiente
-                </div>
-            </div>
-            <div class="status-row">
-                <div>
-                    <div style="font-size:0.85rem; font-weight:600;">Cruce semana</div>
-                    <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;" id="cruce-status-sub">Calculando...</div>
-                </div>
-                <div class="status-badge badge-pending" id="cruce-badge">
-                    <span class="material-icons-round" style="font-size:14px;">sync</span> --
-                </div>
-            </div>
-            <!-- Días de la semana con estado de arqueo -->
-            <div id="week-dias" style="margin-top:8px;"></div>
-        </div>
-
-
-        <!-- Transferencias -->
-        <div class="bank-widget">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <div style="font-size:0.7rem; font-weight:700; color:rgba(233,213,255,0.7); text-transform:uppercase; letter-spacing:1px;">Transferencias Hoy</div>
-                <div id="bank-status-icon"><span class="material-icons-round spin" style="font-size:16px; color:rgba(255,255,255,0.5);">sync</span></div>
-            </div>
-            <div style="font-size:2rem; font-weight:800;" id="bank-dia">--</div>
-            <div style="font-size:0.8rem; opacity:0.6; margin-top:2px;" id="bank-msg">Escaneando...</div>
-            <div style="height:1px; background:rgba(255,255,255,0.1); margin:12px 0;"></div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-size:0.7rem; font-weight:700; color:rgba(233,213,255,0.7); text-transform:uppercase;">Acum. Mes</div>
-                <div style="font-weight:700; font-size:1rem;" id="bank-mes">--</div>
-            </div>
-        </div>
     </div>
-
-    <!-- ===== 1: SEGURIDAD ===== -->
-    <div class="screen" id="s1">
-        <div id="cruce-hero-wrap">
-            <div class="cruce-pending cruce-hero" style="text-align:center;">
-                <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted);">Cargando cruce...</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-hdr">Desglose del día</div>
-            <div id="cruce-detalle">
-                <div class="empty-state"><span class="material-icons-round">pending</span>Sin datos</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-hdr">Días de la semana <span class="badge" id="cruce-alertas-badge"></span></div>
-            <div id="cruce-historial">
-                <div class="empty-state"><span class="material-icons-round">history</span>Sin historial</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 2: TENDENCIAS ===== -->
-    <div class="screen" id="s2">
-        <div class="card">
-            <div class="card-hdr">Egresos — últimos 7 días</div>
-            <div class="chart-wrap"><canvas id="chartEgresos"></canvas></div>
-        </div>
-        <div class="card">
-            <div class="card-hdr">Ranking de categorías</div>
-            <div class="chart-wrap"><canvas id="chartRanking"></canvas></div>
-        </div>
-        <div class="card">
-            <div class="card-hdr">Brecha diaria (rendición vs declarado)</div>
-            <div class="chart-wrap"><canvas id="chartBrecha"></canvas></div>
-        </div>
-    </div>
-
-    <!-- ===== 3: MOVIMIENTOS ===== -->
-    <div class="screen" id="s3">
-        <div class="card">
-            <div class="card-hdr">Movimientos del día <span class="badge" id="mov-count">0</span></div>
-            <div id="movs-list"><div class="empty-state"><span class="material-icons-round spin">sync</span>Cargando...</div></div>
-        </div>
-    </div>
-
-    <!-- ===== 4: COMBUSTIBLE ===== -->
-    <div class="screen" id="s4">
-        <div class="card" style="background:linear-gradient(135deg,#78350f,#451a03); border-color:rgba(245,158,11,0.2); text-align:center;">
-            <div style="font-size:0.7rem; font-weight:700; color:rgba(255,255,255,0.6); text-transform:uppercase;">Gasto Combustible Hoy</div>
-            <div style="font-size:2.5rem; font-weight:900; margin:8px 0;" id="fuel-total">$ 0</div>
-        </div>
-        <div id="fuel-list"><div class="empty-state"><span class="material-icons-round">local_gas_station</span>Sin cargas</div></div>
-    </div>
-
-    <!-- ===== 5: GASTOS FIJOS ===== -->
-    <div class="screen" id="s5">
-        <div class="card" style="background:rgba(6,182,212,0.07); border-color:rgba(6,182,212,0.2); text-align:center;">
-            <div style="font-size:0.7rem; font-weight:700; color:var(--info); text-transform:uppercase;">Proyección Mensual</div>
-            <div style="font-size:2.5rem; font-weight:900; color:var(--info); margin:8px 0;" id="fijos-total">--</div>
-        </div>
-        <div class="card">
-            <div class="card-hdr">Gastos fijos</div>
-            <div id="fijos-list"><div class="empty-state"><span class="material-icons-round">sync</span>Cargando...</div></div>
-        </div>
-    </div>
-
-    <!-- ===== 6: EMPLEADOS ===== -->
-    <div class="screen" id="s6">
-        <div class="card">
-            <div class="card-hdr">Sueldos base</div>
-            <div id="emp-list"><div class="empty-state"><span class="material-icons-round">sync</span>Cargando...</div></div>
-        </div>
-    </div>
-
-    <!-- ===== 7: PROVEEDORES ===== -->
-    <div class="screen" id="s7">
-        <div class="card" style="background:linear-gradient(135deg,#3b0764,#1e1b4b); border-color:rgba(139,92,246,0.2);">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                    <div style="font-size:0.7rem; font-weight:700; color:rgba(233,213,255,0.6); text-transform:uppercase;">Pagos a Proveedores Hoy</div>
-                    <div style="font-size:2.2rem; font-weight:900; margin-top:4px;" id="prov-total">$ 0</div>
-                </div>
-                <button onclick="openPDF()" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.1); color:white; padding:10px 14px; border-radius:12px; display:flex; align-items:center; gap:6px; font-weight:700; font-size:0.8rem; cursor:pointer;">
-                    <span class="material-icons-round" style="font-size:18px;">picture_as_pdf</span> PDF
-                </button>
-            </div>
-        </div>
-        <div class="card">
-            <div id="prov-list"><div class="empty-state"><span class="material-icons-round">inventory_2</span>Sin pagos</div></div>
-        </div>
-    </div>
-
-    <!-- ===== 8: ALERTAS ===== -->
-    <div class="screen" id="s8">
-        <div id="alerts-list"><div class="empty-state"><span class="material-icons-round">sync</span>Cargando...</div></div>
-    </div>
+  </div>
 
 </div>
 
-<!-- NAV BAR -->
-<nav class="nav-bar" id="nav-bar">
-    <button class="nav-item active" onclick="goTo(0)" data-i="0">
-        <span class="material-icons-round">dashboard</span><span>Inicio</span>
-    </button>
-    <button class="nav-item" onclick="goTo(1)" data-i="1">
-        <span class="material-icons-round">security</span><span>Seguridad</span>
-    </button>
-    <button class="nav-item" onclick="goTo(2)" data-i="2">
-        <span class="material-icons-round">show_chart</span><span>Tendencias</span>
-    </button>
-    <button class="nav-item" onclick="goTo(3)" data-i="3">
-        <span class="material-icons-round">receipt_long</span><span>Movs</span>
-    </button>
-    <button class="nav-item" onclick="goTo(4)" data-i="4">
-        <span class="material-icons-round">local_gas_station</span><span>Combustible</span>
-    </button>
-    <button class="nav-item" onclick="goTo(5)" data-i="5">
-        <span class="material-icons-round">home</span><span>Fijos</span>
-    </button>
-    <button class="nav-item" onclick="goTo(6)" data-i="6">
-        <span class="material-icons-round">people</span><span>Empleados</span>
-    </button>
-    <button class="nav-item" onclick="goTo(7)" data-i="7">
-        <span class="material-icons-round">inventory_2</span><span>Proveed.</span>
-    </button>
-    <button class="nav-item" onclick="goTo(8)" data-i="8">
-        <span class="material-icons-round">notifications</span><span>Alertas</span>
-    </button>
+<!-- TAB BAR -->
+<nav class="tab-bar">
+  <button class="tab-item active" id="tabBtn0" onclick="goTab(0)">
+    <span class="material-icons-round">home</span>
+    <span class="tab-lbl">Inicio</span>
+  </button>
+  <button class="tab-item" id="tabBtn1" onclick="goTab(1)">
+    <span class="material-icons-round">bar_chart</span>
+    <span class="tab-lbl">Semana</span>
+  </button>
+  <button class="tab-item" id="tabBtn2" onclick="goTab(2)">
+    <span class="material-icons-round">receipt_long</span>
+    <span class="tab-lbl">Movimientos</span>
+  </button>
+  <button class="tab-item" id="tabBtn3" onclick="goTab(3)">
+    <span class="material-icons-round">manage_accounts</span>
+    <span class="tab-lbl">Gestión</span>
+  </button>
+  <button class="tab-item" id="tabBtn4" onclick="goTab(4)">
+    <span class="material-icons-round">notifications</span>
+    <span class="tab-lbl">Alertas</span>
+    <span class="tab-dot" id="tab-alert-dot"></span>
+  </button>
 </nav>
 
-<button class="fab" onclick="refresh()">
-    <span class="material-icons-round" id="fab-icon">sync</span>
-</button>
+<!-- TOAST -->
+<div class="toast-wrap" id="toast-wrap"></div>
 
-<!-- Modal Calendario -->
-<div class="overlay" id="modal-cal" onclick="if(event.target===this)closeCalendar()">
-    <div class="modal">
-        <h3><span class="material-icons-round" style="color:var(--primary)">calendar_today</span> Ir a semana</h3>
-        <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Elegí cualquier día — se mostrará la semana lunes a viernes que lo contiene.</p>
-        <input type="date" id="date-input">
-        <button class="btn-primary" onclick="confirmDate()">
-            <span class="material-icons-round">check</span> Ver semana
-        </button>
-    </div>
+<!-- MODAL: Calendario -->
+<div class="overlay" id="sheet-cal" onclick="if(event.target===this)closeSheet('cal')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Ir a una fecha</div>
+    <label class="sheet-input-lbl">Elegí un día (mostrará su semana)</label>
+    <input type="date" class="sheet-input" id="cal-input">
+    <button class="sheet-btn sheet-btn-primary" onclick="confirmCal()">Ver semana</button>
+    <button class="sheet-btn sheet-btn-gray" onclick="closeSheet('cal')">Cancelar</button>
+  </div>
 </div>
 
-<!-- Modal PDF -->
-<div class="overlay" id="modal-pdf" onclick="if(event.target===this)closePDF()">
-    <div class="modal">
-        <h3><span class="material-icons-round" style="color:var(--purple)">receipt_long</span> Reporte Proveedor</h3>
-        <label>Proveedor</label>
-        <select id="pdf-prov"></select>
-        <div class="modal-grid">
-            <div><label>Desde</label><input type="date" id="pdf-start"></div>
-            <div><label>Hasta</label><input type="date" id="pdf-end"></div>
-        </div>
-        <button class="btn-primary purple" id="pdf-btn" onclick="generatePDF()">
-            <span class="material-icons-round">download</span> Descargar PDF
-        </button>
+<!-- MODAL: Add empleado / gasto -->
+<div class="overlay" id="sheet-add" onclick="if(event.target===this)closeSheet('add')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="add-sheet-title">Agregar</div>
+    <label class="sheet-input-lbl" id="add-name-lbl">Nombre</label>
+    <input type="text" class="sheet-input" id="add-name" placeholder="Ej: Juan">
+    <label class="sheet-input-lbl" id="add-val-lbl">Monto</label>
+    <input type="number" class="sheet-input" id="add-val" placeholder="0" inputmode="numeric">
+    <button class="sheet-btn sheet-btn-primary" onclick="confirmAdd()">Guardar</button>
+    <button class="sheet-btn sheet-btn-gray"    onclick="closeSheet('add')">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL: PDF proveedor -->
+<div class="overlay" id="sheet-pdf" onclick="if(event.target===this)closeSheet('pdf')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Reporte de proveedor</div>
+    <label class="sheet-input-lbl">Proveedor</label>
+    <select class="sheet-input" id="pdf-prov"></select>
+    <div class="sheet-row">
+      <div style="flex:1"><label class="sheet-input-lbl">Desde</label><input type="date" class="sheet-input" id="pdf-from"></div>
+      <div style="flex:1"><label class="sheet-input-lbl">Hasta</label><input type="date" class="sheet-input" id="pdf-to"></div>
     </div>
+    <button class="sheet-btn sheet-btn-primary" onclick="generatePDF()">
+      <span>⬇ Descargar PDF</span>
+    </button>
+    <button class="sheet-btn sheet-btn-gray" onclick="closeSheet('pdf')">Cancelar</button>
+  </div>
 </div>
 
 <script>
+// ═══════════════════════════════════════════════════════
+// CONSTANTS & STATE
+// ═══════════════════════════════════════════════════════
 const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
 
 const PROVEEDORES = ["Marwiplast","Bio Bag","Broche plastico","Bumerang","Carol","Colores","Coolbazar","Cotton","Da Silva","Desesplast","Diawara","Emege","Entresol","Fedata","Fibran","Flexal","Hechicera","Infinity import","K&K","La Americana","La gauchita","Macetex","Make Fresh","Matriplaster","Mis Plast","Modoplast","Molmar","POP","Rigolleau","Romyl","Samantha","Santamaria","Sasha","Soifer","lumilagro","Make","Suka","Supy","Tauro","Tecnomatric","Yesi","Durax","Javi"].sort();
 
-let currentDate = "";      // día seleccionado para movimientos/arqueo de hoy
-let weekStart = "";        // lunes de la semana activa
-let weekEnd = "";          // viernes de la semana activa
+let currentDate = "";
+let weekStart = "", weekEnd = "";
+let currentTab = 0;
+let currentMovFilter = "todos";
+let currentGestion = "reparto";
 let currentMovs = [];
-let chartsLoaded = false;
-let chartEgresos = null, chartRanking = null, chartBrecha = null;
-let currentScreen = 0;
+let weekMovs = [];
+let chartEgr = null, chartRank = null;
+let empleadosData = [], fijosData = [];
+let addMode = "";
+let alertsLoaded = false;
+let gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:false, proveedores:false };
 
-// Calcula el rango lun-vie que contiene la fecha dada
-function getWeekRange(iso) {
-    const d = new Date(iso + 'T12:00:00');
-    const dow = d.getDay(); // 0=dom,1=lun,...,6=sab
-    const daysFromMon = dow === 0 ? 6 : dow - 1;
-    const mon = new Date(d);
-    mon.setDate(d.getDate() - daysFromMon);
-    const fri = new Date(mon);
-    fri.setDate(mon.getDate() + 4);
-    return {
-        start: mon.toISOString().split('T')[0],
-        end:   fri.toISOString().split('T')[0],
-        label: `Semana ${mon.getDate()}/${mon.getMonth()+1} — ${fri.getDate()}/${fri.getMonth()+1}`,
-        days: Array.from({length: 5}, (_, i) => {
-            const day = new Date(mon);
-            day.setDate(mon.getDate() + i);
-            return day.toISOString().split('T')[0];
-        })
-    };
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const fm = n => "$ " + Number(n || 0).toLocaleString('es-AR');
+const fmk = n => { const v = Math.abs(Number(n||0)); return v >= 1000 ? "$" + (v/1000).toFixed(1).replace(/\.0$/,'') + "k" : "$" + v.toLocaleString('es-AR'); };
+
+async function api(fn, params = {}) {
+  try {
+    const r = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({fn, params}) });
+    return await r.json();
+  } catch { return null; }
 }
 
-// ========================
-// INIT
-// ========================
-document.addEventListener("DOMContentLoaded", () => {
-    const hoy = new Date();
-    const offset = hoy.getTimezoneOffset() * 60000;
-    const iso = new Date(hoy.getTime() - offset).toISOString().split('T')[0];
-    setDate(iso);
+function toast(msg, duration = 2200) {
+  const w = $('toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  w.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 200); }, duration);
+}
 
-    // Snap observer
-    const obs = new IntersectionObserver(entries => {
-        entries.forEach(e => {
-            if (e.isIntersecting) {
-                const idx = parseInt(e.target.id.replace('s',''));
-                activateScreen(idx);
-            }
-        });
-    }, { threshold: 0.55 });
-    document.querySelectorAll('.screen').forEach(s => obs.observe(s));
+function openSheet(id) { $(id).classList.add('open'); }
+function closeSheet(id) { $('sheet-' + id).classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════
+// DATE HELPERS
+// ═══════════════════════════════════════════════════════
+function todayISO() {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+}
+
+function getWeekRange(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  const dow = d.getDay();
+  const daysFromMon = dow === 0 ? 6 : dow - 1;
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - daysFromMon);
+  const fri = new Date(mon);
+  fri.setDate(mon.getDate() + 4);
+  const start = mon.toISOString().split('T')[0];
+  const end   = fri.toISOString().split('T')[0];
+  return {
+    start, end,
+    label: `${start.slice(8)}/${start.slice(5,7)} — ${end.slice(8)}/${end.slice(5,7)}`,
+    days: Array.from({length:5}, (_,i) => { const d2 = new Date(mon); d2.setDate(mon.getDate()+i); return d2.toISOString().split('T')[0]; })
+  };
+}
+
+function setCurrentDate(iso) {
+  currentDate = iso;
+  const wk = getWeekRange(iso);
+  weekStart = wk.start; weekEnd = wk.end;
+
+  const pretty = new Date(iso + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'short', day:'numeric', month:'short' });
+  const isToday = iso === todayISO();
+  $('date-chip').textContent = isToday ? 'hoy' : pretty;
+  $('cal-input').value = iso;
+  $('week-label').textContent = wk.label;
+  $('mov-date-label').textContent = new Date(iso + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+
+  return wk;
+}
+
+function shiftDay(delta) {
+  const d = new Date(currentDate + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  const iso = d.toISOString().split('T')[0];
+  setCurrentDate(iso);
+  loadMovimientos();
+}
+
+function shiftWeek(delta) {
+  const d = new Date(weekStart + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  const iso = d.toISOString().split('T')[0];
+  setCurrentDate(iso);
+  loadSemana();
+  if (gestionLoaded.combustible) { gestionLoaded.combustible = false; loadGestionContent(); }
+  if (gestionLoaded.proveedores) { gestionLoaded.proveedores = false; loadGestionContent(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+const TAB_TITLES = ['Inicio', 'Semana', 'Movimientos', 'Gestión', 'Alertas'];
+
+function goTab(idx) {
+  if (currentTab === idx) return;
+  document.getElementById('tab' + currentTab).classList.remove('active');
+  document.getElementById('tabBtn' + currentTab).classList.remove('active');
+  currentTab = idx;
+  document.getElementById('tab' + idx).classList.add('active');
+  document.getElementById('tabBtn' + idx).classList.add('active');
+  $('hdr-title').textContent = TAB_TITLES[idx];
+
+  if (idx === 1) loadSemana();
+  if (idx === 2) loadMovimientos();
+  if (idx === 3) loadGestion();
+  if (idx === 4) loadAlertas();
+}
+
+// ═══════════════════════════════════════════════════════
+// REFRESH
+// ═══════════════════════════════════════════════════════
+let refreshing = false;
+async function refresh() {
+  if (refreshing) return;
+  refreshing = true;
+  const ico = $('refresh-icon');
+  ico.classList.add('spin');
+  alertsLoaded = false;
+  gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:false, proveedores:false };
+  await Promise.all([loadInicio(), currentTab===1 && loadSemana(), currentTab===2 && loadMovimientos()].filter(Boolean));
+  if (currentTab === 3) loadGestion();
+  if (currentTab === 4) loadAlertas();
+  ico.classList.remove('spin');
+  refreshing = false;
+  toast('✓ Actualizado');
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+  const iso = todayISO();
+  setCurrentDate(iso);
+  populatePDFSelect();
+  setupPushNotifications();
+  await loadInicio();
+
+  // Auto-refresh every 3 min when visible
+  setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      alertsLoaded = false;
+      loadAlertaBadge();
+    }
+  }, 180000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { alertsLoaded = false; loadAlertaBadge(); }
+  });
 });
 
-// ========================
-// NAVEGACIÓN
-// ========================
-const screenMeta = [
-    { title: "Resumen",    icon: "dashboard",         color: "var(--primary)"  },
-    { title: "Seguridad",  icon: "security",          color: "var(--danger)"   },
-    { title: "Tendencias", icon: "show_chart",        color: "var(--success)"  },
-    { title: "Movimientos",icon: "receipt_long",      color: "var(--info)"     },
-    { title: "Combustible",icon: "local_gas_station", color: "var(--warning)"  },
-    { title: "Fijos",      icon: "home",              color: "var(--info)"     },
-    { title: "Empleados",  icon: "people",            color: "var(--purple)"   },
-    { title: "Proveedores",icon: "inventory_2",       color: "var(--purple)"   },
-    { title: "Alertas",    icon: "notifications",     color: "var(--warning)"  },
-];
+// ═══════════════════════════════════════════════════════
+// TAB 0: INICIO
+// ═══════════════════════════════════════════════════════
+async function loadInicio() {
+  const [caja, arqueo, cruce, movs, rends, bancos] = await Promise.all([
+    api("getEstadoCaja"),
+    api("getArqueoStatus",     { dateStr: currentDate }),
+    api("getResumenCruceDiario", { fechaStr: currentDate }),
+    api("getMovimientos",      { fechaStr: currentDate + "T12:00:00" }),
+    api("obtenerHistorialRendiciones", {}),
+    api("getResumenBancosDueño")
+  ]);
 
-function activateScreen(idx) {
-    currentScreen = idx;
-    const m = screenMeta[idx];
-    document.getElementById('hdr-title').textContent = m.title;
-    document.getElementById('hdr-icon').style.background = m.color + '22';
-    document.getElementById('hdr-icon').querySelector('span').style.color = m.color;
-    document.getElementById('hdr-icon').querySelector('span').textContent = m.icon;
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', parseInt(b.dataset.i) === idx));
-
-    // Lazy loads
-    if (idx === 1) loadCruce();
-    if (idx === 2) loadTrends();
-    if (idx === 8) loadAlerts();
+  renderCaja(caja);
+  renderArqueoHoy(arqueo);
+  renderCruceHoy(cruce);
+  currentMovs = Array.isArray(movs) ? movs : [];
+  renderInicioMovs();
+  renderInicioRends(rends);
+  renderBancos(bancos);
+  loadAlertaBadge();
 }
 
-function goTo(idx) {
-    document.getElementById('s' + idx).scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+function renderCaja(r) {
+  if (!r) return;
+  const ef = Number(r.efectivo || 0);
+  const ch = Number(r.cheques  || 0);
+  const bc = Number(r.banco    || 0);
+  $('hero-ef').textContent    = fm(ef);
+  $('chip-ef').textContent    = fmk(ef);
+  $('chip-ch').textContent    = fmk(ch);
+  $('chip-bc').textContent    = fmk(bc);
 }
 
-// ========================
-// SEMANA / DATE
-// ========================
-function setDate(iso) {
-    currentDate = iso;
-    const wk = getWeekRange(iso);
-    weekStart = wk.start;
-    weekEnd   = wk.end;
-
-    chartsLoaded = false;
-    if (chartEgresos) { chartEgresos.destroy(); chartEgresos = null; }
-    if (chartRanking) { chartRanking.destroy(); chartRanking = null; }
-    if (chartBrecha)  { chartBrecha.destroy();  chartBrecha  = null; }
-
-    // Header: muestra rango de semana
-    document.getElementById('date-pill').textContent = `${wk.start.slice(5).replace('-','/')} — ${wk.end.slice(5).replace('-','/')}`;
-    document.getElementById('date-input').value = iso;
-    $('h-week-label').textContent = wk.label;
-
-    fetchWeek(wk);
-    fetchBancos();
-    fetchArqueoStatus();       // solo hoy
-    fetchCruceStatus();        // solo hoy
-    fetchWeekArqueoStatus(wk); // todos los días lun-vie
-    if (currentScreen === 1) loadCruce();
-    if (currentScreen === 2) loadTrends();
-    if (currentScreen === 8) loadAlerts();
+function renderArqueoHoy(r) {
+  const pill = $('arqueo-pill');
+  const sub  = $('arqueo-sub');
+  if (!r) return;
+  if (r.status === 'ok') {
+    pill.className = 'pill pill-green'; pill.textContent = '✓ OK';
+    sub.textContent = `Cerrado a las ${r.closeTime}`;
+  } else if (r.status === 'discrepancy') {
+    const d = r.difference;
+    pill.className = `pill ${d < 0 ? 'pill-red' : 'pill-orange'}`;
+    pill.textContent = `${d > 0 ? '+' : ''}${fmk(d)}`;
+    sub.textContent = `Cerrado ${r.closeTime} con diferencia`;
+  } else {
+    pill.className = 'pill pill-gray'; pill.textContent = 'Pendiente';
+    sub.textContent = 'Aún no se hizo el arqueo';
+  }
 }
 
-function openCalendar() { document.getElementById('modal-cal').classList.add('on'); }
-function closeCalendar() { document.getElementById('modal-cal').classList.remove('on'); }
-function confirmDate() {
-    const v = document.getElementById('date-input').value;
-    if (v) { setDate(v); closeCalendar(); }
+function renderCruceHoy(r) {
+  const pill = $('cruce-pill');
+  const sub  = $('cruce-sub');
+  if (!r || !r.ok) return;
+  if (r.sinArqueo) {
+    pill.className = 'pill pill-gray'; pill.textContent = 'Sin arqueo';
+    sub.textContent = 'Esperando cierre de caja';
+    return;
+  }
+  const dif = r.arqueo ? r.arqueo.diferencia : null;
+  if (dif === null) return;
+  if (Math.abs(dif) < 1000) {
+    pill.className = 'pill pill-green'; pill.textContent = '✓ Cuadra';
+    sub.textContent = dif === 0 ? 'Exacto' : `Dif. mínima ${fm(dif)}`;
+  } else if (dif < 0) {
+    pill.className = 'pill pill-red'; pill.textContent = `Faltó ${fmk(Math.abs(dif))}`;
+    sub.textContent = 'Diferencia en arqueo';
+  } else {
+    pill.className = 'pill pill-orange'; pill.textContent = `Sobró ${fmk(dif)}`;
+    sub.textContent = 'Diferencia en arqueo';
+  }
 }
 
-// Muestra una fila por cada día lun-vie con el estado del arqueo
-async function fetchWeekArqueoStatus(wk) {
-    const dias = ['Lun','Mar','Mié','Jue','Vie'];
-    const container = $('week-dias');
-    container.innerHTML = wk.days.map((d, i) => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border);">
-            <span style="font-size:0.8rem;color:var(--muted);width:30px;">${dias[i]}</span>
-            <span style="font-size:0.78rem;color:var(--muted);">${d.slice(8)}/${d.slice(5,7)}</span>
-            <span id="wd-${d}" style="font-size:0.75rem;color:var(--muted);">...</span>
-        </div>
-    `).join('');
+function renderInicioMovs() {
+  let ing = 0, egr = 0;
+  currentMovs.forEach(m => {
+    const v = Number(m.importe || 0);
+    if (m.tipo === 'Ingreso') ing += v; else egr += v;
+  });
+  $('day-ing').textContent = fm(ing);
+  $('day-egr').textContent = fm(egr);
 
-    // Fetch paralelo para los 5 días
-    await Promise.all(wk.days.map(async d => {
-        const res = await api("getArqueoStatus", { dateStr: d });
-        const el = $('wd-' + d);
-        if (!el || !res) return;
-        if (res.status === 'ok') {
-            el.innerHTML = `<span style="color:#34d399;font-weight:700;">✓ OK ${res.closeTime}</span>`;
-        } else if (res.status === 'discrepancy') {
-            const sign = res.difference > 0 ? '+' : '';
-            el.innerHTML = `<span style="color:#fbbf24;font-weight:700;">⚠ ${sign}${fm(res.difference)}</span>`;
-        } else {
-            // ¿Es un día futuro?
-            const today = new Date().toISOString().split('T')[0];
-            el.innerHTML = d > today
-                ? `<span style="color:var(--border);">—</span>`
-                : `<span style="color:#64748b;">Pendiente</span>`;
-        }
-    }));
+  const last5 = currentMovs.slice(0, 5);
+  const c = $('inicio-movs-list');
+  if (!last5.length) { c.innerHTML = '<div class="empty" style="padding:16px"><span>Sin movimientos</span></div>'; return; }
+  c.innerHTML = last5.map((m, i) => {
+    const ing2 = m.tipo === 'Ingreso';
+    const col  = ing2 ? 'var(--success)' : 'var(--danger)';
+    const bgI  = ing2 ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.08)';
+    const cat  = (m.categoria || "").toLowerCase();
+    const ico  = cat.includes('combustible') ? 'local_gas_station' : cat.includes('rend') ? 'delivery_dining' : cat.includes('prov') ? 'inventory_2' : ing2 ? 'south_west' : 'north_east';
+    return `<div class="mov-item" onclick="toggleMovDetail(${i},'im')">
+      <div class="mov-icon-wrap" style="background:${bgI}"><span class="material-icons-round" style="color:${col}">${ico}</span></div>
+      <div class="mov-body"><div class="mov-cat">${m.categoria}</div><div class="mov-sub">${(m.hora||'').substring(0,5)} · ${m.formaPago}</div></div>
+      <div class="mov-amount" style="color:${col}">${ing2?'+':'-'}${fm(m.importe).replace('$ ','')}</div>
+    </div>
+    <div class="mov-detail-box" id="im${i}"><div class="mov-detail-row"><span>Obs.</span><span>${m.observacion||'-'}</span></div><div class="mov-detail-row"><span>ID</span><span>#${m.id}</span></div></div>`;
+  }).join('');
 }
 
-// ========================
-// API
-// ========================
-async function api(fn, params = {}) {
-    try {
-        const r = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({fn, params}) });
-        return await r.json();
-    } catch { return null; }
-}
-
-const $ = (id) => document.getElementById(id);
-const fm = (n) => "$ " + Number(n||0).toLocaleString('es-AR');
-
-// ========================
-// RESUMEN
-// ========================
-async function fetchWeek(wk) {
-    // Para los KPIs del hero usamos el rango semana completa
-    const res = await api("getMovimientosRango", {
-        startDateStr: wk.start,
-        endDateStr:   wk.end
-    });
-    const weekMovs = res?.ok && res.data ? res.data : [];
-
-    // Para la pantalla Movimientos mostramos solo el día seleccionado
-    $('movs-list').innerHTML = '<div class="empty-state"><span class="material-icons-round spin">sync</span>Cargando...</div>';
-    const dayRes = await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
-    currentMovs = Array.isArray(dayRes) ? dayRes : [];
-
-    processWeekKPIs(weekMovs);
-    processMovs();
-}
-
-function processWeekKPIs(movs) {
-    let ing = 0, egr = 0;
-    // Excluimos ajustes auto-generados del KPI principal
-    const autoGen = ['ajuste post-arqueo', 'diferencia rendición - ajuste'];
-    movs.forEach(m => {
-        const cat = (m.categoria || "").toLowerCase();
-        if (autoGen.some(a => cat.includes(a))) return;
-        const imp = Number(m.importe) || 0;
-        if (m.tipo === 'Ingreso') ing += imp; else egr += imp;
-    });
-    const neto = ing - egr;
-    $('h-ing').textContent  = fm(ing);
-    $('h-egr').textContent  = fm(egr);
-    $('h-movs').textContent = movs.length;
-    $('h-neto').textContent = fm(Math.abs(neto));
-    $('h-neto').className   = 'hero-amount ' + (neto >= 0 ? 't-green' : 't-red');
-}
-
-function processMovs() {
-    let ing = 0, egr = 0;
-    let fuelTotal = 0, fuelByVeh = {};
-    let provTotal = 0, provList = [];
-
-    currentMovs.forEach(m => {
-        const imp = Number(m.importe) || 0;
-        const cat = (m.categoria || "").toLowerCase();
-        const obs = (m.observacion || "").toLowerCase();
-        if (m.tipo === 'Ingreso') ing += imp; else egr += imp;
-
-        if (cat.includes('combustible')) {
-            fuelTotal += imp;
-            let v = '';
-            const vm = obs.match(/\[veh: (.*?)\]/i);
-            if (vm) v = vm[1];
-            else if (cat.includes('saveiro')) v = 'VW Saveiro';
-            else if (cat.includes('toyota') || cat.includes('hiace')) v = 'Toyota Hiace';
-            else if (cat.includes('fiat') || cat.includes('uno')) v = 'Fiat Uno';
-            else v = 'Otros';
-            if (!fuelByVeh[v]) fuelByVeh[v] = { count: 0, total: 0 };
-            fuelByVeh[v].count++; fuelByVeh[v].total += imp;
-        }
-        if (cat.includes('proveedor')) {
-            provTotal += imp;
-            const pm = obs.match(/\[prov: (.*?)\]/i);
-            const name = pm ? pm[1] : (m.proveedor || m.categoria);
-            provList.push({ name, amount: imp, hora: m.hora });
-        }
-    });
-
-    const neto = ing - egr;
-    $('h-ing').textContent = fm(ing);
-    $('h-egr').textContent = fm(egr);
-    $('h-movs').textContent = currentMovs.length;
-    $('h-neto').textContent = fm(Math.abs(neto));
-    $('h-neto').className = 'hero-amount ' + (neto >= 0 ? 't-green' : 't-red');
-
-    renderMovs();
-    renderFuel(fuelTotal, fuelByVeh);
-    renderProv(provTotal, provList);
-}
-
-function renderMovs() {
-    const c = $('movs-list');
-    $('mov-count').textContent = currentMovs.length;
-    if (!currentMovs.length) {
-        c.innerHTML = '<div class="empty-state"><span class="material-icons-round">receipt_long</span>Sin movimientos</div>';
-        return;
-    }
-    c.innerHTML = currentMovs.map((m, i) => {
-        const ing = m.tipo === 'Ingreso';
-        const col = ing ? '#34d399' : '#f87171';
-        const bgI = ing ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)';
-        const cat = (m.categoria||"").toLowerCase();
-        const ico = cat.includes('combustible') ? 'local_gas_station' : cat.includes('rend') ? 'delivery_dining' : ing ? 'south_west' : 'north_east';
-        return `
-        <div>
-            <div class="mov-item" onclick="toggleMov(${i})">
-                <div class="mov-icon" style="background:${bgI}">
-                    <span class="material-icons-round" style="color:${col}">${ico}</span>
-                </div>
-                <div class="mov-info">
-                    <div class="mov-cat">${m.categoria}</div>
-                    <div class="mov-sub">${(m.hora||"").substring(0,5)} · ${m.formaPago}</div>
-                </div>
-                <div class="mov-amount" style="color:${col}">${ing?'+':'-'}${fm(m.importe).replace('$ ','')}</div>
-            </div>
-            <div class="mov-detail" id="md${i}">
-                <div class="mov-detail-row"><span>Obs.</span><span style="color:white;text-align:right;max-width:60%;">${m.observacion||'-'}</span></div>
-                <div class="mov-detail-row"><span>ID</span><span style="font-family:monospace">#${m.id}</span></div>
-            </div>
-        </div>`;
-    }).join('');
-}
-window.toggleMov = (i) => {
-    const el = $('md'+i);
-    el.style.display = el.style.display === 'block' ? 'none' : 'block';
-};
-
-function renderFuel(total, byVeh) {
-    $('fuel-total').textContent = fm(total);
-    const c = $('fuel-list');
-    if (!Object.keys(byVeh).length) {
-        c.innerHTML = '<div class="empty-state"><span class="material-icons-round">local_gas_station</span>Sin cargas hoy</div>';
-        return;
-    }
-    c.innerHTML = Object.entries(byVeh).map(([v, d]) => `
-        <div class="veh-card">
-            <div>
-                <div class="veh-name">${v}</div>
-                <div class="veh-sub">${d.count} carga(s)</div>
-            </div>
-            <div style="text-align:right;">
-                <div style="font-weight:800; color:var(--warning);">${fm(d.total)}</div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderProv(total, list) {
-    $('prov-total').textContent = fm(total);
-    const c = $('prov-list');
-    if (!list.length) {
-        c.innerHTML = '<div class="empty-state"><span class="material-icons-round">inventory_2</span>Sin pagos a proveedores</div>';
-        return;
-    }
-    c.innerHTML = list.map(p => `
-        <div class="mov-item">
-            <div class="mov-icon" style="background:rgba(139,92,246,0.1)">
-                <span class="material-icons-round" style="color:var(--purple)">inventory_2</span>
-            </div>
-            <div class="mov-info">
-                <div class="mov-cat">${p.name}</div>
-                <div class="mov-sub">${(p.hora||"").substring(0,5)} hs</div>
-            </div>
-            <div class="mov-amount t-red">-${fm(p.amount).replace('$ ','')}</div>
-        </div>
-    `).join('');
-}
-
-async function fetchCaja() {
-    const res = await api("getEstadoCaja");
-    if (res) {
-        $('caja-ef').textContent = fm(res.efectivo);
-        $('caja-ch').textContent = fm(res.cheques);
-        $('caja-total').textContent = fm((res.efectivo||0)+(res.cheques||0));
-    }
-}
-
-async function fetchArqueoStatus() {
-    const res = await api("getArqueoStatus", { dateStr: currentDate });
-    if (!res) return;
-    const badge = $('arqueo-badge');
-    const hora  = $('arqueo-hora');
-
-    if (res.status === 'ok') {
-        badge.className = 'status-badge badge-ok';
-        badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">check_circle</span> OK';
-        hora.textContent = `Cerrado ${res.closeTime}`;
-    } else if (res.status === 'discrepancy') {
-        const d = res.difference;
-        badge.className = 'status-badge badge-warn';
-        badge.innerHTML = `<span class="material-icons-round" style="font-size:14px">warning</span> ${d > 0 ? '+':''}${fm(d)}`;
-        hora.textContent = `Cerrado ${res.closeTime} · con diferencia`;
-    } else {
-        badge.className = 'status-badge badge-pending';
-        badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">schedule</span> Pendiente';
-        hora.textContent = 'Aún no se hizo el arqueo';
-    }
-}
-
-async function fetchCruceStatus() {
-    const res = await api("getResumenCruceDiario", { fechaStr: currentDate });
-    if (!res || !res.ok) return;
-    const badge = $('cruce-badge');
-    const sub   = $('cruce-status-sub');
-
-    if (res.sinArqueo) {
-        badge.className = 'status-badge badge-pending';
-        badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">schedule</span> Sin arqueo';
-        sub.textContent = 'El arqueo no fue realizado aún';
-        return;
-    }
-    // Usamos arqueo.diferencia (fisico - sistema), que es el dato real del GAS
-    const dif = res.arqueo ? res.arqueo.diferencia : null;
-    if (dif === null) {
-        badge.className = 'status-badge badge-pending';
-        badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">sync</span> --';
-        return;
-    }
-    if (Math.abs(dif) < 1000) {
-        badge.className = 'status-badge badge-ok';
-        badge.innerHTML = '<span class="material-icons-round" style="font-size:14px">verified</span> Cuadra';
-        sub.textContent = dif === 0 ? 'Arqueo exacto' : `Dif. mínima: ${fm(dif)}`;
-    } else if (dif < 0) {
-        badge.className = 'status-badge badge-danger';
-        badge.innerHTML = `<span class="material-icons-round" style="font-size:14px">warning</span> Faltó ${fm(Math.abs(dif))}`;
-        sub.textContent = 'Diferencia registrada en arqueo';
-    } else {
-        badge.className = 'status-badge badge-warn';
-        badge.innerHTML = `<span class="material-icons-round" style="font-size:14px">help</span> Sobró ${fm(dif)}`;
-        sub.textContent = 'Diferencia registrada en arqueo';
-    }
-}
-
-async function fetchBancos() {
-    $('bank-status-icon').innerHTML = '<span class="material-icons-round spin" style="font-size:16px;color:rgba(255,255,255,0.5)">sync</span>';
-    const res = await api("getResumenBancosDueño");
-    if (res && res.ok) {
-        $('bank-dia').textContent = fm(res.totalDia);
-        $('bank-mes').textContent = fm(res.totalMes);
-        if (res.totalDia > 0) {
-            $('bank-msg').innerHTML = '<span style="color:#34d399;font-weight:700;">Rendición recibida ✓</span>';
-            $('bank-status-icon').innerHTML = '<span class="material-icons-round" style="color:#34d399;font-size:18px">check_circle</span>';
-        } else {
-            $('bank-msg').textContent = 'Esperando archivo...';
-            $('bank-status-icon').innerHTML = '<span class="material-icons-round" style="color:var(--muted);font-size:18px">schedule</span>';
-        }
-    }
-}
-
-// ========================
-// SEGURIDAD / CRUCE
-// ========================
-async function loadCruce() {
-    // Cruce del día de hoy (detallado)
-    const res = await api("getResumenCruceDiario", { fechaStr: currentDate });
-    renderCruce(res);
-
-    // Historial = todos los días de la semana lun-vie
-    const rango = await api("getResumenCruceRango", { startDateStr: weekStart, endDateStr: weekEnd });
-    renderCruceHist(rango);
-}
-
-function renderCruce(res) {
-    if (!res || !res.ok) {
-        $('cruce-hero-wrap').innerHTML = '<div class="cruce-hero cruce-pending"><div style="color:var(--muted);text-align:center;">Error al cargar datos</div></div>';
-        return;
-    }
-    if (res.sinArqueo) {
-        $('cruce-hero-wrap').innerHTML = `
-        <div class="cruce-hero cruce-pending">
-            <div style="font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Arqueo pendiente</div>
-            <div style="font-size:1.4rem;font-weight:800;margin:8px 0;color:#94a3b8;">Aún no cerrado</div>
-            <div style="font-size:0.82rem;color:var(--muted);">El cruce se calcula al confirmar el arqueo</div>
-        </div>`;
-        $('cruce-detalle').innerHTML = '<div class="empty-state"><span class="material-icons-round">lock_clock</span>Disponible tras el arqueo</div>';
-        return;
-    }
-
-    // Usamos arqueo.diferencia (fisico - sistema): dato real calculado en el GAS
-    const dif   = res.arqueo ? res.arqueo.diferencia : 0;
-    const fisico = res.arqueo ? res.arqueo.fisico : 0;
-    const sistema = res.arqueo ? res.arqueo.sistema : 0;
-    const hora  = res.arqueo ? res.arqueo.hora : '';
-
-    let cls = 'cruce-ok', label = '✓ Arqueo exacto', color = '#34d399';
-    if (Math.abs(dif) >= 1000 && dif < 0) { cls = 'cruce-danger'; label = '⚠ Faltó plata en arqueo'; color = '#f87171'; }
-    else if (Math.abs(dif) >= 1000 && dif > 0) { cls = 'cruce-warn'; label = '↑ Sobró en arqueo'; color = '#fbbf24'; }
-    else if (Math.abs(dif) >= 100) { cls = 'cruce-warn'; label = '≈ Diferencia mínima'; color = '#fbbf24'; }
-
-    $('cruce-hero-wrap').innerHTML = `
-    <div class="cruce-hero ${cls}">
-        <div style="font-size:0.7rem;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:1px;opacity:0.8;">Diferencia en arqueo</div>
-        <div class="cruce-big" style="color:${color}">${dif === 0 ? '$ 0' : (dif > 0 ? '+' : '') + fm(dif)}</div>
-        <div style="font-size:0.85rem;font-weight:700;color:${color}">${label}</div>
-        <div style="font-size:0.75rem;color:${color};opacity:0.7;margin-top:4px;">Cerrado a las ${hora}</div>
+function renderInicioRends(data) {
+  const c = $('inicio-rend-list');
+  if (!Array.isArray(data) || !data.length) {
+    c.innerHTML = '<div class="empty"><span class="material-icons-round">history</span><span>Sin rendiciones registradas</span></div>';
+    return;
+  }
+  const last3 = data.slice(0, 3);
+  c.innerHTML = last3.map(r => {
+    const esFalt = r.tipo === 'Faltante';
+    const esSobr = r.tipo === 'Sobrante';
+    const pillCls = esFalt ? 'pill-red' : esSobr ? 'pill-blue' : 'pill-green';
+    const difLabel = esFalt ? `−${fmk(Math.abs(r.diferencia))}` : esSobr ? `+${fmk(Math.abs(r.diferencia))}` : '✓ Exacto';
+    const fecha = r.fecha ? r.fecha.split('-').reverse().join('/') : '';
+    return `<div class="rend-row">
+      <div class="rend-info">
+        <div class="rend-title">${r.turno} · ${fecha}</div>
+        <div class="rend-sub">${r.repartidor} · Esp: ${fm(r.esperado)} · Cnt: ${fm(r.contado)}</div>
+      </div>
+      <span class="pill ${pillCls}">${difLabel}</span>
     </div>`;
-
-    // Rendición: fuente independiente (archivos de Drive)
-    const rCont = res.rendiciones?.totalContado || 0;
-    const rEsp  = res.rendiciones?.totalEsperado || 0;
-    const rendDif = rCont - rEsp;
-    const rendDets = res.rendiciones?.detalle || [];
-
-    $('cruce-detalle').innerHTML = `
-        <div class="cruce-row" style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;margin-bottom:8px;border:none;">
-            <span style="font-weight:700;font-size:0.88rem;">Arqueo (físico vs sistema)</span>
-        </div>
-        <div class="cruce-row">
-            <span class="cruce-label"><span class="material-icons-round" style="font-size:15px;color:var(--muted)">computer</span>Sistema calculó</span>
-            <span class="cruce-val">${fm(sistema)}</span>
-        </div>
-        <div class="cruce-row">
-            <span class="cruce-label"><span class="material-icons-round" style="font-size:15px;color:#34d399">person</span>Laura declaró</span>
-            <span class="cruce-val" style="color:${color}">${fm(fisico)}</span>
-        </div>
-        <div class="cruce-row" style="border-bottom:none;padding-bottom:0;">
-            <span style="font-weight:700;">Diferencia</span>
-            <span style="font-weight:800;color:${color}">${dif === 0 ? '$ 0 ✓' : fm(dif)}</span>
-        </div>
-        ${rendDets.length ? `
-        <div class="cruce-row" style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;margin-top:14px;margin-bottom:8px;border:none;">
-            <span style="font-weight:700;font-size:0.88rem;">Rendición Nico (Drive)</span>
-        </div>
-        ${rendDets.map(r => `
-        <div class="cruce-row">
-            <span class="cruce-label"><span class="material-icons-round" style="font-size:15px;color:#34d399">delivery_dining</span>${r.turno}</span>
-            <div style="text-align:right;">
-                <div style="font-weight:700;">${fm(r.contado)}</div>
-                <div style="font-size:0.72rem;color:var(--muted);">esp: ${fm(r.esperado)}</div>
-            </div>
-        </div>`).join('')}
-        ${rendDif !== 0 ? `<div class="cruce-row" style="border-bottom:none;">
-            <span style="font-weight:700;">Dif. en rendición</span>
-            <span style="font-weight:800;color:${rendDif<0?'#f87171':'#fbbf24'}">${fm(rendDif)}</span>
-        </div>` : ''}
-        ` : `<div style="padding:12px 0;color:var(--muted);font-size:0.82rem;">Sin rendiciones registradas hoy</div>`}
-    `;
+  }).join('');
 }
 
-function renderCruceHist(res) {
-    const c = $('cruce-historial');
-    if (!res || !res.ok || !res.data?.length) {
-        c.innerHTML = '<div class="empty-state"><span class="material-icons-round">history</span>Sin historial</div>';
-        return;
-    }
-    const alertas = res.data.filter(d => d.alerta).length;
-    $('cruce-alertas-badge').textContent = alertas > 0 ? `${alertas} alertas` : '';
-    $('cruce-alertas-badge').style.color = alertas > 0 ? '#f87171' : '';
+function renderBancos(r) {
+  const card = $('bank-card');
+  if (!r || !r.ok) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  $('bank-dia').textContent = fm(r.totalDia || 0);
+  $('bank-sub').textContent = `${r.cantidadDia || 0} transferencia(s) hoy`;
+  $('bank-mes').textContent = fm(r.totalMes || 0);
+}
 
-    // Usamos d.diferencia (arqueo.diferencia del GAS), no el brecha calculado
-    c.innerHTML = res.data.slice().reverse().map(d => {
-        const b = d.diferencia || 0;
-        let ico = 'check_circle', color = '#34d399', badge = 'Exacto';
-        if (Math.abs(b) >= 1000 && b < 0) { ico = 'warning'; color = '#f87171'; badge = 'Faltó '+fm(Math.abs(b)); }
-        else if (Math.abs(b) >= 1000 && b > 0) { ico = 'help'; color = '#fbbf24'; badge = 'Sobró '+fm(b); }
-        else if (Math.abs(b) >= 100) { ico = 'info'; color = '#fbbf24'; badge = fm(b); }
+// ═══════════════════════════════════════════════════════
+// TAB 1: SEMANA
+// ═══════════════════════════════════════════════════════
+let semanaLoaded = false;
+async function loadSemana() {
+  const wk = getWeekRange(currentDate);
+  semanaLoaded = false;
+  $('week-label').textContent = wk.label;
 
-        const [y,mo,day] = d.fecha.split('-');
-        return `
-        <div class="hist-row">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <span class="material-icons-round" style="color:${color};font-size:20px;">${ico}</span>
-                <div>
-                    <div class="hist-date">${day}/${mo}/${y}</div>
-                    <div class="hist-sub">Rend: ${fm(d.rendContado)} · ${d.rendContado > 0 ? 'Recibida' : 'Sin rendición'}</div>
-                </div>
-            </div>
-            <div style="font-weight:800;font-size:0.88rem;color:${color}">${badge}</div>
-        </div>`;
+  const [movsRango, cruceSem] = await Promise.all([
+    api("getMovimientosRango", { startDateStr: wk.start, endDateStr: wk.end }),
+    api("getResumenCruceRango", { startDateStr: wk.start, endDateStr: wk.end })
+  ]);
+
+  weekMovs = movsRango?.ok && movsRango.data ? movsRango.data : [];
+  renderWeekKPIs(weekMovs);
+  renderWeekGrid(wk);
+  renderCruceRange(cruceSem);
+  renderCharts(weekMovs, wk);
+  semanaLoaded = true;
+}
+
+function renderWeekKPIs(movs) {
+  let ing = 0, egr = 0;
+  const skip = ['ajuste post-arqueo','diferencia rendición - ajuste'];
+  movs.forEach(m => {
+    const cat = (m.categoria||'').toLowerCase();
+    if (skip.some(s => cat.includes(s))) return;
+    const v = Number(m.importe||0);
+    if (m.tipo === 'Ingreso') ing += v; else egr += v;
+  });
+  const neto = ing - egr;
+  $('week-neto').textContent = fm(Math.abs(neto));
+  $('week-neto').style.color = neto >= 0 ? 'var(--success)' : 'var(--danger)';
+  $('week-ing').textContent  = fmk(ing);
+  $('week-egr').textContent  = fmk(egr);
+  $('week-movs').textContent = movs.length;
+}
+
+async function renderWeekGrid(wk) {
+  const DAY_NAMES = ['Lun','Mar','Mié','Jue','Vie'];
+  const today = todayISO();
+  const grid = $('week-grid');
+  grid.innerHTML = wk.days.map((d, i) => {
+    const isToday = d === today;
+    const num = d.slice(8);
+    return `<div class="week-day" style="${isToday ? 'background:rgba(0,122,255,0.08);border:1.5px solid rgba(0,122,255,0.25)' : ''}">
+      <div class="week-day-name">${DAY_NAMES[i]}</div>
+      <div class="week-day-num" style="${isToday ? 'color:var(--primary)' : ''}">${num}</div>
+      <div class="week-day-status wd-miss" id="wds-${d}">·</div>
+    </div>`;
+  }).join('');
+
+  await Promise.all(wk.days.map(async d => {
+    const r = await api("getArqueoStatus", { dateStr: d });
+    const el = $('wds-' + d);
+    if (!el || !r) return;
+    const future = d > today;
+    if (future) { el.className = 'week-day-status wd-future'; el.textContent = '—'; return; }
+    if (r.status === 'ok') { el.className = 'week-day-status wd-ok'; el.textContent = '✓'; }
+    else if (r.status === 'discrepancy') { el.className = 'week-day-status wd-warn'; el.textContent = `${r.difference > 0 ? '+' : ''}${fmk(r.difference)}`; }
+    else { el.className = 'week-day-status wd-miss'; el.textContent = 'Pend'; }
+  }));
+}
+
+function renderCruceRange(r) {
+  const el = $('cruce-semana');
+  const det = $('cruce-detalle');
+  if (!r || !r.ok) { el.innerHTML = '<div class="cruce-big-val">—</div><div class="cruce-big-lbl">Sin datos</div>'; return; }
+
+  const dif = r.diferenciaTotalSemana || 0;
+  const abs = Math.abs(dif);
+  let cls = 'cruce-pend', label = '—', sub = '';
+  if (r.diasSinArqueo === 5) { sub = 'Sin arqueos esta semana'; }
+  else if (abs < 1000) { cls = 'cruce-ok'; label = dif === 0 ? '$ 0' : fm(dif); sub = 'Semana cuadrada'; }
+  else if (dif < 0) { cls = 'cruce-bad'; label = '−' + fm(abs); sub = 'Faltante acumulado'; }
+  else { cls = 'cruce-warn'; label = '+' + fm(abs); sub = 'Sobrante acumulado'; }
+
+  el.className = `cruce-big ${cls}`;
+  el.innerHTML = `<div class="cruce-big-val">${label}</div><div class="cruce-big-lbl">${sub}</div>`;
+
+  if (r.detallePorDia && r.detallePorDia.length) {
+    det.innerHTML = r.detallePorDia.map(d => {
+      const dif2 = Number(d.diferencia || 0);
+      const col = Math.abs(dif2) < 500 ? 'var(--success)' : dif2 < 0 ? 'var(--danger)' : 'var(--warn)';
+      const fecha = (d.fecha||'').split('-').reverse().join('/');
+      return `<div class="card-row"><div style="flex:1"><div class="card-row-label">${fecha}</div></div><span style="font-weight:700;color:${col}">${dif2 >= 0 ? '+' : ''}${fm(dif2)}</span></div>`;
     }).join('');
+  } else { det.innerHTML = '<div class="empty"><span>Sin detalle disponible</span></div>'; }
 }
 
-// ========================
-// TENDENCIAS
-// ========================
-async function loadTrends() {
-    if (chartsLoaded) return;
-    chartsLoaded = true;
+function renderCharts(movs, wk) {
+  const days = wk.days;
+  const dayLabels = days.map(d => d.slice(8) + '/' + d.slice(5,7));
 
-    // Últimas 4 semanas completas (lun-vie) hasta la semana actual
-    const refFri = new Date(weekEnd + "T12:00:00");
-    const start4w = new Date(refFri);
-    start4w.setDate(refFri.getDate() - 27); // ~4 semanas atrás
-    const start = start4w.toISOString().split('T')[0];
+  // Egresos por día
+  const egrByDay = {};
+  days.forEach(d => egrByDay[d] = 0);
+  movs.filter(m => m.tipo === 'Egreso').forEach(m => {
+    if (egrByDay[m.fecha] !== undefined) egrByDay[m.fecha] += Number(m.importe||0);
+  });
 
-    const [movRes, cruceRes] = await Promise.all([
-        api("getMovimientosRango", { startDateStr: start, endDateStr: weekEnd }),
-        api("getResumenCruceRango", { startDateStr: weekStart, endDateStr: weekEnd })
-    ]);
-
-    if (movRes?.ok && movRes.data) renderTrendCharts(movRes.data);
-    if (cruceRes?.ok && cruceRes.data) renderBrechaChart(cruceRes.data);
-}
-
-function renderTrendCharts(data) {
-    const days = {}, cats = {};
-    data.forEach(m => {
-        if (m.tipo !== 'Egreso') return;
-        const cat = (m.categoria || "").toLowerCase();
-        if (cat.includes('ajuste') || cat.includes('base')) return;
-        const imp = Number(m.importe) || 0;
-        if (!days[m.fecha]) days[m.fecha] = 0; days[m.fecha] += imp;
-        if (!cats[m.categoria]) cats[m.categoria] = 0; cats[m.categoria] += imp;
+  if (chartEgr) { chartEgr.destroy(); chartEgr = null; }
+  const ctxE = $('chart-egresos');
+  if (ctxE) {
+    chartEgr = new Chart(ctxE, {
+      type: 'bar',
+      data: {
+        labels: dayLabels,
+        datasets: [{ data: days.map(d => egrByDay[d]), backgroundColor: 'rgba(255,59,48,0.2)', borderColor: 'rgba(255,59,48,0.8)', borderRadius: 6, borderWidth: 2 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: v => fmk(v), font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { grid: { display: false }, ticks: { font: { size: 11 } } } } }
     });
+  }
 
-    const sortedDays = Object.keys(days).sort();
-    const ctx1 = $('chartEgresos');
-    if (ctx1 && !chartEgresos) {
-        chartEgresos = new Chart(ctx1, {
-            type: 'bar',
-            data: {
-                labels: sortedDays.map(d => d.substring(5)),
-                datasets: [{ label: 'Egresos', data: sortedDays.map(k => days[k]), backgroundColor: 'rgba(239,68,68,0.6)', borderColor: '#ef4444', borderRadius: 6, borderWidth: 1 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false},ticks:{color:'#64748b'}}, y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b'}} } }
-        });
-    }
+  // Ranking categorías egresos
+  const catTotals = {};
+  const skip = ['ajuste post-arqueo','diferencia rendición'];
+  movs.filter(m => m.tipo === 'Egreso').forEach(m => {
+    const cat = m.categoria || 'Otros';
+    if (skip.some(s => cat.toLowerCase().includes(s))) return;
+    catTotals[cat] = (catTotals[cat] || 0) + Number(m.importe||0);
+  });
+  const sorted = Object.entries(catTotals).sort((a,b) => b[1]-a[1]).slice(0, 6);
 
-    const top5 = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    const ctx2 = $('chartRanking');
-    if (ctx2 && !chartRanking) {
-        chartRanking = new Chart(ctx2, {
-            type: 'doughnut',
-            data: { labels: top5.map(x=>x[0]), datasets: [{ data: top5.map(x=>x[1]), backgroundColor: ['#ef4444','#f59e0b','#3b82f6','#8b5cf6','#10b981'], borderWidth: 0 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:10}}}} }
-        });
-    }
-}
-
-function renderBrechaChart(data) {
-    const sorted = [...data].sort((a,b) => a.fecha.localeCompare(b.fecha));
-    const ctx = $('chartBrecha');
-    if (!ctx || chartBrecha) return;
-    chartBrecha = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: sorted.map(d => d.fecha.substring(5)),
-            datasets: [{
-                label: 'Diferencia arqueo $',
-                data: sorted.map(d => d.diferencia || 0),
-                backgroundColor: sorted.map(d => {
-                    const b = d.diferencia || 0;
-                    if (Math.abs(b) < 1000) return 'rgba(16,185,129,0.6)';
-                    return b < 0 ? 'rgba(239,68,68,0.7)' : 'rgba(245,158,11,0.7)';
-                }),
-                borderRadius: 6,
-                borderWidth: 0,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fm(ctx.raw) } } },
-            scales: {
-                x: { grid:{display:false}, ticks:{color:'#64748b'} },
-                y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#64748b', callback: v => fm(v)} }
-            }
-        }
+  if (chartRank) { chartRank.destroy(); chartRank = null; }
+  const ctxR = $('chart-ranking');
+  if (ctxR && sorted.length) {
+    const PALETTE = ['rgba(0,122,255,0.7)','rgba(52,199,89,0.7)','rgba(255,59,48,0.7)','rgba(255,149,0,0.7)','rgba(175,82,222,0.7)','rgba(50,173,230,0.7)'];
+    chartRank = new Chart(ctxR, {
+      type: 'bar',
+      data: {
+        labels: sorted.map(([c]) => c.length > 18 ? c.slice(0,18)+'…' : c),
+        datasets: [{ data: sorted.map(([,v]) => v), backgroundColor: PALETTE, borderRadius: 6 }]
+      },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { callback: v => fmk(v), font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.04)' } }, y: { grid: { display: false }, ticks: { font: { size: 11 } } } } }
     });
+  }
 }
 
-// ========================
-// GASTOS FIJOS & EMPLEADOS
-// ========================
-async function fetchGastosFijos() {
-    const res = await api("getConfigGastosFijos");
-    if (!res?.ok) return;
-    let total = 0;
-    const list = res.data || [];
-    if (!list.length) { $('fijos-list').innerHTML = '<div class="empty-state">Sin gastos fijos</div>'; return; }
-    $('fijos-list').innerHTML = list.map(g => {
-        total += Number(g.montoMensual) || 0;
-        return `<div class="mov-item">
-            <div class="mov-info"><div class="mov-cat">${g.nombre}</div><div class="mov-sub">Mensual</div></div>
-            <div style="display:flex;align-items:center;gap:6px;">
-                <span style="color:var(--muted);font-size:0.9rem;">$</span>
-                <input class="edit-input" type="number" value="${g.montoMensual}" onchange="saveGasto('${g.nombre}',this.value)">
-            </div>
-        </div>`;
-    }).join('');
-    $('fijos-total').textContent = fm(total);
+// ═══════════════════════════════════════════════════════
+// TAB 2: MOVIMIENTOS
+// ═══════════════════════════════════════════════════════
+async function loadMovimientos() {
+  $('movs-list').innerHTML = '<div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>';
+  const res = await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
+  currentMovs = Array.isArray(res) ? res : [];
+  renderMovsList();
 }
-window.saveGasto = async (n, v) => { await api("updateConfigGastoFijo", {nombre:n, montoMensual:v, lastUpdate: new Date().toISOString().split('T')[0]}); fetchGastosFijos(); };
 
-async function fetchEmpleados() {
-    const res = await api("getConfigEmpleados");
-    if (!res?.ok) return;
-    const list = res.data || [];
-    if (!list.length) { $('emp-list').innerHTML = '<div class="empty-state">Sin empleados</div>'; return; }
-    $('emp-list').innerHTML = list.map(e => `
-        <div class="mov-item">
-            <div class="mov-info"><div class="mov-cat">${e.nombre}</div></div>
-            <div style="display:flex;align-items:center;gap:6px;">
-                <span style="color:var(--muted);font-size:0.9rem;">$</span>
-                <input class="edit-input" type="number" value="${e.sueldoBase}" onchange="saveSueldo('${e.nombre}',this.value)">
-            </div>
-        </div>
-    `).join('');
+function setFilter(f) {
+  currentMovFilter = f;
+  ['todos','ingresos','egresos'].forEach(id => {
+    $('f-' + id).classList.toggle('active', id === f);
+  });
+  renderMovsList();
 }
-window.saveSueldo = async (n, v) => { await api("updateConfigEmpleado", {nombre:n, sueldoBase:v, lastUpdate: new Date().toISOString().split('T')[0]}); };
 
-// ========================
-// ALERTAS
-// ========================
-async function loadAlerts() {
-    $('alerts-list').innerHTML = '<div class="empty-state"><span class="material-icons-round spin">sync</span>Cargando...</div>';
-    const res = await api("getNotificacionesCaja", { soloActivas: true });
-    if (!res || !Array.isArray(res) || !res.length) {
-        $('alerts-list').innerHTML = '<div class="empty-state"><span class="material-icons-round">check_circle</span>Sin alertas activas</div>';
-        return;
-    }
-    const sorted = res.filter(a => !a.borrada).sort((a,b) => {
-        const ord = { ALTA: 0, MEDIA: 1, BAJA: 2 };
-        return (ord[a.severidad]||2) - (ord[b.severidad]||2);
-    });
+function renderMovsList() {
+  let filtered = currentMovs;
+  if (currentMovFilter === 'ingresos') filtered = currentMovs.filter(m => m.tipo === 'Ingreso');
+  if (currentMovFilter === 'egresos')  filtered = currentMovs.filter(m => m.tipo === 'Egreso');
 
-    $('alerts-list').innerHTML = sorted.map(a => {
-        const cls = a.severidad === 'ALTA' ? 'alert-high' : a.severidad === 'MEDIA' ? 'alert-med' : 'alert-low';
-        const col = a.severidad === 'ALTA' ? 'var(--danger)' : a.severidad === 'MEDIA' ? 'var(--warning)' : 'var(--info)';
-        const ico = a.tipo?.includes('CRUCE') ? 'security' : a.tipo?.includes('ANOMALIA') ? 'warning' : a.tipo?.includes('COMBUSTIBLE') ? 'local_gas_station' : 'notifications';
-        const fecha = a.fecha ? new Date(a.fecha).toLocaleDateString('es-AR', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
-        return `
-        <div class="alert-item ${cls}">
-            <div class="alert-title" style="color:${col}; display:flex; align-items:center; gap:6px;">
-                <span class="material-icons-round" style="font-size:16px">${ico}</span>${a.titulo}
-            </div>
-            <div class="alert-msg">${a.mensaje}</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-                <div class="alert-time">${fecha}</div>
-                <button onclick="dismissAlert(${a.id})" style="background:rgba(255,255,255,0.08);border:none;color:#94a3b8;padding:4px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;">Descartar</button>
-            </div>
-        </div>`;
-    }).join('');
+  let ing = 0, egr = 0;
+  currentMovs.forEach(m => { const v = Number(m.importe||0); if (m.tipo==='Ingreso') ing+=v; else egr+=v; });
+  $('mov-ing').textContent = fm(ing);
+  $('mov-egr').textContent = fm(egr);
+
+  const c = $('movs-list');
+  if (!filtered.length) {
+    c.innerHTML = '<div class="empty"><span class="material-icons-round">receipt_long</span><span>Sin movimientos</span></div>';
+    return;
+  }
+  c.innerHTML = filtered.map((m, i) => {
+    const isIng = m.tipo === 'Ingreso';
+    const col   = isIng ? 'var(--success)' : 'var(--danger)';
+    const bgI   = isIng ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.08)';
+    const cat   = (m.categoria||'').toLowerCase();
+    const ico   = cat.includes('combustible') ? 'local_gas_station' : cat.includes('rend') ? 'delivery_dining' : cat.includes('prov') ? 'inventory_2' : cat.includes('sueldo')||cat.includes('haber') ? 'badge' : isIng ? 'south_west' : 'north_east';
+    return `<div class="mov-item" onclick="toggleMovDetail(${i},'mm')">
+      <div class="mov-icon-wrap" style="background:${bgI}"><span class="material-icons-round" style="color:${col}">${ico}</span></div>
+      <div class="mov-body"><div class="mov-cat">${m.categoria}</div><div class="mov-sub">${(m.hora||'').substring(0,5)} · ${m.formaPago}</div></div>
+      <div class="mov-amount" style="color:${col}">${isIng?'+':'-'}${fm(m.importe).replace('$ ','')}</div>
+    </div>
+    <div class="mov-detail-box" id="mm${i}">
+      <div class="mov-detail-row"><span>Observación</span><span style="text-align:right;max-width:55%">${m.observacion||'-'}</span></div>
+      <div class="mov-detail-row"><span>Forma de pago</span><span>${m.formaPago||'-'}</span></div>
+      <div class="mov-detail-row"><span>ID</span><span>#${m.id}</span></div>
+    </div>`;
+  }).join('');
 }
-window.dismissAlert = async (id) => {
-    await api("borrarNotificacion", { id });
-    loadAlerts();
+
+window.toggleMovDetail = (i, prefix) => {
+  const el = $(prefix + i);
+  if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
 };
 
-// ========================
-// PDF
-// ========================
-function openPDF() {
-    const sel = $('pdf-prov');
-    if (!sel.options.length) PROVEEDORES.forEach(p => { const o=document.createElement('option'); o.value=o.textContent=p; sel.appendChild(o); });
-    const hoy = new Date().toISOString().split('T')[0];
-    const hace30 = new Date(Date.now()-30*86400000).toISOString().split('T')[0];
-    $('pdf-end').value = hoy; $('pdf-start').value = hace30;
-    $('modal-pdf').classList.add('on');
+// ═══════════════════════════════════════════════════════
+// TAB 3: GESTIÓN
+// ═══════════════════════════════════════════════════════
+function setGestion(name) {
+  currentGestion = name;
+  document.querySelectorAll('#tab3 .seg-wrap .seg-btn').forEach((b, i) => {
+    const names = ['reparto','combustible','empleados','fijos','proveedores'];
+    b.classList.toggle('active', names[i] === name);
+  });
+  ['reparto','combustible','empleados','fijos','proveedores'].forEach(n => {
+    $('g-' + n).style.display = n === name ? 'block' : 'none';
+  });
+  loadGestionContent();
 }
-function closePDF() { $('modal-pdf').classList.remove('on'); }
+
+function loadGestion() {
+  loadGestionContent();
+}
+
+async function loadGestionContent() {
+  if (currentGestion === 'reparto'     && !gestionLoaded.reparto)     await loadGReparto();
+  if (currentGestion === 'combustible' && !gestionLoaded.combustible) await loadGCombustible();
+  if (currentGestion === 'empleados'   && !gestionLoaded.empleados)   await loadGEmpleados();
+  if (currentGestion === 'fijos'       && !gestionLoaded.fijos)       await loadGFijos();
+  if (currentGestion === 'proveedores' && !gestionLoaded.proveedores) await loadGProveedores();
+}
+
+async function loadGReparto() {
+  const data = await api("obtenerHistorialRendiciones", {});
+  const c = $('g-reparto-list');
+  if (!Array.isArray(data) || !data.length) {
+    c.innerHTML = '<div class="empty"><span class="material-icons-round">history</span><span>Sin rendiciones</span></div>';
+    gestionLoaded.reparto = true; return;
+  }
+  c.innerHTML = data.map(r => {
+    const esFalt = r.tipo === 'Faltante';
+    const esSobr = r.tipo === 'Sobrante';
+    const pillCls = esFalt ? 'pill-red' : esSobr ? 'pill-blue' : 'pill-green';
+    const difLabel = esFalt ? `−${fm(Math.abs(r.diferencia))}` : esSobr ? `+${fm(Math.abs(r.diferencia))}` : '✓ Exacto';
+    const fecha = r.fecha ? r.fecha.split('-').reverse().join('/') : '';
+    return `<div class="rend-row">
+      <div class="rend-info">
+        <div class="rend-title">${r.turno} · ${fecha}</div>
+        <div class="rend-sub">${r.repartidor} · Esp: ${fm(r.esperado)} · Cnt: ${fm(r.contado)}</div>
+        <div class="rend-sub" style="margin-top:2px">${r.usuario} · ${r.ts}</div>
+      </div>
+      <span class="pill ${pillCls}" style="flex-shrink:0">${difLabel}</span>
+    </div>`;
+  }).join('');
+  gestionLoaded.reparto = true;
+}
+
+async function loadGCombustible() {
+  if (!weekMovs.length) {
+    const wk = getWeekRange(currentDate);
+    const res = await api("getMovimientosRango", { startDateStr: wk.start, endDateStr: wk.end });
+    weekMovs = res?.ok && res.data ? res.data : [];
+  }
+  let fuelTotal = 0;
+  const byVeh = {};
+  weekMovs.filter(m => m.tipo === 'Egreso' && (m.categoria||'').toLowerCase().includes('combustible')).forEach(m => {
+    const imp = Number(m.importe||0);
+    fuelTotal += imp;
+    const obs = (m.observacion||'').toLowerCase();
+    const vm = obs.match(/\[veh: (.*?)\]/i);
+    let v = vm ? vm[1] : (obs.includes('saveiro') ? 'VW Saveiro' : obs.includes('hiace') ? 'Toyota Hiace' : obs.includes('fiat') ? 'Fiat Uno' : 'Otros');
+    if (!byVeh[v]) byVeh[v] = { count: 0, total: 0 };
+    byVeh[v].count++; byVeh[v].total += imp;
+  });
+  $('fuel-total').textContent = fm(fuelTotal);
+  const c = $('fuel-list');
+  const entries = Object.entries(byVeh);
+  if (!entries.length) {
+    c.innerHTML = '<div class="empty"><span class="material-icons-round">local_gas_station</span><span>Sin cargas esta semana</span></div>';
+    gestionLoaded.combustible = true; return;
+  }
+  c.innerHTML = entries.map(([v, d]) => `
+    <div class="veh-row">
+      <div class="veh-icon"><span class="material-icons-round" style="color:var(--warn);font-size:18px">local_gas_station</span></div>
+      <div style="flex:1"><div class="veh-name">${v}</div><div class="veh-sub">${d.count} carga(s) · semana activa</div></div>
+      <div style="font-weight:800;color:var(--warn)">${fm(d.total)}</div>
+    </div>`).join('');
+  gestionLoaded.combustible = true;
+}
+
+async function loadGEmpleados() {
+  const res = await api("getConfigEmpleados");
+  empleadosData = res?.ok && res.data ? res.data : [];
+  renderEmpleados();
+  gestionLoaded.empleados = true;
+}
+
+function renderEmpleados() {
+  const c = $('g-emp-list');
+  if (!empleadosData.length) { c.innerHTML = '<div class="empty"><span class="material-icons-round">person</span><span>Sin empleados</span></div>'; return; }
+  c.innerHTML = empleadosData.map((e, i) => `
+    <div class="edit-row">
+      <div class="edit-name">${e.nombre}</div>
+      <input class="edit-field" type="number" id="emp-${i}" value="${e.sueldoBase}" inputmode="numeric" onblur="saveEmpleado(${i})">
+    </div>`).join('');
+}
+
+async function saveEmpleado(i) {
+  const e = empleadosData[i];
+  if (!e) return;
+  const newVal = Number($('emp-' + i).value) || 0;
+  if (newVal === e.sueldoBase) return;
+  const res = await api("updateConfigEmpleado", { nombre: e.nombre, sueldoBase: newVal, lastUpdate: todayISO() });
+  if (res?.ok) { empleadosData[i].sueldoBase = newVal; toast(`✓ ${e.nombre} actualizado`); }
+  else toast('Error al guardar');
+}
+
+async function loadGFijos() {
+  const res = await api("getConfigGastosFijos");
+  fijosData = res?.ok && res.data ? res.data : [];
+  renderFijos();
+  gestionLoaded.fijos = true;
+}
+
+function renderFijos() {
+  const c = $('g-fijos-list');
+  const total = fijosData.reduce((s, f) => s + Number(f.montoMensual||0), 0);
+  $('fijos-total').textContent = fm(total);
+  if (!fijosData.length) { c.innerHTML = '<div class="empty"><span class="material-icons-round">home</span><span>Sin gastos fijos</span></div>'; return; }
+  c.innerHTML = fijosData.map((f, i) => `
+    <div class="edit-row">
+      <div class="edit-name">${f.nombre}</div>
+      <input class="edit-field" type="number" id="fijo-${i}" value="${f.montoMensual}" inputmode="numeric" onblur="saveFijo(${i})">
+    </div>`).join('');
+}
+
+async function saveFijo(i) {
+  const f = fijosData[i];
+  if (!f) return;
+  const newVal = Number($('fijo-' + i).value) || 0;
+  if (newVal === f.montoMensual) return;
+  const res = await api("updateConfigGastoFijo", { nombre: f.nombre, montoMensual: newVal, lastUpdate: todayISO() });
+  if (res?.ok) {
+    fijosData[i].montoMensual = newVal;
+    const total = fijosData.reduce((s, f2) => s + Number(f2.montoMensual||0), 0);
+    $('fijos-total').textContent = fm(total);
+    toast(`✓ ${f.nombre} actualizado`);
+  } else toast('Error al guardar');
+}
+
+async function loadGProveedores() {
+  if (!currentMovs.length) {
+    const res = await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
+    currentMovs = Array.isArray(res) ? res : [];
+  }
+  let provTotal = 0;
+  const provList = [];
+  currentMovs.filter(m => m.tipo === 'Egreso' && (m.categoria||'').toLowerCase().includes('proveedor')).forEach(m => {
+    provTotal += Number(m.importe||0);
+    const pm = (m.observacion||'').match(/\[prov: (.*?)\]/i);
+    provList.push({ name: pm ? pm[1] : m.categoria, amount: m.importe, hora: m.hora });
+  });
+  $('prov-total').textContent = fm(provTotal);
+  const c = $('g-prov-list');
+  if (!provList.length) { c.innerHTML = '<div class="empty"><span class="material-icons-round">inventory_2</span><span>Sin pagos a proveedores hoy</span></div>'; gestionLoaded.proveedores = true; return; }
+  c.innerHTML = provList.map(p => `
+    <div class="mov-item">
+      <div class="mov-icon-wrap" style="background:rgba(175,82,222,0.1)"><span class="material-icons-round" style="color:var(--purple)">inventory_2</span></div>
+      <div class="mov-body"><div class="mov-cat">${p.name}</div><div class="mov-sub">${(p.hora||'').substring(0,5)} hs</div></div>
+      <div class="mov-amount" style="color:var(--danger)">-${fm(p.amount).replace('$ ','')}</div>
+    </div>`).join('');
+  gestionLoaded.proveedores = true;
+}
+
+// ADD MODAL
+function openAddModal(mode) {
+  addMode = mode;
+  if (mode === 'empleado') {
+    $('add-sheet-title').textContent = 'Agregar empleado';
+    $('add-name-lbl').textContent    = 'Nombre';
+    $('add-val-lbl').textContent     = 'Sueldo base ($)';
+  } else {
+    $('add-sheet-title').textContent = 'Agregar gasto fijo';
+    $('add-name-lbl').textContent    = 'Nombre';
+    $('add-val-lbl').textContent     = 'Monto mensual ($)';
+  }
+  $('add-name').value = ''; $('add-val').value = '';
+  openSheet('add');
+}
+
+async function confirmAdd() {
+  const nombre = $('add-name').value.trim();
+  const valor  = Number($('add-val').value) || 0;
+  if (!nombre) { toast('Ingresá un nombre'); return; }
+  closeSheet('add');
+  let res;
+  if (addMode === 'empleado') {
+    res = await api("addConfigEmpleado", { nombre, sueldoBase: valor });
+    if (res?.ok) { gestionLoaded.empleados = false; await loadGEmpleados(); toast(`✓ ${nombre} agregado`); }
+    else toast(res?.error || 'Error');
+  } else {
+    res = await api("addConfigGastoFijo", { nombre, montoMensual: valor });
+    if (res?.ok) { gestionLoaded.fijos = false; await loadGFijos(); toast(`✓ ${nombre} agregado`); }
+    else toast(res?.error || 'Error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 4: ALERTAS
+// ═══════════════════════════════════════════════════════
+let allAlerts = [];
+
+async function loadAlertas() {
+  if (alertsLoaded) return;
+  $('alerts-list').innerHTML = '<div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>';
+  const res = await api("getNotificacionesCaja", { soloActivas: true });
+  allAlerts = Array.isArray(res) ? res : [];
+  alertsLoaded = true;
+  renderAlertas();
+  updateAlertBadge();
+}
+
+async function loadAlertaBadge() {
+  const res = await api("getNotificacionesCaja", { soloActivas: true });
+  if (Array.isArray(res)) { allAlerts = res; updateAlertBadge(); }
+}
+
+function updateAlertBadge() {
+  const unread = allAlerts.filter(a => !a.leida && !a.borrada).length;
+  const dot    = $('tab-alert-dot');
+  const badge  = $('hdr-notif-badge');
+  dot.classList.toggle('show', unread > 0);
+  if (unread > 0) {
+    badge.classList.add('show');
+    badge.textContent = unread > 9 ? '9+' : unread;
+  } else { badge.classList.remove('show'); }
+  $('alerts-hdr').textContent = `Notificaciones${unread > 0 ? ` (${unread} sin leer)` : ''}`;
+}
+
+function renderAlertas() {
+  const c = $('alerts-list');
+  const active = allAlerts.filter(a => !a.borrada);
+  if (!active.length) {
+    c.innerHTML = '<div class="empty"><span class="material-icons-round">notifications_none</span><span>Sin notificaciones</span></div>';
+    return;
+  }
+
+  c.innerHTML = active.map(a => {
+    const isHigh = a.severidad === 'ALTA';
+    const isMed  = a.severidad === 'MEDIA';
+    const col    = isHigh ? 'var(--danger)' : isMed ? 'var(--warn)' : 'var(--teal)';
+    const bg     = isHigh ? 'rgba(255,59,48,0.06)' : isMed ? 'rgba(255,149,0,0.06)' : 'rgba(50,173,230,0.06)';
+    const fechaHora = a.fecha ? new Date(a.fecha).toLocaleDateString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+    const unread = !a.leida;
+    return `<div class="alert-item" style="background:${unread ? bg : 'transparent'}">
+      <div class="alert-top">
+        <div style="display:flex;align-items:center;gap:6px;flex:1">
+          ${unread ? `<div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></div>` : ''}
+          <div class="alert-title-text">${a.titulo}</div>
+        </div>
+        <span class="pill" style="background:${bg};color:${col};border:1px solid ${col}33">${a.severidad}</span>
+      </div>
+      <div class="alert-msg">${a.mensaje}</div>
+      <div class="alert-time">${fechaHora}</div>
+      <div class="alert-actions">
+        ${!a.leida ? `<button class="alert-btn alert-btn-read" onclick="markRead(${a.id})">Marcar leída</button>` : ''}
+        <button class="alert-btn alert-btn-del" onclick="deleteAlert(${a.id})">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.markRead = async (id) => {
+  await api("marcarNotificacionLeida", { id });
+  const a = allAlerts.find(x => x.id === id);
+  if (a) { a.leida = true; renderAlertas(); updateAlertBadge(); }
+};
+window.deleteAlert = async (id) => {
+  await api("borrarNotificacion", { id });
+  const a = allAlerts.find(x => x.id === id);
+  if (a) { a.borrada = true; renderAlertas(); updateAlertBadge(); }
+};
+
+// ═══════════════════════════════════════════════════════
+// PUSH NOTIFICATIONS
+// ═══════════════════════════════════════════════════════
+function setupPushNotifications() {
+  const wrap = $('push-card-wrap');
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) { wrap.style.display = 'none'; return; }
+  if (Notification.permission === 'granted') { wrap.style.display = 'none'; return; }
+  if (Notification.permission === 'denied')  { wrap.style.display = 'none'; return; }
+
+  wrap.innerHTML = `
+    <div class="push-card" style="margin-bottom:0">
+      <div class="push-icon">🔔</div>
+      <div class="push-body">
+        <div class="push-title">Activá las notificaciones</div>
+        <div class="push-sub">Recibí alertas cuando llegue una rendición o se registre un faltante.</div>
+        <button class="push-enable-btn" onclick="requestPush()">Activar</button>
+      </div>
+    </div>
+    <div style="height:14px"></div>`;
+}
+
+async function requestPush() {
+  if (!('Notification' in window)) return;
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    $('push-card-wrap').style.display = 'none';
+    toast('✓ Notificaciones activadas');
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      // Para push real necesitás una clave VAPID — ver sw.js para instrucciones
+      // const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: VAPID_PUBLIC_KEY });
+      // Guardar sub en tu servidor para recibir push desde GAS
+    } catch(e) { console.log('Push subscribe:', e); }
+  } else {
+    $('push-card-wrap').style.display = 'none';
+    toast('Notificaciones no habilitadas');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// MODALES
+// ═══════════════════════════════════════════════════════
+function openCalSheet() { openSheet('cal'); }
+function confirmCal() {
+  const v = $('cal-input').value;
+  if (!v) return;
+  closeSheet('cal');
+  const wk = setCurrentDate(v);
+  weekMovs = [];
+  semanaLoaded = false;
+  gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:false, proveedores:false };
+  if (currentTab === 0) loadInicio();
+  if (currentTab === 1) loadSemana();
+  if (currentTab === 2) loadMovimientos();
+}
+
+function populatePDFSelect() {
+  const sel = $('pdf-prov');
+  sel.innerHTML = PROVEEDORES.map(p => `<option value="${p}">${p}</option>`).join('');
+  const hoy = todayISO();
+  const hace30 = new Date(hoy + 'T12:00:00');
+  hace30.setDate(hace30.getDate() - 30);
+  $('pdf-from').value = hace30.toISOString().split('T')[0];
+  $('pdf-to').value   = hoy;
+}
+
+function openPDFSheet() { openSheet('pdf'); }
 
 async function generatePDF() {
-    const prov = $('pdf-prov').value, start = $('pdf-start').value, end = $('pdf-end').value;
-    if (!start||!end) return;
-    const btn = $('pdf-btn');
-    btn.innerHTML = '<span class="material-icons-round spin">sync</span> Procesando...';
-    btn.disabled = true;
+  const prov  = $('pdf-prov').value;
+  const from  = $('pdf-from').value;
+  const to    = $('pdf-to').value;
+  if (!from || !to) { toast('Elegí fechas'); return; }
+  closeSheet('pdf');
+  toast('Generando PDF...');
+  const res = await api("getMovimientosRango", { startDateStr: from, endDateStr: to });
+  const movs2 = (res?.ok && res.data) ? res.data : [];
+  const filtrados = movs2.filter(m => {
+    const obs = (m.observacion||'').toLowerCase();
+    const cat = (m.categoria||'').toLowerCase();
+    return (obs.includes('[prov: ' + prov.toLowerCase() + ']') || cat.includes(prov.toLowerCase())) && m.tipo === 'Egreso';
+  });
+  if (!filtrados.length) { toast('Sin movimientos para ese proveedor'); return; }
 
-    const res = await api("getMovimientosRango", {startDateStr:start, endDateStr:end});
-    btn.innerHTML = '<span class="material-icons-round">download</span> Descargar PDF';
-    btn.disabled = false;
-    if (!res?.ok) return;
-
-    const provLC = prov.toLowerCase();
-    const pagos = res.data.filter(m => {
-        if (m.tipo !== 'Egreso') return false;
-        const cat = (m.categoria||"").toLowerCase(), obs = (m.observacion||"").toLowerCase(), p = (m.proveedor||"").toLowerCase();
-        return cat.includes('proveedor') && (p.includes(provLC) || obs.includes(provLC));
-    });
-    if (!pagos.length) { alert(`Sin pagos a "${prov}" en ese período`); return; }
-
-    buildPDF(prov, start, end, pagos);
-    closePDF();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  doc.setFontSize(14); doc.setFont(undefined,'bold');
+  doc.text(`Reporte de Proveedor: ${prov}`, 14, 18);
+  doc.setFontSize(10); doc.setFont(undefined,'normal');
+  doc.text(`Período: ${from.split('-').reverse().join('/')} al ${to.split('-').reverse().join('/')}`, 14, 26);
+  const total = filtrados.reduce((s,m) => s + Number(m.importe||0), 0);
+  doc.text(`Total: ${fm(total)}`, 14, 32);
+  doc.autoTable({
+    startY: 38,
+    head: [['Fecha','Importe','Observación']],
+    body: filtrados.map(m => [ m.fecha.split('-').reverse().join('/'), fm(m.importe), m.observacion||'' ]),
+    styles: { fontSize: 9 }, headStyles: { fillColor: [0,122,255] }
+  });
+  doc.save(`Proveedor_${prov}_${from}_${to}.pdf`);
+  toast('✓ PDF descargado');
 }
-
-function buildPDF(prov, start, end, pagos) {
-    window.jsPDF = window.jspdf.jsPDF;
-    const doc = new jsPDF('p','mm','a4');
-    const fmt = iso => { const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
-    let total = 0;
-    const rows = pagos.slice().reverse().map(p => {
-        const imp = parseInt(p.importe)||0; total += imp;
-        let det = p.observacion||"-";
-        if (p.formaPago==='Cheque') det=`Ch. ${p.banco||''} #${p.nroCheque||''}`;
-        else if (p.formaPago==='Banco') det='Transferencia';
-        return [fmt((p.fecha||"").split('T')[0]), (p.hora||"").substring(0,5), p.formaPago, det.substring(0,40), "$ "+imp.toLocaleString('es-AR')];
-    });
-    doc.setFillColor(15,23,42); doc.rect(0,0,210,38,'F');
-    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(20);
-    doc.text("MERCADO LIMPIO",14,22);
-    doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.text("Reporte de Pagos a Proveedores",14,30);
-    doc.setTextColor(50,50,50); doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.text("CUENTA CORRIENTE",14,52);
-    doc.setFontSize(10); doc.setFont("helvetica","normal");
-    doc.text(`Proveedor:`,14,62); doc.setFont("helvetica","bold"); doc.text(prov.toUpperCase(),38,62);
-    doc.setFont("helvetica","normal"); doc.text(`Período:`,14,69); doc.setFont("helvetica","bold"); doc.text(`${fmt(start)} — ${fmt(end)}`,32,69);
-    doc.autoTable({ startY:78, head:[['Fecha','Hora','Pago','Detalle','Importe']], body:rows, theme:'striped', headStyles:{fillColor:[59,130,246],textColor:255,fontStyle:'bold'}, styles:{fontSize:9,cellPadding:4}, columnStyles:{0:{cellWidth:24},1:{cellWidth:14},2:{cellWidth:26},3:{cellWidth:'auto'},4:{cellWidth:30,halign:'right',fontStyle:'bold'}} });
-    const fy = doc.lastAutoTable.finalY+12;
-    doc.setFillColor(241,245,249); doc.rect(120,fy-8,76,18,'F');
-    doc.setFontSize(11); doc.setTextColor(50,50,50); doc.text("Total:",126,fy);
-    doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(16,185,129);
-    doc.text("$ "+total.toLocaleString('es-AR'),150,fy);
-    doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(160,160,160);
-    doc.text("Documento generado por el sistema de gestión de Mercado Limpio.",14,282);
-    doc.save(`ML_Pagos_${prov.replace(/\s/g,'')}.pdf`);
-}
-
-// ========================
-// REFRESH
-// ========================
-async function refresh() {
-    const ico = $('fab-icon'); ico.classList.add('spin');
-    chartsLoaded = false;
-    setDate(currentDate);
-    if (currentScreen === 8) loadAlerts();
-    setTimeout(() => ico.classList.remove('spin'), 700);
-}
-
-// Init loads for static screens
-document.addEventListener("DOMContentLoaded", () => {
-    fetchGastosFijos();
-    fetchEmpleados();
-});
 </script>
 </body>
 </html>
