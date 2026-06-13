@@ -192,7 +192,7 @@
         .balance-status { position: relative; font-size: 0.7rem; margin-top: 10px; opacity: 0.7; }
 
         /* --- ARQUEO & BILLETES --- */
-        .arqueo-header-card { background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%); border-radius: 24px; padding: 25px; margin: 15px; text-align: center; color: #fff; box-shadow: 0 10px 25px rgba(255, 154, 158, 0.4); position: relative; border: 4px solid white; }
+        .arqueo-header-card { background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%); border-radius: 0 0 24px 24px; padding: 20px 25px; margin: 0 0 15px 0; text-align: center; color: #fff; box-shadow: 0 6px 20px rgba(255, 154, 158, 0.5); position: sticky; top: 60px; z-index: 20; border: 4px solid white; border-top: none; }
 
         /* 🔥 BADGE DE MODO ARQUEO 🔥 */
         .arqueo-mode-badge {
@@ -636,8 +636,8 @@
                 <div class="spinner" style="margin:0 auto 20px auto;"></div>
                 <div style="font-weight:700; color:var(--text-light);">Buscando planillas...</div>
             </div>
-            <div id="card-rendicion-data" class="card" style="display:none; border-top: 5px solid var(--primary);">
-                <div style="background:#f0f2ff; padding:15px; border-radius:12px; border-left:4px solid var(--primary); margin-bottom:20px; font-size:0.95rem; line-height:1.5; color:var(--text-main);">
+            <div id="card-rendicion-data" class="card" style="display:none; border-top: 5px solid var(--primary); position:sticky; top:60px; z-index:20; margin-bottom:0; border-radius:0 0 24px 24px; border-left:none; border-right:none; border-bottom:none;">
+                <div style="background:#f0f2ff; padding:12px 15px; border-radius:12px; border-left:4px solid var(--primary); margin-bottom:14px; font-size:0.9rem; line-height:1.4; color:var(--text-main);">
                     <span id="rendicion-narrativa"></span>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
