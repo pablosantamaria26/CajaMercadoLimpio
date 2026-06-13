@@ -728,7 +728,7 @@ function toast(msg, duration = 2200) {
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 200); }, duration);
 }
 
-function openSheet(id) { $(id).classList.add('open'); }
+function openSheet(id) { $('sheet-' + id).classList.add('open'); }
 function closeSheet(id) { $('sheet-' + id).classList.remove('open'); }
 
 // ═══════════════════════════════════════════════════════
