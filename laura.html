@@ -798,9 +798,9 @@
             <h2 style="font-size:1.3rem;font-weight:800;color:var(--text-main);margin:0 0 4px 0;">💼 Haberes</h2>
             <p style="font-size:0.8rem;color:#888;margin:0 0 14px 0;">Gestión de sueldos y comisiones</p>
             <div class="mov-nav" style="justify-content:center;margin-bottom:16px;">
-                <button onclick="haberesChangeMes(-1)" class="nav-arrow"><span class="material-icons-round">chevron_left</span></button>
-                <span id="haberes-periodo-label" style="font-weight:800;font-size:0.95rem;color:var(--text-main);min-width:140px;text-align:center;"></span>
-                <button onclick="haberesChangeMes(1)" class="nav-arrow"><span class="material-icons-round">chevron_right</span></button>
+                <button onclick="haberesChangeWeek(-1)" class="nav-arrow"><span class="material-icons-round">chevron_left</span></button>
+                <span id="haberes-periodo-label" style="font-weight:800;font-size:0.95rem;color:var(--text-main);min-width:160px;text-align:center;"></span>
+                <button onclick="haberesChangeWeek(1)" class="nav-arrow"><span class="material-icons-round">chevron_right</span></button>
             </div>
             <div id="haberes-emp-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
         </div>
@@ -857,9 +857,13 @@
         // --- HABERES STATE ---
         const HABERES_EMPS_BACKUP = ["Tomas", "Martín", "Laura", "Nicolás", "Ramiro", "Patricio"];
         const HABERES_CON_COMISION = ["Martín", "Ramiro"];
-        const MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-        let haberesYear = new Date().getFullYear();
-        let haberesMes  = new Date().getMonth() + 1;
+        function getHaberesLunes(ref) {
+            const d = new Date(ref); d.setHours(0,0,0,0);
+            const dia = d.getDay();
+            d.setDate(d.getDate() - dia + (dia === 0 ? -6 : 1));
+            return d;
+        }
+        let haberesWeekStart = getHaberesLunes(new Date()); // lunes de la semana actual
         let haberesEmpActual    = null;
         let haberesAdelantosData = [];
         let haberesConfigEmp    = null;
@@ -899,13 +903,24 @@
             
             document.getElementById('mov-categoria').addEventListener('change', (e) => {
                 checkCamposExtra();
-                if(e.target.value === "Pago de Haberes") verificarAdelantosSemana();
-                if(e.target.value === "Combustible") checkFuelWarningFlow(); // 🔥 NEW: Check Fuel
+                if(e.target.value === "Pago de Haberes") {
+                    verificarAdelantosSemana();
+                    const empSel = document.getElementById('mov-empleado').value;
+                    if (empSel) { haberesWeekStart = getHaberesLunes(new Date()); abrirModalHaberes(empSel); }
+                }
+                if(e.target.value === "Combustible") checkFuelWarningFlow();
             });
-            document.getElementById('mov-vehiculo').addEventListener('change', checkFuelWarningFlow); // 🔥 NEW: Check Fuel
+            document.getElementById('mov-vehiculo').addEventListener('change', checkFuelWarningFlow);
             document.getElementById('mov-tipo').addEventListener('change', actualizarCategorias);
             document.getElementById('mov-pago').addEventListener('change', checkChequeFields);
-            document.getElementById('mov-empleado').addEventListener('change', calcularPagoHaberes);
+            document.getElementById('mov-empleado').addEventListener('change', (e) => {
+                calcularPagoHaberes();
+                const cat = document.getElementById('mov-categoria').value;
+                if (cat === "Pago de Haberes" && e.target.value) {
+                    haberesWeekStart = getHaberesLunes(new Date());
+                    abrirModalHaberes(e.target.value);
+                }
+            });
             document.getElementById('mov-cheque-cartera').addEventListener('change', seleccionarChequeCartera);
 
             initSelects(); 
@@ -1693,16 +1708,15 @@
         }
 
         async function verificarAdelantosSemana() {
-            // Reemplazado: una sola llamada a Supabase por el mes completo (antes hacía 1 call/día por GAS → 20+ seg)
+            // 1 sola llamada Supabase: lunes de esta semana → hoy (igual lógica que GAS)
             showLoading("Verificando Pagos...");
             try {
-                const hoy = new Date();
-                const y = hoy.getFullYear();
-                const m = String(hoy.getMonth() + 1).padStart(2, '0');
-                const d = String(hoy.getDate()).padStart(2, '0');
-                const from = `${y}-${m}-01`;
-                const to   = `${y}-${m}-${d}`;
-                const res = await fetch(`${API_URL}sb/movimientos?from=${from}&to=${to}`);
+                const pad = n => String(n).padStart(2,'0');
+                const hoy   = new Date();
+                const lunes = getHaberesLunes(hoy);
+                const from  = `${lunes.getFullYear()}-${pad(lunes.getMonth()+1)}-${pad(lunes.getDate())}`;
+                const to    = `${hoy.getFullYear()}-${pad(hoy.getMonth()+1)}-${pad(hoy.getDate())}`;
+                const res  = await fetch(`${API_URL}sb/movimientos?from=${from}&to=${to}`);
                 const data = await res.json();
                 deudasSemanalGlobal = {};
                 if (data?.ok && Array.isArray(data.data)) {
@@ -2538,19 +2552,24 @@
         // HABERES
         // ═══════════════════════════════════════════════
 
+        function haberesSemanLabel() {
+            const pad = n => String(n).padStart(2,'0');
+            const lun = haberesWeekStart;
+            const vie = new Date(lun.getTime() + 4 * 864e5);
+            return `Sem. ${pad(lun.getDate())}/${pad(lun.getMonth()+1)} — ${pad(vie.getDate())}/${pad(vie.getMonth()+1)}`;
+        }
+
         function haberesInit() {
+            haberesWeekStart = getHaberesLunes(new Date()); // siempre arranca en semana actual
             const lbl = document.getElementById('haberes-periodo-label');
-            if (lbl) lbl.textContent = `${MESES_ES[haberesMes-1]} ${haberesYear}`;
+            if (lbl) lbl.textContent = haberesSemanLabel();
             haberesRenderGrid();
         }
 
-        function haberesChangeMes(delta) {
-            haberesMes += delta;
-            if (haberesMes < 1) { haberesMes = 12; haberesYear--; }
-            if (haberesMes > 12) { haberesMes = 1;  haberesYear++; }
+        function haberesChangeWeek(delta) {
+            haberesWeekStart = new Date(haberesWeekStart.getTime() + delta * 7 * 864e5);
             const lbl = document.getElementById('haberes-periodo-label');
-            if (lbl) lbl.textContent = `${MESES_ES[haberesMes-1]} ${haberesYear}`;
-            haberesRenderGrid();
+            if (lbl) lbl.textContent = haberesSemanLabel();
         }
 
         function haberesRenderGrid() {
@@ -2580,9 +2599,10 @@
             document.getElementById('modal-haberes-content').innerHTML = `<div style="text-align:center;padding:40px 0;color:#aaa;font-size:0.9rem;">Cargando adelantos...</div>`;
             try {
                 const pad = n => String(n).padStart(2,'0');
-                const from = `${haberesYear}-${pad(haberesMes)}-01`;
-                const lastDay = new Date(haberesYear, haberesMes, 0).getDate();
-                const to   = `${haberesYear}-${pad(haberesMes)}-${pad(lastDay)}`;
+                const lun = haberesWeekStart;
+                const dom = new Date(lun.getTime() + 6 * 864e5); // domingo = fin de semana
+                const from = `${lun.getFullYear()}-${pad(lun.getMonth()+1)}-${pad(lun.getDate())}`;
+                const to   = `${dom.getFullYear()}-${pad(dom.getMonth()+1)}-${pad(dom.getDate())}`;
                 const res  = await fetch(`${API_URL}sb/movimientos?from=${from}&to=${to}`);
                 const data = await res.json();
                 if (data?.ok && Array.isArray(data.data)) {
@@ -2606,7 +2626,7 @@
             const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
             const neto          = sueldoBase - totalAdelantos;
             const tieneComision = HABERES_CON_COMISION.some(n => n.toLowerCase() === nombre.toLowerCase());
-            const mesLabel      = `${MESES_ES[haberesMes-1]} ${haberesYear}`;
+            const mesLabel      = haberesSemanLabel();
 
             const adelantosHTML = haberesAdelantosData.length === 0
                 ? `<p style="color:#aaa;text-align:center;font-size:0.82rem;margin:0;">Sin adelantos registrados</p>`
@@ -2701,7 +2721,7 @@
             const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
             const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
             const neto           = sueldoBase - totalAdelantos;
-            const mesLabel       = `${MESES_ES[haberesMes-1]} ${haberesYear}`;
+            const mesLabel       = haberesSemanLabel();
             const tieneComision  = HABERES_CON_COMISION.some(n => n.toLowerCase() === nombre.toLowerCase());
             const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
 
@@ -2739,7 +2759,7 @@
             if (neto <= 0) { showToast("El neto es $0 — verificá el sueldo base", false); return; }
             const tieneComision  = HABERES_CON_COMISION.some(n => n.toLowerCase() === nombre.toLowerCase());
             const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
-            const mesLabel = `${MESES_ES[haberesMes-1]} ${haberesYear}`;
+            const mesLabel = haberesSemanLabel();
             const hoy = new Date();
             const pad = n => String(n).padStart(2,'0');
             const fechaStr = `${hoy.getFullYear()}-${pad(hoy.getMonth()+1)}-${pad(hoy.getDate())}T12:00:00`;
