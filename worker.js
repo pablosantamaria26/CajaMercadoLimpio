@@ -103,13 +103,15 @@ async function syncMovimiento(env, params, gasRes) {
 }
 
 async function syncArqueo(env, params, gasRes) {
-  if (!gasRes?.resultado) return;
+  // GAS devuelve { ok: true, diferencia: X } — no "resultado"
+  if (!gasRes?.ok) return;
   try {
     const { fecha, hora } = arNow();
     const nextId = await sbMaxId(env, "arqueos_caja") + 1;
-    const efSis  = Number(gasRes.saldoSistema || 0);
     const efFis  = Number(params.efectivoFisico);
-    const dif    = efFis - efSis;
+    // GAS calcula la diferencia internamente y la devuelve; el sistema = físico - diferencia
+    const dif    = Number(gasRes.diferencia ?? 0);
+    const efSis  = efFis - dif;
     const res    = dif === 0 ? "OK" : dif > 0 ? "Sobrante" : "Faltante";
     await sbInsert(env, "arqueos_caja", {
       id:               nextId,
@@ -122,6 +124,21 @@ async function syncArqueo(env, params, gasRes) {
       hora_cierre:      `${fecha}T${hora}`,
       monitor:          params.monitorData || null,
     });
+    // También registrar el Ajuste Post-Arqueo en movimientos_caja cuando hay diferencia
+    if (dif !== 0) {
+      const movId = await sbMaxId(env, "movimientos_caja") + 1;
+      await sbInsert(env, "movimientos_caja", {
+        id:          movId,
+        fecha:       fecha,
+        hora:        hora,
+        tipo:        dif > 0 ? "Ingreso" : "Egreso",
+        forma_pago:  "Efectivo",
+        importe:     Math.abs(dif),
+        categoria:   "Ajuste Post-Arqueo",
+        usuario:     params.usuario || "Laura",
+        observacion: `Ajuste auto arqueo`,
+      });
+    }
   } catch { /* silencioso */ }
 }
 
