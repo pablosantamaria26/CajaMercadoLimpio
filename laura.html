@@ -853,7 +853,8 @@
 
         // --- HABERES STATE ---
         const HABERES_EMPS_BACKUP = ["Tomas", "Martín", "Laura", "Nicolás", "Ramiro", "Patricio"];
-        const HABERES_CON_COMISION = ["Martín", "Ramiro"];
+        const HABERES_CON_COMISION = ["martin", "ramiro"]; // sin tildes para comparación segura
+        const normNombre = s => (s || "").normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
         function getHaberesLunes(ref) {
             const d = new Date(ref); d.setHours(0,0,0,0);
             const dia = d.getDay();
@@ -2622,7 +2623,7 @@
             const sueldoBase    = Number(haberesConfigEmp?.sueldoBase || 0);
             const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
             const neto          = sueldoBase - totalAdelantos;
-            const tieneComision = HABERES_CON_COMISION.some(n => n.toLowerCase() === nombre.toLowerCase());
+            const tieneComision = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
             const mesLabel      = haberesSemanLabel();
 
             const adelantosHTML = haberesAdelantosData.length === 0
@@ -2719,7 +2720,7 @@
             const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
             const neto           = sueldoBase - totalAdelantos;
             const mesLabel       = haberesSemanLabel();
-            const tieneComision  = HABERES_CON_COMISION.some(n => n.toLowerCase() === nombre.toLowerCase());
+            const tieneComision  = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
             const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
 
             let msg = `💼 *PAGO DE HABERES — ${nombre.toUpperCase()}*\n`;
@@ -2752,7 +2753,7 @@
             const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
             const neto           = sueldoBase - totalAdelantos;
             if (neto <= 0) { showToast("El neto es $0 — verificá el sueldo base", false); return; }
-            const tieneComision  = HABERES_CON_COMISION.some(n => n.toLowerCase() === nombre.toLowerCase());
+            const tieneComision  = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
             const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
             const mesLabel = haberesSemanLabel();
             const hoy = new Date();

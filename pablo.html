@@ -758,11 +758,13 @@ function mapArqueo(data) {
   };
 }
 function computeBancos(hoyMovs, mesMovs) {
-  // Solo INGRESOS por banco/transferencia (cobros de Nico, MP, etc. — no pagos a proveedores)
-  const isBancoIng = m => m.tipo === 'Ingreso' && ['banco', 'transferencia'].includes((m.formaPago || m.forma_pago || '').toLowerCase());
-  const hoyB = hoyMovs.filter(isBancoIng);
-  const totalDia = hoyB.reduce((s, m) => s + Number(m.importe || 0), 0);
-  const totalMes = Array.isArray(mesMovs) ? mesMovs.filter(isBancoIng).reduce((s, m) => s + Number(m.importe || 0), 0) : 0;
+  const isBanco = m => ['banco', 'transferencia'].includes((m.formaPago || m.forma_pago || '').toLowerCase());
+  const hoyB      = hoyMovs.filter(isBanco);
+  const hoyIng    = hoyB.filter(m => m.tipo === 'Ingreso');
+  const totalDia  = hoyIng.reduce((s, m) => s + Number(m.importe || 0), 0);
+  const totalMes  = Array.isArray(mesMovs)
+    ? mesMovs.filter(m => isBanco(m) && m.tipo === 'Ingreso').reduce((s, m) => s + Number(m.importe || 0), 0)
+    : 0;
   return { ok: true, totalDia, cantidadDia: hoyB.length, totalMes };
 }
 
@@ -1019,7 +1021,7 @@ function renderInicioMovs() {
       <div class="mov-body"><div class="mov-cat">${m.categoria}</div><div class="mov-sub">${(m.hora||'').substring(0,5)} · ${m.formaPago}</div></div>
       <div class="mov-amount" style="color:${col}">${ing2?'+':'-'}${fm(m.importe).replace('$ ','')}</div>
     </div>
-    <div class="mov-detail-box" id="im${i}"><div class="mov-detail-row"><span>Obs.</span><span>${m.observacion||'-'}</span></div><div class="mov-detail-row"><span>ID</span><span>#${m.id}</span></div></div>`;
+    <div class="mov-detail-box" id="im${i}"><div class="mov-detail-row"><span>Obs.</span><span>${m.observacion||'-'}</span></div><div class="mov-detail-row"><span>ID</span><span>#${m.id}</span></div><button onclick="openEditMov(${m.id})" style="width:100%;margin-top:10px;padding:11px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✎ Editar movimiento</button></div>`;
   }).join('');
 }
 
@@ -1453,14 +1455,19 @@ async function loadGCombustible() {
 
 async function fetchIPC() {
   try {
-    const r = await fetch('https://apis.datos.gob.ar/series/api/series/?ids=101.1_I2N_2016_M_22&limit=2&sort=desc&format=json');
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch('https://apis.datos.gob.ar/series/api/series/?ids=101.1_I2N_2016_M_22&limit=5&sort=desc&format=json', { signal: ctrl.signal });
+    clearTimeout(tid);
     const d = await r.json();
-    if (Array.isArray(d?.data) && d.data.length >= 2) {
-      const curr = d.data[0][1], prev = d.data[1][1];
+    // filter out null-value entries (INDEC sometimes has a pending period)
+    const pts = Array.isArray(d?.data) ? d.data.filter(p => p[1] != null) : [];
+    if (pts.length >= 2) {
+      const curr = pts[0][1], prev = pts[1][1];
       const pct  = ((curr - prev) / prev * 100).toFixed(1);
-      const parts = (d.data[0][0] || '').split('-');
+      const parts = (pts[0][0] || '').split('-');
       const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-      const fecha = parts.length >= 2 ? `${meses[parseInt(parts[1])]} ${parts[0]}` : d.data[0][0];
+      const fecha = parts.length >= 2 ? `${meses[parseInt(parts[1])]} ${parts[0]}` : pts[0][0];
       return { pct: Number(pct), fecha, ok: true };
     }
   } catch {}
@@ -1490,9 +1497,19 @@ function renderEmpleados() {
   if (!empleadosData.length) { c.innerHTML = '<div class="empty"><span class="material-icons-round">person</span><span>Sin empleados</span></div>'; return; }
   c.innerHTML = empleadosData.map((e, i) => `
     <div class="edit-row">
-      <div class="edit-name" style="font-size:14px;font-weight:600;">${e.nombre}</div>
+      <input class="edit-field" id="empnombre-${i}" value="${e.nombre}" style="font-size:14px;font-weight:600;flex:1.4;color:var(--text1);" onblur="saveEmpleadoNombre(${i})">
       <input class="edit-field" type="number" id="emp-${i}" value="${e.sueldoBase}" inputmode="numeric" onblur="saveEmpleado(${i})">
     </div>`).join('');
+}
+
+async function saveEmpleadoNombre(i) {
+  const e = empleadosData[i];
+  if (!e) return;
+  const nuevoNombre = ($('empnombre-' + i).value || '').trim();
+  if (!nuevoNombre || nuevoNombre === e.nombre) return;
+  const res = await api("renombrarEmpleado", { oldNombre: e.nombre, nombre: nuevoNombre, lastUpdate: todayISO() });
+  if (res?.ok) { empleadosData[i].nombre = nuevoNombre; toast(`✓ Renombrado a ${nuevoNombre}`); }
+  else { $('empnombre-' + i).value = e.nombre; toast(res?.error || 'Error al renombrar'); }
 }
 
 async function saveEmpleado(i) {
