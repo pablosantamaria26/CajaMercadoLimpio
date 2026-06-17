@@ -814,9 +814,6 @@
         <a href="#" class="nav-item" onclick="showScreen('rendicion', this)">
             <span class="material-icons-round nav-icon">receipt_long</span> <span>Rendición</span>
         </a>
-        <a href="#" class="nav-item" onclick="showScreen('haberes', this)">
-            <span class="material-icons-round nav-icon">payments</span> <span>Haberes</span>
-        </a>
         <!-- 🔥 BOTÓN ARQUEO DISTINTIVO 🔥 -->
         <a href="#" class="nav-item nav-item-arqueo" onclick="showScreen('arqueo', this)">
             <span class="material-icons-round nav-icon">pie_chart</span> <span>Arqueo</span>
@@ -2734,8 +2731,6 @@
                     msg += `   • ${mv.fecha}: $${Number(mv.importe).toLocaleString('es-AR')}\n`;
                 });
                 msg += `   *Total adelantos: $${totalAdelantos.toLocaleString('es-AR')}*\n`;
-            } else {
-                msg += `✅ Sin adelantos este mes\n`;
             }
             msg += `\n💵 *Neto Sueldo: $${neto.toLocaleString('es-AR')}*`;
             msg += `  (${_hfpSueldo})`;
