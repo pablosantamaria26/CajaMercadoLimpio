@@ -485,9 +485,23 @@
         </div>
       </div>
 
-      <!-- Empleados -->
+      <!-- Empleados / Haberes -->
       <div id="g-empleados" class="section" style="display:none">
-        <div class="section-hdr">Sueldos base</div>
+        <div class="section-hdr">Haberes — Gestión</div>
+        <!-- IPC INDEC banner -->
+        <div id="g-ipc-banner" style="background:rgba(255,149,0,0.08);border:1.5px solid rgba(255,149,0,0.2);border-radius:14px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">IPC INDEC — último dato</div>
+            <div style="font-size:26px;font-weight:800;color:var(--warn);line-height:1.1;" id="ipc-val">…</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px;" id="ipc-fecha">Cargando...</div>
+          </div>
+          <span class="material-icons-round" style="font-size:36px;color:rgba(255,149,0,0.25);">trending_up</span>
+        </div>
+        <!-- Ajuste % global -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;">
+          <input type="number" id="pct-ajuste" placeholder="% de aumento" class="sheet-input" style="flex:1;margin-bottom:0;" inputmode="decimal" step="0.1" min="0" max="300">
+          <button onclick="aplicarAjustePct()" style="padding:12px 16px;background:var(--success);color:white;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;">Aplicar a todos</button>
+        </div>
         <div class="card" id="g-emp-list">
           <div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>
         </div>
@@ -626,6 +640,7 @@
     <label class="sheet-input-lbl">Forma de pago</label>
     <select class="sheet-input" id="edit-forma-pago">
       <option value="Efectivo">Efectivo</option>
+      <option value="Transferencia">Transferencia</option>
       <option value="Cheque">Cheque</option>
       <option value="Banco">Banco</option>
     </select>
@@ -743,10 +758,11 @@ function mapArqueo(data) {
   };
 }
 function computeBancos(hoyMovs, mesMovs) {
-  const isBanco = m => ['banco', 'transferencia'].includes((m.formaPago || m.forma_pago || '').toLowerCase());
-  const hoyB = hoyMovs.filter(isBanco);
+  // Solo INGRESOS por banco/transferencia (cobros de Nico, MP, etc. — no pagos a proveedores)
+  const isBancoIng = m => m.tipo === 'Ingreso' && ['banco', 'transferencia'].includes((m.formaPago || m.forma_pago || '').toLowerCase());
+  const hoyB = hoyMovs.filter(isBancoIng);
   const totalDia = hoyB.reduce((s, m) => s + Number(m.importe || 0), 0);
-  const totalMes = Array.isArray(mesMovs) ? mesMovs.filter(isBanco).reduce((s, m) => s + Number(m.importe || 0), 0) : 0;
+  const totalMes = Array.isArray(mesMovs) ? mesMovs.filter(isBancoIng).reduce((s, m) => s + Number(m.importe || 0), 0) : 0;
   return { ok: true, totalDia, cantidadDia: hoyB.length, totalMes };
 }
 
@@ -899,13 +915,14 @@ async function loadInicio() {
   const cached = cacheGet('inicio_' + currentDate);
   if (cached) renderInicioData(cached);
 
-  const mesStart = currentDate.substring(0, 8) + '01';
+  const today    = todayISO();
+  const mesStart = today.substring(0, 8) + '01';
   const [cajaSaldo, sbArqueo, movsR, rendsR, mesMovsR] = await Promise.all([
-    sb('saldo'),                                            // Supabase — saldo acumulado (~150ms)
+    sb('saldo'),
     sb(`arqueos?fecha=${currentDate}`),
     sb(`movimientos?fecha=${currentDate}`),
     sb(`rendiciones?limit=40`),
-    sb(`movimientos?from=${mesStart}&to=${currentDate}`),
+    sb(`movimientos?from=${mesStart}&to=${today}`),  // siempre mes actual → hoy real
   ]);
 
   const movs  = movsR?.ok  ? movsR.data  : await api("getMovimientos", { fechaStr: currentDate + "T12:00:00" });
@@ -1319,8 +1336,8 @@ async function confirmEditMov() {
   const res = await api("editarMovimientoCaja", params);
   if (res?.ok) {
     const idx = currentMovs.findIndex(m => Number(m.id) === Number(editMovId));
-    if (idx !== -1) currentMovs[idx] = { ...currentMovs[idx], ...params, forma_pago: params.formaPago };
-    renderMovimientosTab2();
+    if (idx !== -1) currentMovs[idx] = { ...currentMovs[idx], ...params, formaPago: params.formaPago, forma_pago: params.formaPago };
+    renderMovsList();
     toast('✓ Movimiento actualizado');
   } else {
     toast(res?.error || 'Error al guardar');
@@ -1340,7 +1357,7 @@ async function doDeleteMov() {
   const res = await api("eliminarMovimientoCaja", { id });
   if (res?.ok) {
     currentMovs = currentMovs.filter(m => Number(m.id) !== Number(id));
-    renderMovimientosTab2();
+    renderMovsList();
     toast('✓ Movimiento eliminado');
   } else {
     toast(res?.error || 'Error al eliminar');
@@ -1434,9 +1451,36 @@ async function loadGCombustible() {
   gestionLoaded.combustible = true;
 }
 
+async function fetchIPC() {
+  try {
+    const r = await fetch('https://apis.datos.gob.ar/series/api/series/?ids=101.1_I2N_2016_M_22&limit=2&sort=desc&format=json');
+    const d = await r.json();
+    if (Array.isArray(d?.data) && d.data.length >= 2) {
+      const curr = d.data[0][1], prev = d.data[1][1];
+      const pct  = ((curr - prev) / prev * 100).toFixed(1);
+      const parts = (d.data[0][0] || '').split('-');
+      const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const fecha = parts.length >= 2 ? `${meses[parseInt(parts[1])]} ${parts[0]}` : d.data[0][0];
+      return { pct: Number(pct), fecha, ok: true };
+    }
+  } catch {}
+  return { ok: false };
+}
+
 async function loadGEmpleados() {
-  const res = await api("getConfigEmpleados");
+  const [res, ipc] = await Promise.all([api("getConfigEmpleados"), fetchIPC()]);
   empleadosData = res?.ok && res.data ? res.data : [];
+  // Render IPC banner
+  const bannerValEl  = $('ipc-val');
+  const bannerFechaEl = $('ipc-fecha');
+  if (ipc.ok && bannerValEl) {
+    bannerValEl.textContent  = `${ipc.pct > 0 ? '+' : ''}${ipc.pct}%`;
+    bannerFechaEl.textContent = `Inflación mensual — ${ipc.fecha}`;
+    bannerValEl.style.color = ipc.pct > 5 ? 'var(--danger)' : 'var(--warn)';
+  } else if (bannerValEl) {
+    bannerValEl.textContent   = 'N/D';
+    bannerFechaEl.textContent = 'No disponible';
+  }
   renderEmpleados();
   gestionLoaded.empleados = true;
 }
@@ -1446,7 +1490,7 @@ function renderEmpleados() {
   if (!empleadosData.length) { c.innerHTML = '<div class="empty"><span class="material-icons-round">person</span><span>Sin empleados</span></div>'; return; }
   c.innerHTML = empleadosData.map((e, i) => `
     <div class="edit-row">
-      <div class="edit-name">${e.nombre}</div>
+      <div class="edit-name" style="font-size:14px;font-weight:600;">${e.nombre}</div>
       <input class="edit-field" type="number" id="emp-${i}" value="${e.sueldoBase}" inputmode="numeric" onblur="saveEmpleado(${i})">
     </div>`).join('');
 }
@@ -1457,8 +1501,26 @@ async function saveEmpleado(i) {
   const newVal = Number($('emp-' + i).value) || 0;
   if (newVal === e.sueldoBase) return;
   const res = await api("updateConfigEmpleado", { nombre: e.nombre, sueldoBase: newVal, lastUpdate: todayISO() });
-  if (res?.ok) { empleadosData[i].sueldoBase = newVal; toast(`✓ ${e.nombre} actualizado`); }
-  else toast('Error al guardar');
+  if (res?.ok) { empleadosData[i].sueldoBase = newVal; toast(`✓ ${e.nombre} → ${fm(newVal)}`); }
+  else { $('emp-' + i).value = e.sueldoBase; toast('Error al guardar'); }
+}
+
+async function aplicarAjustePct() {
+  const pct = parseFloat($('pct-ajuste').value);
+  if (isNaN(pct) || pct <= 0 || pct > 300) { toast('Ingresá un % válido (ej: 5.5)'); return; }
+  if (!empleadosData.length) { toast('Cargá los empleados primero'); return; }
+  toast('Aplicando aumento...');
+  let ok = 0, err = 0;
+  for (let i = 0; i < empleadosData.length; i++) {
+    const e = empleadosData[i];
+    const newVal = Math.round(e.sueldoBase * (1 + pct / 100));
+    const res = await api("updateConfigEmpleado", { nombre: e.nombre, sueldoBase: newVal, lastUpdate: todayISO() });
+    if (res?.ok) { empleadosData[i].sueldoBase = newVal; ok++; }
+    else err++;
+  }
+  $('pct-ajuste').value = '';
+  renderEmpleados();
+  toast(`✓ ${ok} empleado(s) con +${pct}%${err ? ` · ${err} errores` : ''}`);
 }
 
 async function loadGFijos() {
