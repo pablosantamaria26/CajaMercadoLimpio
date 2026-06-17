@@ -284,6 +284,15 @@
         .fecha-chip { background:none; border:1.5px solid var(--primary); border-radius:20px; padding:4px 14px; font-family:Quicksand; font-weight:700; font-size:0.76rem; cursor:pointer; color:var(--primary); }
         .fecha-chip:active, .fecha-chip.active { background:var(--primary); color:white; border-color:var(--primary); }
 
+        /* --- HABERES --- */
+        .haberes-emp-card { background:#fff; border:2px solid #e8e8e8; border-radius:16px; padding:16px 12px; text-align:center; cursor:pointer; transition:all 0.2s; }
+        .haberes-emp-card:active { transform:scale(0.96); border-color:var(--primary); }
+        .haberes-emp-card .emp-avatar { width:52px; height:52px; border-radius:50%; background:linear-gradient(135deg,var(--primary),#a29bfe); display:flex; align-items:center; justify-content:center; font-size:1.4rem; font-weight:800; color:white; margin:0 auto 8px auto; }
+        .haberes-emp-card .emp-name { font-weight:800; font-size:0.9rem; color:var(--text-main); }
+        .haberes-emp-card .emp-sub { font-size:0.75rem; color:#aaa; margin-top:2px; }
+        .hfp-btn { flex:1; padding:10px 6px; border:2px solid #e0e0e0; border-radius:12px; background:#fff; font-family:Quicksand; font-weight:700; font-size:0.82rem; cursor:pointer; transition:all 0.2s; color:#888; }
+        .hfp-btn.selected { border-color:var(--primary); background:var(--primary); color:white; }
+
         /* --- ZEN STATE --- */
         .zen-state { text-align: center; padding: 40px 20px; }
         .zen-icon { font-size: 80px; color: var(--success); margin-bottom: 20px; animation: popIn 0.8s; }
@@ -783,6 +792,20 @@
         </div>
     </div>
 
+    <!-- SCREEN HABERES -->
+    <div id="screen-haberes" class="screen" style="padding-bottom:90px;">
+        <div style="padding:16px 16px 0 16px;">
+            <h2 style="font-size:1.3rem;font-weight:800;color:var(--text-main);margin:0 0 4px 0;">💼 Haberes</h2>
+            <p style="font-size:0.8rem;color:#888;margin:0 0 14px 0;">Gestión de sueldos y comisiones</p>
+            <div class="mov-nav" style="justify-content:center;margin-bottom:16px;">
+                <button onclick="haberesChangeMes(-1)" class="nav-arrow"><span class="material-icons-round">chevron_left</span></button>
+                <span id="haberes-periodo-label" style="font-weight:800;font-size:0.95rem;color:var(--text-main);min-width:140px;text-align:center;"></span>
+                <button onclick="haberesChangeMes(1)" class="nav-arrow"><span class="material-icons-round">chevron_right</span></button>
+            </div>
+            <div id="haberes-emp-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
+        </div>
+    </div>
+
     <!-- NAVBAR -->
     <nav class="bottom-nav">
         <a href="#" class="nav-item active" onclick="showScreen('caja', this)">
@@ -790,6 +813,9 @@
         </a>
         <a href="#" class="nav-item" onclick="showScreen('rendicion', this)">
             <span class="material-icons-round nav-icon">receipt_long</span> <span>Rendición</span>
+        </a>
+        <a href="#" class="nav-item" onclick="showScreen('haberes', this)">
+            <span class="material-icons-round nav-icon">payments</span> <span>Haberes</span>
         </a>
         <!-- 🔥 BOTÓN ARQUEO DISTINTIVO 🔥 -->
         <a href="#" class="nav-item nav-item-arqueo" onclick="showScreen('arqueo', this)">
@@ -827,7 +853,19 @@
         let rendicionPendiente = null; 
         let configEmpleadosGlobal = [];
         let deudasSemanalGlobal = {};
-        
+
+        // --- HABERES STATE ---
+        const HABERES_EMPS_BACKUP = ["Tomas", "Martín", "Laura", "Nicolás", "Ramiro", "Patricio"];
+        const HABERES_CON_COMISION = ["Martín", "Ramiro"];
+        const MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+        let haberesYear = new Date().getFullYear();
+        let haberesMes  = new Date().getMonth() + 1;
+        let haberesEmpActual    = null;
+        let haberesAdelantosData = [];
+        let haberesConfigEmp    = null;
+        let _hfpSueldo   = 'Efectivo';
+        let _hfpComision = 'Efectivo';
+
         // 🔥 GLOBAL: CHEQUES CARTERA 🔥
         let chequesCarteraGlobal = [];
         let idChequeSeleccionado = null; 
@@ -1061,8 +1099,11 @@
                 calcBilletes('arq'); 
             } else if (id === 'rendicion') {
                 bottomNav.style.display = 'flex';
-                monitor.reset(); 
-                buscarRendicionPendiente(); 
+                monitor.reset();
+                buscarRendicionPendiente();
+            } else if (id === 'haberes') {
+                bottomNav.style.display = 'flex';
+                haberesInit();
             } else {
                 bottomNav.style.display = 'flex';
             }
@@ -1274,9 +1315,9 @@
                 else totalOut += Number(m.importe);
             });
             lista.innerHTML = `<li class="mov-totales">
-                <span style="color:var(--success);">+ $ ${totalIn.toLocaleString('es-AR')}</span>
+                <span style="color:var(--success);">+ $ ${totalIn.toLocaleString('es-AR')}</span>
                 <span style="color:#ccc;font-size:0.7rem;font-weight:600;">BALANCE</span>
-                <span style="color:var(--accent);">- $ ${totalOut.toLocaleString('es-AR')}</span>
+                <span style="color:var(--accent);">- $ ${totalOut.toLocaleString('es-AR')}</span>
             </li>`;
 
             todos.forEach(m => {
@@ -1291,7 +1332,7 @@
                             ${obs}
                         </div>
                         <div style="text-align:right;">
-                            <div class="${esIngreso ? 'amount-in' : 'amount-out'}">${esIngreso ? '+' : '-'} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
+                            <div class="${esIngreso ? 'amount-in' : 'amount-out'}">${esIngreso ? '+' : '-'} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
                             ${syncBadge}
                         </div>
                     </li>`;
@@ -1645,35 +1686,39 @@
                     const opt = document.createElement('option'); opt.value = emp.nombre; opt.textContent = emp.nombre; select.appendChild(opt);
                 });
             } else {
-                const BACKUP_EMPS = ["Nicolás", "Laura", "Ignacio", "Martín", "Lucas", "Tomas"];
+                const BACKUP_EMPS = ["Tomas", "Martín", "Laura", "Nicolás", "Ramiro", "Patricio"];
                 select.innerHTML = '<option value="" disabled selected>Empleado</option>';
                 BACKUP_EMPS.forEach(x => { const opt = document.createElement('option'); opt.value = x; opt.textContent = x; select.appendChild(opt); }); 
             }
         }
 
         async function verificarAdelantosSemana() {
+            // Reemplazado: una sola llamada a Supabase por el mes completo (antes hacía 1 call/día por GAS → 20+ seg)
             showLoading("Verificando Pagos...");
-            const hoy = new Date();
-            const diaSemana = hoy.getDay(); 
-            const diffLunes = hoy.getDate() - diaSemana + (diaSemana == 0 ? -6 : 1);
-            const lunes = new Date(hoy.setDate(diffLunes));
-            const fechas = [];
-            for (let d = new Date(lunes); d <= new Date(); d.setDate(d.getDate() + 1)) fechas.push(d.toISOString().split('T')[0]);
-            deudasSemanalGlobal = {}; 
-            for (const f of fechas) {
-                const res = await api("getMovimientos", { fechaStr: f + "T12:00:00" });
-                if (res && res.length > 0) {
-                    res.forEach(m => {
-                        if (m.categoria && m.categoria.includes("Adelanto de Sueldo")) {
-                            const match = m.observacion.match(/\[(.*?)\]/);
+            try {
+                const hoy = new Date();
+                const y = hoy.getFullYear();
+                const m = String(hoy.getMonth() + 1).padStart(2, '0');
+                const d = String(hoy.getDate()).padStart(2, '0');
+                const from = `${y}-${m}-01`;
+                const to   = `${y}-${m}-${d}`;
+                const res = await fetch(`${API_URL}sb/movimientos?from=${from}&to=${to}`);
+                const data = await res.json();
+                deudasSemanalGlobal = {};
+                if (data?.ok && Array.isArray(data.data)) {
+                    data.data.forEach(mv => {
+                        if (mv.categoria && mv.categoria.includes("Adelanto de Sueldo")) {
+                            const match = (mv.observacion || "").match(/\[(.*?)\]/);
                             if (match && match[1]) {
-                                const nombre = match[1].trim(); const monto = parseInt(m.importe) || 0;
-                                if (!deudasSemanalGlobal[nombre]) deudasSemanalGlobal[nombre] = 0; deudasSemanalGlobal[nombre] += monto;
+                                const nombre = match[1].trim();
+                                const monto  = Number(mv.importe) || 0;
+                                if (!deudasSemanalGlobal[nombre]) deudasSemanalGlobal[nombre] = 0;
+                                deudasSemanalGlobal[nombre] += monto;
                             }
                         }
                     });
                 }
-            }
+            } catch(e) { /* deudasSemanalGlobal queda vacío — no bloquea */ }
             hideLoading();
             const nombres = Object.keys(deudasSemanalGlobal);
             if (nombres.length > 0) showToast(`ℹ️ ${nombres.length} empleados con adelantos.`, true);
@@ -2488,7 +2533,253 @@
             dHtml += `<div style="text-align:center;margin-top:12px;"><button onclick="marcarRendicionYaProcesada()" style="background:none;border:none;color:#bbb;font-size:0.75rem;cursor:pointer;font-family:Quicksand;text-decoration:underline;">¿Ya fue procesada antes? Ocultarla</button></div>`;
             desgEl.innerHTML = dHtml;
         }
+
+        // ═══════════════════════════════════════════════
+        // HABERES
+        // ═══════════════════════════════════════════════
+
+        function haberesInit() {
+            const lbl = document.getElementById('haberes-periodo-label');
+            if (lbl) lbl.textContent = `${MESES_ES[haberesMes-1]} ${haberesYear}`;
+            haberesRenderGrid();
+        }
+
+        function haberesChangeMes(delta) {
+            haberesMes += delta;
+            if (haberesMes < 1) { haberesMes = 12; haberesYear--; }
+            if (haberesMes > 12) { haberesMes = 1;  haberesYear++; }
+            const lbl = document.getElementById('haberes-periodo-label');
+            if (lbl) lbl.textContent = `${MESES_ES[haberesMes-1]} ${haberesYear}`;
+            haberesRenderGrid();
+        }
+
+        function haberesRenderGrid() {
+            const grid = document.getElementById('haberes-emp-grid');
+            if (!grid) return;
+            const emps = configEmpleadosGlobal.length > 0
+                ? configEmpleadosGlobal.map(e => e.nombre)
+                : HABERES_EMPS_BACKUP;
+            grid.innerHTML = emps.map(nombre => {
+                const ini = nombre.charAt(0).toUpperCase();
+                return `<div class="haberes-emp-card" onclick="abrirModalHaberes('${nombre.replace(/'/g,"\\'")}')">
+                    <div class="emp-avatar">${ini}</div>
+                    <div class="emp-name">${nombre}</div>
+                    <div class="emp-sub">Ver haberes</div>
+                </div>`;
+            }).join('');
+        }
+
+        async function abrirModalHaberes(nombre) {
+            haberesEmpActual     = nombre;
+            haberesAdelantosData = [];
+            _hfpSueldo   = 'Efectivo';
+            _hfpComision = 'Efectivo';
+            haberesConfigEmp = configEmpleadosGlobal.find(e => e.nombre.toLowerCase() === nombre.toLowerCase()) || { nombre, sueldoBase: 0 };
+            const modal = document.getElementById('modal-haberes');
+            modal.style.display = 'flex';
+            document.getElementById('modal-haberes-content').innerHTML = `<div style="text-align:center;padding:40px 0;color:#aaa;font-size:0.9rem;">Cargando adelantos...</div>`;
+            try {
+                const pad = n => String(n).padStart(2,'0');
+                const from = `${haberesYear}-${pad(haberesMes)}-01`;
+                const lastDay = new Date(haberesYear, haberesMes, 0).getDate();
+                const to   = `${haberesYear}-${pad(haberesMes)}-${pad(lastDay)}`;
+                const res  = await fetch(`${API_URL}sb/movimientos?from=${from}&to=${to}`);
+                const data = await res.json();
+                if (data?.ok && Array.isArray(data.data)) {
+                    haberesAdelantosData = data.data.filter(mv => {
+                        if (!mv.categoria || !mv.categoria.includes("Adelanto de Sueldo")) return false;
+                        const match = (mv.observacion || "").match(/\[(.*?)\]/);
+                        return match && match[1].trim().toLowerCase() === nombre.toLowerCase();
+                    });
+                }
+            } catch(e) { /* datos vacíos — modal muestra igualmente */ }
+            haberesRenderModal();
+        }
+
+        function cerrarModalHaberes() {
+            document.getElementById('modal-haberes').style.display = 'none';
+        }
+
+        function haberesRenderModal() {
+            const nombre        = haberesEmpActual;
+            const sueldoBase    = Number(haberesConfigEmp?.sueldoBase || 0);
+            const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
+            const neto          = sueldoBase - totalAdelantos;
+            const tieneComision = HABERES_CON_COMISION.some(n => n.toLowerCase() === nombre.toLowerCase());
+            const mesLabel      = `${MESES_ES[haberesMes-1]} ${haberesYear}`;
+
+            const adelantosHTML = haberesAdelantosData.length === 0
+                ? `<p style="color:#aaa;text-align:center;font-size:0.82rem;margin:0;">Sin adelantos registrados</p>`
+                : haberesAdelantosData.map(mv =>
+                    `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:0.82rem;">
+                        <span style="color:#555;">📅 ${mv.fecha} ${(mv.hora||'').substring(0,5)}</span>
+                        <span style="font-weight:800;color:#e17055;">- $${Number(mv.importe).toLocaleString('es-AR')}</span>
+                    </div>`
+                ).join('');
+
+            document.getElementById('modal-haberes-content').innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                    <h3 style="margin:0;font-size:1.1rem;color:var(--primary);">💼 ${nombre}</h3>
+                    <button onclick="cerrarModalHaberes()" style="background:none;border:none;cursor:pointer;font-size:1.5rem;color:#aaa;line-height:1;">✕</button>
+                </div>
+                <p style="text-align:center;font-size:0.78rem;color:#888;margin:0 0 12px 0;">📅 ${mesLabel}</p>
+
+                <div style="background:#f8f9ff;border-radius:14px;padding:12px 14px;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                        <span style="font-weight:700;font-size:0.85rem;color:#555;">💰 Sueldo Base</span>
+                        <span style="font-weight:900;color:var(--text-main);">$${sueldoBase.toLocaleString('es-AR')}</span>
+                    </div>
+                    <div style="border-top:1px solid #e8e8ff;padding-top:8px;margin-top:4px;">
+                        <p style="font-size:0.78rem;font-weight:700;color:#888;margin:0 0 6px 0;">Adelantos descontados:</p>
+                        ${adelantosHTML}
+                        ${totalAdelantos > 0 ? `<div style="display:flex;justify-content:space-between;padding-top:6px;margin-top:4px;">
+                            <span style="font-size:0.82rem;font-weight:700;color:#e17055;">Total adelantos</span>
+                            <span style="font-weight:900;color:#e17055;">- $${totalAdelantos.toLocaleString('es-AR')}</span>
+                        </div>` : ''}
+                    </div>
+                </div>
+
+                <div style="background:linear-gradient(135deg,var(--primary),#a29bfe);border-radius:14px;padding:14px;margin-bottom:14px;text-align:center;">
+                    <p style="margin:0;font-size:0.72rem;color:rgba(255,255,255,0.8);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Neto a pagar (sueldo)</p>
+                    <p style="margin:4px 0 0 0;font-size:1.6rem;font-weight:900;color:white;">$${neto.toLocaleString('es-AR')}</p>
+                </div>
+
+                <p style="font-size:0.8rem;font-weight:700;color:#555;margin:0 0 6px 0;">Forma de pago — Sueldo:</p>
+                <div style="display:flex;gap:8px;margin-bottom:16px;">
+                    <button class="hfp-btn selected" id="hfp-sueldo-ef" onclick="haberesSelFP('sueldo','Efectivo')">💵 Efectivo</button>
+                    <button class="hfp-btn" id="hfp-sueldo-tr" onclick="haberesSelFP('sueldo','Transferencia')">📲 Transferencia</button>
+                </div>
+
+                ${tieneComision ? `
+                <div style="background:#fff8e1;border-radius:14px;padding:12px 14px;margin-bottom:10px;">
+                    <p style="font-size:0.8rem;font-weight:700;color:#856404;margin:0 0 8px 0;">✨ Comisión (manual)</p>
+                    <input id="haberes-com-input" type="number" placeholder="Monto comisión" inputmode="numeric"
+                        style="width:100%;box-sizing:border-box;border:2px solid #ffc107;border-radius:10px;padding:10px 12px;font-size:1rem;font-family:Quicksand;font-weight:700;outline:none;background:white;"
+                        oninput="haberesUpdateTotal()">
+                </div>
+                <p style="font-size:0.8rem;font-weight:700;color:#555;margin:0 0 6px 0;">Forma de pago — Comisión:</p>
+                <div style="display:flex;gap:8px;margin-bottom:14px;">
+                    <button class="hfp-btn selected" id="hfp-com-ef" onclick="haberesSelFP('comision','Efectivo')">💵 Efectivo</button>
+                    <button class="hfp-btn" id="hfp-com-tr" onclick="haberesSelFP('comision','Transferencia')">📲 Transferencia</button>
+                </div>
+                <div style="background:#f0fff4;border-radius:14px;padding:12px 14px;margin-bottom:14px;text-align:center;">
+                    <p style="margin:0;font-size:0.72rem;color:#555;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Total (sueldo + comisión)</p>
+                    <p style="margin:4px 0 0 0;font-size:1.4rem;font-weight:900;color:var(--success);" id="haberes-total-lbl">$${neto.toLocaleString('es-AR')}</p>
+                </div>` : ''}
+
+                <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;padding-bottom:20px;">
+                    <button onclick="copiarHaberesWhatsApp()" style="width:100%;padding:13px;border:2px solid var(--primary);border-radius:14px;background:white;color:var(--primary);font-weight:800;font-size:0.9rem;font-family:Quicksand;cursor:pointer;">📋 Copiar para WhatsApp</button>
+                    <button onclick="registrarPagoHaberes()" style="width:100%;padding:13px;border:none;border-radius:14px;background:var(--primary);color:white;font-weight:800;font-size:0.9rem;font-family:Quicksand;cursor:pointer;">✅ Registrar Pago en Caja</button>
+                </div>
+            `;
+        }
+
+        function haberesSelFP(tipo, valor) {
+            if (tipo === 'sueldo') {
+                _hfpSueldo = valor;
+                document.getElementById('hfp-sueldo-ef').classList.toggle('selected', valor === 'Efectivo');
+                document.getElementById('hfp-sueldo-tr').classList.toggle('selected', valor === 'Transferencia');
+            } else {
+                _hfpComision = valor;
+                document.getElementById('hfp-com-ef').classList.toggle('selected', valor === 'Efectivo');
+                document.getElementById('hfp-com-tr').classList.toggle('selected', valor === 'Transferencia');
+            }
+        }
+
+        function haberesUpdateTotal() {
+            const lbl = document.getElementById('haberes-total-lbl');
+            if (!lbl) return;
+            const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
+            const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
+            const neto = sueldoBase - totalAdelantos;
+            const com  = Number(document.getElementById('haberes-com-input')?.value) || 0;
+            lbl.textContent = '$' + (neto + com).toLocaleString('es-AR');
+        }
+
+        async function copiarHaberesWhatsApp() {
+            const nombre         = haberesEmpActual;
+            const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
+            const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
+            const neto           = sueldoBase - totalAdelantos;
+            const mesLabel       = `${MESES_ES[haberesMes-1]} ${haberesYear}`;
+            const tieneComision  = HABERES_CON_COMISION.some(n => n.toLowerCase() === nombre.toLowerCase());
+            const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
+
+            let msg = `💼 *PAGO DE HABERES — ${nombre.toUpperCase()}*\n`;
+            msg += `📅 Período: ${mesLabel}\n\n`;
+            msg += `💰 Sueldo Base: $${sueldoBase.toLocaleString('es-AR')}\n`;
+            if (haberesAdelantosData.length > 0) {
+                msg += `➖ Adelantos descontados:\n`;
+                haberesAdelantosData.forEach(mv => {
+                    msg += `   • ${mv.fecha}: $${Number(mv.importe).toLocaleString('es-AR')}\n`;
+                });
+                msg += `   *Total adelantos: $${totalAdelantos.toLocaleString('es-AR')}*\n`;
+            } else {
+                msg += `✅ Sin adelantos este mes\n`;
+            }
+            msg += `\n💵 *Neto Sueldo: $${neto.toLocaleString('es-AR')}*`;
+            msg += `  (${_hfpSueldo})`;
+            if (tieneComision && com > 0) {
+                msg += `\n✨ *Comisión: $${com.toLocaleString('es-AR')}*  (${_hfpComision})`;
+                msg += `\n\n📊 *TOTAL A COBRAR: $${(neto + com).toLocaleString('es-AR')}*`;
+            } else {
+                msg += `\n\n📊 *TOTAL: $${neto.toLocaleString('es-AR')}*`;
+            }
+            try {
+                await navigator.clipboard.writeText(msg);
+                showToast("✅ ¡Copiado! Pegalo en WhatsApp", true);
+            } catch { showToast("No se pudo copiar", false); }
+        }
+
+        async function registrarPagoHaberes() {
+            const nombre         = haberesEmpActual;
+            const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
+            const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
+            const neto           = sueldoBase - totalAdelantos;
+            if (neto <= 0) { showToast("El neto es $0 — verificá el sueldo base", false); return; }
+            const tieneComision  = HABERES_CON_COMISION.some(n => n.toLowerCase() === nombre.toLowerCase());
+            const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
+            const mesLabel = `${MESES_ES[haberesMes-1]} ${haberesYear}`;
+            const hoy = new Date();
+            const pad = n => String(n).padStart(2,'0');
+            const fechaStr = `${hoy.getFullYear()}-${pad(hoy.getMonth()+1)}-${pad(hoy.getDate())}T12:00:00`;
+
+            showLoading("Registrando pago...");
+            try {
+                const obsBase = totalAdelantos > 0
+                    ? `[${nombre}] Sueldo ${mesLabel} | Base $${sueldoBase.toLocaleString('es-AR')} - Adelantos $${totalAdelantos.toLocaleString('es-AR')}`
+                    : `[${nombre}] Pago de Haberes ${mesLabel}`;
+                const r1 = await api("registrarMovimientoCaja", {
+                    tipo: "Egreso", formaPago: _hfpSueldo,
+                    importe: neto, categoria: "Pago de Haberes",
+                    observacion: obsBase, fechaStr, usuario: USUARIO_APP,
+                });
+                if (!r1?.ok) { hideLoading(); showToast("Error al registrar sueldo", false); return; }
+                if (com > 0) {
+                    const r2 = await api("registrarMovimientoCaja", {
+                        tipo: "Egreso", formaPago: _hfpComision,
+                        importe: com, categoria: "Pago de Haberes",
+                        observacion: `[${nombre}] Comisión ${mesLabel}`,
+                        fechaStr, usuario: USUARIO_APP,
+                    });
+                    if (!r2?.ok) { hideLoading(); showToast("Sueldo OK pero error en comisión", false); return; }
+                }
+                hideLoading();
+                cerrarModalHaberes();
+                showToast(`✅ Pago registrado — $${(neto + com).toLocaleString('es-AR')}`, true);
+            } catch(e) {
+                hideLoading();
+                showToast("Error al registrar", false);
+            }
+        }
     </script>
+
+    <!-- MODAL HABERES -->
+    <div id="modal-haberes" onclick="if(event.target===this)cerrarModalHaberes()" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:9000;justify-content:center;align-items:flex-end;box-sizing:border-box;">
+        <div id="modal-haberes-inner" style="background:white;width:100%;max-width:500px;border-radius:24px 24px 0 0;padding:20px;max-height:90vh;overflow-y:auto;box-shadow:0 -4px 40px rgba(0,0,0,0.18);">
+            <div id="modal-haberes-content"></div>
+        </div>
+    </div>
 
     <!-- MODAL RENDICION COMPLETA -->
     <div id="modal-rendicion-completa" onclick="if(event.target===this)cerrarModalRendicionCompleta()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); z-index:8000; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px 15px; box-sizing:border-box;">
