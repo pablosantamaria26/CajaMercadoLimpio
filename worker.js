@@ -129,6 +129,7 @@ async function syncRendicion(env, params, gasRes) {
   if (!gasRes?.ok) return;
   try {
     const { fecha, hora } = arNow();
+    const fechaMov   = params.fechaStr?.split("T")[0] || fecha;
     const nextId     = await sbMaxId(env, "rendiciones_caja") + 1;
     const contado    = Number(params.efectivoContado);
     const esperado   = Number(params.efectivoEsperado);
@@ -136,7 +137,7 @@ async function syncRendicion(env, params, gasRes) {
     const tipoDif    = dif === 0 ? "Exacto" : dif > 0 ? "Sobrante" : "Faltante";
     await sbInsert(env, "rendiciones_caja", {
       id:                nextId,
-      fecha:             params.fechaStr?.split("T")[0] || fecha,
+      fecha:             fechaMov,
       turno:             params.turno,
       repartidor:        params.repartidor,
       efectivo_esperado: esperado,
@@ -147,6 +148,37 @@ async function syncRendicion(env, params, gasRes) {
       hora_rendicion:    `${fecha}T${hora}`,
       notas:             {},
     });
+
+    // También registrar en movimientos_caja para que Supabase esté completo
+    const movId1 = await sbMaxId(env, "movimientos_caja") + 1;
+    await sbInsert(env, "movimientos_caja", {
+      id:          movId1,
+      fecha:       fechaMov,
+      hora:        hora,
+      tipo:        "Ingreso",
+      forma_pago:  "Efectivo",
+      importe:     esperado,
+      categoria:   "Rendición Reparto - BASE",
+      repartidor:  params.repartidor || null,
+      turno:       params.turno || null,
+      usuario:     "Sistema",
+      observacion: `Base Rendición ${params.repartidor} (${params.turno})`,
+    });
+
+    if (dif !== 0) {
+      const movId2 = await sbMaxId(env, "movimientos_caja") + 1;
+      await sbInsert(env, "movimientos_caja", {
+        id:          movId2,
+        fecha:       fechaMov,
+        hora:        hora,
+        tipo:        dif > 0 ? "Ingreso" : "Egreso",
+        forma_pago:  "Efectivo",
+        importe:     Math.abs(dif),
+        categoria:   "Diferencia Rendición - Ajuste",
+        usuario:     "Sistema",
+        observacion: `Ajuste automático ${dif > 0 ? "Sobrante" : "Faltante"} ${params.repartidor}`,
+      });
+    }
   } catch { /* silencioso */ }
 }
 
@@ -253,6 +285,32 @@ async function handleSb(request, env, url, cors) {
     const data  = await r.json();
     if (!Array.isArray(data)) return json({ error: "Error Supabase", detail: data }, 502, cors);
     return json({ ok: true, data }, 200, cors);
+  }
+
+  // ── backfill: inserta movimientos de rendición que GAS no sincronizó ──
+  if (seg === "backfill-rendiciones") {
+    if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
+    const svcKey = env.SUPABASE_SERVICE_KEY;
+    if (!svcKey) return json({ error: "Sin clave de servicio" }, 500, cors);
+    const wH = { ...sbWriteH(svcKey), "Prefer": "resolution=ignore-duplicates,return=minimal" };
+    const movs = [
+      { id: 2071, fecha: "2026-06-16", hora: "06:49:51", tipo: "Ingreso", forma_pago: "Efectivo", importe: 485939,  categoria: "Rendición Reparto - BASE",    repartidor: "Nico", turno: "Mañana", usuario: "Sistema", observacion: "Base Rendición Nico (Mañana)" },
+      { id: 2072, fecha: "2026-06-16", hora: "06:49:51", tipo: "Ingreso", forma_pago: "Efectivo", importe: 61,      categoria: "Diferencia Rendición - Ajuste", usuario: "Sistema", observacion: "Ajuste automático Sobrante Nico" },
+      { id: 2073, fecha: "2026-06-17", hora: "14:25:22", tipo: "Ingreso", forma_pago: "Efectivo", importe: 1016394, categoria: "Rendición Reparto - BASE",    repartidor: "Nico", turno: "Mañana", usuario: "Sistema", observacion: "Base Rendición Nico (Mañana)" },
+      { id: 2074, fecha: "2026-06-17", hora: "14:25:22", tipo: "Ingreso", forma_pago: "Efectivo", importe: 6,       categoria: "Diferencia Rendición - Ajuste", usuario: "Sistema", observacion: "Ajuste automático Sobrante Nico" },
+    ];
+    const results = [];
+    for (const mov of movs) {
+      try {
+        const r = await fetch(`${SB_URL}/movimientos_caja`, {
+          method: "POST", headers: wH, body: JSON.stringify(mov),
+        });
+        results.push({ id: mov.id, ok: r.ok, status: r.status });
+      } catch (e) {
+        results.push({ id: mov.id, ok: false, error: e.toString() });
+      }
+    }
+    return json({ ok: true, results }, 200, cors);
   }
 
   return json({ error: `Ruta /sb/${seg} no encontrada` }, 404, cors);
