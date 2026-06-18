@@ -3,6 +3,8 @@
  *
  * POST /          → proxy al GAS + doble escritura a Supabase
  * GET  /sb/*      → lectura directa de Supabase (~150ms)
+ * POST /sb/sincronizar-rendiciones?from=YYYY-MM-DD&to=YYYY-MM-DD
+ *                 → detecta rendiciones sin movimiento y los crea
  *
  * Secrets (Cloudflare dashboard → Settings → Variables):
  *   SUPABASE_ANON_KEY    — lectura pública (SELECT)
@@ -42,6 +44,15 @@ function arNow() {
   };
 }
 
+/**
+ * Genera un ID único sin necesidad de leer la DB.
+ * Formato: Unix-ms (13 dígitos) + 3 dígitos random = bigint de 16 dígitos.
+ * Elimina la race condition del sbMaxId anterior.
+ */
+function genId() {
+  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+}
+
 // ── Supabase helpers ─────────────────────────────────────────────
 function sbWriteH(key) {
   return {
@@ -55,24 +66,20 @@ function sbReadH(key) {
   return { "apikey": key, "Authorization": `Bearer ${key}` };
 }
 
-async function sbMaxId(env, table) {
-  try {
-    const r = await fetch(`${SB_URL}/${table}?select=id&order=id.desc&limit=1`, {
-      headers: sbReadH(env.SUPABASE_ANON_KEY),
-    });
-    const rows = await r.json();
-    return Array.isArray(rows) && rows[0] ? Number(rows[0].id) : 0;
-  } catch { return 0; }
-}
-
+/**
+ * Inserta en Supabase. Lanza Error si el HTTP status no es 2xx,
+ * para que las funciones sync puedan loguear el problema.
+ */
 async function sbInsert(env, table, data) {
-  try {
-    await fetch(`${SB_URL}/${table}`, {
-      method:  "POST",
-      headers: sbWriteH(env.SUPABASE_SERVICE_KEY),
-      body:    JSON.stringify(data),
-    });
-  } catch { /* fire-and-forget, no bloquear */ }
+  const r = await fetch(`${SB_URL}/${table}`, {
+    method:  "POST",
+    headers: sbWriteH(env.SUPABASE_SERVICE_KEY),
+    body:    JSON.stringify(data),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => "");
+    throw new Error(`sbInsert(${table}) HTTP ${r.status}: ${detail.slice(0, 200)}`);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -83,9 +90,8 @@ async function syncMovimiento(env, params, gasRes) {
   if (!gasRes?.ok) return;
   try {
     const { fecha, hora } = arNow();
-    const nextId = await sbMaxId(env, "movimientos_caja") + 1;
     await sbInsert(env, "movimientos_caja", {
-      id:          nextId,
+      id:          genId(),
       fecha:       params.fechaStr?.split("T")[0] || fecha,
       hora:        hora,
       tipo:        params.tipo,
@@ -99,22 +105,22 @@ async function syncMovimiento(env, params, gasRes) {
       usuario:     params.usuario      || "Laura",
       observacion: params.observacion  || null,
     });
-  } catch { /* silencioso */ }
+  } catch (e) {
+    console.error("[syncMovimiento]", e.message);
+  }
 }
 
 async function syncArqueo(env, params, gasRes) {
-  // GAS devuelve { ok: true, diferencia: X } — no "resultado"
   if (!gasRes?.ok) return;
   try {
     const { fecha, hora } = arNow();
-    const nextId = await sbMaxId(env, "arqueos_caja") + 1;
-    const efFis  = Number(params.efectivoFisico);
-    // GAS calcula la diferencia internamente y la devuelve; el sistema = físico - diferencia
-    const dif    = Number(gasRes.diferencia ?? 0);
-    const efSis  = efFis - dif;
-    const res    = dif === 0 ? "OK" : dif > 0 ? "Sobrante" : "Faltante";
+    const efFis = Number(params.efectivoFisico);
+    const dif   = Number(gasRes.diferencia ?? 0);
+    const efSis = efFis - dif;
+    const res   = dif === 0 ? "OK" : dif > 0 ? "Sobrante" : "Faltante";
+
     await sbInsert(env, "arqueos_caja", {
-      id:               nextId,
+      id:               genId(),
       fecha:            fecha,
       usuario:          params.usuario || "Laura",
       efectivo_fisico:  efFis,
@@ -124,11 +130,10 @@ async function syncArqueo(env, params, gasRes) {
       hora_cierre:      `${fecha}T${hora}`,
       monitor:          params.monitorData || null,
     });
-    // También registrar el Ajuste Post-Arqueo en movimientos_caja cuando hay diferencia
+
     if (dif !== 0) {
-      const movId = await sbMaxId(env, "movimientos_caja") + 1;
       await sbInsert(env, "movimientos_caja", {
-        id:          movId,
+        id:          genId(),
         fecha:       fecha,
         hora:        hora,
         tipo:        dif > 0 ? "Ingreso" : "Egreso",
@@ -139,7 +144,9 @@ async function syncArqueo(env, params, gasRes) {
         observacion: `Ajuste auto arqueo`,
       });
     }
-  } catch { /* silencioso */ }
+  } catch (e) {
+    console.error("[syncArqueo]", e.message);
+  }
 }
 
 async function syncRendicion(env, params, gasRes) {
@@ -147,13 +154,16 @@ async function syncRendicion(env, params, gasRes) {
   try {
     const { fecha, hora } = arNow();
     const fechaMov   = params.fechaStr?.split("T")[0] || fecha;
-    const nextId     = await sbMaxId(env, "rendiciones_caja") + 1;
-    const contado    = Number(params.efectivoContado);
-    const esperado   = Number(params.efectivoEsperado);
+    const contado    = Number(params.efectivoContado  || 0);
+    const esperado   = Number(params.efectivoEsperado || 0);
+    const transf     = Number(params.transferencia    || 0);
+    const cheque     = Number(params.cheque           || 0);
     const dif        = contado - esperado;
     const tipoDif    = dif === 0 ? "Exacto" : dif > 0 ? "Sobrante" : "Faltante";
+
+    // 1. Registro en rendiciones_caja
     await sbInsert(env, "rendiciones_caja", {
-      id:                nextId,
+      id:                genId(),
       fecha:             fechaMov,
       turno:             params.turno,
       repartidor:        params.repartidor,
@@ -166,26 +176,61 @@ async function syncRendicion(env, params, gasRes) {
       notas:             {},
     });
 
-    // También registrar en movimientos_caja para que Supabase esté completo
-    const movId1 = await sbMaxId(env, "movimientos_caja") + 1;
-    await sbInsert(env, "movimientos_caja", {
-      id:          movId1,
-      fecha:       fechaMov,
-      hora:        hora,
-      tipo:        "Ingreso",
-      forma_pago:  "Efectivo",
-      importe:     esperado,
-      categoria:   "Rendición Reparto - BASE",
-      repartidor:  params.repartidor || null,
-      turno:       params.turno || null,
-      usuario:     "Sistema",
-      observacion: `Base Rendición ${params.repartidor} (${params.turno})`,
-    });
-
-    if (dif !== 0) {
-      const movId2 = await sbMaxId(env, "movimientos_caja") + 1;
+    // 2. Movimiento de efectivo base (si hay efectivo)
+    if (esperado > 0) {
       await sbInsert(env, "movimientos_caja", {
-        id:          movId2,
+        id:          genId(),
+        fecha:       fechaMov,
+        hora:        hora,
+        tipo:        "Ingreso",
+        forma_pago:  "Efectivo",
+        importe:     esperado,
+        categoria:   "Rendición Reparto - BASE",
+        repartidor:  params.repartidor || null,
+        turno:       params.turno      || null,
+        usuario:     "Sistema",
+        observacion: `Base Rendición ${params.repartidor} (${params.turno})`,
+      });
+    }
+
+    // 3. Movimiento de transferencia (si Nico cobró parte por transferencia)
+    if (transf > 0) {
+      await sbInsert(env, "movimientos_caja", {
+        id:          genId(),
+        fecha:       fechaMov,
+        hora:        hora,
+        tipo:        "Ingreso",
+        forma_pago:  "Transferencia",
+        importe:     transf,
+        categoria:   "Rendición Reparto - TRANSFERENCIA",
+        repartidor:  params.repartidor || null,
+        turno:       params.turno      || null,
+        usuario:     "Sistema",
+        observacion: `Transferencia Rendición ${params.repartidor} (${params.turno})`,
+      });
+    }
+
+    // 4. Movimiento de cheque (si aplica)
+    if (cheque > 0) {
+      await sbInsert(env, "movimientos_caja", {
+        id:          genId(),
+        fecha:       fechaMov,
+        hora:        hora,
+        tipo:        "Ingreso",
+        forma_pago:  "Cheque",
+        importe:     cheque,
+        categoria:   "Rendición Reparto - CHEQUE",
+        repartidor:  params.repartidor || null,
+        turno:       params.turno      || null,
+        usuario:     "Sistema",
+        observacion: `Cheque Rendición ${params.repartidor} (${params.turno})`,
+      });
+    }
+
+    // 5. Ajuste de diferencia de efectivo
+    if (dif !== 0) {
+      await sbInsert(env, "movimientos_caja", {
+        id:          genId(),
         fecha:       fechaMov,
         hora:        hora,
         tipo:        dif > 0 ? "Ingreso" : "Egreso",
@@ -196,7 +241,9 @@ async function syncRendicion(env, params, gasRes) {
         observacion: `Ajuste automático ${dif > 0 ? "Sobrante" : "Faltante"} ${params.repartidor}`,
       });
     }
-  } catch { /* silencioso */ }
+  } catch (e) {
+    console.error("[syncRendicion]", e.message);
+  }
 }
 
 async function syncEditMovimiento(env, params, gasRes) {
@@ -209,22 +256,28 @@ async function syncEditMovimiento(env, params, gasRes) {
     if (params.categoria   != null) patch.categoria   = params.categoria;
     if (params.observacion != null) patch.observacion = params.observacion;
     if (!Object.keys(patch).length) return;
-    await fetch(`${SB_URL}/movimientos_caja?id=eq.${params.id}`, {
+    const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${params.id}`, {
       method:  "PATCH",
       headers: sbWriteH(env.SUPABASE_SERVICE_KEY),
       body:    JSON.stringify(patch),
     });
-  } catch { /* silencioso */ }
+    if (!r.ok) throw new Error(`PATCH HTTP ${r.status}`);
+  } catch (e) {
+    console.error("[syncEditMovimiento]", e.message);
+  }
 }
 
 async function syncDeleteMovimiento(env, params, gasRes) {
   if (!gasRes?.ok) return;
   try {
-    await fetch(`${SB_URL}/movimientos_caja?id=eq.${params.id}`, {
+    const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${params.id}`, {
       method:  "DELETE",
       headers: sbWriteH(env.SUPABASE_SERVICE_KEY),
     });
-  } catch { /* silencioso */ }
+    if (!r.ok) throw new Error(`DELETE HTTP ${r.status}`);
+  } catch (e) {
+    console.error("[syncDeleteMovimiento]", e.message);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -238,8 +291,8 @@ async function handleSb(request, env, url, cors) {
   const seg  = url.pathname.replace(/^\/sb\//, "");
   const p    = url.searchParams;
 
+  // ── Saldo (balance acumulado por forma de pago) ──────────────
   if (seg === "saldo") {
-    // Paginar de a 1000 filas (límite de Supabase free tier)
     const allMovs = [];
     let offset = 0;
     while (true) {
@@ -261,7 +314,6 @@ async function handleSb(request, env, url, cors) {
       if (fp === "efectivo") {
         s.efectivo += m.tipo === "Ingreso" ? v : -v;
       } else if (fp === "cheque") {
-        // Solo cheques RECIBIDOS (ingreso) que aún no fueron entregados/cobrados
         if (m.tipo === "Ingreso" && !st.startsWith("ENTREGADO") && st !== "COBRADO" && st !== "DEPOSITADO") {
           s.cheques += v;
         }
@@ -272,9 +324,10 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, ...s, total: allMovs.length }, 200, cors);
   }
 
+  // ── Movimientos (por fecha o rango) ──────────────────────────
   if (seg === "movimientos") {
     let q = `${SB_URL}/movimientos_caja?deleted_at=is.null&order=fecha.asc,hora.asc&limit=9999`;
-    if (p.get("fecha"))            q += `&fecha=eq.${p.get("fecha")}`;
+    if (p.get("fecha"))                   q += `&fecha=eq.${p.get("fecha")}`;
     else if (p.get("from") && p.get("to")) q += `&fecha=gte.${p.get("from")}&fecha=lte.${p.get("to")}`;
     const r    = await fetch(q, { headers: rH });
     const data = await r.json();
@@ -282,6 +335,7 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, data }, 200, cors);
   }
 
+  // ── Arqueos ──────────────────────────────────────────────────
   if (seg === "arqueos") {
     const hasFecha = !!p.get("fecha");
     const hasRange = !!(p.get("from") && p.get("to"));
@@ -296,6 +350,7 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, data: data[0] || null }, 200, cors);
   }
 
+  // ── Rendiciones ──────────────────────────────────────────────
   if (seg === "rendiciones") {
     const limit = parseInt(p.get("limit") || "40", 10);
     const r     = await fetch(`${SB_URL}/rendiciones_caja?order=id.desc&limit=${limit}`, { headers: rH });
@@ -304,30 +359,101 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, data }, 200, cors);
   }
 
-  // ── backfill: inserta movimientos de rendición que GAS no sincronizó ──
-  if (seg === "backfill-rendiciones") {
+  // ── Sincronizar rendiciones → movimientos (reparar gaps) ────
+  // POST /sb/sincronizar-rendiciones?from=YYYY-MM-DD&to=YYYY-MM-DD
+  // Lee rendiciones_caja y crea los movimientos que falten.
+  if (seg === "sincronizar-rendiciones") {
     if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
     const svcKey = env.SUPABASE_SERVICE_KEY;
-    if (!svcKey) return json({ error: "Sin clave de servicio" }, 500, cors);
-    const wH = { ...sbWriteH(svcKey), "Prefer": "resolution=ignore-duplicates,return=minimal" };
-    const movs = [
-      { id: 2071, fecha: "2026-06-16", hora: "06:49:51", tipo: "Ingreso", forma_pago: "Efectivo", importe: 485939,  categoria: "Rendición Reparto - BASE",    repartidor: "Nico", turno: "Mañana", usuario: "Sistema", observacion: "Base Rendición Nico (Mañana)" },
-      { id: 2072, fecha: "2026-06-16", hora: "06:49:51", tipo: "Ingreso", forma_pago: "Efectivo", importe: 61,      categoria: "Diferencia Rendición - Ajuste", usuario: "Sistema", observacion: "Ajuste automático Sobrante Nico" },
-      { id: 2073, fecha: "2026-06-17", hora: "14:25:22", tipo: "Ingreso", forma_pago: "Efectivo", importe: 1016394, categoria: "Rendición Reparto - BASE",    repartidor: "Nico", turno: "Mañana", usuario: "Sistema", observacion: "Base Rendición Nico (Mañana)" },
-      { id: 2074, fecha: "2026-06-17", hora: "14:25:22", tipo: "Ingreso", forma_pago: "Efectivo", importe: 6,       categoria: "Diferencia Rendición - Ajuste", usuario: "Sistema", observacion: "Ajuste automático Sobrante Nico" },
-    ];
-    const results = [];
-    for (const mov of movs) {
-      try {
-        const r = await fetch(`${SB_URL}/movimientos_caja`, {
-          method: "POST", headers: wH, body: JSON.stringify(mov),
-        });
-        results.push({ id: mov.id, ok: r.ok, status: r.status });
-      } catch (e) {
-        results.push({ id: mov.id, ok: false, error: e.toString() });
+    if (!svcKey) return json({ error: "Sin SUPABASE_SERVICE_KEY" }, 500, cors);
+    const wH  = sbWriteH(svcKey);
+
+    const from = p.get("from") || arNow().fecha;
+    const to   = p.get("to")   || arNow().fecha;
+
+    // 1. Leer rendiciones del período
+    const rR = await fetch(
+      `${SB_URL}/rendiciones_caja?fecha=gte.${from}&fecha=lte.${to}&order=fecha.asc,id.asc`,
+      { headers: rH }
+    );
+    const rendiciones = await rR.json();
+    if (!Array.isArray(rendiciones))
+      return json({ error: "Error leyendo rendiciones_caja", detail: rendiciones }, 502, cors);
+
+    // 2. Leer movimientos BASE ya existentes en el período
+    const mR = await fetch(
+      `${SB_URL}/movimientos_caja?fecha=gte.${from}&fecha=lte.${to}&categoria=eq.Rendici%C3%B3n%20Reparto%20-%20BASE&deleted_at=is.null`,
+      { headers: rH }
+    );
+    const existMovs = await mR.json();
+    if (!Array.isArray(existMovs))
+      return json({ error: "Error leyendo movimientos_caja", detail: existMovs }, 502, cors);
+
+    // Clave de deduplicación: fecha + repartidor + turno
+    const exists = new Set(existMovs.map(m => `${m.fecha}|${m.repartidor}|${m.turno}`));
+
+    const { hora } = arNow();
+    const results  = [];
+
+    for (const rend of rendiciones) {
+      const key = `${rend.fecha}|${rend.repartidor}|${rend.turno}`;
+      if (exists.has(key)) {
+        results.push({ key, status: "skip — ya existe" });
+        continue;
       }
+
+      const esperado = Number(rend.efectivo_esperado || 0);
+      const contado  = Number(rend.efectivo_contado  || 0);
+      const dif      = contado - esperado;
+      const errors   = [];
+
+      // Movimiento BASE efectivo
+      if (esperado > 0) {
+        const r1 = await fetch(`${SB_URL}/movimientos_caja`, {
+          method: "POST",
+          headers: wH,
+          body: JSON.stringify({
+            id:          genId(),
+            fecha:       rend.fecha,
+            hora:        hora,
+            tipo:        "Ingreso",
+            forma_pago:  "Efectivo",
+            importe:     esperado,
+            categoria:   "Rendición Reparto - BASE",
+            repartidor:  rend.repartidor || null,
+            turno:       rend.turno      || null,
+            usuario:     "Sistema",
+            observacion: `Base Rendición ${rend.repartidor} (${rend.turno})`,
+          }),
+        });
+        if (!r1.ok) errors.push(`BASE HTTP ${r1.status}`);
+      }
+
+      // Ajuste de diferencia
+      if (dif !== 0) {
+        const r2 = await fetch(`${SB_URL}/movimientos_caja`, {
+          method: "POST",
+          headers: wH,
+          body: JSON.stringify({
+            id:          genId(),
+            fecha:       rend.fecha,
+            hora:        hora,
+            tipo:        dif > 0 ? "Ingreso" : "Egreso",
+            forma_pago:  "Efectivo",
+            importe:     Math.abs(dif),
+            categoria:   "Diferencia Rendición - Ajuste",
+            usuario:     "Sistema",
+            observacion: `Ajuste automático ${dif > 0 ? "Sobrante" : "Faltante"} ${rend.repartidor}`,
+          }),
+        });
+        if (!r2.ok) errors.push(`AJUSTE HTTP ${r2.status}`);
+      }
+
+      exists.add(key); // evitar duplicados dentro del mismo llamado
+      results.push({ key, status: errors.length ? `error: ${errors.join(", ")}` : "created" });
     }
-    return json({ ok: true, results }, 200, cors);
+
+    return json({ ok: true, from, to, processed: rendiciones.length, results }, 200, cors);
   }
 
   return json({ error: `Ruta /sb/${seg} no encontrada` }, 404, cors);
@@ -345,11 +471,10 @@ export default {
       return new Response(null, { status: 204, headers: { ...cors, "Access-Control-Max-Age": "86400" } });
     }
 
-    const url  = new URL(request.url);
+    const url = new URL(request.url);
 
-    // ── Supabase read endpoints
+    // ── Supabase read/sync endpoints
     if (url.pathname.startsWith("/sb/")) return handleSb(request, env, url, cors);
-
 
     // ── GAS proxy + doble escritura
     if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
@@ -368,20 +493,14 @@ export default {
       return json({ error: err.toString() }, 500, cors);
     }
 
-    // Doble escritura en Supabase (background, no bloquea la respuesta)
+    // Doble escritura en Supabase (background, no bloquea la respuesta al cliente)
     const fn     = body.fn     || "";
     const params = body.params || {};
-    if (fn === "registrarMovimientoCaja") {
-      ctx.waitUntil(syncMovimiento(env, params, gasRes));
-    } else if (fn === "registrarArqueo") {
-      ctx.waitUntil(syncArqueo(env, params, gasRes));
-    } else if (fn === "procesarRendicionDesdeRecibo") {
-      ctx.waitUntil(syncRendicion(env, params, gasRes));
-    } else if (fn === "editarMovimientoCaja") {
-      ctx.waitUntil(syncEditMovimiento(env, params, gasRes));
-    } else if (fn === "eliminarMovimientoCaja") {
-      ctx.waitUntil(syncDeleteMovimiento(env, params, gasRes));
-    }
+    if      (fn === "registrarMovimientoCaja")      ctx.waitUntil(syncMovimiento(env, params, gasRes));
+    else if (fn === "registrarArqueo")              ctx.waitUntil(syncArqueo(env, params, gasRes));
+    else if (fn === "procesarRendicionDesdeRecibo") ctx.waitUntil(syncRendicion(env, params, gasRes));
+    else if (fn === "editarMovimientoCaja")         ctx.waitUntil(syncEditMovimiento(env, params, gasRes));
+    else if (fn === "eliminarMovimientoCaja")       ctx.waitUntil(syncDeleteMovimiento(env, params, gasRes));
 
     const response = typeof gasRes === "string" ? gasRes : JSON.stringify(gasRes);
     return new Response(response, { status: 200, headers: { "Content-Type": "application/json", ...cors } });
