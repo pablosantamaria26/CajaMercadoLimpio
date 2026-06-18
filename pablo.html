@@ -277,7 +277,7 @@
         <div class="hero" id="hero-caja">
           <div class="hero-lbl">Efectivo en caja</div>
           <div class="hero-amount" id="hero-ef">—</div>
-          <div class="hero-chips">
+          <div class="hero-chips" style="grid-template-columns:1fr 1fr">
             <div class="hero-chip">
               <div class="hero-chip-val" id="chip-ef">—</div>
               <div class="hero-chip-lbl">Efectivo</div>
@@ -285,10 +285,6 @@
             <div class="hero-chip">
               <div class="hero-chip-val" id="chip-ch">—</div>
               <div class="hero-chip-lbl">Cheques</div>
-            </div>
-            <div class="hero-chip">
-              <div class="hero-chip-val" id="chip-bc">—</div>
-              <div class="hero-chip-lbl">Banco</div>
             </div>
           </div>
         </div>
@@ -341,12 +337,12 @@
       </div>
 
       <div class="bank-card" id="bank-card" style="display:none">
-        <div class="bank-lbl">Transferencias hoy</div>
+        <div class="bank-lbl">Rendición Nico · Transferencias hoy</div>
         <div class="bank-val" id="bank-dia">—</div>
         <div class="bank-sub" id="bank-sub">—</div>
         <div class="bank-sep"></div>
         <div class="bank-row">
-          <div class="bank-lbl">Acum. mes</div>
+          <div class="bank-lbl">Acum. mes en curso</div>
           <div style="font-weight:700;font-size:15px;color:white;" id="bank-mes">—</div>
         </div>
       </div>
@@ -758,14 +754,16 @@ function mapArqueo(data) {
   };
 }
 function computeBancos(hoyMovs, mesMovs) {
-  const isBanco = m => ['banco', 'transferencia'].includes((m.formaPago || m.forma_pago || '').toLowerCase());
-  const hoyB      = hoyMovs.filter(isBanco);
-  const hoyIng    = hoyB.filter(m => m.tipo === 'Ingreso');
-  const totalDia  = hoyIng.reduce((s, m) => s + Number(m.importe || 0), 0);
-  const totalMes  = Array.isArray(mesMovs)
-    ? mesMovs.filter(m => isBanco(m) && m.tipo === 'Ingreso').reduce((s, m) => s + Number(m.importe || 0), 0)
+  // Solo ingreso por transferencia de rendición Nico
+  const isTransfNico = m =>
+    (m.formaPago || m.forma_pago || '').toLowerCase() === 'transferencia' &&
+    m.tipo === 'Ingreso';
+  const hoyT    = hoyMovs.filter(isTransfNico);
+  const totalDia = hoyT.reduce((s, m) => s + Number(m.importe || 0), 0);
+  const totalMes = Array.isArray(mesMovs)
+    ? mesMovs.filter(isTransfNico).reduce((s, m) => s + Number(m.importe || 0), 0)
     : 0;
-  return { ok: true, totalDia, cantidadDia: hoyB.length, totalMes };
+  return { ok: true, totalDia, cantidadDia: hoyT.length, totalMes };
 }
 
 function toast(msg, duration = 2200) {
@@ -946,13 +944,9 @@ async function loadInicio() {
 
 function renderCaja(r) {
   if (!r) return;
-  const ef = Number(r.efectivo || 0);
-  const ch = Number(r.cheques  || 0);
-  const bc = Number(r.banco    || 0);
-  $('hero-ef').textContent    = fm(ef);
-  $('chip-ef').textContent    = fmk(ef);
-  $('chip-ch').textContent    = fmk(ch);
-  $('chip-bc').textContent    = fmk(bc);
+  $('hero-ef').textContent = fm(Number(r.efectivo || 0));
+  $('chip-ef').textContent = fmk(Number(r.efectivo || 0));
+  $('chip-ch').textContent = fmk(Number(r.cheques  || 0));
 }
 
 function renderArqueoHoy(r) {
@@ -1050,10 +1044,12 @@ function renderInicioRends(data) {
 
 function renderBancos(r) {
   const card = $('bank-card');
-  if (!r || !r.ok) { card.style.display = 'none'; return; }
+  if (!r) { card.style.display = 'none'; return; }
   card.style.display = 'block';
   $('bank-dia').textContent = fm(r.totalDia || 0);
-  $('bank-sub').textContent = `${r.cantidadDia || 0} transferencia(s) hoy`;
+  $('bank-sub').textContent = r.cantidadDia > 0
+    ? `${r.cantidadDia} rendicion(es) vía transf. hoy`
+    : 'Sin transferencias hoy';
   $('bank-mes').textContent = fm(r.totalMes || 0);
 }
 
@@ -1434,8 +1430,10 @@ async function loadGCombustible() {
     const obs = (m.observacion||'').toLowerCase();
     const vm = obs.match(/\[veh: (.*?)\]/i);
     let v = vm ? vm[1] : (obs.includes('saveiro') ? 'VW Saveiro' : obs.includes('hiace') ? 'Toyota Hiace' : obs.includes('fiat') ? 'Fiat Uno' : 'Otros');
-    if (!byVeh[v]) byVeh[v] = { count: 0, total: 0 };
-    byVeh[v].count++; byVeh[v].total += imp;
+    if (!byVeh[v]) byVeh[v] = { count: 0, total: 0, cargas: [] };
+    byVeh[v].count++;
+    byVeh[v].total += imp;
+    byVeh[v].cargas.push({ fecha: m.fecha, importe: imp });
   });
   $('fuel-total').textContent = fm(fuelTotal);
   const c = $('fuel-list');
@@ -1444,34 +1442,47 @@ async function loadGCombustible() {
     c.innerHTML = '<div class="empty"><span class="material-icons-round">local_gas_station</span><span>Sin cargas esta semana</span></div>';
     gestionLoaded.combustible = true; return;
   }
-  c.innerHTML = entries.map(([v, d]) => `
-    <div class="veh-row">
+  c.innerHTML = entries.map(([v, d]) => {
+    const fechaFmt = iso => { const p = (iso||'').split('-'); return p.length>=3 ? `${p[2]}/${p[1]}` : iso; };
+    const detalleCargas = d.cargas.map(cg =>
+      `<div style="display:flex;justify-content:space-between;padding:3px 16px 3px 64px;font-size:12px;color:var(--text2);">
+        <span>${fechaFmt(cg.fecha)}</span>
+        <span style="font-weight:600;color:var(--warn);">${fm(cg.importe)}</span>
+      </div>`
+    ).join('');
+    return `<div class="veh-row" style="padding-bottom:${d.cargas.length>1?'4':'12'}px">
       <div class="veh-icon"><span class="material-icons-round" style="color:var(--warn);font-size:18px">local_gas_station</span></div>
-      <div style="flex:1"><div class="veh-name">${v}</div><div class="veh-sub">${d.count} carga(s) · semana activa</div></div>
+      <div style="flex:1"><div class="veh-name">${v}</div><div class="veh-sub">${d.count} carga(s)</div></div>
       <div style="font-weight:800;color:var(--warn)">${fm(d.total)}</div>
-    </div>`).join('');
+    </div>${detalleCargas}`;
+  }).join('');
   gestionLoaded.combustible = true;
 }
 
 async function fetchIPC() {
   try {
     const ctrl = new AbortController();
-    const tid  = setTimeout(() => ctrl.abort(), 6000);
-    const r = await fetch('https://apis.datos.gob.ar/series/api/series/?ids=101.1_I2N_2016_M_22&limit=5&sort=desc&format=json', { signal: ctrl.signal });
+    const tid  = setTimeout(() => ctrl.abort(), 9000);
+    // percent_change da la variación mensual directa — necesita solo 1 punto válido
+    const r = await fetch(
+      'https://apis.datos.gob.ar/series/api/series/?ids=101.1_I2N_2016_M_22&limit=3&sort=desc&format=json&collapse=month&collapse_aggregation=percent_change',
+      { signal: ctrl.signal }
+    );
     clearTimeout(tid);
-    const d = await r.json();
-    // filter out null-value entries (INDEC sometimes has a pending period)
+    if (!r.ok) return { ok: false, error: 'HTTP ' + r.status };
+    const d   = await r.json();
     const pts = Array.isArray(d?.data) ? d.data.filter(p => p[1] != null) : [];
-    if (pts.length >= 2) {
-      const curr = pts[0][1], prev = pts[1][1];
-      const pct  = ((curr - prev) / prev * 100).toFixed(1);
+    if (pts.length >= 1) {
+      const pct   = (pts[0][1] * 100).toFixed(1);
       const parts = (pts[0][0] || '').split('-');
       const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
       const fecha = parts.length >= 2 ? `${meses[parseInt(parts[1])]} ${parts[0]}` : pts[0][0];
       return { pct: Number(pct), fecha, ok: true };
     }
-  } catch {}
-  return { ok: false };
+    return { ok: false, error: 'Sin datos INDEC' };
+  } catch (e) {
+    return { ok: false, error: e.name === 'AbortError' ? 'Timeout' : 'Sin conexión' };
+  }
 }
 
 async function loadGEmpleados() {
@@ -1486,7 +1497,7 @@ async function loadGEmpleados() {
     bannerValEl.style.color = ipc.pct > 5 ? 'var(--danger)' : 'var(--warn)';
   } else if (bannerValEl) {
     bannerValEl.textContent   = 'N/D';
-    bannerFechaEl.textContent = 'No disponible';
+    bannerFechaEl.textContent = ipc.error ? `Error: ${ipc.error}` : 'No disponible';
   }
   renderEmpleados();
   gestionLoaded.empleados = true;
@@ -1497,7 +1508,7 @@ function renderEmpleados() {
   if (!empleadosData.length) { c.innerHTML = '<div class="empty"><span class="material-icons-round">person</span><span>Sin empleados</span></div>'; return; }
   c.innerHTML = empleadosData.map((e, i) => `
     <div class="edit-row">
-      <input class="edit-field" id="empnombre-${i}" value="${e.nombre}" style="font-size:14px;font-weight:600;flex:1.4;color:var(--text1);" onblur="saveEmpleadoNombre(${i})">
+      <input class="edit-field" id="empnombre-${i}" value="${e.nombre}" style="font-size:14px;font-weight:600;flex:1.4;color:var(--text1);text-align:left;width:auto;" onblur="saveEmpleadoNombre(${i})">
       <input class="edit-field" type="number" id="emp-${i}" value="${e.sueldoBase}" inputmode="numeric" onblur="saveEmpleado(${i})">
     </div>`).join('');
 }
