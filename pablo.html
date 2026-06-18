@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -1427,9 +1427,10 @@ async function loadGCombustible() {
   weekMovs.filter(m => m.tipo === 'Egreso' && (m.categoria||'').toLowerCase().includes('combustible')).forEach(m => {
     const imp = Number(m.importe||0);
     fuelTotal += imp;
-    const obs = (m.observacion||'').toLowerCase();
-    const vm = obs.match(/\[veh: (.*?)\]/i);
-    let v = vm ? vm[1] : (obs.includes('saveiro') ? 'VW Saveiro' : obs.includes('hiace') ? 'Toyota Hiace' : obs.includes('fiat') ? 'Fiat Uno' : 'Otros');
+    const obsOrig = m.observacion || '';
+    const obsLow  = obsOrig.toLowerCase();
+    const vm = obsOrig.match(/\[veh: ([^\]]+)\]/i);
+    let v = vm ? vm[1].trim() : (obsLow.includes('saveiro') ? 'Volkswagen Saveiro' : obsLow.includes('hiace') ? 'Toyota Hiace' : obsLow.includes('fiat') ? 'Fiat Uno Cargo' : 'Otros');
     if (!byVeh[v]) byVeh[v] = { count: 0, total: 0, cargas: [] };
     byVeh[v].count++;
     byVeh[v].total += imp;
@@ -1463,23 +1464,24 @@ async function fetchIPC() {
   try {
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), 9000);
-    // percent_change da la variación mensual directa — necesita solo 1 punto válido
     const r = await fetch(
-      'https://apis.datos.gob.ar/series/api/series/?ids=101.1_I2N_2016_M_22&limit=3&sort=desc&format=json&collapse=month&collapse_aggregation=percent_change',
+      'https://apis.datos.gob.ar/series/api/series/?ids=101.1_I2N_2016_M_22&limit=5&sort=desc&format=json',
       { signal: ctrl.signal }
     );
     clearTimeout(tid);
     if (!r.ok) return { ok: false, error: 'HTTP ' + r.status };
     const d   = await r.json();
+    // Filtra puntos con valor nulo (INDEC publica el período pendiente sin dato)
     const pts = Array.isArray(d?.data) ? d.data.filter(p => p[1] != null) : [];
-    if (pts.length >= 1) {
-      const pct   = (pts[0][1] * 100).toFixed(1);
+    if (pts.length >= 2) {
+      const curr = pts[0][1], prev = pts[1][1];
+      const pct  = ((curr - prev) / prev * 100).toFixed(1);
       const parts = (pts[0][0] || '').split('-');
       const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
       const fecha = parts.length >= 2 ? `${meses[parseInt(parts[1])]} ${parts[0]}` : pts[0][0];
       return { pct: Number(pct), fecha, ok: true };
     }
-    return { ok: false, error: 'Sin datos INDEC' };
+    return { ok: false, error: pts.length < 2 ? 'Sin datos INDEC' : 'Respuesta inesperada' };
   } catch (e) {
     return { ok: false, error: e.name === 'AbortError' ? 'Timeout' : 'Sin conexión' };
   }
