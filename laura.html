@@ -1368,6 +1368,7 @@
             
             if(!cat || imp<=0) { return showToast("Datos incompletos", false); }
             if (cat === "Adelanto de Sueldo" && emp) obs = `[${emp}] Adelanto de Sueldo. ${obs}`;
+            if ((cat === "Combustible" || cat.includes("Mantenimiento")) && veh) obs = `[Veh: ${veh}]${obs ? ' ' + obs : ''}`;
 
             // PREPARAMOS EL PAYLOAD PERO NO LO ENVIAMOS TODAVIA
             const payload = { 

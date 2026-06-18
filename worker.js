@@ -90,6 +90,13 @@ async function syncMovimiento(env, params, gasRes) {
   if (!gasRes?.ok) return;
   try {
     const { fecha, hora } = arNow();
+    // Si la categoria es Combustible/Mantenimiento y tiene vehículo, garantizar [Veh: ...] en observacion
+    let obs = params.observacion || null;
+    if (params.vehiculo) {
+      const tag = `[Veh: ${params.vehiculo}]`;
+      if (!obs) obs = tag;
+      else if (!obs.includes('[Veh:')) obs = `${tag} ${obs}`;
+    }
     await sbInsert(env, "movimientos_caja", {
       id:          genId(),
       fecha:       params.fechaStr?.split("T")[0] || fecha,
@@ -103,7 +110,7 @@ async function syncMovimiento(env, params, gasRes) {
       repartidor:  params.repartidor   || null,
       turno:       params.turno        || null,
       usuario:     params.usuario      || "Laura",
-      observacion: params.observacion  || null,
+      observacion: obs,
     });
   } catch (e) {
     console.error("[syncMovimiento]", e.message);
@@ -153,18 +160,21 @@ async function syncRendicion(env, params, gasRes) {
   if (!gasRes?.ok) return;
   try {
     const { fecha, hora } = arNow();
-    const fechaMov   = params.fechaStr?.split("T")[0] || fecha;
-    const contado    = Number(params.efectivoContado  || 0);
-    const esperado   = Number(params.efectivoEsperado || 0);
-    const transf     = Number(params.transferencia    || 0);
-    const cheque     = Number(params.cheque           || 0);
-    const dif        = contado - esperado;
-    const tipoDif    = dif === 0 ? "Exacto" : dif > 0 ? "Sobrante" : "Faltante";
+    // rendiciones_caja guarda la fecha del reparto (día de entrega)
+    const fechaReparto = params.fechaStr?.split("T")[0] || fecha;
+    // movimientos_caja usa HOY: el efectivo entra a la caja cuando Laura procesa la rendición
+    const fechaMov = fecha;
+    const contado  = Number(params.efectivoContado  || 0);
+    const esperado = Number(params.efectivoEsperado || 0);
+    const transf   = Number(params.transferencia    || 0);
+    const cheque   = Number(params.cheque           || 0);
+    const dif      = contado - esperado;
+    const tipoDif  = dif === 0 ? "Exacto" : dif > 0 ? "Sobrante" : "Faltante";
 
-    // 1. Registro en rendiciones_caja
+    // 1. Registro en rendiciones_caja (fecha del reparto)
     await sbInsert(env, "rendiciones_caja", {
       id:                genId(),
-      fecha:             fechaMov,
+      fecha:             fechaReparto,
       turno:             params.turno,
       repartidor:        params.repartidor,
       efectivo_esperado: esperado,
@@ -189,7 +199,7 @@ async function syncRendicion(env, params, gasRes) {
         repartidor:  params.repartidor || null,
         turno:       params.turno      || null,
         usuario:     "Sistema",
-        observacion: `Base Rendición ${params.repartidor} (${params.turno})`,
+        observacion: `Base Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
       });
     }
 
@@ -206,7 +216,7 @@ async function syncRendicion(env, params, gasRes) {
         repartidor:  params.repartidor || null,
         turno:       params.turno      || null,
         usuario:     "Sistema",
-        observacion: `Transferencia Rendición ${params.repartidor} (${params.turno})`,
+        observacion: `Transferencia Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
       });
     }
 
@@ -223,7 +233,7 @@ async function syncRendicion(env, params, gasRes) {
         repartidor:  params.repartidor || null,
         turno:       params.turno      || null,
         usuario:     "Sistema",
-        observacion: `Cheque Rendición ${params.repartidor} (${params.turno})`,
+        observacion: `Cheque Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
       });
     }
 
@@ -361,7 +371,8 @@ async function handleSb(request, env, url, cors) {
 
   // ── Sincronizar rendiciones → movimientos (reparar gaps) ────
   // POST /sb/sincronizar-rendiciones?from=YYYY-MM-DD&to=YYYY-MM-DD
-  // Lee rendiciones_caja y crea los movimientos que falten.
+  // Lee rendiciones_caja (por fecha de reparto) y crea movimientos faltantes.
+  // Los movimientos se fechan con la fecha de procesamiento (hora_rendicion).
   if (seg === "sincronizar-rendiciones") {
     if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
     const svcKey = env.SUPABASE_SERVICE_KEY;
@@ -371,7 +382,7 @@ async function handleSb(request, env, url, cors) {
     const from = p.get("from") || arNow().fecha;
     const to   = p.get("to")   || arNow().fecha;
 
-    // 1. Leer rendiciones del período
+    // 1. Leer rendiciones del período (por fecha de reparto)
     const rR = await fetch(
       `${SB_URL}/rendiciones_caja?fecha=gte.${from}&fecha=lte.${to}&order=fecha.asc,id.asc`,
       { headers: rH }
@@ -380,25 +391,32 @@ async function handleSb(request, env, url, cors) {
     if (!Array.isArray(rendiciones))
       return json({ error: "Error leyendo rendiciones_caja", detail: rendiciones }, 502, cors);
 
-    // 2. Leer movimientos BASE ya existentes en el período
+    // 2. Leer movimientos BASE en ventana amplia (fecha_reparto hasta fecha_reparto+2)
+    //    porque los movimientos se guardan con fecha de procesamiento (puede ser +1 día)
+    const toPlus2 = new Date(to);
+    toPlus2.setDate(toPlus2.getDate() + 2);
+    const toPlus2Str = toPlus2.toISOString().split('T')[0];
     const mR = await fetch(
-      `${SB_URL}/movimientos_caja?fecha=gte.${from}&fecha=lte.${to}&categoria=eq.Rendici%C3%B3n%20Reparto%20-%20BASE&deleted_at=is.null`,
+      `${SB_URL}/movimientos_caja?fecha=gte.${from}&fecha=lte.${toPlus2Str}&categoria=eq.Rendici%C3%B3n%20Reparto%20-%20BASE&deleted_at=is.null`,
       { headers: rH }
     );
     const existMovs = await mR.json();
     if (!Array.isArray(existMovs))
       return json({ error: "Error leyendo movimientos_caja", detail: existMovs }, 502, cors);
 
-    // Clave de deduplicación: fecha + repartidor + turno
-    const exists = new Set(existMovs.map(m => `${m.fecha}|${m.repartidor}|${m.turno}`));
+    // Dedup por observacion (contiene el repartidor, turno y fecha de reparto)
+    const existObs = new Set(existMovs.map(m => m.observacion || ""));
 
     const { hora } = arNow();
     const results  = [];
 
     for (const rend of rendiciones) {
-      const key = `${rend.fecha}|${rend.repartidor}|${rend.turno}`;
-      if (exists.has(key)) {
-        results.push({ key, status: "skip — ya existe" });
+      // Fecha del movimiento: fecha de procesamiento (hora_rendicion) o hoy
+      const procDate = rend.hora_rendicion ? rend.hora_rendicion.split('T')[0] : arNow().fecha;
+      const obsBase  = `Base Rendición ${rend.repartidor} (${rend.turno}) — reparto ${rend.fecha}`;
+
+      if (existObs.has(obsBase)) {
+        results.push({ rendicion_id: rend.id, status: "skip — ya existe" });
         continue;
       }
 
@@ -414,7 +432,7 @@ async function handleSb(request, env, url, cors) {
           headers: wH,
           body: JSON.stringify({
             id:          genId(),
-            fecha:       rend.fecha,
+            fecha:       procDate,
             hora:        hora,
             tipo:        "Ingreso",
             forma_pago:  "Efectivo",
@@ -423,10 +441,10 @@ async function handleSb(request, env, url, cors) {
             repartidor:  rend.repartidor || null,
             turno:       rend.turno      || null,
             usuario:     "Sistema",
-            observacion: `Base Rendición ${rend.repartidor} (${rend.turno})`,
+            observacion: obsBase,
           }),
         });
-        if (!r1.ok) errors.push(`BASE HTTP ${r1.status}`);
+        if (!r1.ok) errors.push(`BASE HTTP ${r1.status}: ${await r1.text().catch(()=>"")}`);
       }
 
       // Ajuste de diferencia
@@ -436,7 +454,7 @@ async function handleSb(request, env, url, cors) {
           headers: wH,
           body: JSON.stringify({
             id:          genId(),
-            fecha:       rend.fecha,
+            fecha:       procDate,
             hora:        hora,
             tipo:        dif > 0 ? "Ingreso" : "Egreso",
             forma_pago:  "Efectivo",
@@ -449,11 +467,32 @@ async function handleSb(request, env, url, cors) {
         if (!r2.ok) errors.push(`AJUSTE HTTP ${r2.status}`);
       }
 
-      exists.add(key); // evitar duplicados dentro del mismo llamado
-      results.push({ key, status: errors.length ? `error: ${errors.join(", ")}` : "created" });
+      existObs.add(obsBase);
+      results.push({ rendicion_id: rend.id, procDate, status: errors.length ? `error: ${errors.join(", ")}` : "created" });
     }
 
     return json({ ok: true, from, to, processed: rendiciones.length, results }, 200, cors);
+  }
+
+  // ── Patch fecha de movimientos (admin — corregir fecha incorrecta) ──
+  // POST /sb/patch-mov-fecha  body: { ids: [2075, 2076], fecha: "2026-06-18" }
+  if (seg === "patch-mov-fecha") {
+    if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
+    const svcKey = env.SUPABASE_SERVICE_KEY;
+    if (!svcKey) return json({ error: "Sin SUPABASE_SERVICE_KEY" }, 500, cors);
+    const body = await request.json().catch(() => ({}));
+    const { ids, fecha: nuevaFecha } = body;
+    if (!Array.isArray(ids) || !nuevaFecha) return json({ error: "ids[] y fecha requeridos" }, 400, cors);
+    const results = [];
+    for (const id of ids) {
+      const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${id}`, {
+        method:  "PATCH",
+        headers: sbWriteH(svcKey),
+        body:    JSON.stringify({ fecha: nuevaFecha }),
+      });
+      results.push({ id, status: r.ok ? "ok" : `HTTP ${r.status}` });
+    }
+    return json({ ok: true, results }, 200, cors);
   }
 
   return json({ error: `Ruta /sb/${seg} no encontrada` }, 404, cors);
