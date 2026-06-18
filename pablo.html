@@ -1010,12 +1010,17 @@ function renderInicioMovs() {
     const bgI  = ing2 ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.08)';
     const cat  = (m.categoria || "").toLowerCase();
     const ico  = cat.includes('combustible') ? 'local_gas_station' : cat.includes('rend') ? 'delivery_dining' : cat.includes('prov') ? 'inventory_2' : ing2 ? 'south_west' : 'north_east';
+    const vehM = (m.observacion || '').match(/\[veh: ([^\]]+)\]/i);
+    const veh  = vehM ? vehM[1] : null;
+    const sub  = cat.includes('combustible') && veh ? `${(m.hora||'').substring(0,5)} · ${veh}` : `${(m.hora||'').substring(0,5)} · ${m.formaPago}`;
+    const obsClean = (m.observacion || '').replace(/\[veh: [^\]]+\]/i, '').trim();
+    const obsRow   = veh ? `<div class="mov-detail-row"><span>Vehículo</span><span>${veh}</span></div>${obsClean ? `<div class="mov-detail-row"><span>Obs.</span><span>${obsClean}</span></div>` : ''}` : `<div class="mov-detail-row"><span>Obs.</span><span>${m.observacion||'-'}</span></div>`;
     return `<div class="mov-item" onclick="toggleMovDetail(${i},'im')">
       <div class="mov-icon-wrap" style="background:${bgI}"><span class="material-icons-round" style="color:${col}">${ico}</span></div>
-      <div class="mov-body"><div class="mov-cat">${m.categoria}</div><div class="mov-sub">${(m.hora||'').substring(0,5)} · ${m.formaPago}</div></div>
+      <div class="mov-body"><div class="mov-cat">${m.categoria}</div><div class="mov-sub">${sub}</div></div>
       <div class="mov-amount" style="color:${col}">${ing2?'+':'-'}${fm(m.importe).replace('$ ','')}</div>
     </div>
-    <div class="mov-detail-box" id="im${i}"><div class="mov-detail-row"><span>Obs.</span><span>${m.observacion||'-'}</span></div><div class="mov-detail-row"><span>ID</span><span>#${m.id}</span></div><button onclick="openEditMov(${m.id})" style="width:100%;margin-top:10px;padding:11px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✎ Editar movimiento</button></div>`;
+    <div class="mov-detail-box" id="im${i}">${obsRow}<div class="mov-detail-row"><span>ID</span><span>#${m.id}</span></div><button onclick="openEditMov(${m.id})" style="width:100%;margin-top:10px;padding:11px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✎ Editar movimiento</button></div>`;
   }).join('');
 }
 
@@ -1284,13 +1289,18 @@ function renderMovsList() {
     const bgI   = isIng ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.08)';
     const cat   = (m.categoria||'').toLowerCase();
     const ico   = cat.includes('combustible') ? 'local_gas_station' : cat.includes('rend') ? 'delivery_dining' : cat.includes('prov') ? 'inventory_2' : cat.includes('sueldo')||cat.includes('haber') ? 'badge' : isIng ? 'south_west' : 'north_east';
+    const vehM2 = (m.observacion || '').match(/\[veh: ([^\]]+)\]/i);
+    const veh2  = vehM2 ? vehM2[1] : null;
+    const sub2  = cat.includes('combustible') && veh2 ? `${(m.hora||'').substring(0,5)} · ${veh2}` : `${(m.hora||'').substring(0,5)} · ${m.formaPago}`;
+    const obsClean2 = (m.observacion || '').replace(/\[veh: [^\]]+\]/i, '').trim();
     return `<div class="mov-item" onclick="toggleMovDetail(${i},'mm')">
       <div class="mov-icon-wrap" style="background:${bgI}"><span class="material-icons-round" style="color:${col}">${ico}</span></div>
-      <div class="mov-body"><div class="mov-cat">${m.categoria}</div><div class="mov-sub">${(m.hora||'').substring(0,5)} · ${m.formaPago}</div></div>
+      <div class="mov-body"><div class="mov-cat">${m.categoria}</div><div class="mov-sub">${sub2}</div></div>
       <div class="mov-amount" style="color:${col}">${isIng?'+':'-'}${fm(m.importe).replace('$ ','')}</div>
     </div>
     <div class="mov-detail-box" id="mm${i}">
-      <div class="mov-detail-row"><span>Observación</span><span style="text-align:right;max-width:55%">${m.observacion||'-'}</span></div>
+      ${veh2 ? `<div class="mov-detail-row"><span>Vehículo</span><span>${veh2}</span></div>` : ''}
+      ${obsClean2 ? `<div class="mov-detail-row"><span>Observación</span><span style="text-align:right;max-width:55%">${obsClean2}</span></div>` : (!veh2 ? `<div class="mov-detail-row"><span>Observación</span><span>-</span></div>` : '')}
       <div class="mov-detail-row"><span>Forma de pago</span><span>${m.formaPago||'-'}</span></div>
       <div class="mov-detail-row"><span>ID</span><span>#${m.id}</span></div>
       <button onclick="openEditMov(${m.id})" style="width:100%;margin-top:10px;padding:11px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✎ Editar movimiento</button>

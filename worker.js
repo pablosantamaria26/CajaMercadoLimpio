@@ -474,25 +474,29 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, from, to, processed: rendiciones.length, results }, 200, cors);
   }
 
-  // ── Patch fecha de movimientos (admin — corregir fecha incorrecta) ──
-  // POST /sb/patch-mov-fecha  body: { ids: [2075, 2076], fecha: "2026-06-18" }
-  if (seg === "patch-mov-fecha") {
+  // ── Patch campos de movimientos (admin) ──────────────────────
+  // POST /sb/patch-mov  body: { ids: [2077, 2078], observacion: "...", fecha: "..." }
+  // Parchea cualquier campo permitido en los ids indicados.
+  if (seg === "patch-mov" || seg === "patch-mov-fecha") {
     if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
     const svcKey = env.SUPABASE_SERVICE_KEY;
     if (!svcKey) return json({ error: "Sin SUPABASE_SERVICE_KEY" }, 500, cors);
     const body = await request.json().catch(() => ({}));
-    const { ids, fecha: nuevaFecha } = body;
-    if (!Array.isArray(ids) || !nuevaFecha) return json({ error: "ids[] y fecha requeridos" }, 400, cors);
+    const { ids, ...fields } = body;
+    if (!Array.isArray(ids) || !Object.keys(fields).length) return json({ error: "ids[] y al menos un campo requeridos" }, 400, cors);
+    const ALLOWED = new Set(["fecha","hora","tipo","forma_pago","importe","categoria","observacion","repartidor","turno","usuario","banco","nro_cheque","estado"]);
+    const patch = Object.fromEntries(Object.entries(fields).filter(([k]) => ALLOWED.has(k)));
+    if (!Object.keys(patch).length) return json({ error: "Ningún campo válido para parchear" }, 400, cors);
     const results = [];
     for (const id of ids) {
       const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${id}`, {
         method:  "PATCH",
         headers: sbWriteH(svcKey),
-        body:    JSON.stringify({ fecha: nuevaFecha }),
+        body:    JSON.stringify(patch),
       });
       results.push({ id, status: r.ok ? "ok" : `HTTP ${r.status}` });
     }
-    return json({ ok: true, results }, 200, cors);
+    return json({ ok: true, patch, results }, 200, cors);
   }
 
   return json({ error: `Ruta /sb/${seg} no encontrada` }, 404, cors);
