@@ -90,12 +90,16 @@ async function syncMovimiento(env, params, gasRes) {
   if (!gasRes?.ok) return;
   try {
     const { fecha, hora } = arNow();
-    // Si la categoria es Combustible/Mantenimiento y tiene vehículo, garantizar [Veh: ...] en observacion
     let obs = params.observacion || null;
     if (params.vehiculo) {
       const tag = `[Veh: ${params.vehiculo}]`;
       if (!obs) obs = tag;
       else if (!obs.includes('[Veh:')) obs = `${tag} ${obs}`;
+    }
+    if (params.proveedor) {
+      const tag = `[Prov: ${params.proveedor}]`;
+      if (!obs) obs = tag;
+      else if (!obs.includes('[Prov:')) obs = `${tag} ${obs}`;
     }
     await sbInsert(env, "movimientos_caja", {
       id:          genId(),
