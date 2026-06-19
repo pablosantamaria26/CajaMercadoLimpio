@@ -274,6 +274,14 @@
         .amount-out { color: var(--accent); font-weight: 800; }
         .mov-title { font-weight: 700; font-size: 0.95rem; }
         .mov-sub { font-size: 0.78rem; color: #aaa; margin-top: 3px; display: block; }
+        .obs-row { display:flex; align-items:center; gap:6px; margin-top:5px; flex-wrap:wrap; }
+        .obs-chip { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:20px; font-size:0.68rem; font-weight:800; letter-spacing:0.3px; white-space:nowrap; }
+        .obs-chip-person { background:#ede9fe; color:#6c3fc5; }
+        .obs-chip-veh    { background:#dbeafe; color:#1e5fa8; }
+        .obs-chip-prov   { background:#d1fae5; color:#065f46; }
+        .obs-chip-adel   { background:#fef9c3; color:#854d0e; }
+        .obs-main { font-size:0.78rem; font-weight:600; color:#444; }
+        .obs-period { font-size:0.72rem; color:#aaa; font-weight:500; }
         .mov-totales { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:linear-gradient(135deg,#2d3436 0%,#1e272e 100%); border-radius:14px; margin-bottom:10px; font-weight:800; font-size:0.88rem; list-style:none; color:white; letter-spacing:0.3px; }
         .mov-optimistic { opacity:0.65; }
         @keyframes fadeInDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
@@ -1321,6 +1329,59 @@
             return '💵';
         }
 
+        function parseObsHTML(obs, cat) {
+            if (!obs) return '';
+            cat = (cat || '').toLowerCase();
+
+            // [Veh: Nombre]
+            const vehM = obs.match(/^\[veh:\s*([^\]]+)\]/i);
+            if (vehM) {
+                const veh = vehM[1].trim();
+                const resto = obs.replace(vehM[0], '').trim();
+                return `<div class="obs-row">
+                    <span class="obs-chip obs-chip-veh">🚗 ${veh}</span>
+                    ${resto ? `<span class="obs-main">${resto}</span>` : ''}
+                </div>`;
+            }
+
+            // [Prov: Nombre]
+            const provM = obs.match(/^\[prov:\s*([^\]]+)\]/i);
+            if (provM) {
+                const prov = provM[1].trim();
+                const resto = obs.replace(provM[0], '').trim();
+                return `<div class="obs-row">
+                    <span class="obs-chip obs-chip-prov">🏪 ${prov}</span>
+                    ${resto ? `<span class="obs-main">${resto}</span>` : ''}
+                </div>`;
+            }
+
+            // [Nombre] Concepto — Período
+            const nameM = obs.match(/^\[([^\]]+)\]\s*(.*)/);
+            if (nameM) {
+                const nombre = nameM[1].trim();
+                const resto  = nameM[2].trim();
+                const isAdel = cat.includes('adelanto');
+                const chipClass = isAdel ? 'obs-chip-adel' : 'obs-chip-person';
+                const partes = resto.split(/\s*—\s*/);
+                const main   = partes[0] || '';
+                const period = partes.slice(1).join(' — ');
+                return `<div class="obs-row">
+                    <span class="obs-chip ${chipClass}">👤 ${nombre}</span>
+                    ${main   ? `<span class="obs-main">${main}</span>`     : ''}
+                    ${period ? `<span class="obs-period">· ${period}</span>` : ''}
+                </div>`;
+            }
+
+            // Texto plano (sin corchetes)
+            const partes = obs.split(/\s*—\s*/);
+            const main   = partes[0] || '';
+            const period = partes.slice(1).join(' — ');
+            return `<div class="obs-row">
+                <span class="obs-main">${main}</span>
+                ${period ? `<span class="obs-period">· ${period}</span>` : ''}
+            </div>`;
+        }
+
         function _renderMovimientos(lista, movs) {
             // Agregar pending que no estén ya en la lista confirmada
             const confirmIds = new Set(movs.map(m => m._tempId).filter(Boolean));
@@ -1347,7 +1408,7 @@
 
             todos.forEach(m => {
                 const esIngreso = m.tipo === 'Ingreso';
-                const obs = m.observacion ? `<span class="mov-sub" style="font-style:italic;color:#b2bec3;">${m.observacion}</span>` : '';
+                const obs = parseObsHTML(m.observacion, m.categoria);
                 const syncBadge = m._optimistic ? '<div style="font-size:0.65rem;color:#b2bec3;text-align:right;margin-top:2px;">sincronizando...</div>' : '';
                 lista.innerHTML += `
                     <li class="mov-item${m._optimistic ? ' mov-optimistic mov-new' : ''}" style="border-left-color:${esIngreso ? 'var(--success)' : 'var(--accent)'};">
