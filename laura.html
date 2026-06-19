@@ -855,6 +855,13 @@
         const HABERES_EMPS_BACKUP = ["Tomas", "Martín", "Laura", "Nicolás", "Ramiro", "Patricio"];
         const HABERES_CON_COMISION = ["martin", "ramiro"]; // sin tildes para comparación segura
         const normNombre = s => (s || "").normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+        // Empleados con aguinaldo diferido por ingreso a mitad de semestre.
+        // Clave: nombre normalizado (sin tildes, minúsculas).
+        // Valor: { año, sem } = primer semestre en que le corresponde (sem: 1=junio, 2=diciembre).
+        const AGUINALDO_DESDE = {
+            'rodrigo': { año: 2026, sem: 2 }, // ingresó 18/06/2026 — primer aguinaldo: dic 2026
+        };
         function getHaberesLunes(ref) {
             const d = new Date(ref); d.setHours(0,0,0,0);
             const dia = d.getDay();
@@ -2584,6 +2591,16 @@
                 (mv.observacion || '').toLowerCase().includes(normNombre(nombre))
             ).length;
         }
+        function isElegibleAguinaldo(nombre) {
+            const desde = AGUINALDO_DESDE[normNombre(nombre)];
+            if (!desde) return true; // sin restricción → elegible siempre
+            const hoy     = new Date();
+            const añoHoy  = hoy.getFullYear();
+            const semHoy  = hoy.getMonth() === 5 ? 1 : 2; // 5=junio→sem1, 11=dic→sem2
+            if (añoHoy > desde.año) return true;
+            if (añoHoy === desde.año) return semHoy >= desde.sem;
+            return false;
+        }
         async function haberesLoadAguinaldoGlobal() {
             if (!isAguinaldoMes()) { _aguinaldoDataGlobal = []; return; }
             try {
@@ -2620,7 +2637,7 @@
             grid.innerHTML = emps.map(nombre => {
                 const ini = nombre.charAt(0).toUpperCase();
                 let badge = '';
-                if (isAguinaldoMes()) {
+                if (isAguinaldoMes() && isElegibleAguinaldo(nombre)) {
                     const cuotas = aguinaldoCuotasDeEmp(nombre);
                     badge = cuotas >= 4
                         ? `<div style="margin-top:5px;font-size:0.65rem;font-weight:800;color:#00b894;letter-spacing:0.3px;">✅ Aguinaldo OK</div>`
@@ -2641,7 +2658,7 @@
             _hfpSueldo             = 'Efectivo';
             _hfpComision           = 'Efectivo';
             _hfpAguinaldo          = 'Efectivo';
-            haberesAguinaldoCuotas = isAguinaldoMes() ? aguinaldoCuotasDeEmp(nombre) : 0;
+            haberesAguinaldoCuotas = (isAguinaldoMes() && isElegibleAguinaldo(nombre)) ? aguinaldoCuotasDeEmp(nombre) : -1; // -1 = no elegible este semestre
             haberesConfigEmp = configEmpleadosGlobal.find(e => e.nombre.toLowerCase() === nombre.toLowerCase()) || { nombre, sueldoBase: 0 };
             const modal = document.getElementById('modal-haberes');
             modal.style.display = 'flex';
@@ -2737,7 +2754,7 @@
                 </div>` : ''}
 
                 ${(() => {
-                    if (!isAguinaldoMes()) return '';
+                    if (!isAguinaldoMes() || haberesAguinaldoCuotas === -1) return '';
                     const periodo = getAguinaldoPeriodo();
                     if (haberesAguinaldoCuotas >= 4) return `
                     <div style="background:#00b89412;border:2px solid #00b894;border-radius:16px;padding:12px 14px;margin-bottom:14px;text-align:center;">
@@ -2834,7 +2851,7 @@
                 msg += `\n✨ *Comisión: $${com.toLocaleString('es-AR')}*  (${_hfpComision})`;
             }
             let aguWhatsApp = 0;
-            if (isAguinaldoMes() && haberesAguinaldoCuotas < 4) {
+            if (isAguinaldoMes() && haberesAguinaldoCuotas >= 0 && haberesAguinaldoCuotas < 4) {
                 aguWhatsApp = Number(document.getElementById('haberes-aguinaldo-input')?.value) || 0;
                 if (aguWhatsApp > 0) {
                     const cuotaNum = haberesAguinaldoCuotas + 1;
@@ -2887,7 +2904,7 @@
 
                 // ── Aguinaldo (cuota mensual, si corresponde y monto > 0)
                 let aguMonto = 0;
-                if (isAguinaldoMes() && haberesAguinaldoCuotas < 4) {
+                if (isAguinaldoMes() && haberesAguinaldoCuotas >= 0 && haberesAguinaldoCuotas < 4) {
                     aguMonto = Number(document.getElementById('haberes-aguinaldo-input')?.value) || 0;
                     if (aguMonto > 0) {
                         const cuotaNum = haberesAguinaldoCuotas + 1;
