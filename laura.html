@@ -874,9 +874,11 @@
         let haberesConfigEmp    = null;
         let _hfpSueldo      = 'Efectivo';
         let _hfpComision    = 'Efectivo';
-        let _hfpAguinaldo   = 'Efectivo';
-        let haberesAguinaldoCuotas = 0;   // cuotas ya pagadas al empleado actual en el período
-        let _aguinaldoDataGlobal   = [];  // cache de pagos de aguinaldo del período completo
+        let _hfpAguinaldo      = 'Efectivo';
+        let haberesAguinaldoCuotas = 0;    // cuotas ya pagadas al empleado actual en el período
+        let _aguinaldoDataGlobal   = [];   // cache de pagos de aguinaldo del período completo
+        let haberesAjusteSueldo    = null; // override temporal del sueldo para esta semana (null = usar base)
+        let _haberesEmpActual      = null; // { sueldoSemanal, adelantos } — para recalcular neto en tiempo real
 
         // 🔥 GLOBAL: CHEQUES CARTERA 🔥
         let chequesCarteraGlobal = [];
@@ -2658,7 +2660,8 @@
             _hfpSueldo             = 'Efectivo';
             _hfpComision           = 'Efectivo';
             _hfpAguinaldo          = 'Efectivo';
-            haberesAguinaldoCuotas = (isAguinaldoMes() && isElegibleAguinaldo(nombre)) ? aguinaldoCuotasDeEmp(nombre) : -1; // -1 = no elegible este semestre
+            haberesAguinaldoCuotas = (isAguinaldoMes() && isElegibleAguinaldo(nombre)) ? aguinaldoCuotasDeEmp(nombre) : -1;
+            haberesAjusteSueldo    = null;
             haberesConfigEmp = configEmpleadosGlobal.find(e => e.nombre.toLowerCase() === nombre.toLowerCase()) || { nombre, sueldoBase: 0 };
             const modal = document.getElementById('modal-haberes');
             modal.style.display = 'flex';
@@ -2690,7 +2693,9 @@
             const nombre        = haberesEmpActual;
             const sueldoBase    = Number(haberesConfigEmp?.sueldoBase || 0);
             const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
-            const neto          = sueldoBase - totalAdelantos;
+            const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : sueldoBase;
+            const neto          = Math.max(0, sueldoEfectivo - totalAdelantos);
+            _haberesEmpActual   = { sueldoSemanal: sueldoBase, adelantos: haberesAdelantosData };
             const tieneComision = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
             const mesLabel      = haberesSemanLabel();
 
@@ -2711,9 +2716,26 @@
                 <p style="text-align:center;font-size:0.78rem;color:#888;margin:0 0 12px 0;">📅 ${mesLabel}</p>
 
                 <div style="background:#f8f9ff;border-radius:14px;padding:12px 14px;margin-bottom:10px;">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                         <span style="font-weight:700;font-size:0.85rem;color:#555;">💰 Sueldo Base</span>
-                        <span style="font-weight:900;color:var(--text-main);">$${sueldoBase.toLocaleString('es-AR')}</span>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-weight:900;color:${sueldoEfectivo !== sueldoBase ? '#e17055' : 'var(--text-main)'};" id="hb-sueldo-display">$${sueldoEfectivo.toLocaleString('es-AR')}</span>
+                            <button onclick="haberesEditarSueldo()" id="hb-edit-btn" title="Editar para esta semana"
+                                style="background:none;border:1.5px solid #ddd;border-radius:7px;cursor:pointer;color:#999;font-size:0.8rem;padding:2px 7px;line-height:1.4;font-family:Quicksand;">✎</button>
+                        </div>
+                    </div>
+                    <div id="hb-sueldo-edit" style="display:none;margin-bottom:8px;padding:10px;background:#fff3cd;border-radius:10px;border:1.5px solid #ffc107;">
+                        <p style="margin:0 0 6px 0;font-size:0.72rem;font-weight:700;color:#856404;">Ajuste para esta semana (no modifica el sueldo base permanente)</p>
+                        <input type="number" id="hb-sueldo-input" inputmode="numeric"
+                            value="${sueldoEfectivo}"
+                            style="width:100%;box-sizing:border-box;border:2px solid var(--primary);border-radius:10px;padding:8px 12px;font-size:1rem;font-weight:800;font-family:Quicksand;outline:none;margin-bottom:8px;"
+                            oninput="haberesRecalcularNeto()">
+                        <div style="display:flex;gap:6px;">
+                            <button onclick="haberesConfirmarSueldoEdit()"
+                                style="flex:1;padding:8px;background:var(--primary);color:white;border:none;border-radius:9px;font-weight:800;font-size:0.82rem;font-family:Quicksand;cursor:pointer;">✓ OK</button>
+                            <button onclick="haberesCancelarSueldoEdit()"
+                                style="flex:1;padding:8px;background:#e8e8e8;color:#555;border:none;border-radius:9px;font-weight:800;font-size:0.82rem;font-family:Quicksand;cursor:pointer;">✕ Cancelar</button>
+                        </div>
                     </div>
                     <div style="border-top:1px solid #e8e8ff;padding-top:8px;margin-top:4px;">
                         <p style="font-size:0.78rem;font-weight:700;color:#888;margin:0 0 6px 0;">Adelantos descontados:</p>
@@ -2727,7 +2749,7 @@
 
                 <div style="background:linear-gradient(135deg,var(--primary),#a29bfe);border-radius:14px;padding:14px;margin-bottom:14px;text-align:center;">
                     <p style="margin:0;font-size:0.72rem;color:rgba(255,255,255,0.8);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Neto a pagar (sueldo)</p>
-                    <p style="margin:4px 0 0 0;font-size:1.6rem;font-weight:900;color:white;">$${neto.toLocaleString('es-AR')}</p>
+                    <p style="margin:4px 0 0 0;font-size:1.6rem;font-weight:900;color:white;" id="hb-neto-display">$${neto.toLocaleString('es-AR')}</p>
                 </div>
 
                 <p style="font-size:0.8rem;font-weight:700;color:#555;margin:0 0 6px 0;">Forma de pago — Sueldo:</p>
@@ -2800,6 +2822,44 @@
             `;
         }
 
+        function haberesEditarSueldo() {
+            document.getElementById('hb-sueldo-edit').style.display = 'block';
+            document.getElementById('hb-edit-btn').style.display = 'none';
+            const inp = document.getElementById('hb-sueldo-input');
+            inp.focus();
+            inp.select();
+        }
+
+        function haberesConfirmarSueldoEdit() {
+            const val = parseInt(document.getElementById('hb-sueldo-input').value) || 0;
+            haberesAjusteSueldo = val;
+            document.getElementById('hb-sueldo-edit').style.display = 'none';
+            document.getElementById('hb-edit-btn').style.display = '';
+            // Actualiza label sueldo y neto en el modal sin re-renderizar todo
+            document.getElementById('hb-sueldo-display').textContent = '$' + val.toLocaleString('es-AR');
+            document.getElementById('hb-sueldo-display').style.color = '#e17055';
+            haberesRecalcularNeto();
+        }
+
+        function haberesCancelarSueldoEdit() {
+            document.getElementById('hb-sueldo-edit').style.display = 'none';
+            document.getElementById('hb-edit-btn').style.display = '';
+            // Restaurar input al valor actual (ajustado o base)
+            const sueldoActual = haberesAjusteSueldo ?? _haberesEmpActual?.sueldoSemanal ?? 0;
+            document.getElementById('hb-sueldo-input').value = sueldoActual;
+        }
+
+        function haberesRecalcularNeto() {
+            const inp = document.getElementById('hb-sueldo-input');
+            const emp = _haberesEmpActual;
+            if (!emp || !inp) return;
+            const sueldoEdit = parseInt(inp.value) || 0;
+            const totalAdelantos = (emp.adelantos || []).reduce((s, a) => s + (a.importe || 0), 0);
+            const netoEdit = Math.max(0, sueldoEdit - totalAdelantos);
+            const nd = document.getElementById('hb-neto-display');
+            if (nd) nd.textContent = '$' + netoEdit.toLocaleString('es-AR');
+        }
+
         function haberesSelFP(tipo, valor) {
             if (tipo === 'sueldo') {
                 _hfpSueldo = valor;
@@ -2829,15 +2889,20 @@
         async function copiarHaberesWhatsApp() {
             const nombre         = haberesEmpActual;
             const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
+            const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : sueldoBase;
             const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
-            const neto           = sueldoBase - totalAdelantos;
+            const neto           = Math.max(0, sueldoEfectivo - totalAdelantos);
             const mesLabel       = haberesSemanLabel();
             const tieneComision  = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
             const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
 
             let msg = `💼 *PAGO DE HABERES — ${nombre.toUpperCase()}*\n`;
             msg += `📅 Período: ${mesLabel}\n\n`;
-            msg += `💰 Sueldo Base: $${sueldoBase.toLocaleString('es-AR')}\n`;
+            if (sueldoEfectivo !== sueldoBase) {
+                msg += `💰 Sueldo Base: $${sueldoBase.toLocaleString('es-AR')} → *Ajuste: $${sueldoEfectivo.toLocaleString('es-AR')}*\n`;
+            } else {
+                msg += `💰 Sueldo Base: $${sueldoBase.toLocaleString('es-AR')}\n`;
+            }
             if (haberesAdelantosData.length > 0) {
                 msg += `➖ Adelantos descontados:\n`;
                 haberesAdelantosData.forEach(mv => {
@@ -2871,8 +2936,9 @@
         async function registrarPagoHaberes() {
             const nombre         = haberesEmpActual;
             const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
+            const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : sueldoBase;
             const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
-            const neto           = sueldoBase - totalAdelantos;
+            const neto           = Math.max(0, sueldoEfectivo - totalAdelantos);
             if (neto <= 0) { showToast("El neto es $0 — verificá el sueldo base", false); return; }
             const tieneComision  = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
             const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
@@ -2883,9 +2949,12 @@
 
             showLoading("Registrando pago...");
             try {
+                const baseLabel = sueldoEfectivo !== sueldoBase
+                    ? `Base ajustada $${sueldoEfectivo.toLocaleString('es-AR')} (base $${sueldoBase.toLocaleString('es-AR')})`
+                    : `Base $${sueldoBase.toLocaleString('es-AR')}`;
                 const obsBase = totalAdelantos > 0
-                    ? `[${nombre}] Sueldo ${mesLabel} | Base $${sueldoBase.toLocaleString('es-AR')} - Adelantos $${totalAdelantos.toLocaleString('es-AR')}`
-                    : `[${nombre}] Pago de Haberes ${mesLabel}`;
+                    ? `[${nombre}] Sueldo ${mesLabel} | ${baseLabel} - Adelantos $${totalAdelantos.toLocaleString('es-AR')}`
+                    : `[${nombre}] Pago de Haberes ${mesLabel}${sueldoEfectivo !== sueldoBase ? ` | ${baseLabel}` : ''}`;
                 const r1 = await api("registrarMovimientoCaja", {
                     tipo: "Egreso", formaPago: _hfpSueldo,
                     importe: neto, categoria: "Pago de Haberes",
