@@ -865,8 +865,11 @@
         let haberesEmpActual    = null;
         let haberesAdelantosData = [];
         let haberesConfigEmp    = null;
-        let _hfpSueldo   = 'Efectivo';
-        let _hfpComision = 'Efectivo';
+        let _hfpSueldo      = 'Efectivo';
+        let _hfpComision    = 'Efectivo';
+        let _hfpAguinaldo   = 'Efectivo';
+        let haberesAguinaldoCuotas = 0;   // cuotas ya pagadas al empleado actual en el período
+        let _aguinaldoDataGlobal   = [];  // cache de pagos de aguinaldo del período completo
 
         // 🔥 GLOBAL: CHEQUES CARTERA 🔥
         let chequesCarteraGlobal = [];
@@ -2561,11 +2564,45 @@
             return `Sem. ${pad(lun.getDate())}/${pad(lun.getMonth()+1)} — ${pad(vie.getDate())}/${pad(vie.getMonth()+1)}`;
         }
 
-        function haberesInit() {
-            haberesWeekStart = getHaberesLunes(new Date()); // siempre arranca en semana actual
+        // ── Aguinaldo helpers ────────────────────────────────────────────
+        function isAguinaldoMes() {
+            return [5, 11].includes(new Date().getMonth()); // 5=junio, 11=diciembre
+        }
+        function getAguinaldoPeriodo() {
+            const año = new Date().getFullYear();
+            const mes = new Date().getMonth();
+            return mes === 5
+                ? { from: `${año}-06-01`, to: `${año}-06-30`, label: `1° Semestre ${año}` }
+                : { from: `${año}-12-01`, to: `${año}-12-31`, label: `2° Semestre ${año}` };
+        }
+        function calcCuotaAguinaldo(sueldoBase) {
+            // sueldoSemanal * 4 / 2 / 4 = sueldoSemanal / 2
+            return Math.round(sueldoBase / 2);
+        }
+        function aguinaldoCuotasDeEmp(nombre) {
+            return _aguinaldoDataGlobal.filter(mv =>
+                (mv.observacion || '').toLowerCase().includes(normNombre(nombre))
+            ).length;
+        }
+        async function haberesLoadAguinaldoGlobal() {
+            if (!isAguinaldoMes()) { _aguinaldoDataGlobal = []; return; }
+            try {
+                const p = getAguinaldoPeriodo();
+                const res = await fetch(`${API_URL}sb/movimientos?from=${p.from}&to=${p.to}`);
+                const d = await res.json();
+                _aguinaldoDataGlobal = d?.ok && Array.isArray(d.data)
+                    ? d.data.filter(mv => mv.categoria === 'Pago de Aguinaldo')
+                    : [];
+            } catch { _aguinaldoDataGlobal = []; }
+        }
+
+        async function haberesInit() {
+            haberesWeekStart = getHaberesLunes(new Date());
             const lbl = document.getElementById('haberes-periodo-label');
             if (lbl) lbl.textContent = haberesSemanLabel();
-            haberesRenderGrid();
+            haberesRenderGrid(); // render inmediato sin badges
+            await haberesLoadAguinaldoGlobal(); // carga datos aguinaldo del período
+            haberesRenderGrid(); // re-render con badges si es junio/diciembre
         }
 
         function haberesChangeWeek(delta) {
@@ -2582,19 +2619,29 @@
                 : HABERES_EMPS_BACKUP;
             grid.innerHTML = emps.map(nombre => {
                 const ini = nombre.charAt(0).toUpperCase();
+                let badge = '';
+                if (isAguinaldoMes()) {
+                    const cuotas = aguinaldoCuotasDeEmp(nombre);
+                    badge = cuotas >= 4
+                        ? `<div style="margin-top:5px;font-size:0.65rem;font-weight:800;color:#00b894;letter-spacing:0.3px;">✅ Aguinaldo OK</div>`
+                        : `<div style="margin-top:5px;font-size:0.65rem;font-weight:800;color:#e17055;letter-spacing:0.3px;">🎄 ${cuotas}/4 cuotas</div>`;
+                }
                 return `<div class="haberes-emp-card" onclick="abrirModalHaberes('${nombre.replace(/'/g,"\\'")}')">
                     <div class="emp-avatar">${ini}</div>
                     <div class="emp-name">${nombre}</div>
                     <div class="emp-sub">Ver haberes</div>
+                    ${badge}
                 </div>`;
             }).join('');
         }
 
         async function abrirModalHaberes(nombre) {
-            haberesEmpActual     = nombre;
-            haberesAdelantosData = [];
-            _hfpSueldo   = 'Efectivo';
-            _hfpComision = 'Efectivo';
+            haberesEmpActual       = nombre;
+            haberesAdelantosData   = [];
+            _hfpSueldo             = 'Efectivo';
+            _hfpComision           = 'Efectivo';
+            _hfpAguinaldo          = 'Efectivo';
+            haberesAguinaldoCuotas = isAguinaldoMes() ? aguinaldoCuotasDeEmp(nombre) : 0;
             haberesConfigEmp = configEmpleadosGlobal.find(e => e.nombre.toLowerCase() === nombre.toLowerCase()) || { nombre, sueldoBase: 0 };
             const modal = document.getElementById('modal-haberes');
             modal.style.display = 'flex';
@@ -2689,6 +2736,46 @@
                     <p style="margin:4px 0 0 0;font-size:1.4rem;font-weight:900;color:var(--success);" id="haberes-total-lbl">$${neto.toLocaleString('es-AR')}</p>
                 </div>` : ''}
 
+                ${(() => {
+                    if (!isAguinaldoMes()) return '';
+                    const periodo = getAguinaldoPeriodo();
+                    if (haberesAguinaldoCuotas >= 4) return `
+                    <div style="background:#00b89412;border:2px solid #00b894;border-radius:16px;padding:12px 14px;margin-bottom:14px;text-align:center;">
+                        <p style="margin:0;font-weight:800;color:#00b894;font-size:0.9rem;">✅ Aguinaldo completo (4/4)</p>
+                        <p style="margin:4px 0 0 0;font-size:0.72rem;color:#aaa;">${periodo.label}</p>
+                    </div>`;
+                    const cuotaNum  = haberesAguinaldoCuotas + 1;
+                    const cuotaMonto = calcCuotaAguinaldo(sueldoBase);
+                    const barras = [1,2,3,4].map(n =>
+                        `<div style="flex:1;height:6px;border-radius:3px;background:${n <= haberesAguinaldoCuotas ? '#fdcb6e' : '#e8e8e8'};transition:background 0.3s;"></div>`
+                    ).join('');
+                    return `
+                    <div style="background:linear-gradient(135deg,#fff8ee,#fff3e0);border:2px solid #fdcb6e;border-radius:16px;padding:14px;margin-bottom:14px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <div>
+                                <p style="margin:0;font-size:0.8rem;font-weight:800;color:#c0392b;text-transform:uppercase;letter-spacing:0.5px;">🎄 Aguinaldo</p>
+                                <p style="margin:2px 0 0 0;font-size:0.7rem;color:#aaa;">${periodo.label}</p>
+                            </div>
+                            <div style="background:linear-gradient(135deg,#fdcb6e,#e17055);color:white;font-size:0.82rem;font-weight:900;padding:5px 13px;border-radius:20px;box-shadow:0 3px 10px rgba(225,112,85,0.35);">
+                                Cuota ${cuotaNum} / 4
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:5px;margin-bottom:12px;">${barras}</div>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                            <span style="font-size:0.8rem;font-weight:700;color:#666;white-space:nowrap;">Monto cuota:</span>
+                            <input id="haberes-aguinaldo-input" type="number" inputmode="numeric"
+                                value="${cuotaMonto}"
+                                style="flex:1;border:2px solid #fdcb6e;border-radius:10px;padding:9px 12px;font-size:1rem;font-weight:800;font-family:Quicksand;outline:none;color:#c0392b;background:white;min-width:0;">
+                        </div>
+                        <p style="font-size:0.78rem;font-weight:700;color:#555;margin:0 0 6px 0;">Forma de pago — Aguinaldo:</p>
+                        <div style="display:flex;gap:8px;margin-bottom:8px;">
+                            <button class="hfp-btn selected" id="hfp-agu-ef" onclick="haberesSelFP('aguinaldo','Efectivo')">💵 Efectivo</button>
+                            <button class="hfp-btn" id="hfp-agu-tr" onclick="haberesSelFP('aguinaldo','Transferencia')">📲 Transferencia</button>
+                        </div>
+                        <p style="font-size:0.68rem;color:#bbb;margin:0;text-align:center;">Poné <b>0</b> si esta semana no se paga esta cuota</p>
+                    </div>`;
+                })()}
+
                 <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;padding-bottom:20px;">
                     <button onclick="copiarHaberesWhatsApp()" style="width:100%;padding:13px;border:2px solid var(--primary);border-radius:14px;background:white;color:var(--primary);font-weight:800;font-size:0.9rem;font-family:Quicksand;cursor:pointer;">📋 Copiar para WhatsApp</button>
                     <button onclick="registrarPagoHaberes()" style="width:100%;padding:13px;border:none;border-radius:14px;background:var(--primary);color:white;font-weight:800;font-size:0.9rem;font-family:Quicksand;cursor:pointer;">✅ Registrar Pago en Caja</button>
@@ -2701,10 +2788,14 @@
                 _hfpSueldo = valor;
                 document.getElementById('hfp-sueldo-ef').classList.toggle('selected', valor === 'Efectivo');
                 document.getElementById('hfp-sueldo-tr').classList.toggle('selected', valor === 'Transferencia');
-            } else {
+            } else if (tipo === 'comision') {
                 _hfpComision = valor;
                 document.getElementById('hfp-com-ef').classList.toggle('selected', valor === 'Efectivo');
                 document.getElementById('hfp-com-tr').classList.toggle('selected', valor === 'Transferencia');
+            } else if (tipo === 'aguinaldo') {
+                _hfpAguinaldo = valor;
+                document.getElementById('hfp-agu-ef').classList.toggle('selected', valor === 'Efectivo');
+                document.getElementById('hfp-agu-tr').classList.toggle('selected', valor === 'Transferencia');
             }
         }
 
@@ -2741,10 +2832,19 @@
             msg += `  (${_hfpSueldo})`;
             if (tieneComision && com > 0) {
                 msg += `\n✨ *Comisión: $${com.toLocaleString('es-AR')}*  (${_hfpComision})`;
-                msg += `\n\n📊 *TOTAL A COBRAR: $${(neto + com).toLocaleString('es-AR')}*`;
-            } else {
-                msg += `\n\n📊 *TOTAL: $${neto.toLocaleString('es-AR')}*`;
             }
+            let aguWhatsApp = 0;
+            if (isAguinaldoMes() && haberesAguinaldoCuotas < 4) {
+                aguWhatsApp = Number(document.getElementById('haberes-aguinaldo-input')?.value) || 0;
+                if (aguWhatsApp > 0) {
+                    const cuotaNum = haberesAguinaldoCuotas + 1;
+                    const periodo  = getAguinaldoPeriodo();
+                    msg += `\n🎄 *Aguinaldo Cuota ${cuotaNum}/4: $${aguWhatsApp.toLocaleString('es-AR')}*  (${_hfpAguinaldo})`;
+                    msg += `\n   _${periodo.label}_`;
+                }
+            }
+            const totalMsg = neto + com + aguWhatsApp;
+            msg += `\n\n📊 *TOTAL A COBRAR: $${totalMsg.toLocaleString('es-AR')}*`;
             try {
                 await navigator.clipboard.writeText(msg);
                 showToast("✅ ¡Copiado! Pegalo en WhatsApp", true);
@@ -2784,9 +2884,36 @@
                     });
                     if (!r2?.ok) { hideLoading(); showToast("Sueldo OK pero error en comisión", false); return; }
                 }
+
+                // ── Aguinaldo (cuota mensual, si corresponde y monto > 0)
+                let aguMonto = 0;
+                if (isAguinaldoMes() && haberesAguinaldoCuotas < 4) {
+                    aguMonto = Number(document.getElementById('haberes-aguinaldo-input')?.value) || 0;
+                    if (aguMonto > 0) {
+                        const cuotaNum = haberesAguinaldoCuotas + 1;
+                        const periodo  = getAguinaldoPeriodo();
+                        const obsAgu   = `[${nombre}] Aguinaldo Cuota ${cuotaNum}/4 — ${periodo.label}`;
+                        const rAgu = await api("registrarMovimientoCaja", {
+                            tipo: "Egreso", formaPago: _hfpAguinaldo,
+                            importe: aguMonto, categoria: "Pago de Aguinaldo",
+                            observacion: obsAgu, fechaStr, usuario: USUARIO_APP,
+                        });
+                        if (rAgu?.ok) {
+                            // Actualizar cache local para que el badge se actualice sin nueva consulta
+                            _aguinaldoDataGlobal.push({ categoria: 'Pago de Aguinaldo', observacion: obsAgu, importe: aguMonto });
+                            haberesRenderGrid();
+                        } else {
+                            hideLoading();
+                            showToast("Sueldo OK pero error al registrar aguinaldo", false);
+                            return;
+                        }
+                    }
+                }
+
                 hideLoading();
                 cerrarModalHaberes();
-                showToast(`✅ Pago registrado — $${(neto + com).toLocaleString('es-AR')}`, true);
+                const totalPagado = neto + com + aguMonto;
+                showToast(`✅ Pago registrado — $${totalPagado.toLocaleString('es-AR')}`, true);
             } catch(e) {
                 hideLoading();
                 showToast("Error al registrar", false);
