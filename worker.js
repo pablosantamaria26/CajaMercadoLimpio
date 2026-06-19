@@ -503,6 +503,36 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, patch, results }, 200, cors);
   }
 
+  // POST /sb/delete-mov  body: { id: 123 }
+  if (seg === "delete-mov") {
+    if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
+    const svcKey = env.SUPABASE_SERVICE_KEY;
+    if (!svcKey) return json({ error: "Sin SUPABASE_SERVICE_KEY" }, 500, cors);
+    const body = await request.json().catch(() => ({}));
+    if (!body.id) return json({ error: "id requerido" }, 400, cors);
+    const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${body.id}`, {
+      method:  "DELETE",
+      headers: sbWriteH(svcKey),
+    });
+    if (!r.ok) return json({ error: `HTTP ${r.status}` }, 502, cors);
+    return json({ ok: true, deleted: body.id }, 200, cors);
+  }
+
+  // POST /sb/delete-arqueo  body: { id: 123 }
+  if (seg === "delete-arqueo") {
+    if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
+    const svcKey = env.SUPABASE_SERVICE_KEY;
+    if (!svcKey) return json({ error: "Sin SUPABASE_SERVICE_KEY" }, 500, cors);
+    const body = await request.json().catch(() => ({}));
+    if (!body.id) return json({ error: "id requerido" }, 400, cors);
+    const r = await fetch(`${SB_URL}/arqueos_caja?id=eq.${body.id}`, {
+      method:  "DELETE",
+      headers: sbWriteH(svcKey),
+    });
+    if (!r.ok) return json({ error: `HTTP ${r.status}` }, 502, cors);
+    return json({ ok: true, deleted: body.id }, 200, cors);
+  }
+
   return json({ error: `Ruta /sb/${seg} no encontrada` }, 404, cors);
 }
 
