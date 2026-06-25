@@ -312,7 +312,7 @@ async function handleSb(request, env, url, cors) {
 
   // ── Movimientos (por fecha o rango) ──────────────────────────
   if (seg === "movimientos") {
-    let q = `${SB_URL}/movimientos_caja?deleted_at=is.null&order=fecha.asc,hora.asc&limit=9999`;
+    let q = `${SB_URL}/movimientos_caja?deleted_at=is.null&order=fecha.desc,hora.desc,id.desc&limit=9999`;
     if (p.get("fecha"))                   q += `&fecha=eq.${p.get("fecha")}`;
     else if (p.get("from") && p.get("to")) q += `&fecha=gte.${p.get("from")}&fecha=lte.${p.get("to")}`;
     const r    = await fetch(q, { headers: rH });

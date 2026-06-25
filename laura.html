@@ -1386,7 +1386,7 @@
             // Agregar pending que no estén ya en la lista confirmada
             const confirmIds = new Set(movs.map(m => m._tempId).filter(Boolean));
             const pendientes = _pendingMovs.filter(p => !confirmIds.has(p._tempId));
-            const todos = [...pendientes, ...[...movs].reverse()];
+            const todos = [...pendientes, ...movs];
 
             lista.innerHTML = '';
             if (!todos.length) {
