@@ -67,8 +67,7 @@ function sbReadH(key) {
 }
 
 /**
- * Inserta en Supabase. Lanza Error si el HTTP status no es 2xx,
- * para que las funciones sync puedan loguear el problema.
+ * Inserta en Supabase. Lanza Error si el HTTP status no es 2xx.
  */
 async function sbInsert(env, table, data) {
   const r = await fetch(`${SB_URL}/${table}`, {
@@ -82,26 +81,42 @@ async function sbInsert(env, table, data) {
   }
 }
 
+/**
+ * sbInsert con reintentos automáticos (hasta maxRetries veces).
+ * Espera 300ms, 600ms entre intentos. Lanza el último error si todos fallan.
+ */
+async function sbInsertWithRetry(env, table, data, maxRetries = 2) {
+  let lastErr;
+  for (let i = 0; i <= maxRetries; i++) {
+    try { await sbInsert(env, table, data); return; }
+    catch (e) {
+      lastErr = e;
+      if (i < maxRetries) await new Promise(r => setTimeout(r, 300 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 // ════════════════════════════════════════════════════════════════
 // DOBLE ESCRITURA: después de que GAS responde OK, escribir en SB
 // ════════════════════════════════════════════════════════════════
 
 async function syncMovimiento(env, params, gasRes) {
   if (!gasRes?.ok) return;
+  const { fecha, hora } = arNow();
+  let obs = params.observacion || null;
+  if (params.vehiculo) {
+    const tag = `[Veh: ${params.vehiculo}]`;
+    if (!obs) obs = tag;
+    else if (!obs.includes('[Veh:')) obs = `${tag} ${obs}`;
+  }
+  if (params.proveedor) {
+    const tag = `[Prov: ${params.proveedor}]`;
+    if (!obs) obs = tag;
+    else if (!obs.includes('[Prov:')) obs = `${tag} ${obs}`;
+  }
   try {
-    const { fecha, hora } = arNow();
-    let obs = params.observacion || null;
-    if (params.vehiculo) {
-      const tag = `[Veh: ${params.vehiculo}]`;
-      if (!obs) obs = tag;
-      else if (!obs.includes('[Veh:')) obs = `${tag} ${obs}`;
-    }
-    if (params.proveedor) {
-      const tag = `[Prov: ${params.proveedor}]`;
-      if (!obs) obs = tag;
-      else if (!obs.includes('[Prov:')) obs = `${tag} ${obs}`;
-    }
-    await sbInsert(env, "movimientos_caja", {
+    await sbInsertWithRetry(env, "movimientos_caja", {
       id:          genId(),
       fecha:       params.fechaStr?.split("T")[0] || fecha,
       hora:        hora,
@@ -117,147 +132,104 @@ async function syncMovimiento(env, params, gasRes) {
       observacion: obs,
     });
   } catch (e) {
-    console.error("[syncMovimiento]", e.message);
+    console.error("[syncMovimiento] falló tras reintentos:", e.message);
   }
 }
 
 async function syncArqueo(env, params, gasRes) {
   if (!gasRes?.ok) return;
-  try {
-    const { fecha, hora } = arNow();
-    const efFis = Number(params.efectivoFisico);
-    const dif   = Number(gasRes.diferencia ?? 0);
-    const efSis = efFis - dif;
-    const res   = dif === 0 ? "OK" : dif > 0 ? "Sobrante" : "Faltante";
+  const { fecha, hora } = arNow();
+  const efFis = Number(params.efectivoFisico);
+  const dif   = Number(gasRes.diferencia ?? 0);
+  const efSis = efFis - dif;
+  const res   = dif === 0 ? "OK" : dif > 0 ? "Sobrante" : "Faltante";
 
-    await sbInsert(env, "arqueos_caja", {
-      id:               genId(),
-      fecha:            fecha,
-      usuario:          params.usuario || "Laura",
-      efectivo_fisico:  efFis,
-      efectivo_sistema: efSis,
-      diferencia:       dif,
-      resultado:        res,
-      hora_cierre:      `${fecha}T${hora}`,
-      monitor:          params.monitorData || null,
-    });
+  const tasks = [
+    sbInsertWithRetry(env, "arqueos_caja", {
+      id: genId(), fecha, usuario: params.usuario || "Laura",
+      efectivo_fisico: efFis, efectivo_sistema: efSis, diferencia: dif,
+      resultado: res, hora_cierre: `${fecha}T${hora}`, monitor: params.monitorData || null,
+    }),
+  ];
 
-    if (dif !== 0) {
-      await sbInsert(env, "movimientos_caja", {
-        id:          genId(),
-        fecha:       fecha,
-        hora:        hora,
-        tipo:        dif > 0 ? "Ingreso" : "Egreso",
-        forma_pago:  "Efectivo",
-        importe:     Math.abs(dif),
-        categoria:   "Ajuste Post-Arqueo",
-        usuario:     params.usuario || "Laura",
-        observacion: `Ajuste auto arqueo`,
-      });
-    }
-  } catch (e) {
-    console.error("[syncArqueo]", e.message);
-  }
+  if (dif !== 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
+    id: genId(), fecha, hora,
+    tipo: dif > 0 ? "Ingreso" : "Egreso", forma_pago: "Efectivo",
+    importe: Math.abs(dif), categoria: "Ajuste Post-Arqueo",
+    usuario: params.usuario || "Laura", observacion: "Ajuste auto arqueo",
+  }));
+
+  const results = await Promise.allSettled(tasks);
+  const failed  = results.filter(r => r.status === "rejected");
+  if (failed.length > 0)
+    console.error("[syncArqueo] falló:", failed.map(f => f.reason?.message).join(" | "));
 }
 
 async function syncRendicion(env, params, gasRes) {
   if (!gasRes?.ok) return;
-  try {
-    const { fecha, hora } = arNow();
-    // rendiciones_caja guarda la fecha del reparto (día de entrega)
-    const fechaReparto = params.fechaStr?.split("T")[0] || fecha;
-    // movimientos_caja usa HOY: el efectivo entra a la caja cuando Laura procesa la rendición
-    const fechaMov = fecha;
-    const contado  = Number(params.efectivoContado  || 0);
-    const esperado = Number(params.efectivoEsperado || 0);
-    const transf   = Number(params.transferencia    || 0);
-    const cheque   = Number(params.cheque           || 0);
-    const dif      = contado - esperado;
-    const tipoDif  = dif === 0 ? "Exacto" : dif > 0 ? "Sobrante" : "Faltante";
+  const { fecha, hora } = arNow();
+  const fechaReparto = params.fechaStr?.split("T")[0] || fecha;
+  const fechaMov = fecha;
+  const contado  = Number(params.efectivoContado  || 0);
+  const esperado = Number(params.efectivoEsperado || 0);
+  const transf   = Number(params.transferencia    || 0);
+  const cheque   = Number(params.cheque           || 0);
+  const dif      = contado - esperado;
+  const tipoDif  = dif === 0 ? "Exacto" : dif > 0 ? "Sobrante" : "Faltante";
 
-    // 1. Registro en rendiciones_caja (fecha del reparto)
-    await sbInsert(env, "rendiciones_caja", {
-      id:                genId(),
-      fecha:             fechaReparto,
-      turno:             params.turno,
-      repartidor:        params.repartidor,
-      efectivo_esperado: esperado,
-      efectivo_contado:  contado,
-      diferencia:        dif,
-      tipo_diferencia:   tipoDif,
-      usuario:           params.usuario || "Laura",
-      hora_rendicion:    `${fecha}T${hora}`,
-      notas:             {},
-    });
+  // Todas las escrituras son INDEPENDIENTES con retry propio.
+  // Una falla no cancela las demás (Promise.allSettled).
+  const tasks = [
+    // 1. rendiciones_caja
+    sbInsertWithRetry(env, "rendiciones_caja", {
+      id: genId(), fecha: fechaReparto, turno: params.turno,
+      repartidor: params.repartidor, efectivo_esperado: esperado,
+      efectivo_contado: contado, diferencia: dif, tipo_diferencia: tipoDif,
+      usuario: params.usuario || "Laura", hora_rendicion: `${fecha}T${hora}`, notas: {},
+    }),
+  ];
 
-    // 2. Movimiento de efectivo base (si hay efectivo)
-    if (esperado > 0) {
-      await sbInsert(env, "movimientos_caja", {
-        id:          genId(),
-        fecha:       fechaMov,
-        hora:        hora,
-        tipo:        "Ingreso",
-        forma_pago:  "Efectivo",
-        importe:     esperado,
-        categoria:   "Rendición Reparto - BASE",
-        repartidor:  params.repartidor || null,
-        turno:       params.turno      || null,
-        usuario:     "Sistema",
-        observacion: `Base Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
-      });
-    }
+  // 2. Movimiento base efectivo
+  if (esperado > 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
+    id: genId(), fecha: fechaMov, hora, tipo: "Ingreso", forma_pago: "Efectivo",
+    importe: esperado, categoria: "Rendición Reparto - BASE",
+    repartidor: params.repartidor || null, turno: params.turno || null,
+    usuario: "Sistema",
+    observacion: `Base Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
+  }));
 
-    // 3. Movimiento de transferencia (si Nico cobró parte por transferencia)
-    if (transf > 0) {
-      await sbInsert(env, "movimientos_caja", {
-        id:          genId(),
-        fecha:       fechaMov,
-        hora:        hora,
-        tipo:        "Ingreso",
-        forma_pago:  "Transferencia",
-        importe:     transf,
-        categoria:   "Rendición Reparto - TRANSFERENCIA",
-        repartidor:  params.repartidor || null,
-        turno:       params.turno      || null,
-        usuario:     "Sistema",
-        observacion: `Transferencia Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
-      });
-    }
+  // 3. Transferencia
+  if (transf > 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
+    id: genId(), fecha: fechaMov, hora, tipo: "Ingreso", forma_pago: "Transferencia",
+    importe: transf, categoria: "Rendición Reparto - TRANSFERENCIA",
+    repartidor: params.repartidor || null, turno: params.turno || null,
+    usuario: "Sistema",
+    observacion: `Transferencia Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
+  }));
 
-    // 4. Movimiento de cheque (si aplica)
-    if (cheque > 0) {
-      await sbInsert(env, "movimientos_caja", {
-        id:          genId(),
-        fecha:       fechaMov,
-        hora:        hora,
-        tipo:        "Ingreso",
-        forma_pago:  "Cheque",
-        importe:     cheque,
-        categoria:   "Rendición Reparto - CHEQUE",
-        repartidor:  params.repartidor || null,
-        turno:       params.turno      || null,
-        usuario:     "Sistema",
-        observacion: `Cheque Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
-      });
-    }
+  // 4. Cheque
+  if (cheque > 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
+    id: genId(), fecha: fechaMov, hora, tipo: "Ingreso", forma_pago: "Cheque",
+    importe: cheque, categoria: "Rendición Reparto - CHEQUE",
+    repartidor: params.repartidor || null, turno: params.turno || null,
+    usuario: "Sistema",
+    observacion: `Cheque Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
+  }));
 
-    // 5. Ajuste de diferencia de efectivo
-    if (dif !== 0) {
-      await sbInsert(env, "movimientos_caja", {
-        id:          genId(),
-        fecha:       fechaMov,
-        hora:        hora,
-        tipo:        dif > 0 ? "Ingreso" : "Egreso",
-        forma_pago:  "Efectivo",
-        importe:     Math.abs(dif),
-        categoria:   "Diferencia Rendición - Ajuste",
-        usuario:     "Sistema",
-        observacion: `Ajuste automático ${dif > 0 ? "Sobrante" : "Faltante"} ${params.repartidor}`,
-      });
-    }
-  } catch (e) {
-    console.error("[syncRendicion]", e.message);
-  }
+  // 5. Ajuste diferencia
+  if (dif !== 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
+    id: genId(), fecha: fechaMov, hora,
+    tipo: dif > 0 ? "Ingreso" : "Egreso", forma_pago: "Efectivo",
+    importe: Math.abs(dif), categoria: "Diferencia Rendición - Ajuste",
+    usuario: "Sistema",
+    observacion: `Ajuste automático ${dif > 0 ? "Sobrante" : "Faltante"} ${params.repartidor}`,
+  }));
+
+  const results = await Promise.allSettled(tasks);
+  const failed  = results.filter(r => r.status === "rejected");
+  if (failed.length > 0)
+    console.error(`[syncRendicion] ${failed.length}/${tasks.length} escrituras fallaron:`,
+      failed.map(f => f.reason?.message).join(" | "));
 }
 
 async function syncEditMovimiento(env, params, gasRes) {
@@ -371,6 +343,68 @@ async function handleSb(request, env, url, cors) {
     const data  = await r.json();
     if (!Array.isArray(data)) return json({ error: "Error Supabase", detail: data }, 502, cors);
     return json({ ok: true, data }, 200, cors);
+  }
+
+  // ── Audit: totales y gaps entre rendiciones y movimientos ───
+  // GET /sb/audit?from=YYYY-MM-DD&to=YYYY-MM-DD
+  if (seg === "audit") {
+    const from = p.get("from") || arNow().fecha;
+    const to   = p.get("to")   || arNow().fecha;
+
+    // Movimientos en el período
+    const rMovs = await fetch(
+      `${SB_URL}/movimientos_caja?deleted_at=is.null&fecha=gte.${from}&fecha=lte.${to}&select=tipo,forma_pago,importe,categoria`,
+      { headers: rH }
+    );
+    const movs = await rMovs.json();
+
+    // Rendiciones en el período
+    const rRends = await fetch(
+      `${SB_URL}/rendiciones_caja?fecha=gte.${from}&fecha=lte.${to}&select=id,fecha,repartidor,turno,efectivo_esperado`,
+      { headers: rH }
+    );
+    const rends = await rRends.json();
+
+    // Movimientos BASE que existen
+    const rBase = await fetch(
+      `${SB_URL}/movimientos_caja?deleted_at=is.null&categoria=eq.Rendici%C3%B3n%20Reparto%20-%20BASE&fecha=gte.${from}&fecha=lte.${to}&select=observacion,importe`,
+      { headers: rH }
+    );
+    const baseMovs = await rBase.json();
+    const baseObs  = new Set(Array.isArray(baseMovs) ? baseMovs.map(m => m.observacion) : []);
+
+    // Calcular totales
+    let efectivoIn = 0, efectivoOut = 0;
+    if (Array.isArray(movs)) {
+      for (const m of movs) {
+        const v  = Number(m.importe || 0);
+        const fp = (m.forma_pago || "").toLowerCase();
+        if (fp === "efectivo") {
+          if (m.tipo === "Ingreso") efectivoIn  += v;
+          else                      efectivoOut += v;
+        }
+      }
+    }
+
+    // Rendiciones sin movimiento BASE correspondiente
+    const rendsSinMovimiento = Array.isArray(rends) ? rends.filter(r => {
+      const obs = `Base Rendición ${r.repartidor} (${r.turno}) — reparto ${r.fecha}`;
+      return !baseObs.has(obs);
+    }) : [];
+
+    return json({
+      ok: true, from, to,
+      movimientos: Array.isArray(movs) ? movs.length : 0,
+      rendiciones: Array.isArray(rends) ? rends.length : 0,
+      efectivo_ingresos: efectivoIn,
+      efectivo_egresos:  efectivoOut,
+      saldo_efectivo_periodo: efectivoIn - efectivoOut,
+      rendiciones_sin_movimiento: rendsSinMovimiento.length,
+      gaps: rendsSinMovimiento.map(r => ({
+        id: r.id, fecha: r.fecha, repartidor: r.repartidor,
+        turno: r.turno, importe: r.efectivo_esperado,
+      })),
+    }, 200, cors);
   }
 
   // ── Sincronizar rendiciones → movimientos (reparar gaps) ────
@@ -581,14 +615,16 @@ export default {
       return json({ error: err.toString() }, 500, cors);
     }
 
-    // Doble escritura en Supabase (background, no bloquea la respuesta al cliente)
+    // Doble escritura en Supabase — SÍNCRONA: espera antes de responder al cliente.
+    // Esto garantiza que Supabase recibe los datos aunque el proceso termine inmediatamente.
+    // Agrega ~100-300ms de latencia pero elimina la pérdida silenciosa de datos.
     const fn     = body.fn     || "";
     const params = body.params || {};
-    if      (fn === "registrarMovimientoCaja")      ctx.waitUntil(syncMovimiento(env, params, gasRes));
-    else if (fn === "registrarArqueo")              ctx.waitUntil(syncArqueo(env, params, gasRes));
-    else if (fn === "procesarRendicionDesdeRecibo") ctx.waitUntil(syncRendicion(env, params, gasRes));
-    else if (fn === "editarMovimientoCaja")         ctx.waitUntil(syncEditMovimiento(env, params, gasRes));
-    else if (fn === "eliminarMovimientoCaja")       ctx.waitUntil(syncDeleteMovimiento(env, params, gasRes));
+    if      (fn === "registrarMovimientoCaja")      await syncMovimiento(env, params, gasRes);
+    else if (fn === "registrarArqueo")              await syncArqueo(env, params, gasRes);
+    else if (fn === "procesarRendicionDesdeRecibo") await syncRendicion(env, params, gasRes);
+    else if (fn === "editarMovimientoCaja")         await syncEditMovimiento(env, params, gasRes);
+    else if (fn === "eliminarMovimientoCaja")       await syncDeleteMovimiento(env, params, gasRes);
 
     const response = typeof gasRes === "string" ? gasRes : JSON.stringify(gasRes);
     return new Response(response, { status: 200, headers: { "Content-Type": "application/json", ...cors } });
