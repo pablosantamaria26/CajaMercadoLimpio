@@ -1362,13 +1362,25 @@ async function doDeleteMov() {
   const id = editMovId;
   closeSheet('edit-mov');
   toast('Eliminando...');
-  const res = await api("eliminarMovimientoCaja", { id });
-  if (res?.ok) {
-    currentMovs = currentMovs.filter(m => Number(m.id) !== Number(id));
-    renderMovsList();
-    toast('✓ Movimiento eliminado');
-  } else {
-    toast(res?.error || 'Error al eliminar');
+  // Elimina directo en Supabase (bypass GAS que no encuentra IDs grandes)
+  try {
+    const sbRes = await fetch(`${API_URL}sb/delete-mov`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    const sbData = await sbRes.json();
+    if (sbData?.ok) {
+      currentMovs = currentMovs.filter(m => String(m.id) !== String(id));
+      renderMovsList();
+      toast('✓ Movimiento eliminado');
+      // Intenta también borrar en GAS (best-effort, no bloquea)
+      api("eliminarMovimientoCaja", { id }).catch(() => {});
+    } else {
+      toast(sbData?.error || 'Error al eliminar');
+    }
+  } catch(e) {
+    toast('Error de conexión');
   }
   editMovId = null;
 }
