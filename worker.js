@@ -503,6 +503,17 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, patch, results }, 200, cors);
   }
 
+  // POST /sb/insert-mov  body: { movimiento fields }
+  if (seg === "insert-mov") {
+    if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
+    const svcKey = env.SUPABASE_SERVICE_KEY;
+    if (!svcKey) return json({ error: "Sin SUPABASE_SERVICE_KEY" }, 500, cors);
+    const body = await request.json().catch(() => ({}));
+    const mov = { id: genId(), ...body };
+    await sbInsert(env, "movimientos_caja", mov);
+    return json({ ok: true, id: mov.id }, 200, cors);
+  }
+
   // POST /sb/delete-mov  body: { id: 123 }
   if (seg === "delete-mov") {
     if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
