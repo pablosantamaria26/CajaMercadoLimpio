@@ -549,18 +549,73 @@ async function handleSb(request, env, url, cors) {
   }
 
   // POST /sb/delete-mov  body: { id: 123 }
+  // Borra en Supabase Y en GAS Sheet (busca por fecha+hora+importe+categoria).
   if (seg === "delete-mov") {
     if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
     const svcKey = env.SUPABASE_SERVICE_KEY;
     if (!svcKey) return json({ error: "Sin SUPABASE_SERVICE_KEY" }, 500, cors);
     const body = await request.json().catch(() => ({}));
     if (!body.id) return json({ error: "id requerido" }, 400, cors);
+
+    // 1. Leer detalles del movimiento en Supabase (para matchear en GAS)
+    let gasDeleted = false;
+    let gasMatches = 0;
+    try {
+      const movR = await fetch(
+        `${SB_URL}/movimientos_caja?id=eq.${body.id}&limit=1`,
+        { headers: sbReadH(svcKey) }
+      );
+      const [mov] = await movR.json().catch(() => [null]) || [null];
+
+      if (mov?.fecha && mov?.importe != null && mov?.categoria) {
+        // 2. Buscar en GAS todos los movimientos del mismo día
+        const gasR = await fetch(GAS_URL, {
+          method: "POST",
+          body: JSON.stringify({
+            fn: "getMovimientos",
+            params: { fechaStr: `${mov.fecha}T12:00:00` },
+          }),
+        });
+        const gasData = await gasR.json().catch(() => null);
+        const gasMovs = Array.isArray(gasData) ? gasData
+                      : Array.isArray(gasData?.data) ? gasData.data
+                      : [];
+
+        // 3. Encontrar la fila por hora (HH:MM) + importe + categoria
+        const movHora  = (mov.hora   || "").substring(0, 5);
+        const movImp   = Number(mov.importe);
+        const movCat   = (mov.categoria || "").toLowerCase();
+
+        const matches = gasMovs.filter(gm => {
+          const gmHora = (gm.hora || gm.Hora || "").substring(0, 5);
+          const gmImp  = Number(gm.importe || gm.Importe || 0);
+          const gmCat  = (gm.categoria || gm.Categoria || "").toLowerCase();
+          return gmHora === movHora && gmImp === movImp && gmCat === movCat;
+        });
+
+        gasMatches = matches.length;
+        if (matches.length === 1) {
+          // Exactamente uno — borrar con su ID secuencial de GAS
+          const gasId = matches[0].id ?? matches[0].ID;
+          const delR  = await fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({ fn: "eliminarMovimientoCaja", params: { id: gasId } }),
+          });
+          const delData = await delR.json().catch(() => null);
+          gasDeleted = delData?.ok === true;
+        }
+      }
+    } catch (e) {
+      console.error("[delete-mov] GAS lookup/delete failed:", e.message);
+    }
+
+    // 4. Borrar en Supabase (siempre, aunque GAS haya fallado)
     const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${body.id}`, {
       method:  "DELETE",
       headers: sbWriteH(svcKey),
     });
-    if (!r.ok) return json({ error: `HTTP ${r.status}` }, 502, cors);
-    return json({ ok: true, deleted: body.id }, 200, cors);
+    if (!r.ok) return json({ error: `Supabase HTTP ${r.status}` }, 502, cors);
+    return json({ ok: true, deleted: body.id, gasDeleted, gasMatches }, 200, cors);
   }
 
   // POST /sb/delete-arqueo  body: { id: 123 }
