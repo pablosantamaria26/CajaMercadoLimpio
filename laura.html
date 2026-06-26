@@ -885,6 +885,7 @@
         let _hfpAguinaldo      = 'Efectivo';
         let haberesAguinaldoCuotas = 0;    // cuotas ya pagadas al empleado actual en el período
         let _aguinaldoDataGlobal   = [];   // cache de pagos de aguinaldo del período completo
+        let _aguinaldoDataLoaded   = false;
         let haberesAjusteSueldo    = null; // override temporal del sueldo para esta semana (null = usar base)
         let _haberesEmpActual      = null; // { sueldoSemanal, adelantos } — para recalcular neto en tiempo real
 
@@ -2666,7 +2667,7 @@
             return false;
         }
         async function haberesLoadAguinaldoGlobal() {
-            if (!isAguinaldoMes()) { _aguinaldoDataGlobal = []; return; }
+            if (!isAguinaldoMes()) { _aguinaldoDataGlobal = []; _aguinaldoDataLoaded = true; return; }
             try {
                 const p = getAguinaldoPeriodo();
                 const res = await fetch(`${API_URL}sb/movimientos?from=${p.from}&to=${p.to}`);
@@ -2675,10 +2676,12 @@
                     ? d.data.filter(mv => mv.categoria === 'Pago de Aguinaldo')
                     : [];
             } catch { _aguinaldoDataGlobal = []; }
+            _aguinaldoDataLoaded = true;
         }
 
         async function haberesInit() {
             haberesWeekStart = getHaberesLunes(new Date());
+            _aguinaldoDataLoaded = false;
             const lbl = document.getElementById('haberes-periodo-label');
             if (lbl) lbl.textContent = haberesSemanLabel();
             haberesRenderGrid(); // render inmediato sin badges
@@ -2722,6 +2725,7 @@
             _hfpSueldo             = 'Efectivo';
             _hfpComision           = 'Efectivo';
             _hfpAguinaldo          = 'Efectivo';
+            if (isAguinaldoMes() && !_aguinaldoDataLoaded) await haberesLoadAguinaldoGlobal();
             haberesAguinaldoCuotas = (isAguinaldoMes() && isElegibleAguinaldo(nombre)) ? aguinaldoCuotasDeEmp(nombre) : -1;
             haberesAjusteSueldo    = null;
             haberesConfigEmp = configEmpleadosGlobal.find(e => e.nombre.toLowerCase() === nombre.toLowerCase()) || { nombre, sueldoBase: 0 };
