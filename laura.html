@@ -886,6 +886,7 @@
         let haberesAguinaldoCuotas = 0;    // cuotas ya pagadas al empleado actual en el período
         let _aguinaldoDataGlobal   = [];   // cache de pagos de aguinaldo del período completo
         let _aguinaldoDataLoaded   = false;
+        let _haberesRegistrando    = false; // guard anti-doble-envío
         let haberesAjusteSueldo    = null; // override temporal del sueldo para esta semana (null = usar base)
         let _haberesEmpActual      = null; // { sueldoSemanal, adelantos } — para recalcular neto en tiempo real
 
@@ -1610,11 +1611,11 @@
                 checkCamposExtra();
                 actualizarSaldoHeader();
 
-                // Esperar un momento para que el Worker termine el sync a Supabase
+                // El sync a Supabase ya terminó (síncrono en el worker) — refrescar lista
                 setTimeout(() => {
                     _pendingMovs = _pendingMovs.filter(p => p._tempId !== tempId);
                     cargarMovimientos();
-                }, 1000);
+                }, 500);
             } else {
                 // Error: quitar el optimista y mostrar error
                 _pendingMovs = _pendingMovs.filter(p => p._tempId !== tempId);
@@ -2883,7 +2884,7 @@
 
                 <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;padding-bottom:20px;">
                     <button onclick="copiarHaberesWhatsApp()" style="width:100%;padding:13px;border:2px solid var(--primary);border-radius:14px;background:white;color:var(--primary);font-weight:800;font-size:0.9rem;font-family:Quicksand;cursor:pointer;">📋 Copiar para WhatsApp</button>
-                    <button onclick="registrarPagoHaberes()" style="width:100%;padding:13px;border:none;border-radius:14px;background:var(--primary);color:white;font-weight:800;font-size:0.9rem;font-family:Quicksand;cursor:pointer;">✅ Registrar Pago en Caja</button>
+                    <button id="btn-pagar-haberes" onclick="registrarPagoHaberes()" style="width:100%;padding:13px;border:none;border-radius:14px;background:var(--primary);color:white;font-weight:800;font-size:0.9rem;font-family:Quicksand;cursor:pointer;">✅ Registrar Pago en Caja</button>
                 </div>
             `;
         }
@@ -3000,12 +3001,26 @@
         }
 
         async function registrarPagoHaberes() {
+            // Guard anti-doble-envío
+            if (_haberesRegistrando) return;
+            _haberesRegistrando = true;
+            const btnPagar = document.getElementById('btn-pagar-haberes');
+            if (btnPagar) { btnPagar.disabled = true; btnPagar.textContent = '⏳ Registrando...'; }
+
             const nombre         = haberesEmpActual;
             const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
             const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : sueldoBase;
             const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
             const neto           = Math.max(0, sueldoEfectivo - totalAdelantos);
-            if (neto <= 0) { showToast("El neto es $0 — verificá el sueldo base", false); return; }
+
+            const liberarBtn = () => {
+                _haberesRegistrando = false;
+                const b = document.getElementById('btn-pagar-haberes');
+                if (b) { b.disabled = false; b.textContent = '✅ Registrar Pago en Caja'; }
+            };
+
+            if (neto <= 0) { liberarBtn(); showToast("El neto es $0 — verificá el sueldo base", false); return; }
+
             const tieneComision  = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
             const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
             const mesLabel = haberesSemanLabel();
@@ -3021,54 +3036,63 @@
                 const obsBase = totalAdelantos > 0
                     ? `[${nombre}] Sueldo ${mesLabel} | ${baseLabel} - Adelantos $${totalAdelantos.toLocaleString('es-AR')}`
                     : `[${nombre}] Pago de Haberes ${mesLabel}${sueldoEfectivo !== sueldoBase ? ` | ${baseLabel}` : ''}`;
-                const r1 = await api("registrarMovimientoCaja", {
-                    tipo: "Egreso", formaPago: _hfpSueldo,
-                    importe: neto, categoria: "Pago de Haberes",
-                    observacion: obsBase, fechaStr, usuario: USUARIO_APP,
-                });
-                if (!r1?.ok) { hideLoading(); showToast("Error al registrar sueldo", false); return; }
-                if (com > 0) {
-                    const r2 = await api("registrarMovimientoCaja", {
-                        tipo: "Egreso", formaPago: _hfpComision,
-                        importe: com, categoria: "Pago de Haberes",
-                        observacion: `[${nombre}] Comisión ${mesLabel}`,
-                        fechaStr, usuario: USUARIO_APP,
-                    });
-                    if (!r2?.ok) { hideLoading(); showToast("Sueldo OK pero error en comisión", false); return; }
-                }
 
-                // ── Aguinaldo (cuota mensual, si corresponde y monto > 0)
-                let aguMonto = 0;
+                // Aguinaldo payload (si corresponde)
+                let aguMonto = 0, obsAgu = null;
                 if (isAguinaldoMes() && haberesAguinaldoCuotas >= 0 && haberesAguinaldoCuotas < 4) {
                     aguMonto = Number(document.getElementById('haberes-aguinaldo-input')?.value) || 0;
                     if (aguMonto > 0) {
                         const cuotaNum = haberesAguinaldoCuotas + 1;
-                        const periodo  = getAguinaldoPeriodo();
-                        const obsAgu   = `[${nombre}] Aguinaldo Cuota ${cuotaNum}/4 — ${periodo.label}`;
-                        const rAgu = await api("registrarMovimientoCaja", {
-                            tipo: "Egreso", formaPago: _hfpAguinaldo,
-                            importe: aguMonto, categoria: "Pago de Aguinaldo",
-                            observacion: obsAgu, fechaStr, usuario: USUARIO_APP,
-                        });
-                        if (rAgu?.ok) {
-                            // Actualizar cache local para que el badge se actualice sin nueva consulta
-                            _aguinaldoDataGlobal.push({ categoria: 'Pago de Aguinaldo', observacion: obsAgu, importe: aguMonto });
-                            haberesRenderGrid();
-                        } else {
-                            hideLoading();
-                            showToast("Sueldo OK pero error al registrar aguinaldo", false);
-                            return;
-                        }
+                        obsAgu = `[${nombre}] Aguinaldo Cuota ${cuotaNum}/4 — ${getAguinaldoPeriodo().label}`;
                     }
                 }
 
+                // Lanzar todas las llamadas en paralelo (reduce ~15s a ~5s)
+                const tareas = [
+                    api("registrarMovimientoCaja", {
+                        tipo: "Egreso", formaPago: _hfpSueldo,
+                        importe: neto, categoria: "Pago de Haberes",
+                        observacion: obsBase, fechaStr, usuario: USUARIO_APP,
+                    }),
+                ];
+                if (com > 0) tareas.push(api("registrarMovimientoCaja", {
+                    tipo: "Egreso", formaPago: _hfpComision,
+                    importe: com, categoria: "Pago de Haberes",
+                    observacion: `[${nombre}] Comisión ${mesLabel}`,
+                    fechaStr, usuario: USUARIO_APP,
+                }));
+                if (aguMonto > 0) tareas.push(api("registrarMovimientoCaja", {
+                    tipo: "Egreso", formaPago: _hfpAguinaldo,
+                    importe: aguMonto, categoria: "Pago de Aguinaldo",
+                    observacion: obsAgu, fechaStr, usuario: USUARIO_APP,
+                }));
+
+                const resultados = await Promise.allSettled(tareas);
+                const errores = resultados
+                    .map((r, i) => r.status === 'rejected' || !r.value?.ok ? i : null)
+                    .filter(i => i !== null);
+
+                // Siempre cerrar el modal — nunca dejar al usuario en estado ambiguo
                 hideLoading();
                 cerrarModalHaberes();
-                const totalPagado = neto + com + aguMonto;
-                showToast(`✅ Pago registrado — $${totalPagado.toLocaleString('es-AR')}`, true);
+                liberarBtn();
+
+                if (errores.length === 0) {
+                    if (aguMonto > 0 && obsAgu) {
+                        _aguinaldoDataGlobal.push({ categoria: 'Pago de Aguinaldo', observacion: obsAgu, importe: aguMonto });
+                        haberesRenderGrid();
+                    }
+                    const totalPagado = neto + com + aguMonto;
+                    showToast(`✅ Pago registrado — $${totalPagado.toLocaleString('es-AR')}`, true);
+                } else {
+                    // Error parcial: registros que SÍ pasaron ya están guardados — avisar sin dejar modal abierto
+                    showToast(`⚠️ Pago parcial — revisá los movimientos (${errores.length} error/es)`, false);
+                }
             } catch(e) {
                 hideLoading();
-                showToast("Error al registrar", false);
+                cerrarModalHaberes();
+                liberarBtn();
+                showToast("Error al registrar — verificá los movimientos antes de reintentar", false);
             }
         }
     </script>

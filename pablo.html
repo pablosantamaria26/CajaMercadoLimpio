@@ -1373,9 +1373,9 @@ async function doDeleteMov() {
     if (sbData?.ok) {
       currentMovs = currentMovs.filter(m => String(m.id) !== String(id));
       renderMovsList();
-      toast('✓ Movimiento eliminado');
-      // Intenta también borrar en GAS (best-effort, no bloquea)
-      api("eliminarMovimientoCaja", { id }).catch(() => {});
+      // GAS usa IDs secuenciales propios — no puede encontrar por ID de Supabase.
+      // El registro quedará en el Sheet hasta que se elimine manualmente.
+      toast('✓ Eliminado de Supabase (borrar también en Sheet si aplica)');
     } else {
       toast(sbData?.error || 'Error al eliminar');
     }
