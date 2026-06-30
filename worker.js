@@ -549,7 +549,7 @@ async function handleSb(request, env, url, cors) {
   }
 
   // POST /sb/delete-mov  body: { id: 123 }
-  // Borra en Supabase Y en GAS Sheet (busca por fecha+hora+importe+categoria).
+  // Borra en Supabase Y en GAS Sheet via eliminarMovimientoPorCampos (1 llamada).
   if (seg === "delete-mov") {
     if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
     const svcKey = env.SUPABASE_SERVICE_KEY;
@@ -557,9 +557,8 @@ async function handleSb(request, env, url, cors) {
     const body = await request.json().catch(() => ({}));
     if (!body.id) return json({ error: "id requerido" }, 400, cors);
 
-    // 1. Leer detalles del movimiento en Supabase (para matchear en GAS)
     let gasDeleted = false;
-    let gasMatches = 0;
+    let gasMatches = -1; // -1 = error/desconocido, 0 = no estaba en GAS, 1 = encontrado
     try {
       const movR = await fetch(
         `${SB_URL}/movimientos_caja?id=eq.${body.id}&limit=1`,
@@ -568,48 +567,30 @@ async function handleSb(request, env, url, cors) {
       const [mov] = await movR.json().catch(() => [null]) || [null];
 
       if (mov?.fecha && mov?.importe != null && mov?.categoria) {
-        // 2. Buscar en GAS todos los movimientos del mismo día
-        const gasR = await fetch(GAS_URL, {
+        const delR = await fetch(GAS_URL, {
           method: "POST",
           body: JSON.stringify({
-            fn: "getMovimientos",
-            params: { fechaStr: `${mov.fecha}T12:00:00` },
+            fn: "eliminarMovimientoPorCampos",
+            params: {
+              fecha:     mov.fecha,
+              hora:      (mov.hora || "").substring(0, 5),
+              importe:   Number(mov.importe),
+              categoria: mov.categoria,
+            },
           }),
         });
-        const gasData = await gasR.json().catch(() => null);
-        const gasMovs = Array.isArray(gasData) ? gasData
-                      : Array.isArray(gasData?.data) ? gasData.data
-                      : [];
-
-        // 3. Encontrar la fila por hora (HH:MM) + importe + categoria
-        const movHora  = (mov.hora   || "").substring(0, 5);
-        const movImp   = Number(mov.importe);
-        const movCat   = (mov.categoria || "").toLowerCase();
-
-        const matches = gasMovs.filter(gm => {
-          const gmHora = (gm.hora || gm.Hora || "").substring(0, 5);
-          const gmImp  = Number(gm.importe || gm.Importe || 0);
-          const gmCat  = (gm.categoria || gm.Categoria || "").toLowerCase();
-          return gmHora === movHora && gmImp === movImp && gmCat === movCat;
-        });
-
-        gasMatches = matches.length;
-        if (matches.length === 1) {
-          // Exactamente uno — borrar con su ID secuencial de GAS
-          const gasId = matches[0].id ?? matches[0].ID;
-          const delR  = await fetch(GAS_URL, {
-            method: "POST",
-            body: JSON.stringify({ fn: "eliminarMovimientoCaja", params: { id: gasId } }),
-          });
-          const delData = await delR.json().catch(() => null);
-          gasDeleted = delData?.ok === true;
+        const delData = await delR.json().catch(() => null);
+        if (delData?.ok === true) {
+          gasDeleted = true;
+          gasMatches = 1;
+        } else if (delData?.error === "No encontrado") {
+          gasMatches = 0;
         }
       }
     } catch (e) {
-      console.error("[delete-mov] GAS lookup/delete failed:", e.message);
+      console.error("[delete-mov] GAS delete failed:", e.message);
     }
 
-    // 4. Borrar en Supabase (siempre, aunque GAS haya fallado)
     const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${body.id}`, {
       method:  "DELETE",
       headers: sbWriteH(svcKey),
@@ -631,6 +612,54 @@ async function handleSb(request, env, url, cors) {
     });
     if (!r.ok) return json({ error: `HTTP ${r.status}` }, 502, cors);
     return json({ ok: true, deleted: body.id }, 200, cors);
+  }
+
+  // GET /sb/vtv-alerts  → lista de vehículos con VTV a menos de 15 días del aniversario
+  if (seg === "vtv-alerts") {
+    if (request.method !== "GET") return json({ error: "Usar GET" }, 405, cors);
+    const svcKey = env.SUPABASE_SERVICE_KEY;
+    if (!svcKey) return json({ error: "Sin SUPABASE_SERVICE_KEY" }, 500, cors);
+
+    const r = await fetch(
+      `${SB_URL}/movimientos_caja?categoria=eq.VTV&select=vehiculo,fecha&order=fecha.desc`,
+      { headers: sbReadH(svcKey) }
+    );
+    const rows = await r.json().catch(() => []);
+
+    // Más reciente por vehículo
+    const latest = {};
+    for (const row of rows) {
+      if (row.vehiculo && !latest[row.vehiculo]) latest[row.vehiculo] = row.fecha;
+    }
+
+    const today = new Date();
+    const alertas = [];
+    for (const [vehiculo, fechaVTV] of Object.entries(latest)) {
+      const anniversary = new Date(fechaVTV);
+      anniversary.setFullYear(anniversary.getFullYear() + 1);
+      const diffDays = Math.ceil((anniversary - today) / 86400000);
+      if (diffDays <= 15) {
+        alertas.push({ vehiculo, fechaVTV, diasRestantes: diffDays, vencimiento: anniversary.toISOString().substring(0, 10) });
+      }
+    }
+    return json({ alertas }, 200, cors);
+  }
+
+  // POST /sb/vtv-email  body: { vehiculo, diasRestantes, vencimiento, fechaVTV }
+  if (seg === "vtv-email") {
+    if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
+    const body = await request.json().catch(() => ({}));
+    if (!body.vehiculo) return json({ error: "vehiculo requerido" }, 400, cors);
+    try {
+      const r = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({ fn: "enviarEmailVTV", params: body }),
+      });
+      const data = await r.json().catch(() => null);
+      return json({ ok: true, gas: data }, 200, cors);
+    } catch(e) {
+      return json({ ok: false, error: e.message }, 500, cors);
+    }
   }
 
   return json({ error: `Ruta /sb/${seg} no encontrada` }, 404, cors);

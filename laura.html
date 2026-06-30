@@ -584,7 +584,16 @@
                 </select>
             </div>
 
-            <select id="mov-categoria" class="form-control">
+            <!-- Picker de categorías con grupos y colores -->
+            <div id="categoria-picker-wrapper" style="position:relative;margin-bottom:0;">
+                <div id="categoria-display" class="form-control" onclick="toggleCategoriaPicker()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;min-height:44px;">
+                    <span id="categoria-display-text" style="color:#aaa;">-- Motivo --</span>
+                    <span id="categoria-arrow" style="transition:transform .2s;font-size:12px;color:#999;">▼</span>
+                </div>
+                <div id="categoria-dropdown" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:1000;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;max-height:65vh;overflow-y:auto;border:1px solid #e5e7eb;">
+                </div>
+            </div>
+            <select id="mov-categoria" style="display:none;">
                 <option value="" disabled selected>-- Motivo --</option>
             </select>
 
@@ -601,6 +610,20 @@
                 </select>
                 <select id="mov-empleado" class="form-control" style="display:none;">
                     <option value="" disabled selected>Empleado</option>
+                </select>
+                <select id="mov-bidones" class="form-control" style="display:none;">
+                    <option value="" disabled selected>💧 ¿Cuántos bidones?</option>
+                    <option value="1">1 bidón</option>
+                    <option value="2">2 bidones</option>
+                    <option value="3">3 bidones</option>
+                    <option value="4">4 bidones</option>
+                    <option value="5">5 bidones</option>
+                    <option value="6">6 bidones</option>
+                    <option value="8">8 bidones</option>
+                    <option value="10">10 bidones</option>
+                    <option value="12">12 bidones</option>
+                    <option value="15">15 bidones</option>
+                    <option value="20">20 bidones</option>
                 </select>
 
                 <!-- SELECTOR CHEQUE CARTERA -->
@@ -901,10 +924,42 @@
         // 🔥 GLOBAL: PAYLOAD TEMPORAL PARA EL MODAL 🔥
         let tempMovimientoPayload = null;
 
-        // LISTAS
-        const CATEGORIAS_EGRESO = [ "Pago a Proveedor", "Combustible", "Adelanto de Sueldo", "Pago de Haberes", "Gastos de Limpieza", "Gastos de Mantenimiento (Vehiculos)", "Retiro de Efectivo (Pablo)", "Gastos de Jardineria", "Movimiento Libre (Varios)" ];
-        const CATEGORIAS_INGRESO = ["Venta Local", "Ingreso Varios", "Aporte de Capital"];
+        // LISTAS (agrupadas para el picker de categorías)
+        const CATEGORIAS_EGRESO_GRUPOS = [
+            { grupo: "💰 Pagos", color: "#2563eb", bg: "#eff6ff", items: [
+                { v: "Pago a Proveedor",                     icon: "🏭" },
+                { v: "Pago de Haberes",                      icon: "👷" },
+                { v: "Adelanto de Sueldo",                   icon: "⬆️" },
+            ]},
+            { grupo: "🚗 Vehículos", color: "#059669", bg: "#ecfdf5", items: [
+                { v: "Combustible",                          icon: "⛽" },
+                { v: "Gastos de Mantenimiento (Vehiculos)", icon: "🔧" },
+                { v: "VTV",                                  icon: "📋" },
+            ]},
+            { grupo: "🏠 Gastos", color: "#d97706", bg: "#fffbeb", items: [
+                { v: "Gastos de Limpieza",                   icon: "🧹" },
+                { v: "Gastos de Jardineria",                 icon: "🌱" },
+            ]},
+            { grupo: "📦 Varios", color: "#7c3aed", bg: "#f5f3ff", items: [
+                { v: "Bidón de Agua",                        icon: "💧" },
+                { v: "Retiro de Efectivo (Pablo)",           icon: "👤" },
+                { v: "Movimiento Libre (Varios)",            icon: "📝" },
+            ]},
+        ];
+        const CATEGORIAS_INGRESO_GRUPOS = [
+            { grupo: "💵 Ingresos", color: "#16a34a", bg: "#f0fdf4", items: [
+                { v: "Venta Local",       icon: "🏪" },
+                { v: "Ingreso Varios",    icon: "📥" },
+                { v: "Aporte de Capital", icon: "💼" },
+            ]},
+        ];
+        // Flat arrays para compatibilidad con funciones existentes
+        const CATEGORIAS_EGRESO  = CATEGORIAS_EGRESO_GRUPOS.flatMap(g => g.items.map(i => i.v));
+        const CATEGORIAS_INGRESO = CATEGORIAS_INGRESO_GRUPOS.flatMap(g => g.items.map(i => i.v));
         const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
+
+        // Estado del picker de categorías
+        let _pickerCatAbierto = false;
         const PROVEEDORES = ["Marwiplast", "Bio Bag", "Broche plastico", "Bumerang", "Carol", "Colores", "Coolbazar", "Cotton", "Santamaria Escobillones", "Desesplast", "Diawara", "Emege", "Entresol", "Fedata", "Fibran", "Flexal", "Hechicera", "Infinity import", "K&K", "La Americana", "La gauchita", "Macetex", "Make Fresh", "Matriplaster", "Mis Plast", "Modoplast", "Molmar", "POP", "Rigolleau", "Romyl", "Samantha", "Santamaria", "Sasha", "Soifer", "lumilagro", "Make", "Suka", "Supy", "Tauro", "Tecnomatric", "Yesi", "Durax", "Javi"].sort();
 
         // MONITOR SEGURIDAD
@@ -920,7 +975,15 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             initApp();
-            
+
+            // Cerrar picker de categorías al hacer click fuera
+            document.addEventListener('click', (e) => {
+                if (_pickerCatAbierto) {
+                    const wrapper = document.getElementById('categoria-picker-wrapper');
+                    if (wrapper && !wrapper.contains(e.target)) cerrarCategoriaPicker();
+                }
+            });
+
             document.getElementById('mov-categoria').addEventListener('change', (e) => {
                 checkCamposExtra();
                 if(e.target.value === "Pago de Haberes") {
@@ -958,7 +1021,8 @@
             buscarRendicionPendiente();
             cargarConfigEmpleados();
             _iniciarPolling();
-            
+            checkVTVAlerts();
+
             // 🔥 PEDIR PERMISO DE NOTIFICACIONES AL INICIAR 🔥
             if ("Notification" in window) {
                 Notification.requestPermission();
@@ -1433,17 +1497,22 @@
             const veh = document.getElementById('mov-vehiculo').value;
             
             // 2. Proceso de registro (AHORA MODIFICADO PARA PARTY MODAL)
-            const pago = document.getElementById('mov-pago').value;
-            const imp = parseInt(document.getElementById('mov-importe').getAttribute('data-clean-value')) || 0;
-            let obs = document.getElementById('mov-obs').value;
-            const prov = document.getElementById('mov-proveedor').value;
-            const emp = document.getElementById('mov-empleado').value;
-            const banco = document.getElementById('mov-banco').value;
+            const pago    = document.getElementById('mov-pago').value;
+            const imp     = parseInt(document.getElementById('mov-importe').getAttribute('data-clean-value')) || 0;
+            let obs       = document.getElementById('mov-obs').value;
+            const prov    = document.getElementById('mov-proveedor').value;
+            const emp     = document.getElementById('mov-empleado').value;
+            const banco   = document.getElementById('mov-banco').value;
             const nroCheque = document.getElementById('mov-cheque-nro').value;
-            
+            const bidones = document.getElementById('mov-bidones').value;
+
             if(!cat || imp<=0) { return showToast("Datos incompletos", false); }
+            if (cat === "Bidón de Agua" && !bidones) { return showToast("Seleccioná la cantidad de bidones", false); }
+            if (cat === "VTV" && !veh) { return showToast("Seleccioná el vehículo para la VTV", false); }
             if (cat === "Adelanto de Sueldo" && emp) obs = `[${emp}] Adelanto de Sueldo. ${obs}`;
             if ((cat === "Combustible" || cat.includes("Mantenimiento")) && veh) obs = `[Veh: ${veh}]${obs ? ' ' + obs : ''}`;
+            if (cat === "VTV" && veh) obs = `[VTV: ${veh}]${obs ? ' ' + obs : ''}`;
+            if (cat === "Bidón de Agua" && bidones) obs = `[${bidones} bidón${bidones > 1 ? 'es' : ''} de agua]${obs ? ' ' + obs : ''}`;
             if (cat.includes("Proveedor") && prov && !obs.includes('[Prov:')) obs = `[Prov: ${prov}]${obs ? ' ' + obs : ''}`;
 
             // PREPARAMOS EL PAYLOAD PERO NO LO ENVIAMOS TODAVIA
@@ -1599,6 +1668,9 @@
 
                 document.getElementById('mov-proveedor').value = '';
                 if (document.getElementById('mov-vehiculo')) document.getElementById('mov-vehiculo').value = '';
+                if (document.getElementById('mov-bidones'))  document.getElementById('mov-bidones').value  = '';
+                const dispText = document.getElementById('categoria-display-text');
+                if (dispText) { dispText.textContent = '-- Motivo --'; dispText.style.color = '#aaa'; }
 
                 if (inputImporte.classList.contains('importe-cheque-lock')) {
                     inputImporte.classList.remove('importe-cheque-lock');
@@ -1624,49 +1696,109 @@
             }
         }
 
+        // --- PICKER DE CATEGORÍAS ---
+        function toggleCategoriaPicker() {
+            const dd    = document.getElementById('categoria-dropdown');
+            const arrow = document.getElementById('categoria-arrow');
+            _pickerCatAbierto = !_pickerCatAbierto;
+            dd.style.display = _pickerCatAbierto ? 'block' : 'none';
+            arrow.style.transform = _pickerCatAbierto ? 'rotate(180deg)' : '';
+        }
+
+        function cerrarCategoriaPicker() {
+            _pickerCatAbierto = false;
+            const dd    = document.getElementById('categoria-dropdown');
+            const arrow = document.getElementById('categoria-arrow');
+            if (dd)    dd.style.display = 'none';
+            if (arrow) arrow.style.transform = '';
+        }
+
+        function selectCategoria(value, icon, label) {
+            const sel         = document.getElementById('mov-categoria');
+            const displayText = document.getElementById('categoria-display-text');
+            sel.value = value;
+            displayText.textContent = icon + ' ' + label;
+            displayText.style.color = '#212529';
+            cerrarCategoriaPicker();
+            sel.dispatchEvent(new Event('change'));
+        }
+
         // --- AUXILIARES ---
         function actualizarCategorias() {
-    const tipo = document.getElementById('mov-tipo').value;
-    const selectEl = document.getElementById('mov-categoria');
-    const catActual = selectEl.value; 
-    
-    // Limpiamos los valores de campos extra para que no queden "colgados"
-    document.getElementById('mov-empleado').value = "";
-    document.getElementById('mov-proveedor').value = "";
-    document.getElementById('mov-vehiculo').value = "";
-    document.getElementById('mov-banco').value = "";
-    document.getElementById('mov-cheque-nro').value = "";
-    
-    selectEl.innerHTML = '<option value="" disabled selected>-- Motivo --</option>';
-    const lista = tipo === 'Egreso' ? CATEGORIAS_EGRESO : CATEGORIAS_INGRESO;
-    lista.forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat; opt.textContent = cat;
-        selectEl.appendChild(opt);
-    });
+            const tipo      = document.getElementById('mov-tipo').value;
+            const selectEl  = document.getElementById('mov-categoria');
+            const catActual = selectEl.value;
 
-    if (catActual === "Pago de Haberes" && tipo === 'Egreso') {
-        selectEl.value = 'Pago de Haberes';
-    }
-    
-    checkCamposExtra(); 
-}
+            // Limpiar campos extra
+            document.getElementById('mov-empleado').value  = "";
+            document.getElementById('mov-proveedor').value = "";
+            document.getElementById('mov-vehiculo').value  = "";
+            document.getElementById('mov-banco').value     = "";
+            document.getElementById('mov-cheque-nro').value = "";
+            document.getElementById('mov-bidones').value   = "";
+
+            // Reset display del picker
+            const displayText = document.getElementById('categoria-display-text');
+            if (displayText) { displayText.textContent = '-- Motivo --'; displayText.style.color = '#aaa'; }
+
+            // Reconstruir hidden select (para compatibilidad)
+            selectEl.innerHTML = '<option value="" disabled selected>-- Motivo --</option>';
+            const grupos = tipo === 'Egreso' ? CATEGORIAS_EGRESO_GRUPOS : CATEGORIAS_INGRESO_GRUPOS;
+            grupos.forEach(g => g.items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.v; opt.textContent = item.v;
+                selectEl.appendChild(opt);
+            }));
+
+            // Reconstruir dropdown visual
+            const dd = document.getElementById('categoria-dropdown');
+            if (dd) {
+                dd.innerHTML = '';
+                grupos.forEach((g, gi) => {
+                    const header = document.createElement('div');
+                    header.style.cssText = `background:${g.bg};color:${g.color};padding:9px 16px 6px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;${gi > 0 ? 'border-top:1px solid #e5e7eb;' : ''}`;
+                    header.textContent = g.grupo;
+                    dd.appendChild(header);
+                    g.items.forEach(item => {
+                        const row = document.createElement('div');
+                        row.style.cssText = 'padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:15px;border-bottom:1px solid #f3f4f6;';
+                        row.innerHTML = `<span style="font-size:18px;min-width:24px;">${item.icon}</span><span>${item.v}</span>`;
+                        row.onmouseenter = () => row.style.background = '#f9fafb';
+                        row.onmouseleave = () => row.style.background = '';
+                        row.onclick = () => selectCategoria(item.v, item.icon, item.v);
+                        dd.appendChild(row);
+                    });
+                });
+            }
+
+            if (catActual === "Pago de Haberes" && tipo === 'Egreso') {
+                selectEl.value = 'Pago de Haberes';
+                if (displayText) { displayText.textContent = '👷 Pago de Haberes'; displayText.style.color = '#212529'; }
+            }
+
+            checkCamposExtra();
+        }
 
         function checkCamposExtra() {
             const tipo = document.getElementById('mov-tipo').value;
             const pago = document.getElementById('mov-pago').value;
-            const cat = document.getElementById('mov-categoria').value;
+            const cat  = document.getElementById('mov-categoria').value;
             const extraContainer = document.getElementById('extra-fields-container');
-            const showProv = cat && cat.includes("Proveedor");
-            const showVeh = cat && (cat.includes("Combustible") || cat.includes("Mantenimiento"));
-            const showEmp = cat && (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto"));
+            const showProv    = cat && cat.includes("Proveedor");
+            const showVeh     = cat && (cat.includes("Combustible") || cat.includes("Mantenimiento") || cat === "VTV");
+            const showEmp     = cat && (cat.includes("Sueldo") || cat.includes("Haberes") || cat.includes("Adelanto"));
+            const showBidones = cat === "Bidón de Agua";
             const chequeVisible = pago === 'Cheque';
 
-            document.getElementById('proveedor-wrapper').style.display = showProv ? 'block' : 'none';
-            document.getElementById('mov-vehiculo').style.display = showVeh ? 'block' : 'none';
-            document.getElementById('mov-empleado').style.display = showEmp ? 'block' : 'none';
-            document.getElementById('cheque-fields').style.display = chequeVisible ? 'block' : 'none';
-            
+            document.getElementById('proveedor-wrapper').style.display = showProv    ? 'block' : 'none';
+            document.getElementById('mov-vehiculo').style.display      = showVeh     ? 'block' : 'none';
+            document.getElementById('mov-empleado').style.display      = showEmp     ? 'block' : 'none';
+            document.getElementById('mov-bidones').style.display       = showBidones ? 'block' : 'none';
+            document.getElementById('cheque-fields').style.display     = chequeVisible ? 'block' : 'none';
+
+            // Limpiar bidones si cambia la categoría a una que no los usa
+            if (!showBidones) document.getElementById('mov-bidones').value = "";
+
             const selectorCheque = document.getElementById('selector-cheque-wrapper');
             if (tipo === 'Egreso' && pago === 'Cheque') {
                 selectorCheque.style.display = 'block';
@@ -1682,14 +1814,62 @@
                     idChequeSeleccionado = null;
                 }
             }
-            if(showProv || showVeh || showEmp || chequeVisible) extraContainer.style.display = 'block';
+            if(showProv || showVeh || showEmp || showBidones || chequeVisible) extraContainer.style.display = 'block';
             else extraContainer.style.display = 'none';
         }
         
+        // --- VTV ALERTS ---
+        async function checkVTVAlerts() {
+            try {
+                const r = await fetch(API_URL + 'sb/vtv-alerts');
+                if (!r.ok) return;
+                const data = await r.json().catch(() => ({}));
+                if (!data.alertas || data.alertas.length === 0) return;
+
+                mostrarModalVTV(data.alertas);
+
+                // Enviar email una sola vez por día por vehículo
+                const hoy = new Date().toISOString().substring(0, 10);
+                for (const alerta of data.alertas) {
+                    const key = `vtv_email_${alerta.vehiculo}_${hoy}`.replace(/\s/g, '_');
+                    if (!localStorage.getItem(key)) {
+                        fetch(API_URL + 'sb/vtv-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(alerta)
+                        });
+                        localStorage.setItem(key, '1');
+                    }
+                }
+            } catch(e) {
+                console.warn('[VTV] check failed:', e.message);
+            }
+        }
+
+        function mostrarModalVTV(alertas) {
+            const modal   = document.getElementById('modal-vtv-alert');
+            const content = document.getElementById('vtv-alert-content');
+            content.innerHTML = alertas.map(a => {
+                const color   = a.diasRestantes <= 5  ? '#dc2626' : a.diasRestantes <= 10 ? '#d97706' : '#059669';
+                const urgencia = a.diasRestantes <= 5 ? '🔴 URGENTE' : a.diasRestantes <= 10 ? '🟡 Próximo' : '🟢 Atención';
+                const dias = a.diasRestantes;
+                return `<div style="background:#f9fafb;border-radius:12px;padding:14px 16px;margin-bottom:10px;border-left:4px solid ${color};">
+                    <div style="font-weight:700;font-size:16px;color:#111;">${a.vehiculo}</div>
+                    <div style="color:${color};font-weight:600;font-size:14px;margin-top:4px;">${urgencia} — ${dias} día${dias !== 1 ? 's' : ''} para el vencimiento</div>
+                    <div style="color:#6b7280;font-size:13px;margin-top:3px;">Vence: ${a.vencimiento} · Última VTV: ${a.fechaVTV}</div>
+                </div>`;
+            }).join('');
+            modal.style.display = 'flex';
+        }
+
+        function cerrarModalVTV() {
+            document.getElementById('modal-vtv-alert').style.display = 'none';
+        }
+
         async function checkFuelWarningFlow() {
             const cat = document.getElementById('mov-categoria').value;
             const veh = document.getElementById('mov-vehiculo').value;
-            
+
             if (cat === 'Combustible' && veh) {
                 const warning = await api("checkCombustibleWarning", { vehiculo: veh });
                 if (warning.ok && warning.isWarning) {
@@ -3112,6 +3292,21 @@
                 <button onclick="cerrarModalRendicionCompleta()" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#aaa; line-height:1;">✕</button>
             </div>
             <div id="rendicion-completa-body"></div>
+        </div>
+    </div>
+
+    <!-- Modal VTV Alert (bloqueante — solo cierra con botón) -->
+    <div id="modal-vtv-alert" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:20px;">
+        <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:52px;line-height:1;">🚨</div>
+                <h3 style="color:#dc2626;margin:10px 0 4px;font-size:20px;font-weight:700;">¡Alerta VTV!</h3>
+                <p style="color:#6b7280;font-size:14px;margin:0;">Revisá los vencimientos a continuación</p>
+            </div>
+            <div id="vtv-alert-content" style="margin-bottom:20px;"></div>
+            <button onclick="cerrarModalVTV()" style="width:100%;padding:15px;background:#dc2626;color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;">
+                ✓ Entendido, lo gestiono
+            </button>
         </div>
     </div>
 </body>
