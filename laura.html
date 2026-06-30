@@ -505,6 +505,7 @@
     <div id="confirm-modal">
         <div class="party-card-wrapper">
             <div class="party-content">
+                <div id="party-tipo-badge" style="display:inline-block;margin-bottom:10px;padding:6px 20px;border-radius:20px;font-size:0.72rem;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:white;box-shadow:0 4px 12px rgba(0,0,0,.15);"></div>
                 <div class="party-title" id="party-title-text"></div>
                 <div class="party-amount" id="party-amount-display">$ 0</div>
                 
@@ -608,7 +609,16 @@
                 <select id="mov-vehiculo" class="form-control" style="display:none;">
                     <option value="" disabled selected>Vehículo</option>
                 </select>
-                <select id="mov-empleado" class="form-control" style="display:none;">
+                <!-- Picker visual de empleados -->
+                <div id="empleado-picker-wrapper" style="display:none;position:relative;">
+                    <div id="empleado-display" class="form-control" onclick="toggleEmpleadoPicker()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;min-height:44px;">
+                        <span id="empleado-display-text" style="color:#aaa;">👤 Empleado</span>
+                        <span id="empleado-arrow" style="transition:transform .2s;font-size:12px;color:#999;">▼</span>
+                    </div>
+                    <div id="empleado-dropdown" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:1002;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid #e5e7eb;padding:12px;">
+                    </div>
+                </div>
+                <select id="mov-empleado" style="display:none;">
                     <option value="" disabled selected>Empleado</option>
                 </select>
                 <select id="mov-bidones" class="form-control" style="display:none;">
@@ -958,8 +968,10 @@
         const CATEGORIAS_INGRESO = CATEGORIAS_INGRESO_GRUPOS.flatMap(g => g.items.map(i => i.v));
         const VEHICULOS = ["Toyota Hiace", "Volkswagen Saveiro", "Fiat Uno Cargo"];
 
-        // Estado del picker de categorías
+        // Estado de pickers
         let _pickerCatAbierto = false;
+        let _pickerEmpAbierto = false;
+        let _haberesPagadosHoy = new Set(); // empleados con pago ya registrado en esta sesión
         const PROVEEDORES = ["Marwiplast", "Bio Bag", "Broche plastico", "Bumerang", "Carol", "Colores", "Coolbazar", "Cotton", "Santamaria Escobillones", "Desesplast", "Diawara", "Emege", "Entresol", "Fedata", "Fibran", "Flexal", "Hechicera", "Infinity import", "K&K", "La Americana", "La gauchita", "Macetex", "Make Fresh", "Matriplaster", "Mis Plast", "Modoplast", "Molmar", "POP", "Rigolleau", "Romyl", "Samantha", "Santamaria", "Sasha", "Soifer", "lumilagro", "Make", "Suka", "Supy", "Tauro", "Tecnomatric", "Yesi", "Durax", "Javi"].sort();
 
         // MONITOR SEGURIDAD
@@ -976,11 +988,15 @@
         document.addEventListener("DOMContentLoaded", () => {
             initApp();
 
-            // Cerrar picker de categorías al hacer click fuera
+            // Cerrar pickers al hacer click fuera
             document.addEventListener('click', (e) => {
                 if (_pickerCatAbierto) {
                     const wrapper = document.getElementById('categoria-picker-wrapper');
                     if (wrapper && !wrapper.contains(e.target)) cerrarCategoriaPicker();
+                }
+                if (_pickerEmpAbierto) {
+                    const wrapper = document.getElementById('empleado-picker-wrapper');
+                    if (wrapper && !wrapper.contains(e.target)) cerrarEmpleadoPicker();
                 }
             });
 
@@ -1553,8 +1569,18 @@
 
             titleEl.textContent = titulo;
             amountEl.textContent = `$ ${data.importe.toLocaleString('es-AR')}`;
-            // Color importe segun tipo
-            amountEl.style.color = data.tipo === 'Ingreso' ? 'var(--success)' : 'var(--text-main)';
+
+            // Badge y color de importe según tipo
+            const badge = document.getElementById('party-tipo-badge');
+            if (data.tipo === 'Ingreso') {
+                badge.textContent = '⬇ INGRESO';
+                badge.style.background = 'var(--success)';
+                amountEl.style.color = 'var(--success)';
+            } else {
+                badge.textContent = '⬆ EGRESO';
+                badge.style.background = 'var(--danger)';
+                amountEl.style.color = 'var(--danger)';
+            }
 
             conceptEl.textContent = data.categoria;
             
@@ -1671,6 +1697,7 @@
                 if (document.getElementById('mov-bidones'))  document.getElementById('mov-bidones').value  = '';
                 const dispText = document.getElementById('categoria-display-text');
                 if (dispText) { dispText.textContent = '-- Motivo --'; dispText.style.color = '#aaa'; }
+                resetEmpleadoPicker();
 
                 if (inputImporte.classList.contains('importe-cheque-lock')) {
                     inputImporte.classList.remove('importe-cheque-lock');
@@ -1723,6 +1750,80 @@
             sel.dispatchEvent(new Event('change'));
         }
 
+        // --- PICKER DE EMPLEADOS ---
+        function toggleEmpleadoPicker() {
+            buildEmpleadoPicker();
+            _pickerEmpAbierto = !_pickerEmpAbierto;
+            const dd    = document.getElementById('empleado-dropdown');
+            const arrow = document.getElementById('empleado-arrow');
+            dd.style.display = _pickerEmpAbierto ? 'block' : 'none';
+            if (arrow) arrow.style.transform = _pickerEmpAbierto ? 'rotate(180deg)' : '';
+        }
+
+        function cerrarEmpleadoPicker() {
+            _pickerEmpAbierto = false;
+            const dd    = document.getElementById('empleado-dropdown');
+            const arrow = document.getElementById('empleado-arrow');
+            if (dd)    dd.style.display = 'none';
+            if (arrow) arrow.style.transform = '';
+        }
+
+        function buildEmpleadoPicker() {
+            const dd = document.getElementById('empleado-dropdown');
+            if (!dd) return;
+            const opts = Array.from(document.getElementById('mov-empleado').options).filter(o => o.value);
+            if (opts.length === 0) return;
+            const esHaberes = document.getElementById('mov-categoria').value === 'Pago de Haberes';
+
+            dd.innerHTML = '';
+            const grid = document.createElement('div');
+            grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:8px;';
+
+            opts.forEach(opt => {
+                const nombre = opt.value;
+                const ini = nombre.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+                const pagado = esHaberes && _haberesPagadosHoy.has(nombre);
+
+                const card = document.createElement('div');
+                card.style.cssText = `text-align:center;padding:10px 4px 8px;border-radius:12px;position:relative;background:${pagado ? '#f3f4f6' : '#f8f9fa'};border:2px solid ${pagado ? '#e5e7eb' : 'transparent'};opacity:${pagado ? '0.55' : '1'};cursor:${pagado ? 'default' : 'pointer'};transition:background .15s,border-color .15s;`;
+
+                if (pagado) {
+                    card.innerHTML = `
+                        <div style="position:absolute;top:3px;right:3px;background:#00B894;color:white;border-radius:50%;width:17px;height:17px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:900;">✓</div>
+                        <div style="width:38px;height:38px;border-radius:50%;background:#d1d5db;color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;margin:0 auto 5px;">${ini}</div>
+                        <div style="font-size:11px;font-weight:700;color:#9ca3af;line-height:1.2;">${nombre}</div>`;
+                } else {
+                    card.innerHTML = `
+                        <div style="width:38px;height:38px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;margin:0 auto 5px;">${ini}</div>
+                        <div style="font-size:11px;font-weight:700;color:#374151;line-height:1.2;">${nombre}</div>`;
+                    card.onmouseenter = () => { card.style.background = 'rgba(108,99,255,.08)'; card.style.borderColor = 'var(--primary)'; };
+                    card.onmouseleave = () => { card.style.background = '#f8f9fa'; card.style.borderColor = 'transparent'; };
+                    card.onclick = () => selectEmpleado(nombre);
+                }
+                grid.appendChild(card);
+            });
+            dd.appendChild(grid);
+        }
+
+        function selectEmpleado(nombre) {
+            const sel  = document.getElementById('mov-empleado');
+            const disp = document.getElementById('empleado-display-text');
+            const ini  = nombre.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+            sel.value  = nombre;
+            disp.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;">
+                <span style="width:24px;height:24px;border-radius:50%;background:var(--primary);color:white;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;">${ini}</span>
+                <span>${nombre}</span></span>`;
+            disp.style.color = '#212529';
+            cerrarEmpleadoPicker();
+            sel.dispatchEvent(new Event('change'));
+        }
+
+        function resetEmpleadoPicker() {
+            document.getElementById('mov-empleado').value = '';
+            const disp = document.getElementById('empleado-display-text');
+            if (disp) { disp.textContent = '👤 Empleado'; disp.style.color = '#aaa'; }
+        }
+
         // --- AUXILIARES ---
         function actualizarCategorias() {
             const tipo      = document.getElementById('mov-tipo').value;
@@ -1737,9 +1838,13 @@
             document.getElementById('mov-cheque-nro').value = "";
             document.getElementById('mov-bidones').value   = "";
 
-            // Reset display del picker
+            // Reset picker de categorías
             const displayText = document.getElementById('categoria-display-text');
             if (displayText) { displayText.textContent = '-- Motivo --'; displayText.style.color = '#aaa'; }
+
+            // Reset picker de empleados y sesión de haberes
+            resetEmpleadoPicker();
+            _haberesPagadosHoy.clear();
 
             // Reconstruir hidden select (para compatibilidad)
             selectEl.innerHTML = '<option value="" disabled selected>-- Motivo --</option>';
@@ -1790,10 +1895,11 @@
             const showBidones = cat === "Bidón de Agua";
             const chequeVisible = pago === 'Cheque';
 
-            document.getElementById('proveedor-wrapper').style.display = showProv    ? 'block' : 'none';
-            document.getElementById('mov-vehiculo').style.display      = showVeh     ? 'block' : 'none';
-            document.getElementById('mov-empleado').style.display      = showEmp     ? 'block' : 'none';
-            document.getElementById('mov-bidones').style.display       = showBidones ? 'block' : 'none';
+            document.getElementById('proveedor-wrapper').style.display        = showProv    ? 'block' : 'none';
+            document.getElementById('mov-vehiculo').style.display              = showVeh     ? 'block' : 'none';
+            document.getElementById('empleado-picker-wrapper').style.display   = showEmp     ? 'block' : 'none';
+            document.getElementById('mov-bidones').style.display               = showBidones ? 'block' : 'none';
+            if (!showEmp) resetEmpleadoPicker();
             document.getElementById('cheque-fields').style.display     = chequeVisible ? 'block' : 'none';
 
             // Limpiar bidones si cambia la categoría a una que no los usa
@@ -1958,8 +2064,9 @@
             } else {
                 const BACKUP_EMPS = ["Tomas", "Martín", "Laura", "Nicolás", "Ramiro", "Patricio"];
                 select.innerHTML = '<option value="" disabled selected>Empleado</option>';
-                BACKUP_EMPS.forEach(x => { const opt = document.createElement('option'); opt.value = x; opt.textContent = x; select.appendChild(opt); }); 
+                BACKUP_EMPS.forEach(x => { const opt = document.createElement('option'); opt.value = x; opt.textContent = x; select.appendChild(opt); });
             }
+            // Pre-construir el picker (vacío aún si dropdown está cerrado — se reconstruye al abrir)
         }
 
         async function verificarAdelantosSemana() {
@@ -3264,6 +3371,10 @@
                     }
                     const totalPagado = neto + com + aguMonto;
                     showToast(`✅ Pago registrado — $${totalPagado.toLocaleString('es-AR')}`, true);
+
+                    // Marcar empleado como pagado y preparar el picker para el siguiente
+                    _haberesPagadosHoy.add(nombre);
+                    resetEmpleadoPicker();
                 } else {
                     // Error parcial: registros que SÍ pasaron ya están guardados — avisar sin dejar modal abierto
                     showToast(`⚠️ Pago parcial — revisá los movimientos (${errores.length} error/es)`, false);
