@@ -632,7 +632,26 @@
       <option value="Ingreso">Ingreso</option>
     </select>
     <label class="sheet-input-lbl">Categoría</label>
-    <input type="text" class="sheet-input" id="edit-categoria" placeholder="Ej: Pago proveedor">
+    <select class="sheet-input" id="edit-categoria" onchange="checkEditCamposExtra()">
+      <option value="" disabled>-- Seleccioná --</option>
+    </select>
+    <select class="sheet-input" id="edit-vehiculo" style="display:none;margin-top:8px;" onchange="checkEditCamposExtra()">
+      <option value="">🚗 Vehículo (opcional)</option>
+    </select>
+    <select class="sheet-input" id="edit-bidones" style="display:none;margin-top:8px;">
+      <option value="" disabled>💧 ¿Cuántos bidones?</option>
+      <option value="1">1 bidón</option>
+      <option value="2">2 bidones</option>
+      <option value="3">3 bidones</option>
+      <option value="4">4 bidones</option>
+      <option value="5">5 bidones</option>
+      <option value="6">6 bidones</option>
+      <option value="8">8 bidones</option>
+      <option value="10">10 bidones</option>
+      <option value="12">12 bidones</option>
+      <option value="15">15 bidones</option>
+      <option value="20">20 bidones</option>
+    </select>
     <label class="sheet-input-lbl">Forma de pago</label>
     <select class="sheet-input" id="edit-forma-pago">
       <option value="Efectivo">Efectivo</option>
@@ -679,6 +698,15 @@
 const API_URL = "https://cajamercadolimpio.santamariapablodaniel.workers.dev/";
 
 const PROVEEDORES = ["Marwiplast","Bio Bag","Broche plastico","Bumerang","Carol","Colores","Coolbazar","Cotton","Da Silva","Desesplast","Diawara","Emege","Entresol","Fedata","Fibran","Flexal","Hechicera","Infinity import","K&K","La Americana","La gauchita","Macetex","Make Fresh","Matriplaster","Mis Plast","Modoplast","Molmar","POP","Rigolleau","Romyl","Samantha","Santamaria","Sasha","Soifer","lumilagro","Make","Suka","Supy","Tauro","Tecnomatric","Yesi","Durax","Javi"].sort();
+
+const CATEGORIAS_GRUPOS = [
+  { label: "💰 Pagos",      cats: ["Pago a Proveedor","Pago de Haberes","Adelanto de Sueldo","Pago de Aguinaldo"] },
+  { label: "🚗 Vehículos",  cats: ["Combustible","Gastos de Mantenimiento (Vehiculos)","VTV"] },
+  { label: "🏠 Gastos",     cats: ["Gastos de Limpieza","Gastos de Jardineria"] },
+  { label: "📦 Varios",     cats: ["Bidón de Agua","Retiro de Efectivo (Pablo)","Movimiento Libre (Varios)"] },
+  { label: "💵 Ingresos",   cats: ["Venta Local","Ingreso Varios","Aporte de Capital","Rendición Reparto"] },
+];
+const VEHICULOS_EDIT = ["Toyota Hiace","Volkswagen Saveiro","Fiat Uno Cargo"];
 
 let currentDate = "";
 let weekStart = "", weekEnd = "";
@@ -1313,16 +1341,72 @@ window.toggleMovDetail = (i, prefix) => {
   if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
 };
 
+function buildEditCategoriasSelect() {
+  const sel = $('edit-categoria');
+  if (sel.options.length > 1) return; // ya construido
+  CATEGORIAS_GRUPOS.forEach(g => {
+    const og = document.createElement('optgroup');
+    og.label = g.label;
+    g.cats.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+  // vehiculo
+  const selV = $('edit-vehiculo');
+  VEHICULOS_EDIT.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    selV.appendChild(o);
+  });
+}
+
+function checkEditCamposExtra() {
+  const cat = $('edit-categoria').value;
+  const showVeh     = cat && (cat.includes("Combustible") || cat.includes("Mantenimiento") || cat === "VTV");
+  const showBidones = cat === "Bidón de Agua";
+  $('edit-vehiculo').style.display = showVeh     ? 'block' : 'none';
+  $('edit-bidones').style.display  = showBidones ? 'block' : 'none';
+  if (!showBidones) $('edit-bidones').value = '';
+}
+
 window.openEditMov = (id) => {
   const m = currentMovs.find(x => Number(x.id) === Number(id));
   if (!m) { toast('No se encontró el movimiento'); return; }
   editMovId = m.id;
+  buildEditCategoriasSelect();
   $('edit-mov-id').textContent = '#' + m.id;
   $('edit-tipo').value = m.tipo || 'Egreso';
   $('edit-categoria').value = m.categoria || '';
-  $('edit-forma-pago').value = m.formaPago || 'Efectivo';
+  $('edit-forma-pago').value = m.formaPago || m.forma_pago || 'Efectivo';
   $('edit-importe').value = m.importe || '';
-  $('edit-observacion').value = m.observacion || '';
+
+  // Vehículo: del campo Supabase primero, luego parsear observación
+  let veh = m.vehiculo || '';
+  const obs = m.observacion || '';
+  if (!veh) {
+    const mVeh = obs.match(/\[(?:Veh|VTV):\s*([^\]]+)\]/i);
+    if (mVeh) veh = mVeh[1].trim();
+  }
+  $('edit-vehiculo').value = veh;
+
+  // Bidones: parsear observación
+  let bidones = '';
+  const mBid = obs.match(/\[(\d+)\s+bidón/i);
+  if (mBid) bidones = mBid[1];
+  $('edit-bidones').value = bidones;
+
+  // Limpiar observación de prefijos auto-generados para que el admin solo vea el texto manual
+  let obsLimpia = obs
+    .replace(/\[(?:Veh|VTV):\s*[^\]]+\]\s*/gi, '')
+    .replace(/\[\d+\s+bidón(?:es)?\s+de\s+agua\]\s*/gi, '')
+    .replace(/\[Prov:\s*[^\]]+\]\s*/gi, '')
+    .trim();
+  $('edit-observacion').value = obsLimpia;
+
+  checkEditCamposExtra();
   $('delete-confirm-box').style.display = 'none';
   $('btn-delete-mov').style.display = 'block';
   openSheet('edit-mov');
@@ -1330,21 +1414,36 @@ window.openEditMov = (id) => {
 
 async function confirmEditMov() {
   if (!editMovId) return;
+  const cat     = $('edit-categoria').value.trim();
+  const veh     = $('edit-vehiculo').value;
+  const bidones = $('edit-bidones').value;
+  let obs       = $('edit-observacion').value.trim();
+
+  if (!cat) { toast('Seleccioná una categoría'); return; }
+  if (!Number($('edit-importe').value)) { toast('Completá el importe'); return; }
+  if (cat === "VTV" && !veh)           { toast('Seleccioná el vehículo para la VTV'); return; }
+  if (cat === "Bidón de Agua" && !bidones) { toast('Seleccioná la cantidad de bidones'); return; }
+
+  // Reconstruir observación con prefijos
+  if (cat === "VTV" && veh)                                             obs = `[VTV: ${veh}]${obs ? ' ' + obs : ''}`;
+  else if ((cat.includes("Combustible") || cat.includes("Mantenimiento")) && veh) obs = `[Veh: ${veh}]${obs ? ' ' + obs : ''}`;
+  if (cat === "Bidón de Agua" && bidones) obs = `[${bidones} bidón${Number(bidones) > 1 ? 'es' : ''} de agua]${obs ? ' ' + obs : ''}`;
+
   const params = {
     id:          editMovId,
     tipo:        $('edit-tipo').value,
     formaPago:   $('edit-forma-pago').value,
     importe:     Number($('edit-importe').value) || 0,
-    categoria:   $('edit-categoria').value.trim(),
-    observacion: $('edit-observacion').value.trim(),
+    categoria:   cat,
+    observacion: obs,
+    vehiculo:    veh || null,
   };
-  if (!params.categoria || !params.importe) { toast('Completá categoría e importe'); return; }
   closeSheet('edit-mov');
   toast('Guardando...');
   const res = await api("editarMovimientoCaja", params);
   if (res?.ok) {
     const idx = currentMovs.findIndex(m => Number(m.id) === Number(editMovId));
-    if (idx !== -1) currentMovs[idx] = { ...currentMovs[idx], ...params, formaPago: params.formaPago, forma_pago: params.formaPago };
+    if (idx !== -1) currentMovs[idx] = { ...currentMovs[idx], ...params, formaPago: params.formaPago, forma_pago: params.formaPago, vehiculo: veh || null };
     renderMovsList();
     toast('✓ Movimiento actualizado');
   } else {

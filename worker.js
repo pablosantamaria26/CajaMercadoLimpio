@@ -236,11 +236,12 @@ async function syncEditMovimiento(env, params, gasRes) {
   if (!gasRes?.ok) return;
   try {
     const patch = {};
-    if (params.tipo        != null) patch.tipo        = params.tipo;
-    if (params.formaPago   != null) patch.forma_pago  = params.formaPago;
-    if (params.importe     != null) patch.importe     = Number(params.importe);
-    if (params.categoria   != null) patch.categoria   = params.categoria;
-    if (params.observacion != null) patch.observacion = params.observacion;
+    if (params.tipo        != null)      patch.tipo        = params.tipo;
+    if (params.formaPago   != null)      patch.forma_pago  = params.formaPago;
+    if (params.importe     != null)      patch.importe     = Number(params.importe);
+    if (params.categoria   != null)      patch.categoria   = params.categoria;
+    if (params.observacion != null)      patch.observacion = params.observacion;
+    if (params.vehiculo    !== undefined) patch.vehiculo   = params.vehiculo || null;
     if (!Object.keys(patch).length) return;
     const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${params.id}`, {
       method:  "PATCH",
