@@ -1525,6 +1525,7 @@
             if(!cat || imp<=0) { return showToast("Datos incompletos", false); }
             if (cat === "Bidón de Agua" && !bidones) { return showToast("Seleccioná la cantidad de bidones", false); }
             if (cat === "VTV" && !veh) { return showToast("Seleccioná el vehículo para la VTV", false); }
+            if (cat === "Adelanto de Sueldo" && !emp) { return showToast("Seleccioná el empleado para el adelanto", false); }
             if (cat === "Adelanto de Sueldo" && emp) obs = `[${emp}] Adelanto de Sueldo. ${obs}`;
             if ((cat === "Combustible" || cat.includes("Mantenimiento")) && veh) obs = `[Veh: ${veh}]${obs ? ' ' + obs : ''}`;
             if (cat === "VTV" && veh) obs = `[VTV: ${veh}]${obs ? ' ' + obs : ''}`;
@@ -1908,8 +1909,7 @@
             const selectorCheque = document.getElementById('selector-cheque-wrapper');
             if (tipo === 'Egreso' && pago === 'Cheque') {
                 selectorCheque.style.display = 'block';
-                const tieneOpciones = document.getElementById('mov-cheque-cartera').options.length > 1;
-                if(!tieneOpciones) cargarChequesCartera();
+                cargarChequesCartera();
             } else {
                 selectorCheque.style.display = 'none';
                 const inpImp = document.getElementById('mov-importe');
@@ -2926,14 +2926,18 @@
 
         // ── Aguinaldo helpers ────────────────────────────────────────────
         function isAguinaldoMes() {
-            return [5, 11].includes(new Date().getMonth()); // 5=junio, 11=diciembre
+            const d = new Date(), mes = d.getMonth(), dia = d.getDate();
+            // Junio completo + primeros 14 días de julio (1er semestre)
+            // Diciembre completo + primeros 14 días de enero (2do semestre)
+            return mes === 5 || (mes === 6 && dia <= 14) || mes === 11 || (mes === 0 && dia <= 14);
         }
         function getAguinaldoPeriodo() {
-            const año = new Date().getFullYear();
-            const mes = new Date().getMonth();
-            return mes === 5
-                ? { from: `${año}-06-01`, to: `${año}-06-30`, label: `1° Semestre ${año}` }
-                : { from: `${año}-12-01`, to: `${año}-12-31`, label: `2° Semestre ${año}` };
+            const hoy = new Date(), año = hoy.getFullYear(), mes = hoy.getMonth(), dia = hoy.getDate();
+            if (mes === 5 || (mes === 6 && dia <= 14))
+                return { from: `${año}-06-01`, to: `${año}-06-30`, label: `1° Semestre ${año}` };
+            if (mes === 0 && dia <= 14)
+                return { from: `${año - 1}-12-01`, to: `${año - 1}-12-31`, label: `2° Semestre ${año - 1}` };
+            return { from: `${año}-12-01`, to: `${año}-12-31`, label: `2° Semestre ${año}` };
         }
         function calcCuotaAguinaldo(sueldoBase) {
             // sueldoSemanal * 4 / 2 / 4 = sueldoSemanal / 2
