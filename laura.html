@@ -2933,11 +2933,12 @@
         }
         function getAguinaldoPeriodo() {
             const hoy = new Date(), año = hoy.getFullYear(), mes = hoy.getMonth(), dia = hoy.getDate();
+            // El "to" cubre hasta el 14 del mes siguiente para capturar pagos hechos en la ventana extendida
             if (mes === 5 || (mes === 6 && dia <= 14))
-                return { from: `${año}-06-01`, to: `${año}-06-30`, label: `1° Semestre ${año}` };
+                return { from: `${año}-06-01`, to: `${año}-07-14`, label: `1° Semestre ${año}` };
             if (mes === 0 && dia <= 14)
-                return { from: `${año - 1}-12-01`, to: `${año - 1}-12-31`, label: `2° Semestre ${año - 1}` };
-            return { from: `${año}-12-01`, to: `${año}-12-31`, label: `2° Semestre ${año}` };
+                return { from: `${año - 1}-12-01`, to: `${año}-01-14`, label: `2° Semestre ${año - 1}` };
+            return { from: `${año}-12-01`, to: `${año + 1}-01-14`, label: `2° Semestre ${año}` };
         }
         function calcCuotaAguinaldo(sueldoBase) {
             // sueldoSemanal * 4 / 2 / 4 = sueldoSemanal / 2
