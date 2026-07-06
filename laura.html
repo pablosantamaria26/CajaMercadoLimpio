@@ -3056,8 +3056,11 @@
             const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : sueldoBase;
             const neto          = Math.max(0, sueldoEfectivo - totalAdelantos);
             _haberesEmpActual   = { sueldoSemanal: sueldoBase, adelantos: haberesAdelantosData };
-            const tieneComision = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
-            const mesLabel      = haberesSemanLabel();
+            const tieneComision  = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
+            const mesLabel       = haberesSemanLabel();
+            const hasAguinaldo   = isAguinaldoMes() && haberesAguinaldoCuotas >= 0 && haberesAguinaldoCuotas < 4;
+            const cuotaAguInicial = hasAguinaldo ? calcCuotaAguinaldo(sueldoBase) : 0;
+            const showTotal      = tieneComision || hasAguinaldo;
 
             const adelantosHTML = haberesAdelantosData.length === 0
                 ? `<p style="color:#aaa;text-align:center;font-size:0.82rem;margin:0;">Sin adelantos registrados</p>`
@@ -3130,10 +3133,7 @@
                     <button class="hfp-btn selected" id="hfp-com-ef" onclick="haberesSelFP('comision','Efectivo')">💵 Efectivo</button>
                     <button class="hfp-btn" id="hfp-com-tr" onclick="haberesSelFP('comision','Transferencia')">📲 Transferencia</button>
                 </div>
-                <div style="background:#f0fff4;border-radius:14px;padding:12px 14px;margin-bottom:14px;text-align:center;">
-                    <p style="margin:0;font-size:0.72rem;color:#555;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Total (sueldo + comisión)</p>
-                    <p style="margin:4px 0 0 0;font-size:1.4rem;font-weight:900;color:var(--success);" id="haberes-total-lbl">$${neto.toLocaleString('es-AR')}</p>
-                </div>` : ''}
+                ` : ''}
 
                 ${(() => {
                     if (!isAguinaldoMes() || haberesAguinaldoCuotas === -1) return '';
@@ -3164,6 +3164,7 @@
                             <span style="font-size:0.8rem;font-weight:700;color:#666;white-space:nowrap;">Monto cuota:</span>
                             <input id="haberes-aguinaldo-input" type="number" inputmode="numeric"
                                 value="${cuotaMonto}"
+                                oninput="haberesUpdateTotal()"
                                 style="flex:1;border:2px solid #fdcb6e;border-radius:10px;padding:9px 12px;font-size:1rem;font-weight:800;font-family:Quicksand;outline:none;color:#c0392b;background:white;min-width:0;">
                         </div>
                         <p style="font-size:0.78rem;font-weight:700;color:#555;margin:0 0 6px 0;">Forma de pago — Aguinaldo:</p>
@@ -3174,6 +3175,12 @@
                         <p style="font-size:0.68rem;color:#bbb;margin:0;text-align:center;">Poné <b>0</b> si esta semana no se paga esta cuota</p>
                     </div>`;
                 })()}
+
+                ${showTotal ? `
+                <div style="background:linear-gradient(135deg,#e8f5e9,#f0fff4);border:2px solid #00b894;border-radius:14px;padding:14px;margin-bottom:14px;text-align:center;">
+                    <p style="margin:0;font-size:0.72rem;color:#00b894;font-weight:700;text-transform:uppercase;letter-spacing:1px;">💎 Total a cobrar</p>
+                    <p style="margin:4px 0 0 0;font-size:1.6rem;font-weight:900;color:#00b894;" id="haberes-total-lbl">$${(neto + cuotaAguInicial).toLocaleString('es-AR')}</p>
+                </div>` : ''}
 
                 <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;padding-bottom:20px;">
                     <button onclick="copiarHaberesWhatsApp()" style="width:100%;padding:13px;border:2px solid var(--primary);border-radius:14px;background:white;color:var(--primary);font-weight:800;font-size:0.9rem;font-family:Quicksand;cursor:pointer;">📋 Copiar para WhatsApp</button>
@@ -3218,6 +3225,7 @@
             const netoEdit = Math.max(0, sueldoEdit - totalAdelantos);
             const nd = document.getElementById('hb-neto-display');
             if (nd) nd.textContent = '$' + netoEdit.toLocaleString('es-AR');
+            haberesUpdateTotal();
         }
 
         function haberesSelFP(tipo, valor) {
@@ -3239,11 +3247,12 @@
         function haberesUpdateTotal() {
             const lbl = document.getElementById('haberes-total-lbl');
             if (!lbl) return;
-            const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
+            const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : Number(haberesConfigEmp?.sueldoBase || 0);
             const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
-            const neto = sueldoBase - totalAdelantos;
+            const neto = Math.max(0, sueldoEfectivo - totalAdelantos);
             const com  = Number(document.getElementById('haberes-com-input')?.value) || 0;
-            lbl.textContent = '$' + (neto + com).toLocaleString('es-AR');
+            const agu  = Number(document.getElementById('haberes-aguinaldo-input')?.value) || 0;
+            lbl.textContent = '$' + (neto + com + agu).toLocaleString('es-AR');
         }
 
         async function copiarHaberesWhatsApp() {
