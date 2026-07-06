@@ -2952,9 +2952,10 @@
         function isElegibleAguinaldo(nombre) {
             const desde = AGUINALDO_DESDE[normNombre(nombre)];
             if (!desde) return true; // sin restricción → elegible siempre
-            const hoy     = new Date();
-            const añoHoy  = hoy.getFullYear();
-            const semHoy  = hoy.getMonth() === 5 ? 1 : 2; // 5=junio→sem1, 11=dic→sem2
+            const hoy = new Date(), mes = hoy.getMonth(), dia = hoy.getDate();
+            const añoHoy = hoy.getFullYear();
+            // junio + primeros 14 días de julio = sem 1; diciembre + primeros 14 días de enero = sem 2
+            const semHoy = (mes === 5 || (mes === 6 && dia <= 14)) ? 1 : 2;
             if (añoHoy > desde.año) return true;
             if (añoHoy === desde.año) return semHoy >= desde.sem;
             return false;
