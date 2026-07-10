@@ -1676,7 +1676,8 @@
 
             if (res && res.ok) {
                 if (res.sbSync === false) {
-                    showToast("⚠️ Se guardó en la planilla pero falló la copia en la app. Avisale a Pablo.", false);
+                    showToast("🔄 Falló la copia en la app — reparando automáticamente...", false);
+                    repararCopiaApp();
                 }
                 // Reseteo de campos
                 const inputImporte = document.getElementById('mov-importe');
@@ -1929,6 +1930,24 @@
             else extraContainer.style.display = 'none';
         }
         
+        // --- AUTO-REPARACIÓN: repara la copia de la app desde la planilla ---
+        // La planilla (GAS) es la fuente de verdad. Si una copia falló, este
+        // llamado re-sincroniza los últimos días automáticamente.
+        async function repararCopiaApp(dias = 2) {
+            try {
+                const r = await fetch(`${API_URL}sb/reconciliar?days=${dias}`, { method: 'POST' });
+                const d = await r.json().catch(() => null);
+                if (d?.ok && (!d.errores || d.errores.length === 0)) {
+                    showToast(`✅ Copia de la app reparada automáticamente`, true);
+                    cargarMovimientos();
+                    actualizarSaldoHeader();
+                    return true;
+                }
+            } catch(_) {}
+            showToast("⚠️ No se pudo reparar automáticamente. Avisale a Pablo.", false);
+            return false;
+        }
+
         // --- CONSISTENCIA PLANILLA vs APP ---
         // Antes de un arqueo compara el saldo GAS (sheet) vs Supabase.
         // Si difieren, el ajuste automático del arqueo va a ser incorrecto → avisar.
@@ -1942,13 +1961,33 @@
                 const d = await r.json().catch(() => null);
                 if (!d?.ok) return;
                 _consistenciaTs = Date.now();
-                if (d.delta !== 0) {
-                    banner.style.display = 'block';
-                    banner.innerHTML = `⚠️ <b>Atención:</b> la planilla y la app difieren en <b>$ ${Math.abs(d.delta).toLocaleString('es-AR')}</b>.<br>
-                        Planilla: $ ${d.efectivoGAS.toLocaleString('es-AR')} · App: $ ${d.efectivoSupabase.toLocaleString('es-AR')}.<br>
-                        El ajuste automático del arqueo puede quedar mal — <b>avisale a Pablo antes de cerrar la caja</b>.`;
+                if (d.delta === 0) { banner.style.display = 'none'; return; }
+
+                // Hay divergencia → la app se repara sola (la planilla manda)
+                const deltaOrig = Math.abs(d.delta).toLocaleString('es-AR');
+                banner.style.display = 'block';
+                banner.style.background = '#eef2ff'; banner.style.borderColor = '#6C63FF'; banner.style.color = '#3730a3';
+                banner.innerHTML = `🔄 La planilla y la app difieren en <b>$ ${deltaOrig}</b>. Corrigiendo automáticamente...`;
+
+                let reparado = false;
+                try {
+                    const rec = await fetch(`${API_URL}sb/reconciliar?days=7`, { method: 'POST' });
+                    const dr  = await rec.json().catch(() => null);
+                    if (dr?.ok) {
+                        const chk = await fetch(API_URL + 'sb/consistencia');
+                        const d2  = await chk.json().catch(() => null);
+                        reparado  = d2?.ok && d2.delta === 0;
+                    }
+                } catch(_) {}
+
+                if (reparado) {
+                    banner.style.background = '#e8f5e9'; banner.style.borderColor = '#00b894'; banner.style.color = '#00695c';
+                    banner.innerHTML = `✅ Se detectó una diferencia de <b>$ ${deltaOrig}</b> y se corrigió automáticamente.<br>Ya podés hacer el arqueo tranquila.`;
+                    actualizarSaldoHeader();
                 } else {
-                    banner.style.display = 'none';
+                    banner.style.background = '#fff3cd'; banner.style.borderColor = '#ffc107'; banner.style.color = '#856404';
+                    banner.innerHTML = `⚠️ La planilla y la app difieren en <b>$ ${deltaOrig}</b> y no se pudo corregir automáticamente.<br>
+                        El ajuste del arqueo puede quedar mal — <b>avisale a Pablo antes de cerrar la caja</b>.`;
                 }
             } catch(_) { /* sin conexión — no bloquear el arqueo */ }
         }
@@ -2357,7 +2396,8 @@
 
                 if (res && res.ok) {
                     if (res.sbSync === false) {
-                        showToast("⚠️ Rendición guardada en planilla, pero falló la copia en la app. Avisale a Pablo.", false);
+                        showToast("🔄 Falló la copia en la app — reparando automáticamente...", false);
+                        repararCopiaApp();
                     }
                     const dif = total - efectivoEsperado;
                     const hayFaltante = efectivoEsperado > 0 && dif < 0;
@@ -2561,7 +2601,7 @@
                                     ⚠️ La planilla registró un ajuste de <b>$ ${difGAS.toLocaleString('es-AR')}</b> (la app calculaba $ ${dif.toLocaleString('es-AR')}).<br>
                                     Hay una diferencia de <b>$ ${Math.abs(difGAS - dif).toLocaleString('es-AR')}</b> entre la planilla y la app. Avisale a Pablo.
                                 </div>` : '';
-                    if (res.sbSync === false) showToast("⚠️ Arqueo guardado en planilla, pero falló la copia en la app. Avisale a Pablo.", false);
+                    if (res.sbSync === false) repararCopiaApp(); // reparación best-effort antes del reload
                     
                     const htmlResumen = `
                         <div style="height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px;">
@@ -3431,7 +3471,8 @@
                     const totalPagado = neto + com + aguMonto;
                     const sinCopiaSB = resultados.some(r => r.status === 'fulfilled' && r.value?.sbSync === false);
                     if (sinCopiaSB) {
-                        showToast("⚠️ Pago guardado en planilla, pero falló la copia en la app. Avisale a Pablo.", false);
+                        showToast("🔄 Pago guardado — reparando copia de la app...", false);
+                        repararCopiaApp();
                     } else {
                         showToast(`✅ Pago registrado — $${totalPagado.toLocaleString('es-AR')}`, true);
                     }

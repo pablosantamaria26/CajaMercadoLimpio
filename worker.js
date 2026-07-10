@@ -133,6 +133,115 @@ async function calcSaldoSB(rH) {
   return { ...s, total: allMovs.length };
 }
 
+/**
+ * RECONCILIACIÓN AUTOMÁTICA — la planilla GAS es la fuente de verdad.
+ * Compara movimientos GAS vs Supabase en una ventana de días y repara solo:
+ *  - Inserta en Supabase los movimientos que están en GAS y faltan en SB.
+ *  - Soft-borra (deleted_at, reversible) los de SB que no existen en GAS
+ *    (duplicados por reintentos viejos o filas borradas a mano en la sheet).
+ * Clave de comparación: fecha|tipo|forma_pago|importe|categoria — sin hora,
+ * para tolerar diferencias de minuto entre el reloj de GAS y el del worker.
+ */
+async function reconciliarMovimientos(env, days = 3) {
+  const svcKey = env.SUPABASE_SERVICE_KEY;
+  if (!svcKey) return { ok: false, error: "Sin SUPABASE_SERVICE_KEY" };
+
+  const to    = arNow().fecha;
+  const desde = new Date(to + "T12:00:00");
+  desde.setDate(desde.getDate() - days);
+  const from  = desde.toISOString().split("T")[0];
+
+  // 1. GAS (fuente de verdad)
+  let gasRows;
+  try {
+    const r = await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({ fn: "getMovimientosRango", params: { startDateStr: from, endDateStr: to } }),
+    });
+    const d = await r.json();
+    if (!d?.ok || !Array.isArray(d.data)) return { ok: false, error: "GAS no devolvió movimientos" };
+    gasRows = d.data;
+  } catch (e) {
+    return { ok: false, error: "GAS: " + e.message };
+  }
+
+  // 2. Supabase
+  const sbR = await fetch(
+    `${SB_URL}/movimientos_caja?deleted_at=is.null&fecha=gte.${from}&fecha=lte.${to}&select=id,fecha,hora,tipo,forma_pago,importe,categoria`,
+    { headers: sbReadH(svcKey) }
+  );
+  const sbRows = await sbR.json().catch(() => null);
+  if (!Array.isArray(sbRows)) return { ok: false, error: "Supabase no devolvió movimientos" };
+
+  const keyOf = (fecha, tipo, fp, imp, cat) =>
+    `${fecha}|${tipo}|${String(fp).toLowerCase()}|${Number(imp)}|${String(cat).trim()}`;
+
+  const gasMap = new Map();
+  for (const g of gasRows) {
+    const k = keyOf(g.fecha, g.tipo, g.formaPago, g.importe, g.categoria);
+    if (!gasMap.has(k)) gasMap.set(k, []);
+    gasMap.get(k).push(g);
+  }
+  const sbMap = new Map();
+  for (const s of sbRows) {
+    const k = keyOf(s.fecha, s.tipo, s.forma_pago, s.importe, s.categoria);
+    if (!sbMap.has(k)) sbMap.set(k, []);
+    sbMap.get(k).push(s);
+  }
+
+  const insertados = [], borrados = [], errores = [];
+
+  // Faltantes en SB → insertar desde GAS
+  for (const [k, gRows] of gasMap) {
+    const have = sbMap.get(k)?.length || 0;
+    for (let i = have; i < gRows.length; i++) {
+      const g = gRows[i];
+      try {
+        await sbInsertWithRetry(env, "movimientos_caja", {
+          id:          genId(),
+          fecha:       g.fecha,
+          hora:        (g.hora || "12:00") + ":00",
+          tipo:        g.tipo,
+          forma_pago:  g.formaPago,
+          banco:       g.banco || null,
+          nro_cheque:  g.nro   || null,
+          importe:     Number(g.importe),
+          categoria:   g.categoria,
+          usuario:     "Reconciliación",
+          observacion: g.observacion || null,
+          vehiculo:    g.vehiculo || null,
+        });
+        insertados.push({ fecha: g.fecha, tipo: g.tipo, importe: g.importe, categoria: g.categoria });
+      } catch (e) {
+        errores.push(`insert ${k}: ${e.message}`);
+      }
+    }
+  }
+
+  // Sobrantes en SB (no existen en GAS) → soft-delete reversible
+  for (const [k, sRows] of sbMap) {
+    const should = gasMap.get(k)?.length || 0;
+    if (sRows.length > should) {
+      const exceso = sRows.sort((a, b) => Number(a.id) - Number(b.id)).slice(should);
+      for (const s of exceso) {
+        try {
+          const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${s.id}`, {
+            method:  "PATCH",
+            headers: sbWriteH(svcKey),
+            body:    JSON.stringify({ deleted_at: new Date().toISOString() }),
+          });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          borrados.push({ id: s.id, fecha: s.fecha, tipo: s.tipo, importe: s.importe, categoria: s.categoria });
+        } catch (e) {
+          errores.push(`delete ${s.id}: ${e.message}`);
+        }
+      }
+    }
+  }
+
+  return { ok: true, from, to, insertados, borrados, errores, reparado: insertados.length + borrados.length };
+}
+
 // ════════════════════════════════════════════════════════════════
 // DOBLE ESCRITURA: después de que GAS responde OK, escribir en SB
 // ════════════════════════════════════════════════════════════════
@@ -327,6 +436,15 @@ async function handleSb(request, env, url, cors) {
     const s = await calcSaldoSB(rH);
     if (!s) return json({ error: "Error Supabase" }, 502, cors);
     return json({ ok: true, ...s }, 200, cors);
+  }
+
+  // ── Reconciliar: repara Supabase usando GAS como fuente de verdad ──
+  // POST /sb/reconciliar?days=N  (default 3, máx 31)
+  if (seg === "reconciliar") {
+    if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
+    const days = Math.min(31, Math.max(1, parseInt(p.get("days") || "3", 10)));
+    const rep  = await reconciliarMovimientos(env, days);
+    return json(rep, rep.ok ? 200 : 502, cors);
   }
 
   // ── Consistencia: compara saldo GAS (sheet) vs Supabase ─────
@@ -706,6 +824,17 @@ async function handleSb(request, env, url, cors) {
 // MAIN HANDLER
 // ════════════════════════════════════════════════════════════════
 export default {
+  // Cron diario (06:00 UTC = 03:00 AR): repara Supabase contra la planilla
+  // sin intervención de nadie. Cinturón de seguridad además de la reparación
+  // inmediata que dispara la app cuando detecta una falla de copia.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      reconciliarMovimientos(env, 3)
+        .then(r => console.log("[cron reconciliar]", JSON.stringify(r)))
+        .catch(e => console.error("[cron reconciliar] error:", e.message))
+    );
+  },
+
   async fetch(request, env, ctx) {
     const origin = request.headers.get("Origin") || "";
     const cors   = corsH(origin);
