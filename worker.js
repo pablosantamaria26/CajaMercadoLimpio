@@ -85,7 +85,7 @@ async function sbInsert(env, table, data) {
  * sbInsert con reintentos automáticos (hasta maxRetries veces).
  * Espera 300ms, 600ms entre intentos. Lanza el último error si todos fallan.
  */
-async function sbInsertWithRetry(env, table, data, maxRetries = 2) {
+async function sbInsertWithRetry(env, table, data, maxRetries = 4) {
   let lastErr;
   for (let i = 0; i <= maxRetries; i++) {
     try { await sbInsert(env, table, data); return; }
@@ -95,6 +95,42 @@ async function sbInsertWithRetry(env, table, data, maxRetries = 2) {
     }
   }
   throw lastErr;
+}
+
+/**
+ * Calcula el saldo acumulado desde movimientos_caja (Supabase).
+ * Devuelve { efectivo, cheques, banco, total } o null si falla.
+ */
+async function calcSaldoSB(rH) {
+  const allMovs = [];
+  let offset = 0;
+  while (true) {
+    const r = await fetch(
+      `${SB_URL}/movimientos_caja?select=tipo,forma_pago,importe,estado&deleted_at=is.null&limit=1000&offset=${offset}`,
+      { headers: rH }
+    );
+    const page = await r.json().catch(() => null);
+    if (!Array.isArray(page)) return null;
+    allMovs.push(...page);
+    if (page.length < 1000) break;
+    offset += 1000;
+  }
+  const s = { efectivo: 0, cheques: 0, banco: 0 };
+  for (const m of allMovs) {
+    const v  = Number(m.importe || 0);
+    const fp = (m.forma_pago || "").toLowerCase();
+    const st = (m.estado || "").toUpperCase();
+    if (fp === "efectivo") {
+      s.efectivo += m.tipo === "Ingreso" ? v : -v;
+    } else if (fp === "cheque") {
+      if (m.tipo === "Ingreso" && !st.startsWith("ENTREGADO") && st !== "COBRADO" && st !== "DEPOSITADO") {
+        s.cheques += v;
+      }
+    } else if (fp === "banco" || fp === "transferencia") {
+      s.banco += m.tipo === "Ingreso" ? v : -v;
+    }
+  }
+  return { ...s, total: allMovs.length };
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -130,9 +166,12 @@ async function syncMovimiento(env, params, gasRes) {
       turno:       params.turno        || null,
       usuario:     params.usuario      || "Laura",
       observacion: obs,
+      vehiculo:    params.vehiculo     || null,
     });
+    return true;
   } catch (e) {
     console.error("[syncMovimiento] falló tras reintentos:", e.message);
+    return false;
   }
 }
 
@@ -163,10 +202,14 @@ async function syncArqueo(env, params, gasRes) {
   const failed  = results.filter(r => r.status === "rejected");
   if (failed.length > 0)
     console.error("[syncArqueo] falló:", failed.map(f => f.reason?.message).join(" | "));
+  return failed.length === 0;
 }
 
 async function syncRendicion(env, params, gasRes) {
   if (!gasRes?.ok) return;
+  // 🛡️ Si GAS detectó que la planilla YA estaba registrada (reintento de Laura),
+  // NO volver a insertar en Supabase — evita movimientos duplicados.
+  if (typeof gasRes.mensaje === "string" && gasRes.mensaje.includes("ya estaba")) return true;
   const { fecha, hora } = arNow();
   const fechaReparto = params.fechaStr?.split("T")[0] || fecha;
   const fechaMov = fecha;
@@ -230,6 +273,7 @@ async function syncRendicion(env, params, gasRes) {
   if (failed.length > 0)
     console.error(`[syncRendicion] ${failed.length}/${tasks.length} escrituras fallaron:`,
       failed.map(f => f.reason?.message).join(" | "));
+  return failed.length === 0;
 }
 
 async function syncEditMovimiento(env, params, gasRes) {
@@ -280,35 +324,27 @@ async function handleSb(request, env, url, cors) {
 
   // ── Saldo (balance acumulado por forma de pago) ──────────────
   if (seg === "saldo") {
-    const allMovs = [];
-    let offset = 0;
-    while (true) {
-      const r = await fetch(
-        `${SB_URL}/movimientos_caja?select=tipo,forma_pago,importe,estado&deleted_at=is.null&limit=1000&offset=${offset}`,
-        { headers: rH }
-      );
-      const page = await r.json();
-      if (!Array.isArray(page)) return json({ error: "Error Supabase", detail: page }, 502, cors);
-      allMovs.push(...page);
-      if (page.length < 1000) break;
-      offset += 1000;
-    }
-    const s = { efectivo: 0, cheques: 0, banco: 0 };
-    for (const m of allMovs) {
-      const v  = Number(m.importe || 0);
-      const fp = (m.forma_pago || "").toLowerCase();
-      const st = (m.estado || "").toUpperCase();
-      if (fp === "efectivo") {
-        s.efectivo += m.tipo === "Ingreso" ? v : -v;
-      } else if (fp === "cheque") {
-        if (m.tipo === "Ingreso" && !st.startsWith("ENTREGADO") && st !== "COBRADO" && st !== "DEPOSITADO") {
-          s.cheques += v;
-        }
-      } else if (fp === "banco" || fp === "transferencia") {
-        s.banco += m.tipo === "Ingreso" ? v : -v;
-      }
-    }
-    return json({ ok: true, ...s, total: allMovs.length }, 200, cors);
+    const s = await calcSaldoSB(rH);
+    if (!s) return json({ error: "Error Supabase" }, 502, cors);
+    return json({ ok: true, ...s }, 200, cors);
+  }
+
+  // ── Consistencia: compara saldo GAS (sheet) vs Supabase ─────
+  // GET /sb/consistencia → { ok, efectivoSupabase, efectivoGAS, delta }
+  if (seg === "consistencia") {
+    const [sbS, gasS] = await Promise.all([
+      calcSaldoSB(rH),
+      fetch(GAS_URL, { method: "POST", body: JSON.stringify({ fn: "getEstadoCaja", params: {} }) })
+        .then(r => r.json()).catch(() => null),
+    ]);
+    if (!sbS || typeof gasS?.efectivo !== "number")
+      return json({ ok: false, error: "No se pudo leer alguna de las dos fuentes" }, 502, cors);
+    return json({
+      ok: true,
+      efectivoSupabase: sbS.efectivo,
+      efectivoGAS: gasS.efectivo,
+      delta: sbS.efectivo - gasS.efectivo,
+    }, 200, cors);
   }
 
   // ── Movimientos (por fecha o rango) ──────────────────────────
@@ -705,11 +741,16 @@ export default {
     // Agrega ~100-300ms de latencia pero elimina la pérdida silenciosa de datos.
     const fn     = body.fn     || "";
     const params = body.params || {};
-    if      (fn === "registrarMovimientoCaja")      await syncMovimiento(env, params, gasRes);
-    else if (fn === "registrarArqueo")              await syncArqueo(env, params, gasRes);
-    else if (fn === "procesarRendicionDesdeRecibo") await syncRendicion(env, params, gasRes);
+    let sbSync = true;
+    if      (fn === "registrarMovimientoCaja")      sbSync = (await syncMovimiento(env, params, gasRes)) !== false;
+    else if (fn === "registrarArqueo")              sbSync = (await syncArqueo(env, params, gasRes)) !== false;
+    else if (fn === "procesarRendicionDesdeRecibo") sbSync = (await syncRendicion(env, params, gasRes)) !== false;
     else if (fn === "editarMovimientoCaja")         await syncEditMovimiento(env, params, gasRes);
     else if (fn === "eliminarMovimientoCaja")       await syncDeleteMovimiento(env, params, gasRes);
+
+    // Avisar al cliente cuando la copia a Supabase falló (GAS quedó OK pero la app
+    // va a mostrar datos desactualizados) — permite alertar en vez de perder plata en silencio.
+    if (!sbSync && gasRes && typeof gasRes === "object") gasRes.sbSync = false;
 
     const response = typeof gasRes === "string" ? gasRes : JSON.stringify(gasRes);
     return new Response(response, { status: 200, headers: { "Content-Type": "application/json", ...cors } });

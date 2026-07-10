@@ -745,6 +745,7 @@
 
     <!-- 3. PANTALLA ARQUEO -->
     <div id="screen-arqueo" class="screen">
+        <div id="banner-consistencia" style="display:none;background:#fff3cd;border:2px solid #ffc107;border-radius:14px;padding:12px 14px;margin-bottom:12px;font-size:0.82rem;color:#856404;font-weight:700;line-height:1.5;"></div>
         <div class="arqueo-header-card">
             <!-- TITULO MODO ARQUEO: SIN BOTÓN DE CERRAR -->
             <div style="display:flex; justify-content:center; align-items:center;">
@@ -1205,13 +1206,14 @@
             const bottomNav = document.querySelector('.bottom-nav');
             if (id === 'arqueo') {
                 bottomNav.style.display = 'none'; // Ocultar barra en arqueo
-                
+
                 // ACTIVAR MODO CIEGO GLOBALMENTE
                 modoCiegoActivo = true;
                 actualizarSaldoHeader(); // Forzar actualización visual inmediata
 
-                monitor.reset(); 
-                calcBilletes('arq'); 
+                monitor.reset();
+                calcBilletes('arq');
+                checkConsistenciaCajas(); // ⚠️ Avisar si planilla y app difieren
             } else if (id === 'rendicion') {
                 bottomNav.style.display = 'flex';
                 monitor.reset();
@@ -1673,6 +1675,9 @@
             btn.disabled = false;
 
             if (res && res.ok) {
+                if (res.sbSync === false) {
+                    showToast("⚠️ Se guardó en la planilla pero falló la copia en la app. Avisale a Pablo.", false);
+                }
                 // Reseteo de campos
                 const inputImporte = document.getElementById('mov-importe');
                 const inputObs = document.getElementById('mov-obs');
@@ -1924,6 +1929,30 @@
             else extraContainer.style.display = 'none';
         }
         
+        // --- CONSISTENCIA PLANILLA vs APP ---
+        // Antes de un arqueo compara el saldo GAS (sheet) vs Supabase.
+        // Si difieren, el ajuste automático del arqueo va a ser incorrecto → avisar.
+        let _consistenciaTs = 0;
+        async function checkConsistenciaCajas() {
+            const banner = document.getElementById('banner-consistencia');
+            if (!banner) return;
+            if (Date.now() - _consistenciaTs < 5 * 60 * 1000) return; // máx. 1 vez cada 5 min
+            try {
+                const r = await fetch(API_URL + 'sb/consistencia');
+                const d = await r.json().catch(() => null);
+                if (!d?.ok) return;
+                _consistenciaTs = Date.now();
+                if (d.delta !== 0) {
+                    banner.style.display = 'block';
+                    banner.innerHTML = `⚠️ <b>Atención:</b> la planilla y la app difieren en <b>$ ${Math.abs(d.delta).toLocaleString('es-AR')}</b>.<br>
+                        Planilla: $ ${d.efectivoGAS.toLocaleString('es-AR')} · App: $ ${d.efectivoSupabase.toLocaleString('es-AR')}.<br>
+                        El ajuste automático del arqueo puede quedar mal — <b>avisale a Pablo antes de cerrar la caja</b>.`;
+                } else {
+                    banner.style.display = 'none';
+                }
+            } catch(_) { /* sin conexión — no bloquear el arqueo */ }
+        }
+
         // --- VTV ALERTS ---
         async function checkVTVAlerts() {
             try {
@@ -2327,6 +2356,9 @@
                 hideLoading();
 
                 if (res && res.ok) {
+                    if (res.sbSync === false) {
+                        showToast("⚠️ Rendición guardada en planilla, pero falló la copia en la app. Avisale a Pablo.", false);
+                    }
                     const dif = total - efectivoEsperado;
                     const hayFaltante = efectivoEsperado > 0 && dif < 0;
 
@@ -2519,6 +2551,17 @@
                     const dif = fisico - saldoSistema;
                     const colorDif = dif === 0 ? 'var(--success)' : (dif > 0 ? 'var(--success)' : 'var(--danger)');
                     const simbolo = dif > 0 ? '+' : '';
+
+                    // ⚠️ Detección de desincronización: la planilla (GAS) calcula su propio
+                    // ajuste. Si difiere del de la app, las dos bases están desincronizadas.
+                    const difGAS = res.diferencia != null ? Number(res.diferencia) : dif;
+                    const desincronizada = difGAS !== dif;
+                    const htmlDesync = desincronizada ? `
+                                <div style="margin-top:12px;padding:10px;background:#fff3cd;border:2px solid #ffc107;border-radius:10px;font-size:0.78rem;color:#856404;font-weight:700;text-align:left;">
+                                    ⚠️ La planilla registró un ajuste de <b>$ ${difGAS.toLocaleString('es-AR')}</b> (la app calculaba $ ${dif.toLocaleString('es-AR')}).<br>
+                                    Hay una diferencia de <b>$ ${Math.abs(difGAS - dif).toLocaleString('es-AR')}</b> entre la planilla y la app. Avisale a Pablo.
+                                </div>` : '';
+                    if (res.sbSync === false) showToast("⚠️ Arqueo guardado en planilla, pero falló la copia en la app. Avisale a Pablo.", false);
                     
                     const htmlResumen = `
                         <div style="height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px;">
@@ -2540,6 +2583,7 @@
                                     <span style="color:#aaa;">Diferencia</span>
                                     <span class="resumen-val" style="color:${colorDif};">${simbolo}$ ${dif.toLocaleString('es-AR')}</span>
                                 </div>
+                                ${htmlDesync}
                                 <div style="margin-top:20px; padding-top:15px; border-top:2px dashed #ddd;">
                                     <div style="font-size:0.9rem; color:#aaa; font-weight:700;">CAJA INICIAL MAÑANA</div>
                                     <div style="font-size:2rem; font-weight:900; color:var(--primary);">$ ${fisico.toLocaleString('es-AR')}</div>
@@ -3385,7 +3429,12 @@
                         haberesRenderGrid();
                     }
                     const totalPagado = neto + com + aguMonto;
-                    showToast(`✅ Pago registrado — $${totalPagado.toLocaleString('es-AR')}`, true);
+                    const sinCopiaSB = resultados.some(r => r.status === 'fulfilled' && r.value?.sbSync === false);
+                    if (sinCopiaSB) {
+                        showToast("⚠️ Pago guardado en planilla, pero falló la copia en la app. Avisale a Pablo.", false);
+                    } else {
+                        showToast(`✅ Pago registrado — $${totalPagado.toLocaleString('es-AR')}`, true);
+                    }
 
                     // Marcar empleado como pagado y preparar el picker para el siguiente
                     _haberesPagadosHoy.add(nombre);
