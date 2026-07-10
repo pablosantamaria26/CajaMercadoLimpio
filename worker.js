@@ -167,7 +167,7 @@ async function reconciliarMovimientos(env, days = 3) {
 
   // 2. Supabase
   const sbR = await fetch(
-    `${SB_URL}/movimientos_caja?deleted_at=is.null&fecha=gte.${from}&fecha=lte.${to}&select=id,fecha,hora,tipo,forma_pago,importe,categoria`,
+    `${SB_URL}/movimientos_caja?deleted_at=is.null&fecha=gte.${from}&fecha=lte.${to}&select=id,fecha,hora,tipo,forma_pago,importe,categoria,nro_cheque,estado`,
     { headers: sbReadH(svcKey) }
   );
   const sbRows = await sbR.json().catch(() => null);
@@ -210,6 +210,7 @@ async function reconciliarMovimientos(env, days = 3) {
           usuario:     "Reconciliación",
           observacion: g.observacion || null,
           vehiculo:    g.vehiculo || null,
+          estado:      g.estado || null,
         });
         insertados.push({ fecha: g.fecha, tipo: g.tipo, importe: g.importe, categoria: g.categoria });
       } catch (e) {
@@ -239,7 +240,33 @@ async function reconciliarMovimientos(env, days = 3) {
     }
   }
 
-  return { ok: true, from, to, insertados, borrados, errores, reparado: insertados.length + borrados.length };
+  // Estados de cheques: si GAS dice ENTREGADO y SB no, copiar la marca.
+  // (Requiere que getMovimientosRango de GAS devuelva el campo 'estado'.)
+  let estadosReparados = 0;
+  for (const g of gasRows) {
+    if (g.tipo !== "Ingreso" || String(g.formaPago) !== "Cheque") continue;
+    if (!g.estado || !String(g.estado).includes("ENTREGADO") || !g.nro) continue;
+    const sMatch = sbRows.find(s =>
+      s.tipo === "Ingreso" && s.forma_pago === "Cheque" &&
+      String(s.nro_cheque) === String(g.nro) && Number(s.importe) === Number(g.importe) &&
+      !(s.estado || "").includes("ENTREGADO")
+    );
+    if (!sMatch) continue;
+    try {
+      const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${sMatch.id}`, {
+        method:  "PATCH",
+        headers: sbWriteH(svcKey),
+        body:    JSON.stringify({ estado: String(g.estado) }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      estadosReparados++;
+    } catch (e) {
+      errores.push(`estado cheque ${g.nro}: ${e.message}`);
+    }
+  }
+
+  return { ok: true, from, to, insertados, borrados, errores, estadosReparados,
+           reparado: insertados.length + borrados.length + estadosReparados };
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -277,11 +304,35 @@ async function syncMovimiento(env, params, gasRes) {
       observacion: obs,
       vehiculo:    params.vehiculo     || null,
     });
-    return true;
   } catch (e) {
     console.error("[syncMovimiento] falló tras reintentos:", e.message);
     return false;
   }
+
+  // Entrega de cheque en cartera: GAS marca el ingreso original como ENTREGADO
+  // en la sheet (marcarChequeEntregado) — replicar la marca en Supabase para
+  // que el saldo de cheques de la app no quede inflado.
+  if (params.tipo === "Egreso" && params.formaPago === "Cheque" && params.idChequeOrigen && params.nroCheque) {
+    try {
+      const [y, m, d] = fecha.split("-");
+      const q = `${SB_URL}/movimientos_caja?tipo=eq.Ingreso&forma_pago=eq.Cheque` +
+                `&nro_cheque=eq.${encodeURIComponent(params.nroCheque)}` +
+                `&importe=eq.${Number(params.importe)}&deleted_at=is.null`;
+      const r = await fetch(q, {
+        method:  "PATCH",
+        headers: sbWriteH(env.SUPABASE_SERVICE_KEY),
+        body:    JSON.stringify({ estado: `ENTREGADO: ${d}/${m}` }),
+      });
+      if (!r.ok) {
+        console.error("[syncMovimiento] no se pudo marcar cheque ENTREGADO en SB:", r.status);
+        return false; // dispara la auto-reparación en el cliente
+      }
+    } catch (e) {
+      console.error("[syncMovimiento] estado cheque:", e.message);
+      return false;
+    }
+  }
+  return true;
 }
 
 async function syncArqueo(env, params, gasRes) {
@@ -462,6 +513,9 @@ async function handleSb(request, env, url, cors) {
       efectivoSupabase: sbS.efectivo,
       efectivoGAS: gasS.efectivo,
       delta: sbS.efectivo - gasS.efectivo,
+      chequesSupabase: sbS.cheques,
+      chequesGAS: Number(gasS.cheques || 0),
+      deltaCheques: sbS.cheques - Number(gasS.cheques || 0),
     }, 200, cors);
   }
 
