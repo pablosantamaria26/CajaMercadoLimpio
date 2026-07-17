@@ -1524,6 +1524,13 @@
             const nroCheque = document.getElementById('mov-cheque-nro').value;
             const bidones = document.getElementById('mov-bidones').value;
 
+            // ⛔ Los pagos de haberes van SOLO por el modal del empleado —
+            // registrar por acá duplicaba el egreso (bug 17/07 con Martín)
+            if (cat === "Pago de Haberes") {
+                showToast("Los haberes se pagan desde la ficha del empleado 👇", false);
+                if (emp) { haberesWeekStart = getHaberesLunes(new Date()); abrirModalHaberes(emp); }
+                return;
+            }
             if(!cat || imp<=0) { return showToast("Datos incompletos", false); }
             if (cat === "Bidón de Agua" && !bidones) { return showToast("Seleccioná la cantidad de bidones", false); }
             if (cat === "VTV" && !veh) { return showToast("Seleccioná el vehículo para la VTV", false); }
@@ -2169,22 +2176,9 @@
         }
 
         function calcularPagoHaberes() {
-            const cat = document.getElementById('mov-categoria').value;
-            if (cat !== "Pago de Haberes") return;
-            const nombreSel = document.getElementById('mov-empleado').value;
-            if (!nombreSel) return;
-            const empleadoConfig = configEmpleadosGlobal.find(e => e.nombre.toLowerCase() === nombreSel.toLowerCase());
-            const sueldoBase = empleadoConfig ? empleadoConfig.sueldoBase : 0;
-            let adelantos = 0;
-            const keys = Object.keys(deudasSemanalGlobal);
-            const keyMatch = keys.find(k => k.toLowerCase() === nombreSel.toLowerCase());
-            if (keyMatch) adelantos = deudasSemanalGlobal[keyMatch];
-            const neto = sueldoBase - adelantos;
-            const inputImporte = document.getElementById('mov-importe');
-            inputImporte.value = neto.toLocaleString('es-AR'); inputImporte.setAttribute('data-clean-value', neto);
-            const inputObs = document.getElementById('mov-obs');
-            if (adelantos > 0) { inputObs.value = `[${nombreSel}] Sueldo Base $${sueldoBase} - Adelantos $${adelantos}`; showToast(`💰 Se descontaron $${adelantos}`, true); }
-            else { inputObs.value = `[${nombreSel}] Pago de Haberes Completo`; }
+            // ⛔ LEGACY DESHABILITADO: autocompletaba importe/obs en el formulario
+            // común y permitía registrar un pago de haberes duplicado por fuera
+            // del modal (pasó el 17/07 con Martín). Los haberes van SOLO por el modal.
         }
 
         async function generateAiObservation() {
@@ -3010,19 +3004,17 @@
 
         // ── Aguinaldo helpers ────────────────────────────────────────────
         function isAguinaldoMes() {
-            const d = new Date(), mes = d.getMonth(), dia = d.getDate();
-            // Junio completo + primeros 14 días de julio (1er semestre)
-            // Diciembre completo + primeros 14 días de enero (2do semestre)
-            return mes === 5 || (mes === 6 && dia <= 14) || mes === 11 || (mes === 0 && dia <= 14);
+            // Junio + julio completos (1er semestre) — las 4 cuotas semanales
+            // pueden extenderse hasta fin de julio. Ídem diciembre + enero.
+            return [5, 6, 11, 0].includes(new Date().getMonth());
         }
         function getAguinaldoPeriodo() {
-            const hoy = new Date(), año = hoy.getFullYear(), mes = hoy.getMonth(), dia = hoy.getDate();
-            // El "to" cubre hasta el 14 del mes siguiente para capturar pagos hechos en la ventana extendida
-            if (mes === 5 || (mes === 6 && dia <= 14))
-                return { from: `${año}-06-01`, to: `${año}-07-14`, label: `1° Semestre ${año}` };
-            if (mes === 0 && dia <= 14)
-                return { from: `${año - 1}-12-01`, to: `${año}-01-14`, label: `2° Semestre ${año - 1}` };
-            return { from: `${año}-12-01`, to: `${año + 1}-01-14`, label: `2° Semestre ${año}` };
+            const hoy = new Date(), año = hoy.getFullYear(), mes = hoy.getMonth();
+            if (mes === 5 || mes === 6)
+                return { from: `${año}-06-01`, to: `${año}-07-31`, label: `1° Semestre ${año}` };
+            if (mes === 0)
+                return { from: `${año - 1}-12-01`, to: `${año}-01-31`, label: `2° Semestre ${año - 1}` };
+            return { from: `${año}-12-01`, to: `${año + 1}-01-31`, label: `2° Semestre ${año}` };
         }
         function calcCuotaAguinaldo(sueldoBase) {
             // sueldoSemanal * 4 / 2 / 4 = sueldoSemanal / 2
@@ -3036,10 +3028,10 @@
         function isElegibleAguinaldo(nombre) {
             const desde = AGUINALDO_DESDE[normNombre(nombre)];
             if (!desde) return true; // sin restricción → elegible siempre
-            const hoy = new Date(), mes = hoy.getMonth(), dia = hoy.getDate();
+            const hoy = new Date(), mes = hoy.getMonth();
             const añoHoy = hoy.getFullYear();
-            // junio + primeros 14 días de julio = sem 1; diciembre + primeros 14 días de enero = sem 2
-            const semHoy = (mes === 5 || (mes === 6 && dia <= 14)) ? 1 : 2;
+            // junio/julio = sem 1; diciembre/enero = sem 2
+            const semHoy = (mes === 5 || mes === 6) ? 1 : 2;
             if (añoHoy > desde.año) return true;
             if (añoHoy === desde.año) return semHoy >= desde.sem;
             return false;
