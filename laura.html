@@ -3479,7 +3479,7 @@
         async function copiarHaberesWhatsApp() {
             const nombre        = haberesEmpActual;
             const sueldoBase    = Number(haberesConfigEmp?.sueldoBase || 0);
-            const { sueldoEfectivo, com, totalAdelantos, netoSueldo, netoComision } = calcularDistribucionHaberes();
+            const { sueldoEfectivo, com, totalAdelantos, factorAplicable, netoSueldo, netoComision } = calcularDistribucionHaberes();
             const mesLabel      = haberesSemanLabel();
             const tieneComision = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
 
@@ -3493,9 +3493,21 @@
             if (haberesAdelantosData.length > 0) {
                 msg += `➖ Adelantos descontados:\n`;
                 haberesAdelantosData.forEach(mv => {
-                    const inp = mv.esCuota ? document.querySelector(`.cuota-adelanto-input[data-plan-id="${mv.planId}"]`) : null;
-                    const montoRow = inp ? (parseInt(inp.value) || 0) : Number(mv.importe || 0);
-                    msg += `   • ${mv.fecha}: $${montoRow.toLocaleString('es-AR')}\n`;
+                    if (mv.esCuota) {
+                        // Resumen claro: cuánto se descontó hoy y cuánto queda pendiente
+                        // del adelanto total — hasta llegar a $0 (ahí deja de aparecer).
+                        const inp = document.querySelector(`.cuota-adelanto-input[data-plan-id="${mv.planId}"]`);
+                        const restante = inp ? (parseInt(inp.getAttribute('data-restante')) || 0) : (mv.restante || 0);
+                        const montoInput = Math.max(0, Math.min(inp ? (parseInt(inp.value) || 0) : (mv.importe || 0), restante));
+                        const montoAplicado = Math.round(montoInput * factorAplicable);
+                        const restanteFinal = restante - montoAplicado;
+                        msg += `   • 🧩 Adelanto en cuotas: $${montoAplicado.toLocaleString('es-AR')} descontados hoy\n`;
+                        msg += restanteFinal > 0
+                            ? `      Quedan $${restanteFinal.toLocaleString('es-AR')} pendientes de $${mv.total.toLocaleString('es-AR')} total\n`
+                            : `      ✅ Adelanto saldado por completo ($${mv.total.toLocaleString('es-AR')} total)\n`;
+                    } else {
+                        msg += `   • ${mv.fecha}: $${Number(mv.importe).toLocaleString('es-AR')}\n`;
+                    }
                 });
                 msg += `   *Total adelantos: $${totalAdelantos.toLocaleString('es-AR')}*\n`;
             }
