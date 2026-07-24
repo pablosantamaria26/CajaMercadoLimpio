@@ -3418,13 +3418,37 @@
             return total;
         }
 
+        // Reparte el adelanto a descontar: primero contra el sueldo y, si sobra
+        // (el adelanto es mayor al sueldo), sigue descontando de la comisión.
+        // Sin esto, un adelanto que cubre sueldo+comisión dejaba el sueldo en $0
+        // pero pagaba la comisión completa igual, en vez de descontar los dos.
+        function calcularDistribucionHaberes() {
+            const sueldoInp = document.getElementById('hb-sueldo-input');
+            const sueldoEfectivo = sueldoInp ? (parseInt(sueldoInp.value) || 0)
+                : (haberesAjusteSueldo !== null ? haberesAjusteSueldo : Number(haberesConfigEmp?.sueldoBase || 0));
+            const tieneComision = HABERES_CON_COMISION.some(n => n === normNombre(haberesEmpActual));
+            const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
+
+            const totalAdelantosRaw = getTotalAdelantosActual();
+            const totalGanado       = sueldoEfectivo + com;
+            // No se puede descontar más de lo que el empleado gana esta semana
+            // (el resto de la deuda queda pendiente para semanas futuras).
+            const totalAdelantos    = Math.min(totalAdelantosRaw, totalGanado);
+            const factorAplicable   = totalAdelantosRaw > 0 ? (totalAdelantos / totalAdelantosRaw) : 1;
+
+            const netoSueldo   = Math.max(0, sueldoEfectivo - totalAdelantos);
+            const remanente    = Math.max(0, totalAdelantos - sueldoEfectivo);
+            const netoComision = Math.max(0, com - remanente);
+
+            return { sueldoEfectivo, com, totalAdelantosRaw, totalAdelantos, factorAplicable, netoSueldo, netoComision };
+        }
+
         function haberesRecalcularNeto() {
             const inp = document.getElementById('hb-sueldo-input');
             if (!inp) return;
-            const sueldoEdit = parseInt(inp.value) || 0;
-            const netoEdit = Math.max(0, sueldoEdit - getTotalAdelantosActual());
+            const { netoSueldo } = calcularDistribucionHaberes();
             const nd = document.getElementById('hb-neto-display');
-            if (nd) nd.textContent = '$' + netoEdit.toLocaleString('es-AR');
+            if (nd) nd.textContent = '$' + netoSueldo.toLocaleString('es-AR');
             haberesUpdateTotal();
         }
 
@@ -3447,23 +3471,17 @@
         function haberesUpdateTotal() {
             const lbl = document.getElementById('haberes-total-lbl');
             if (!lbl) return;
-            const sueldoInp = document.getElementById('hb-sueldo-input');
-            const sueldoEfectivo = sueldoInp ? (parseInt(sueldoInp.value) || 0) : (haberesAjusteSueldo !== null ? haberesAjusteSueldo : Number(haberesConfigEmp?.sueldoBase || 0));
-            const neto = Math.max(0, sueldoEfectivo - getTotalAdelantosActual());
-            const com  = Number(document.getElementById('haberes-com-input')?.value) || 0;
-            const agu  = Number(document.getElementById('haberes-aguinaldo-input')?.value) || 0;
-            lbl.textContent = '$' + (neto + com + agu).toLocaleString('es-AR');
+            const { netoSueldo, netoComision } = calcularDistribucionHaberes();
+            const agu = Number(document.getElementById('haberes-aguinaldo-input')?.value) || 0;
+            lbl.textContent = '$' + (netoSueldo + netoComision + agu).toLocaleString('es-AR');
         }
 
         async function copiarHaberesWhatsApp() {
-            const nombre         = haberesEmpActual;
-            const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
-            const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : sueldoBase;
-            const totalAdelantos = getTotalAdelantosActual();
-            const neto           = Math.max(0, sueldoEfectivo - totalAdelantos);
-            const mesLabel       = haberesSemanLabel();
-            const tieneComision  = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
-            const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
+            const nombre        = haberesEmpActual;
+            const sueldoBase    = Number(haberesConfigEmp?.sueldoBase || 0);
+            const { sueldoEfectivo, com, totalAdelantos, netoSueldo, netoComision } = calcularDistribucionHaberes();
+            const mesLabel      = haberesSemanLabel();
+            const tieneComision = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
 
             let msg = `💼 *PAGO DE HABERES — ${nombre.toUpperCase()}*\n`;
             msg += `📅 Período: ${mesLabel}\n\n`;
@@ -3475,14 +3493,18 @@
             if (haberesAdelantosData.length > 0) {
                 msg += `➖ Adelantos descontados:\n`;
                 haberesAdelantosData.forEach(mv => {
-                    msg += `   • ${mv.fecha}: $${Number(mv.importe).toLocaleString('es-AR')}\n`;
+                    const inp = mv.esCuota ? document.querySelector(`.cuota-adelanto-input[data-plan-id="${mv.planId}"]`) : null;
+                    const montoRow = inp ? (parseInt(inp.value) || 0) : Number(mv.importe || 0);
+                    msg += `   • ${mv.fecha}: $${montoRow.toLocaleString('es-AR')}\n`;
                 });
                 msg += `   *Total adelantos: $${totalAdelantos.toLocaleString('es-AR')}*\n`;
             }
-            msg += `\n💵 *Neto Sueldo: $${neto.toLocaleString('es-AR')}*`;
+            msg += `\n💵 *Neto Sueldo: $${netoSueldo.toLocaleString('es-AR')}*`;
             msg += `  (${_hfpSueldo})`;
             if (tieneComision && com > 0) {
-                msg += `\n✨ *Comisión: $${com.toLocaleString('es-AR')}*  (${_hfpComision})`;
+                msg += `\n✨ *Comisión: $${netoComision.toLocaleString('es-AR')}*`;
+                if (netoComision !== com) msg += ` _(de $${com.toLocaleString('es-AR')}, se descontó el resto del adelanto)_`;
+                msg += `  (${_hfpComision})`;
             }
             let aguWhatsApp = 0;
             if (isAguinaldoMes() && haberesAguinaldoCuotas >= 0 && haberesAguinaldoCuotas < 4) {
@@ -3494,7 +3516,7 @@
                     msg += `\n   _${periodo.label}_`;
                 }
             }
-            const totalMsg = neto + com + aguWhatsApp;
+            const totalMsg = netoSueldo + netoComision + aguWhatsApp;
             msg += `\n\n📊 *TOTAL A COBRAR: $${totalMsg.toLocaleString('es-AR')}*`;
             try {
                 await navigator.clipboard.writeText(msg);
@@ -3509,11 +3531,12 @@
             const btnPagar = document.getElementById('btn-pagar-haberes');
             if (btnPagar) { btnPagar.disabled = true; btnPagar.textContent = '⏳ Registrando...'; }
 
-            const nombre         = haberesEmpActual;
-            const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
-            const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : sueldoBase;
-            const totalAdelantos = getTotalAdelantosActual();
-            const neto           = Math.max(0, sueldoEfectivo - totalAdelantos);
+            const nombre     = haberesEmpActual;
+            const sueldoBase = Number(haberesConfigEmp?.sueldoBase || 0);
+            const {
+                sueldoEfectivo, com, totalAdelantos, totalAdelantosRaw,
+                factorAplicable, netoSueldo: neto, netoComision,
+            } = calcularDistribucionHaberes();
 
             const liberarBtn = () => {
                 _haberesRegistrando = false;
@@ -3521,10 +3544,15 @@
                 if (b) { b.disabled = false; b.textContent = '✅ Registrar Pago en Caja'; }
             };
 
-            if (neto <= 0) { liberarBtn(); showToast("El neto es $0 — verificá el sueldo base", false); return; }
+            // Bloquea solo si de verdad no hay nada que registrar (ni sueldo, ni
+            // comisión, ni adelanto para dejar constancia). Si el adelanto cubrió
+            // todo (neto=$0), igual hay que registrar para que la cuota quede marcada
+            // como pagada — de lo contrario el sistema nunca sabría que se descontó.
+            if (neto <= 0 && netoComision <= 0 && totalAdelantos <= 0) {
+                liberarBtn(); showToast("No hay nada para registrar esta semana", false); return;
+            }
 
             const tieneComision  = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
-            const com = tieneComision ? (Number(document.getElementById('haberes-com-input')?.value) || 0) : 0;
             const mesLabel = haberesSemanLabel();
             const hoy = new Date();
             const pad = n => String(n).padStart(2,'0');
@@ -3538,11 +3566,14 @@
                 // Referencia a los planes de adelanto en cuotas incluidos en este pago —
                 // con el monto REAL descontado (puede ser distinto a la cuota sugerida
                 // si Pablo lo editó), para que la próxima semana el sistema sepa cuánto
-                // queda pendiente de cada plan.
+                // queda pendiente de cada plan. Si lo pedido superaba lo que el empleado
+                // gana esta semana, factorAplicable prorratea para no acreditar más
+                // descuento del que realmente se pudo aplicar.
                 const planTags = haberesAdelantosData.filter(a => a.esCuota).map(a => {
                     const inp = document.querySelector(`.cuota-adelanto-input[data-plan-id="${a.planId}"]`);
                     const restante = inp ? (parseInt(inp.getAttribute('data-restante')) || 0) : (a.restante || 0);
-                    const monto = Math.max(0, Math.min(inp ? (parseInt(inp.value) || 0) : (a.importe || 0), restante));
+                    const montoInput = Math.max(0, Math.min(inp ? (parseInt(inp.value) || 0) : (a.importe || 0), restante));
+                    const monto = Math.round(montoInput * factorAplicable);
                     return monto > 0 ? ` [PLAN:${a.planId} pagada monto=${monto}]` : '';
                 }).join('');
                 const obsBase = (totalAdelantos > 0
@@ -3567,10 +3598,12 @@
                         observacion: obsBase, fechaStr, usuario: USUARIO_APP,
                     }),
                 ];
-                if (com > 0) tareas.push(api("registrarMovimientoCaja", {
+                if (netoComision > 0) tareas.push(api("registrarMovimientoCaja", {
                     tipo: "Egreso", formaPago: _hfpComision,
-                    importe: com, categoria: "Pago de Haberes",
-                    observacion: `[${nombre}] Comisión ${mesLabel}`,
+                    importe: netoComision, categoria: "Pago de Haberes",
+                    observacion: netoComision !== com
+                        ? `[${nombre}] Comisión ${mesLabel} | $${com.toLocaleString('es-AR')} - resto de adelanto`
+                        : `[${nombre}] Comisión ${mesLabel}`,
                     fechaStr, usuario: USUARIO_APP,
                 }));
                 if (aguMonto > 0) tareas.push(api("registrarMovimientoCaja", {
@@ -3594,7 +3627,7 @@
                         _aguinaldoDataGlobal.push({ categoria: 'Pago de Aguinaldo', observacion: obsAgu, importe: aguMonto });
                         haberesRenderGrid();
                     }
-                    const totalPagado = neto + com + aguMonto;
+                    const totalPagado = neto + netoComision + aguMonto;
                     const sinCopiaSB = resultados.some(r => r.status === 'fulfilled' && r.value?.sbSync === false);
                     if (sinCopiaSB) {
                         showToast("🔄 Pago guardado — reparando copia de la app...", false);
