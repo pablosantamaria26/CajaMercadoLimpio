@@ -1582,7 +1582,7 @@
         function mostrarSelectorCuotasAdelanto(nombre, monto, sueldoBase) {
             _adelantoCuotasCtx = { nombre, monto };
             const info = document.getElementById('cuotas-adelanto-info');
-            info.innerHTML = `<b>${nombre}</b> pidió <b>$${monto.toLocaleString('es-AR')}</b>, pero su sueldo semanal es <b>$${sueldoBase.toLocaleString('es-AR')}</b>.<br>El dinero se le entrega completo ahora — elegí en cuántas semanas se lo vas descontando del sueldo:`;
+            info.innerHTML = `<b>${nombre}</b> pidió <b>$${monto.toLocaleString('es-AR')}</b>, pero su sueldo semanal es <b>$${sueldoBase.toLocaleString('es-AR')}</b>.<br>El dinero se le entrega completo ahora — elegí en cuántas semanas se lo vas descontando del sueldo.<br><span style="color:#aaa;font-size:0.78rem;">(el monto de cada semana se puede ajustar después, al pagar)</span>`;
             const opciones = document.getElementById('cuotas-adelanto-opciones');
             opciones.innerHTML = [2, 3, 4].map(n => {
                 const cuota = Math.ceil(monto / n);
@@ -3197,8 +3197,8 @@
                 }
 
                 const cuotas = (resCuotas?.ok && Array.isArray(resCuotas.planes)) ? resCuotas.planes.map(pl => ({
-                    fecha: pl.fecha, hora: '', importe: pl.montoEstaSemana,
-                    esCuota: true, pagadas: pl.pagadas, totalCuotas: pl.totalCuotas, planId: pl.planId,
+                    fecha: pl.fecha, hora: '', importe: pl.montoSugerido,
+                    esCuota: true, planId: pl.planId, total: pl.total, restante: pl.restante, cuotaMonto: pl.cuotaMonto,
                 })) : [];
 
                 haberesAdelantosData = [...simples, ...cuotas];
@@ -3223,17 +3223,36 @@
             const cuotaAguInicial = hasAguinaldo ? calcCuotaAguinaldo(sueldoBase) : 0;
             const showTotal      = tieneComision || hasAguinaldo;
 
+            const simplesRows = haberesAdelantosData.filter(m => !m.esCuota);
+            const cuotaRows   = haberesAdelantosData.filter(m => m.esCuota);
+
+            const simplesHTML = simplesRows.map(mv =>
+                `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:0.82rem;">
+                    <span style="color:#555;">📅 ${mv.fecha} ${(mv.hora||'').substring(0,5)}</span>
+                    <span style="font-weight:800;color:#e17055;">- $${Number(mv.importe).toLocaleString('es-AR')}</span>
+                </div>`
+            ).join('');
+
+            // Adelanto en cuotas: el monto a descontar esta semana es EDITABLE —
+            // por defecto trae la cuota sugerida, pero se puede poner más (ej. si un
+            // vendedor con comisión variable tuvo una semana buena y quiere saldar
+            // más rápido) o menos, sin superar lo que todavía le queda pendiente.
+            const cuotasHTML = cuotaRows.map(mv =>
+                `<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
+                    <div style="font-size:0.8rem;color:#555;margin-bottom:5px;">🧩 Adelanto en cuotas <span style="color:#aaa;">(quedan $${mv.restante.toLocaleString('es-AR')} de $${mv.total.toLocaleString('es-AR')})</span></div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:0.78rem;color:#888;white-space:nowrap;">Descontar esta semana:</span>
+                        <input type="number" class="cuota-adelanto-input" data-plan-id="${mv.planId}" data-restante="${mv.restante}"
+                            value="${mv.importe}" inputmode="numeric" oninput="haberesUpdateTotal(); haberesRecalcularNeto();"
+                            style="flex:1;min-width:0;border:2px solid #e17055;border-radius:9px;padding:7px 10px;font-size:0.9rem;font-weight:800;font-family:Quicksand;outline:none;color:#e17055;">
+                    </div>
+                    <p style="font-size:0.68rem;color:#bbb;margin:4px 0 0;">Cuota sugerida: $${mv.cuotaMonto.toLocaleString('es-AR')} · máx. $${mv.restante.toLocaleString('es-AR')}</p>
+                </div>`
+            ).join('');
+
             const adelantosHTML = haberesAdelantosData.length === 0
                 ? `<p style="color:#aaa;text-align:center;font-size:0.82rem;margin:0;">Sin adelantos registrados</p>`
-                : haberesAdelantosData.map(mv => {
-                    const label = mv.esCuota
-                        ? `🧩 Adelanto en cuotas · cuota ${mv.pagadas + 1}/${mv.totalCuotas}`
-                        : `📅 ${mv.fecha} ${(mv.hora||'').substring(0,5)}`;
-                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:0.82rem;">
-                        <span style="color:#555;">${label}</span>
-                        <span style="font-weight:800;color:#e17055;">- $${Number(mv.importe).toLocaleString('es-AR')}</span>
-                    </div>`;
-                }).join('');
+                : simplesHTML + cuotasHTML;
 
             document.getElementById('modal-haberes-content').innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
@@ -3380,13 +3399,30 @@
             document.getElementById('hb-sueldo-input').value = sueldoActual;
         }
 
+        // Suma los adelantos a descontar esta semana usando los valores ACTUALES
+        // de los inputs en pantalla (no lo que trajo el servidor originalmente),
+        // porque el monto de un adelanto en cuotas es editable. Clampea cada
+        // cuota a [0, restante] para nunca descontar de más.
+        function getTotalAdelantosActual() {
+            let total = 0;
+            for (const mv of haberesAdelantosData) {
+                if (mv.esCuota) {
+                    const inp = document.querySelector(`.cuota-adelanto-input[data-plan-id="${mv.planId}"]`);
+                    const restante = inp ? (parseInt(inp.getAttribute('data-restante')) || 0) : (mv.restante || 0);
+                    const v = inp ? (parseInt(inp.value) || 0) : (mv.importe || 0);
+                    total += Math.max(0, Math.min(v, restante));
+                } else {
+                    total += Number(mv.importe || 0);
+                }
+            }
+            return total;
+        }
+
         function haberesRecalcularNeto() {
             const inp = document.getElementById('hb-sueldo-input');
-            const emp = _haberesEmpActual;
-            if (!emp || !inp) return;
+            if (!inp) return;
             const sueldoEdit = parseInt(inp.value) || 0;
-            const totalAdelantos = (emp.adelantos || []).reduce((s, a) => s + (a.importe || 0), 0);
-            const netoEdit = Math.max(0, sueldoEdit - totalAdelantos);
+            const netoEdit = Math.max(0, sueldoEdit - getTotalAdelantosActual());
             const nd = document.getElementById('hb-neto-display');
             if (nd) nd.textContent = '$' + netoEdit.toLocaleString('es-AR');
             haberesUpdateTotal();
@@ -3411,9 +3447,9 @@
         function haberesUpdateTotal() {
             const lbl = document.getElementById('haberes-total-lbl');
             if (!lbl) return;
-            const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : Number(haberesConfigEmp?.sueldoBase || 0);
-            const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
-            const neto = Math.max(0, sueldoEfectivo - totalAdelantos);
+            const sueldoInp = document.getElementById('hb-sueldo-input');
+            const sueldoEfectivo = sueldoInp ? (parseInt(sueldoInp.value) || 0) : (haberesAjusteSueldo !== null ? haberesAjusteSueldo : Number(haberesConfigEmp?.sueldoBase || 0));
+            const neto = Math.max(0, sueldoEfectivo - getTotalAdelantosActual());
             const com  = Number(document.getElementById('haberes-com-input')?.value) || 0;
             const agu  = Number(document.getElementById('haberes-aguinaldo-input')?.value) || 0;
             lbl.textContent = '$' + (neto + com + agu).toLocaleString('es-AR');
@@ -3423,7 +3459,7 @@
             const nombre         = haberesEmpActual;
             const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
             const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : sueldoBase;
-            const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
+            const totalAdelantos = getTotalAdelantosActual();
             const neto           = Math.max(0, sueldoEfectivo - totalAdelantos);
             const mesLabel       = haberesSemanLabel();
             const tieneComision  = HABERES_CON_COMISION.some(n => n === normNombre(nombre));
@@ -3476,7 +3512,7 @@
             const nombre         = haberesEmpActual;
             const sueldoBase     = Number(haberesConfigEmp?.sueldoBase || 0);
             const sueldoEfectivo = haberesAjusteSueldo !== null ? haberesAjusteSueldo : sueldoBase;
-            const totalAdelantos = haberesAdelantosData.reduce((s, m) => s + Number(m.importe || 0), 0);
+            const totalAdelantos = getTotalAdelantosActual();
             const neto           = Math.max(0, sueldoEfectivo - totalAdelantos);
 
             const liberarBtn = () => {
@@ -3500,8 +3536,15 @@
                     ? `Base ajustada $${sueldoEfectivo.toLocaleString('es-AR')} (base $${sueldoBase.toLocaleString('es-AR')})`
                     : `Base $${sueldoBase.toLocaleString('es-AR')}`;
                 // Referencia a los planes de adelanto en cuotas incluidos en este pago —
-                // así la próxima semana el sistema sabe cuántas cuotas ya se descontaron.
-                const planTags = haberesAdelantosData.filter(a => a.esCuota).map(a => ` [PLAN:${a.planId} pagada]`).join('');
+                // con el monto REAL descontado (puede ser distinto a la cuota sugerida
+                // si Pablo lo editó), para que la próxima semana el sistema sepa cuánto
+                // queda pendiente de cada plan.
+                const planTags = haberesAdelantosData.filter(a => a.esCuota).map(a => {
+                    const inp = document.querySelector(`.cuota-adelanto-input[data-plan-id="${a.planId}"]`);
+                    const restante = inp ? (parseInt(inp.getAttribute('data-restante')) || 0) : (a.restante || 0);
+                    const monto = Math.max(0, Math.min(inp ? (parseInt(inp.value) || 0) : (a.importe || 0), restante));
+                    return monto > 0 ? ` [PLAN:${a.planId} pagada monto=${monto}]` : '';
+                }).join('');
                 const obsBase = (totalAdelantos > 0
                     ? `[${nombre}] Sueldo ${mesLabel} | ${baseLabel} - Adelantos $${totalAdelantos.toLocaleString('es-AR')}`
                     : `[${nombre}] Pago de Haberes ${mesLabel}${sueldoEfectivo !== sueldoBase ? ` | ${baseLabel}` : ''}`) + planTags;

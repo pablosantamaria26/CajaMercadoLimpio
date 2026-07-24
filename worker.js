@@ -535,14 +535,15 @@ async function handleSb(request, env, url, cors) {
   // Un adelanto grande se puede registrar en cuotas semanales (ver laura.html:
   // confirmarAdelantoCuotas). El plan queda tageado en la observación del
   // adelanto original como [PLAN:xxx total=N cuota=M cuotas=K], y cada semana
-  // que se descuenta una cuota el sueldo de esa semana queda tageado con
-  // [PLAN:xxx pagada]. Acá se cruzan ambos tags para saber cuánto falta.
+  // que se descuenta el sueldo de esa semana queda tageado con
+  // [PLAN:xxx pagada monto=N] (N puede ser distinto a la cuota sugerida —
+  // editable en el modal). Acá se cruzan ambos tags para saber cuánto falta.
   if (seg === "adelantos-cuotas") {
     const empleado = (p.get("empleado") || "").trim();
     if (!empleado) return json({ error: "empleado requerido" }, 400, cors);
 
     const qPlanes = `${SB_URL}/movimientos_caja?deleted_at=is.null&categoria=eq.${encodeURIComponent("Adelanto de Sueldo")}&observacion=ilike.${encodeURIComponent("*[PLAN:*")}&select=id,fecha,observacion&order=fecha.asc`;
-    const qPagos  = `${SB_URL}/movimientos_caja?deleted_at=is.null&categoria=eq.${encodeURIComponent("Pago de Haberes")}&observacion=ilike.${encodeURIComponent("*pagada]*")}&select=observacion`;
+    const qPagos  = `${SB_URL}/movimientos_caja?deleted_at=is.null&categoria=eq.${encodeURIComponent("Pago de Haberes")}&observacion=ilike.${encodeURIComponent("*pagada monto=*")}&select=observacion`;
 
     const [rPlanes, rPagos] = await Promise.all([
       fetch(qPlanes, { headers: rH }), fetch(qPagos, { headers: rH }),
@@ -550,10 +551,14 @@ async function handleSb(request, env, url, cors) {
     const planesRaw = await rPlanes.json().catch(() => []);
     const pagosRaw  = await rPagos.json().catch(() => []);
 
-    const pagadasPorPlan = {};
+    // Suma de lo efectivamente descontado por plan — NO cuenta de "cuotas" fijas,
+    // porque Pablo puede descontar más o menos que la cuota sugerida cada semana
+    // (típico con vendedores de comisión variable: si la semana vino bien, paga
+    // de más para saldar el adelanto antes).
+    const pagadoPorPlan = {};
     for (const row of (Array.isArray(pagosRaw) ? pagosRaw : [])) {
-      for (const m of (row.observacion || "").matchAll(/\[PLAN:(\S+) pagada\]/g)) {
-        pagadasPorPlan[m[1]] = (pagadasPorPlan[m[1]] || 0) + 1;
+      for (const m of (row.observacion || "").matchAll(/\[PLAN:(\S+) pagada monto=(\d+)\]/g)) {
+        pagadoPorPlan[m[1]] = (pagadoPorPlan[m[1]] || 0) + Number(m[2]);
       }
     }
 
@@ -567,11 +572,11 @@ async function handleSb(request, env, url, cors) {
       if (!planMatch) continue;
       const [, planId, totalStr, cuotaStr, cuotasStr] = planMatch;
       const total = Number(totalStr), cuotaMonto = Number(cuotaStr), totalCuotas = Number(cuotasStr);
-      const pagadas = pagadasPorPlan[planId] || 0;
-      if (pagadas >= totalCuotas) continue; // plan saldado
-      const restante = total - pagadas * cuotaMonto;
-      const montoEstaSemana = Math.max(0, Math.min(cuotaMonto, restante));
-      planes.push({ planId, fecha: row.fecha, total, cuotaMonto, totalCuotas, pagadas, montoEstaSemana });
+      const totalPagado = pagadoPorPlan[planId] || 0;
+      const restante = total - totalPagado;
+      if (restante <= 0) continue; // plan saldado
+      const montoSugerido = Math.max(0, Math.min(cuotaMonto, restante));
+      planes.push({ planId, fecha: row.fecha, total, cuotaMonto, totalCuotas, totalPagado, restante, montoSugerido });
     }
     return json({ ok: true, planes }, 200, cors);
   }
