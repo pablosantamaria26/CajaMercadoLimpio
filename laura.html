@@ -1536,28 +1536,97 @@
             if (cat === "Bidón de Agua" && !bidones) { return showToast("Seleccioná la cantidad de bidones", false); }
             if (cat === "VTV" && !veh) { return showToast("Seleccioná el vehículo para la VTV", false); }
             if (cat === "Adelanto de Sueldo" && !emp) { return showToast("Seleccioná el empleado para el adelanto", false); }
-            if (cat === "Adelanto de Sueldo" && emp) obs = `[${emp}] Adelanto de Sueldo. ${obs}`;
+            if (cat === "Adelanto de Sueldo" && emp) {
+                // ⚠️ Si el adelanto supera el sueldo semanal, no se puede descontar
+                // todo de un solo pago — ofrecemos dividirlo en cuotas semanales.
+                const empCfg = configEmpleadosGlobal.find(e => e.nombre.toLowerCase() === emp.toLowerCase());
+                const sueldoBase = empCfg ? Number(empCfg.sueldoBase) || 0 : 0;
+                if (sueldoBase > 0 && imp > sueldoBase) {
+                    mostrarSelectorCuotasAdelanto(emp, imp, sueldoBase);
+                    return; // el registro se retoma desde confirmarAdelantoCuotas() / pagarAdelantoCompleto()
+                }
+                obs = `[${emp}] Adelanto de Sueldo.${obs ? ' ' + obs : ''}`;
+            }
             if ((cat === "Combustible" || cat.includes("Mantenimiento")) && veh) obs = `[Veh: ${veh}]${obs ? ' ' + obs : ''}`;
             if (cat === "VTV" && veh) obs = `[VTV: ${veh}]${obs ? ' ' + obs : ''}`;
             if (cat === "Bidón de Agua" && bidones) obs = `[${bidones} bidón${bidones > 1 ? 'es' : ''} de agua]${obs ? ' ' + obs : ''}`;
             if (cat.includes("Proveedor") && prov && !obs.includes('[Prov:')) obs = `[Prov: ${prov}]${obs ? ' ' + obs : ''}`;
 
-            // PREPARAMOS EL PAYLOAD PERO NO LO ENVIAMOS TODAVIA
-            const payload = { 
-                tipo, formaPago: pago, importe: imp, categoria: cat, 
-                usuario: USUARIO_APP, observacion: obs, 
-                proveedor: prov, vehiculo: veh, empleado: emp, 
+            prepararYMostrarConfirmacion({
+                tipo, formaPago: pago, importe: imp, categoria: cat,
+                observacion: obs, proveedor: prov, vehiculo: veh, empleado: emp,
                 banco: banco, nroCheque: nroCheque
-            };
-            if(tipo === 'Egreso' && pago === 'Cheque' && idChequeSeleccionado) {
+            });
+        }
+
+        // Arma el payload final (agrega cheque origen si corresponde) y abre el modal
+        // de confirmación. Compartido por el registro normal y por el flujo de cuotas.
+        function prepararYMostrarConfirmacion(payload) {
+            payload.usuario = USUARIO_APP;
+            const pago = document.getElementById('mov-pago').value;
+            if (payload.tipo === 'Egreso' && pago === 'Cheque' && idChequeSeleccionado) {
                 payload.idChequeOrigen = idChequeSeleccionado;
             }
-
-            // GUARDAMOS EN VARIABLE GLOBAL
             tempMovimientoPayload = payload;
-
-            // MOSTRAMOS EL MODAL PARTY BOX
             showConfirmModal(payload);
+        }
+
+        // --- ADELANTO EN CUOTAS ---
+        // Cuando el adelanto pedido supera el sueldo semanal del empleado, en vez de
+        // descontarlo todo de un pago (dejando el sueldo en $0 o negativo), se puede
+        // dividir en cuotas semanales. El dinero SIEMPRE sale completo de la caja hoy
+        // (es lo que Laura le entregó) — lo que se reparte en cuotas es el DESCUENTO
+        // del sueldo de las próximas semanas.
+        let _adelantoCuotasCtx = null;
+
+        function mostrarSelectorCuotasAdelanto(nombre, monto, sueldoBase) {
+            _adelantoCuotasCtx = { nombre, monto };
+            const info = document.getElementById('cuotas-adelanto-info');
+            info.innerHTML = `<b>${nombre}</b> pidió <b>$${monto.toLocaleString('es-AR')}</b>, pero su sueldo semanal es <b>$${sueldoBase.toLocaleString('es-AR')}</b>.<br>El dinero se le entrega completo ahora — elegí en cuántas semanas se lo vas descontando del sueldo:`;
+            const opciones = document.getElementById('cuotas-adelanto-opciones');
+            opciones.innerHTML = [2, 3, 4].map(n => {
+                const cuota = Math.ceil(monto / n);
+                return `<button onclick="confirmarAdelantoCuotas(${n})" style="width:100%;padding:13px;margin-bottom:8px;border:2px solid var(--primary);border-radius:12px;background:white;color:var(--primary);font-weight:800;font-size:0.88rem;font-family:Quicksand;cursor:pointer;">${n} cuotas semanales de $${cuota.toLocaleString('es-AR')}</button>`;
+            }).join('');
+            document.getElementById('modal-cuotas-adelanto').style.display = 'flex';
+        }
+
+        function cerrarSelectorCuotasAdelanto() {
+            document.getElementById('modal-cuotas-adelanto').style.display = 'none';
+            _adelantoCuotasCtx = null;
+        }
+
+        function confirmarAdelantoCuotas(nCuotas) {
+            if (!_adelantoCuotasCtx) return;
+            const { nombre, monto } = _adelantoCuotasCtx;
+            const cuotaMonto = Math.ceil(monto / nCuotas);
+            const planId = 'AC' + Date.now();
+            const obs = `[${nombre}] Adelanto en cuotas — Total $${monto.toLocaleString('es-AR')} en ${nCuotas} cuotas de $${cuotaMonto.toLocaleString('es-AR')} [PLAN:${planId} total=${monto} cuota=${cuotaMonto} cuotas=${nCuotas}]`;
+            document.getElementById('modal-cuotas-adelanto').style.display = 'none';
+            _adelantoCuotasCtx = null;
+
+            prepararYMostrarConfirmacion({
+                tipo: 'Egreso', formaPago: document.getElementById('mov-pago').value,
+                importe: monto, categoria: 'Adelanto de Sueldo',
+                observacion: obs, proveedor: '', vehiculo: '', empleado: nombre,
+                banco: document.getElementById('mov-banco').value,
+                nroCheque: document.getElementById('mov-cheque-nro').value,
+            });
+        }
+
+        function pagarAdelantoCompleto() {
+            if (!_adelantoCuotasCtx) return;
+            const { nombre, monto } = _adelantoCuotasCtx;
+            document.getElementById('modal-cuotas-adelanto').style.display = 'none';
+            _adelantoCuotasCtx = null;
+
+            prepararYMostrarConfirmacion({
+                tipo: 'Egreso', formaPago: document.getElementById('mov-pago').value,
+                importe: monto, categoria: 'Adelanto de Sueldo',
+                observacion: `[${nombre}] Adelanto de Sueldo.`, proveedor: '', vehiculo: '', empleado: nombre,
+                banco: document.getElementById('mov-banco').value,
+                nroCheque: document.getElementById('mov-cheque-nro').value,
+            });
         }
 
         // 🔥 NUEVAS FUNCIONES PARA EL MODAL PARTY BOX 🔥
@@ -3109,16 +3178,31 @@
                 const dom = new Date(lun.getTime() + 6 * 864e5); // domingo = fin de semana
                 const from = `${lun.getFullYear()}-${pad(lun.getMonth()+1)}-${pad(lun.getDate())}`;
                 const to   = `${dom.getFullYear()}-${pad(dom.getMonth()+1)}-${pad(dom.getDate())}`;
-                const res  = await fetch(`${API_URL}sb/movimientos?from=${from}&to=${to}`);
-                const data = await res.json();
-                if (data?.ok && Array.isArray(data.data)) {
-                    haberesAdelantosData = data.data.filter(mv => {
+
+                // Adelantos "simples" (de esta semana) + planes de adelanto EN CUOTAS
+                // (pueden venir de semanas anteriores — se buscan sin límite de fecha)
+                const [resSemana, resCuotas] = await Promise.all([
+                    fetch(`${API_URL}sb/movimientos?from=${from}&to=${to}`).then(r => r.json()).catch(() => null),
+                    fetch(`${API_URL}sb/adelantos-cuotas?empleado=${encodeURIComponent(nombre)}`).then(r => r.json()).catch(() => null),
+                ]);
+
+                let simples = [];
+                if (resSemana?.ok && Array.isArray(resSemana.data)) {
+                    simples = resSemana.data.filter(mv => {
                         if (!mv.categoria || !mv.categoria.includes("Adelanto de Sueldo")) return false;
+                        if ((mv.observacion || '').includes('[PLAN:')) return false; // esos van por el otro lado
                         const match = (mv.observacion || "").match(/\[(.*?)\]/);
                         return match && match[1].trim().toLowerCase() === nombre.toLowerCase();
                     });
                 }
-            } catch(e) { /* datos vacíos — modal muestra igualmente */ }
+
+                const cuotas = (resCuotas?.ok && Array.isArray(resCuotas.planes)) ? resCuotas.planes.map(pl => ({
+                    fecha: pl.fecha, hora: '', importe: pl.montoEstaSemana,
+                    esCuota: true, pagadas: pl.pagadas, totalCuotas: pl.totalCuotas, planId: pl.planId,
+                })) : [];
+
+                haberesAdelantosData = [...simples, ...cuotas];
+            } catch(e) { haberesAdelantosData = []; /* modal muestra igualmente */ }
             haberesRenderModal();
         }
 
@@ -3141,12 +3225,15 @@
 
             const adelantosHTML = haberesAdelantosData.length === 0
                 ? `<p style="color:#aaa;text-align:center;font-size:0.82rem;margin:0;">Sin adelantos registrados</p>`
-                : haberesAdelantosData.map(mv =>
-                    `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:0.82rem;">
-                        <span style="color:#555;">📅 ${mv.fecha} ${(mv.hora||'').substring(0,5)}</span>
+                : haberesAdelantosData.map(mv => {
+                    const label = mv.esCuota
+                        ? `🧩 Adelanto en cuotas · cuota ${mv.pagadas + 1}/${mv.totalCuotas}`
+                        : `📅 ${mv.fecha} ${(mv.hora||'').substring(0,5)}`;
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:0.82rem;">
+                        <span style="color:#555;">${label}</span>
                         <span style="font-weight:800;color:#e17055;">- $${Number(mv.importe).toLocaleString('es-AR')}</span>
-                    </div>`
-                ).join('');
+                    </div>`;
+                }).join('');
 
             document.getElementById('modal-haberes-content').innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
@@ -3412,9 +3499,12 @@
                 const baseLabel = sueldoEfectivo !== sueldoBase
                     ? `Base ajustada $${sueldoEfectivo.toLocaleString('es-AR')} (base $${sueldoBase.toLocaleString('es-AR')})`
                     : `Base $${sueldoBase.toLocaleString('es-AR')}`;
-                const obsBase = totalAdelantos > 0
+                // Referencia a los planes de adelanto en cuotas incluidos en este pago —
+                // así la próxima semana el sistema sabe cuántas cuotas ya se descontaron.
+                const planTags = haberesAdelantosData.filter(a => a.esCuota).map(a => ` [PLAN:${a.planId} pagada]`).join('');
+                const obsBase = (totalAdelantos > 0
                     ? `[${nombre}] Sueldo ${mesLabel} | ${baseLabel} - Adelantos $${totalAdelantos.toLocaleString('es-AR')}`
-                    : `[${nombre}] Pago de Haberes ${mesLabel}${sueldoEfectivo !== sueldoBase ? ` | ${baseLabel}` : ''}`;
+                    : `[${nombre}] Pago de Haberes ${mesLabel}${sueldoEfectivo !== sueldoBase ? ` | ${baseLabel}` : ''}`) + planTags;
 
                 // Aguinaldo payload (si corresponde)
                 let aguMonto = 0, obsAgu = null;
@@ -3501,6 +3591,20 @@
                 <button onclick="cerrarModalRendicionCompleta()" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#aaa; line-height:1;">✕</button>
             </div>
             <div id="rendicion-completa-body"></div>
+        </div>
+    </div>
+
+    <!-- Modal Adelanto en Cuotas (adelanto que supera el sueldo semanal) -->
+    <div id="modal-cuotas-adelanto" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:20px;">
+        <div style="background:#fff;border-radius:20px;padding:26px 22px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+            <div style="text-align:center;margin-bottom:18px;">
+                <div style="font-size:44px;line-height:1;">🧩</div>
+                <h3 style="color:#e17055;margin:8px 0 4px;font-size:18px;font-weight:800;">Adelanto grande</h3>
+            </div>
+            <p id="cuotas-adelanto-info" style="color:#555;font-size:0.85rem;line-height:1.5;margin:0 0 16px;text-align:center;"></p>
+            <div id="cuotas-adelanto-opciones"></div>
+            <button onclick="pagarAdelantoCompleto()" style="width:100%;padding:12px;margin-top:4px;border:2px solid #ffc107;border-radius:12px;background:#fff8e1;color:#856404;font-weight:700;font-size:0.82rem;font-family:Quicksand;cursor:pointer;">Descontar todo este viernes (no recomendado)</button>
+            <button onclick="cerrarSelectorCuotasAdelanto()" style="width:100%;padding:12px;margin-top:8px;border:none;border-radius:12px;background:#f0f0f0;color:#888;font-weight:700;font-size:0.82rem;font-family:Quicksand;cursor:pointer;">Cancelar</button>
         </div>
     </div>
 

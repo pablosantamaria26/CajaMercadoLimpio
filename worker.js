@@ -530,6 +530,52 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, data }, 200, cors);
   }
 
+  // ── Adelantos en cuotas activos de un empleado ────────────────
+  // GET /sb/adelantos-cuotas?empleado=Nombre
+  // Un adelanto grande se puede registrar en cuotas semanales (ver laura.html:
+  // confirmarAdelantoCuotas). El plan queda tageado en la observación del
+  // adelanto original como [PLAN:xxx total=N cuota=M cuotas=K], y cada semana
+  // que se descuenta una cuota el sueldo de esa semana queda tageado con
+  // [PLAN:xxx pagada]. Acá se cruzan ambos tags para saber cuánto falta.
+  if (seg === "adelantos-cuotas") {
+    const empleado = (p.get("empleado") || "").trim();
+    if (!empleado) return json({ error: "empleado requerido" }, 400, cors);
+
+    const qPlanes = `${SB_URL}/movimientos_caja?deleted_at=is.null&categoria=eq.${encodeURIComponent("Adelanto de Sueldo")}&observacion=ilike.${encodeURIComponent("*[PLAN:*")}&select=id,fecha,observacion&order=fecha.asc`;
+    const qPagos  = `${SB_URL}/movimientos_caja?deleted_at=is.null&categoria=eq.${encodeURIComponent("Pago de Haberes")}&observacion=ilike.${encodeURIComponent("*pagada]*")}&select=observacion`;
+
+    const [rPlanes, rPagos] = await Promise.all([
+      fetch(qPlanes, { headers: rH }), fetch(qPagos, { headers: rH }),
+    ]);
+    const planesRaw = await rPlanes.json().catch(() => []);
+    const pagosRaw  = await rPagos.json().catch(() => []);
+
+    const pagadasPorPlan = {};
+    for (const row of (Array.isArray(pagosRaw) ? pagosRaw : [])) {
+      for (const m of (row.observacion || "").matchAll(/\[PLAN:(\S+) pagada\]/g)) {
+        pagadasPorPlan[m[1]] = (pagadasPorPlan[m[1]] || 0) + 1;
+      }
+    }
+
+    const empLower = empleado.toLowerCase();
+    const planes = [];
+    for (const row of (Array.isArray(planesRaw) ? planesRaw : [])) {
+      const obs = row.observacion || "";
+      const nombreMatch = obs.match(/^\[([^\]]+)\]/);
+      if (!nombreMatch || nombreMatch[1].trim().toLowerCase() !== empLower) continue;
+      const planMatch = obs.match(/\[PLAN:(\S+) total=(\d+) cuota=(\d+) cuotas=(\d+)\]/);
+      if (!planMatch) continue;
+      const [, planId, totalStr, cuotaStr, cuotasStr] = planMatch;
+      const total = Number(totalStr), cuotaMonto = Number(cuotaStr), totalCuotas = Number(cuotasStr);
+      const pagadas = pagadasPorPlan[planId] || 0;
+      if (pagadas >= totalCuotas) continue; // plan saldado
+      const restante = total - pagadas * cuotaMonto;
+      const montoEstaSemana = Math.max(0, Math.min(cuotaMonto, restante));
+      planes.push({ planId, fecha: row.fecha, total, cuotaMonto, totalCuotas, pagadas, montoEstaSemana });
+    }
+    return json({ ok: true, planes }, 200, cors);
+  }
+
   // ── Arqueos ──────────────────────────────────────────────────
   if (seg === "arqueos") {
     const hasFecha = !!p.get("fecha");
