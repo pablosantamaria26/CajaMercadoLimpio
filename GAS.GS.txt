@@ -1,0 +1,2644 @@
+/**
+ * ==========================================================================
+ * 💎 CAJA MERCADO LIMPIO - VERSIÓN DUEÑO V4.0 (AÑADE GASTOS FIJOS Y RANGO)
+ * ==========================================================================
+ * CORRECCIONES CRÍTICAS:
+ * - Implementación de Gastos Fijos (CRUD: getConfigGastosFijos, add, update).
+ * - Implementación de getMovimientosRango para la pestaña Tendencias.
+ * - Asegura que la configuración de Empleados use el campo lastUpdate.
+ * - Añade hoja ConfigGastosFijos al Setup.
+ * ==========================================================================
+ */
+
+/****************************************************
+ * 🔧 CONFIGURACIÓN GENERAL
+ ****************************************************/
+const SPREAD_ID = "1JEb0JEg4xRYsmZ-JKPygkaSxlBbzLlV-AfpboXavb5Q";
+
+// ⚠️ ID REAL CONFIRMADO (Carpeta Raíz de Recibos)
+const RECIBOS_FOLDER_ID = '1-6u_j-LdF3eHDUwvOm-rT-_j6aZ7r0SI'; 
+
+const REPARTIDOR_PRINCIPAL = "Nico";
+
+const SHEET_NAMES = {
+  MOVIMIENTOS: 'MovimientosCaja',
+  RENDICIONES: 'Rendiciones',
+  ARQUEOS: 'Arqueos',
+  CONFIG: 'Config',
+  LOGS: 'Logs',
+  REPORTES_MENSUALES: 'ReportesMensuales',
+  NOTIFICACIONES: 'NotificacionesCaja',
+  CACHE: 'RendicionCache',
+  HISTORIAL_IMPORTS: 'HistorialImports', 
+  CONFIG_EMPLEADOS: 'ConfigEmpleados',
+  CONFIG_GASTOS_FIJOS: 'ConfigGastosFijos',
+  LOGS_COMBUSTIBLE: 'LogsCombustible' // ✅ AGREGAR ESTA LÍNEA
+};
+
+const COLORS = {
+  HEADER_BLUE: '#1565C0', HEADER_GREEN: '#2E7D32', HEADER_PURPLE: '#6A1B9A',
+  HEADER_ORANGE: '#EF6C00', HEADER_GREY: '#455A64', HEADER_RED: '#C62828',
+  HEADER_CYAN: '#00BCD4', // Color para Gastos Fijos
+  BG_LIGHT: '#E3F2FD', BG_ALT: '#F5F5F5', WHITE: '#FFFFFF', TEXT_DARK: '#263238'
+};
+
+/****************************************************
+ * 🌐 API JSON (DOPOST) - CEREBRO DE LA APP
+ ****************************************************/
+function doPost(e) {
+  try {
+    const body = e.postData && e.postData.contents ? e.postData.contents : '{}';
+    const data = JSON.parse(body);
+    const fn = data.fn;
+    const params = data.params || {};
+    let result;
+
+    switch (fn) {
+      // --- CAJA & MOVIMIENTOS ---
+      case 'getEstadoCaja':
+        result = getEstadoCaja();
+        break;
+      
+      case 'getMovimientos':
+        // Se mantiene para compatibilidad con la app de caja de Laura
+        result = getMovimientos(params.fechaStr);
+        break;
+
+      case 'getMovimientosRango': // ✅ NUEVA FUNCIÓN PARA EL DUEÑO (Tendencias)
+        result = getMovimientosRango(params.startDateStr, params.endDateStr);
+        break;
+
+      case 'renombrarEmpleado': return ContentService.createTextOutput(JSON.stringify(renombrarEmpleado(params))).setMimeType(ContentService.MimeType.JSON);
+
+
+      case 'registrarMovimientoCaja':
+        const idMov = registrarMovimientoCaja(
+            params.tipo, params.formaPago, params.importe, params.categoria, 
+            params.repartidor, params.turno, params.banco, params.nroCheque, 
+            params.usuario, params.observacion, params.proveedor, 
+            params.vehiculo, params.empleado, params.idChequeOrigen
+        );
+        result = { ok: true, id: idMov };
+        break;
+
+      case 'registrarArqueo':
+        result = registrarArqueo(params.usuario, params.efectivoFisico, params.monitorData);
+        break;
+
+        
+      case 'getArqueoStatus': // ✅ FUNCIÓN DUEÑO
+        result = getArqueoStatus(params.dateStr);
+        break;
+
+      // --- CHEQUES EN CARTERA ---
+      case 'getChequesCartera':
+        result = getChequesCartera();
+        break;
+
+      // --- RENDICIONES (MOTOR V3.7) ---
+      case 'getDatosRendicionEsperada':
+        result = getRendicionCacheadaParaApp(params.turno, params.repartidor);
+        break;
+
+      case 'getDetalleRendicion':
+        result = getDetalleRendicionParaApp(params.fecha, params.turno, params.repartidor);
+        break;
+
+      case 'editarMovimientoCaja':
+        result = editarMovimientoCaja(params.id, params.tipo, params.formaPago, params.importe, params.categoria, params.observacion);
+        break;
+
+      case 'eliminarMovimientoCaja':
+        result = eliminarMovimientoCaja(params.id);
+        break;
+
+
+      case 'procesarRendicionDesdeRecibo':
+        result = procesarRendicionDesdeRecibo(params);
+        result.ok = true;
+        break;
+
+      case 'obtenerHistorialRendiciones':
+        result = obtenerHistorialRendicionesHoja_();
+        break;
+
+      
+      // --- NOTIFICACIONES ---
+      case 'getNotificacionesCaja':
+        result = getNotificacionesCaja(params.soloActivas !== false);
+        break;
+
+      case 'marcarNotificacionLeida':
+        result = marcarNotificacionLeida(params.id);
+        break;
+
+      case 'borrarNotificacion':
+        result = borrarNotificacion(params.id);
+        break;
+
+      // --- ⛽ COMBUSTIBLE (NUEVO) ---
+      case 'checkCombustibleWarning':
+        result = checkCombustibleWarning(params.vehiculo);
+        break;
+
+      // --- 👥 GESTIÓN EMPLEADOS ---
+      case 'getConfigEmpleados':
+        result = getConfigEmpleados();
+        break;
+
+      case 'addConfigEmpleado':
+        result = addConfigEmpleado(params.nombre, params.sueldoBase);
+        break;
+
+      case 'updateConfigEmpleado':
+        result = updateConfigEmpleado(params.nombre, params.sueldoBase, params.lastUpdate); // Añadido lastUpdate
+        break;
+        
+      // --- 🏠 GASTOS FIJOS (NUEVAS FUNCIONES CRUD) ---
+      case 'getConfigGastosFijos':
+          result = getConfigGastosFijos();
+          break;
+      case 'addConfigGastoFijo':
+          result = addConfigGastoFijo(params.nombre, params.montoMensual);
+          break;
+      case 'updateConfigGastoFijo':
+          result = updateConfigGastoFijo(params.nombre, params.montoMensual, params.lastUpdate);
+          break;
+
+       case 'getResumenBancosDueño': 
+        result = getResumenBancosDueño();
+        break;  
+
+       case 'getResumenCruceDiario':
+        result = getResumenCruceDiario(params.fechaStr);
+        break;
+
+      case 'getResumenCruceRango':
+        result = getResumenCruceRango(params.startDateStr, params.endDateStr);
+        break;
+
+      case 'eliminarMovimientoPorCampos':
+        result = eliminarMovimientoPorCampos(params);
+        break;
+
+      case 'enviarEmailVTV':
+        result = enviarEmailVTV(params);
+        break;
+
+       default:
+        result = { ok: false, error: 'Función no soportada: ' + fn };
+    }
+    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    const errorRes = { ok: false, error: err.message || String(err) };
+    return ContentService.createTextOutput(JSON.stringify(errorRes)).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/****************************************************
+ * 🏠 LÓGICA DE GASTOS FIJOS
+ ****************************************************/
+function getConfigGastosFijos() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.CONFIG_GASTOS_FIJOS);
+  if (!sh) return { ok: false, error: 'Hoja ConfigGastosFijos no inicializada' };
+  
+  const data = sh.getDataRange().getValues();
+  const res = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[0]) { 
+      res.push({ 
+        nombre: row[0], 
+        montoMensual: Number(row[1]) || 0,
+        lastUpdate: row[2] instanceof Date ? Utilities.formatDate(row[2], "America/Argentina/Buenos_Aires", "yyyy-MM-dd") : ''
+      });
+    }
+  }
+  return { ok: true, data: res };
+}
+
+function addConfigGastoFijo(nombre, montoMensual) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.CONFIG_GASTOS_FIJOS);
+  if (!sh) return { ok: false, error: 'Hoja no existe' };
+  
+  // Opcional: Chequeo de duplicados
+  const data = sh.getDataRange().getValues();
+  for(let i=1; i<data.length; i++) {
+    if(String(data[i][0]).toLowerCase() === String(nombre).toLowerCase()) {
+      return { ok: false, error: 'El gasto fijo ya existe.' };
+    }
+  }
+  sh.appendRow([nombre, Number(montoMensual), new Date()]);
+  return { ok: true };
+}
+
+function updateConfigGastoFijo(nombre, montoMensual, lastUpdate) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.CONFIG_GASTOS_FIJOS);
+  if (!sh) return { ok: false, error: 'Hoja no existe' };
+
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).toLowerCase() === String(nombre).toLowerCase()) {
+      sh.getRange(i + 1, 2).setValue(Number(montoMensual));
+      // Actualiza la columna FechaUltimaActualizacion (Col 3)
+      sh.getRange(i + 1, 3).setValue(new Date(lastUpdate)); 
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: 'Gasto fijo no encontrado' };
+}
+
+/****************************************************
+ * 👥 LÓGICA DE EMPLEADOS
+ ****************************************************/
+function getConfigEmpleados() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.CONFIG_EMPLEADOS);
+  if (!sh) return { ok: false, error: 'Hoja ConfigEmpleados no inicializada' };
+  
+  const data = sh.getDataRange().getValues();
+  const res = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[0]) { 
+      res.push({ 
+        nombre: row[0], 
+        sueldoBase: Number(row[1]) || 0,
+        // ✅ AÑADIDO: Formato de fecha para el DUEÑO
+        lastUpdate: row[2] instanceof Date ? Utilities.formatDate(row[2], "America/Argentina/Buenos_Aires", "yyyy-MM-dd") : '' 
+      });
+    }
+  }
+  return { ok: true, data: res };
+}
+
+function addConfigEmpleado(nombre, sueldoBase) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.CONFIG_EMPLEADOS);
+  if (!sh) return { ok: false, error: 'Hoja no existe' };
+  
+  const data = sh.getDataRange().getValues();
+  for(let i=1; i<data.length; i++) {
+    if(String(data[i][0]).toLowerCase() === String(nombre).toLowerCase()) {
+      return { ok: false, error: 'El empleado ya existe.' };
+    }
+  }
+  // Añadimos la fecha de alta/última actualización
+  sh.appendRow([nombre, Number(sueldoBase), new Date()]); 
+  return { ok: true };
+}
+
+function updateConfigEmpleado(nombre, sueldoBase, lastUpdate) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.CONFIG_EMPLEADOS);
+  if (!sh) return { ok: false, error: 'Hoja no existe' };
+
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).toLowerCase() === String(nombre).toLowerCase()) {
+      sh.getRange(i + 1, 2).setValue(Number(sueldoBase));
+      // Actualiza la columna FechaUltimaActualizacion (Col 3)
+      sh.getRange(i + 1, 3).setValue(new Date(lastUpdate)); 
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: 'Empleado no encontrado' };
+}
+
+/****************************************************
+ * 🤖 JOB ORQUESTADOR V4.2 (CICLO STRICTO)
+ * --------------------------------------------------
+ * Lógica: Barrido Cronológico Ajustado a Laura.
+ * * 1. PRIORIDAD CRÍTICA: Ayer Mañana (Recupero de día agitado)
+ * 2. PRIORIDAD ALTA: Ayer Tarde (Lo estándar al iniciar el día)
+ * 3. PRIORIDAD NORMAL: Hoy Mañana (Lo que llega al mediodía)
+ * * NOTA: "Hoy Tarde" NO se busca. Se procesará mañana como "Ayer Tarde".
+ ****************************************************/
+function JOB_OrquestadorRendiciones() {
+  const ss = SpreadsheetApp.getActive();
+  const cacheSh = ss.getSheetByName(SHEET_NAMES.CACHE);
+  
+  let histSh = ss.getSheetByName(SHEET_NAMES.HISTORIAL_IMPORTS);
+  if (!histSh) { histSh = ss.insertSheet(SHEET_NAMES.HISTORIAL_IMPORTS); histSh.appendRow(['Fecha','FileID','Nombre']); }
+
+  // 🛑 FRENO DE MANO: Si Laura ya tiene algo en pantalla, no la molestamos.
+  if (cacheSh.getLastRow() > 1) {
+    console.log("⏳ JOB: Hay una rendición pendiente en pantalla. Esperando al usuario.");
+    return;
+  }
+  
+  const hoy = new Date();
+  const ayer = new Date(hoy.getTime() - 24 * 60 * 60 * 1000);
+  
+  console.log("🕵️ JOB: Iniciando escaneo (V4.2 - Sin adelantarse al futuro)...");
+
+  // =================================================================
+  // 1️⃣ EL RECUPERO: AYER - TURNO MAÑANA
+  // =================================================================
+  // Si ayer fue un caos y Nico no subió la mañana, la sube hoy.
+  // Esto debe aparecer ANTES que la tarde de ayer para respetar el orden de la caja.
+  const ayerManana = buscarArchivoInteligente(ayer, "Mañana", REPARTIDOR_PRINCIPAL);
+  if (ayerManana && !yaFueImportado(ayerManana.id, histSh)) {
+    console.log(`🚨 RECUPERADO: Turno Mañana de AYER (${ayerManana.fecha})`);
+    
+    cargarEnCache(cacheSh, histSh, ayerManana);
+    
+    registrarNotificacion(
+      'INFO', 'ALTA', 
+      'Rendición Recuperada', 
+      `Apareció el turno Mañana de AYER que estaba pendiente.`, 
+      ayerManana
+    );
+    return; // Cortamos y entregamos esto.
+  }
+
+  // =================================================================
+  // 2️⃣ EL CIERRE: AYER - TURNO TARDE
+  // =================================================================
+  // Esto es lo primero que Laura debería ver en un día normal al llegar.
+  const ayerTarde = buscarArchivoInteligente(ayer, "Tarde", REPARTIDOR_PRINCIPAL);
+  if (ayerTarde && !yaFueImportado(ayerTarde.id, histSh)) {
+    console.log(`✅ ENCONTRADO: Turno Tarde de AYER (${ayerTarde.fecha})`);
+    cargarEnCache(cacheSh, histSh, ayerTarde);
+    // Notificación normal
+    registrarNotificacion('INFO', 'MEDIA', 'Rendición Pendiente', `Listo el cierre de ayer tarde.`, ayerTarde);
+    return;
+  }
+
+  // =================================================================
+  // 3️⃣ EL DÍA EN CURSO: HOY - TURNO MAÑANA
+  // =================================================================
+  // Esto llega después del mediodía (13:00 - 15:00 hs).
+  const hoyManana = buscarArchivoInteligente(hoy, "Mañana", REPARTIDOR_PRINCIPAL);
+  if (hoyManana && !yaFueImportado(hoyManana.id, histSh)) {
+    console.log(`✅ ENCONTRADO: Turno Mañana de HOY (${hoyManana.fecha})`);
+    cargarEnCache(cacheSh, histSh, hoyManana);
+    registrarNotificacion('INFO', 'BAJA', 'Nueva Rendición', `Llegó el turno mañana de hoy.`, hoyManana);
+    return;
+  }
+  
+  // =================================================================
+  // 4️⃣ EL CIERRE DE HOY: HOY - TURNO TARDE
+  // =================================================================
+  const hoyTarde = buscarArchivoInteligente(hoy, "Tarde", REPARTIDOR_PRINCIPAL);
+  if (hoyTarde && !yaFueImportado(hoyTarde.id, histSh)) {
+    console.log(`✅ ENCONTRADO: Turno Tarde de HOY (${hoyTarde.fecha})`);
+    cargarEnCache(cacheSh, histSh, hoyTarde);
+    registrarNotificacion('INFO', 'MEDIA', 'Cierre de Hoy', `Listo el cierre de hoy a la tarde.`, hoyTarde);
+    return;
+  }
+
+  console.log("💤 JOB: Nada pendiente por ahora.");
+}
+
+
+// --- Helper de Búsqueda Inteligente (Anti-PDF + Lector GSheet + Búsqueda Root) ---
+function buscarArchivoInteligente(fecha, turno, repartidor) {
+  if (!fecha || !(fecha instanceof Date)) return null;
+
+  const fechaStr = Utilities.formatDate(fecha, "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
+  
+  // ⚠️ CAMBIO CRÍTICO: Ya no buscamos el nombre exacto del repartidor ("Nico").
+  // Ahora buscamos coincidencia FLEXIBLE: Que tenga "Rendición" + TURNO + FECHA.
+  // Esto soluciona problemas de tildes ("Nicolás" vs "Nico") o cambios de nombre.
+  
+  try {
+    const rootFolder = DriveApp.getFolderById(RECIBOS_FOLDER_ID);
+    
+    // Nombres de carpeta posibles
+    const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+    const mesIndex = parseInt(Utilities.formatDate(fecha, "America/Argentina/Buenos_Aires", "M")) - 1;
+    const anio = Utilities.formatDate(fecha, "America/Argentina/Buenos_Aires", "yyyy");
+    
+    const nombreCarpetaEs = `${meses[mesIndex]} ${anio}`; // Enero 2026
+    const nombreCarpetaEn = Utilities.formatDate(fecha, "en", "MMMM yyyy"); // January 2026
+
+    // 1. Recopilamos DÓNDE buscar (Carpetas mes + Root)
+    let carpetasABuscar = [rootFolder]; // Siempre buscamos en la raíz por si acaso
+
+    let subFoldersEs = rootFolder.getFoldersByName(nombreCarpetaEs);
+    if (subFoldersEs.hasNext()) carpetasABuscar.push(subFoldersEs.next());
+    
+    let subFoldersEn = rootFolder.getFoldersByName(nombreCarpetaEn);
+    if (subFoldersEn.hasNext()) carpetasABuscar.push(subFoldersEn.next());
+
+    // 2. Buscamos en todas las carpetas candidatas
+    for (let folder of carpetasABuscar) {
+        const files = folder.getFiles();
+        while (files.hasNext()) {
+            const file = files.next();
+            
+            // Filtros rápidos de basura
+            if (file.isTrashed()) continue;
+            if (file.getMimeType() === MimeType.PDF) continue;
+
+            const nombreArchivo = file.getName();
+
+            // 🔥 LÓGICA FLEXIBLE:
+            // 1. Tiene la fecha (2026-01-09)?
+            // 2. Tiene el turno (Mañana/Tarde)?
+            // 3. Dice "Rendición"?
+            if (nombreArchivo.includes(fechaStr) && nombreArchivo.includes(turno) && nombreArchivo.includes("Rendición")) {
+                
+                // ¡EUREKA! Encontramos el archivo (sin importar el nombre del chofer)
+                try {
+                    let totalMonto = 0;
+                    let jsonString = "{}";
+
+                    if (file.getMimeType() === MimeType.GOOGLE_SHEETS) {
+                        console.log(`📊 Leyendo Planilla: ${file.getName()}`);
+                        totalMonto = getTotalEfectivoDesdePlanillaLegacy(file.getId());
+                        jsonString = JSON.stringify({ 
+                            origen: "GOOGLE_SHEET", fecha: fechaStr, turno: turno, 
+                            repartidor: repartidor, efectivoEsperado: totalMonto
+                        }); 
+                        if (totalMonto === 0) console.warn("⚠️ OJO: El monto leído es $0.");
+                    }
+                    else if (file.getName().endsWith(".json") || file.getMimeType() === MimeType.PLAIN_TEXT) {
+                        let contenido = file.getBlob().getDataAsString();
+                        if (contenido.trim().startsWith("{")) {
+                            const json = JSON.parse(contenido);
+                            totalMonto = json.totalEfectivo || 0;
+                            jsonString = contenido;
+                        }
+                    }
+
+                    return {
+                        id: file.getId(),
+                        name: file.getName(),
+                        fecha: fechaStr,
+                        turno: turno,
+                        repartidor: repartidor,
+                        monto: totalMonto,
+                        json: jsonString
+                    };
+
+                } catch(readError) {
+                    console.log(`❌ Error leyendo archivo "${file.getName()}": ${readError.message}`);
+                }
+            }
+        }
+    }
+
+  } catch(e) {
+    console.log("❌ Error general buscando archivo: " + e.message);
+  }
+  return null;
+}
+
+// VERSIÓN V7.0 - "SCANNER DE ZONA" (Busca el número mayor en el área)
+function getTotalEfectivoDesdePlanillaLegacy(fileId) {
+  try {
+    const ss = SpreadsheetApp.openById(fileId);
+    const sh = ss.getSheets()[0];
+    
+    // Palabras clave
+    const keywords = ["TOTAL EFECTIVO", "TOTAL RECIBIDO", "A RENDIR", "EFECTIVO A RENDIR"];
+    let match = null;
+    let labelFound = "";
+
+    // 1. Encontrar fila de la etiqueta
+    for (let word of keywords) {
+      match = sh.createTextFinder(word).matchCase(false).findNext();
+      if (match) {
+        labelFound = word;
+        break; 
+      }
+    }
+    
+    if (match) {
+       const row = match.getRow();
+       const col = match.getColumn();
+       
+       // 2. ESCANEO AMPLIO (ZONA DE CALOR)
+       // Leemos 2 filas (la de la etiqueta y la de abajo)
+       // Leemos 10 columnas a la derecha (para cubrir cualquier desplazamiento)
+       // Range: desde [row, col] hasta [row+1, col+10]
+       const zonaDatos = sh.getRange(row, col + 1, 2, 10).getValues();
+       
+       console.log(`🧐 Scanner V7 (${fileId}): Etiqueta "${labelFound}" en fila ${row}. Escaneando zona...`);
+
+       let maxVal = 0;
+       
+       // Función Limpieza
+       const limpiarValor = (v) => {
+          if (typeof v === 'number') return v;
+          if (!v) return 0;
+          if (typeof v === 'string') {
+             let s = v.replace(/\$/g, '').trim();
+             if (s === "") return 0;
+             // Formato Argentina: 1.500,50 -> 1500.50
+             if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+             else if (s.includes('.')) s = s.replace(/\./g, ''); // Si solo tiene puntos, son miles
+             return parseFloat(s); 
+          }
+          return 0;
+       };
+
+       // 3. BUSCAR EL NÚMERO MÁS GRANDE EN LA ZONA
+       // El Total casi siempre es el número más grande de esa sección final.
+       zonaDatos.forEach(fila => {
+           fila.forEach(celda => {
+               const valor = limpiarValor(celda);
+               if (!isNaN(valor) && valor > maxVal) {
+                   maxVal = valor;
+               }
+           });
+       });
+
+       if (maxVal === 0) {
+          console.warn(`⚠️ ALERTA: La etiqueta está, pero no hay ningún número mayor a 0 en las 10 celdas siguientes ni abajo.`);
+       } else {
+          console.log(`✅ EXCELENTE: Monto detectado: $ ${maxVal}`);
+       }
+       
+       return maxVal;
+    } else {
+       console.log("⚠️ No se encontró la etiqueta 'TOTAL EFECTIVO'.");
+    }
+  } catch(e) {
+    console.log("❌ Error crítico: " + e.message);
+  }
+  return 0;
+}
+
+function yaFueImportado(fileId, sheetHist) {
+  if (sheetHist.getLastRow() < 2) return false;
+  const data = sheetHist.getRange(2, 2, sheetHist.getLastRow()-1, 1).getValues();
+  const listaIds = data.flat().map(String);
+  return listaIds.includes(String(fileId));
+}
+
+function cargarEnCache(sheetCache, sheetHist, datos) {
+  if(sheetCache.getLastRow() > 1) sheetCache.deleteRows(2, sheetCache.getLastRow()-1);
+  sheetCache.appendRow([
+    new Date(), datos.id, datos.fecha, datos.turno, datos.repartidor, datos.monto, "PENDIENTE", datos.json
+  ]);
+  sheetHist.appendRow([new Date(), datos.id, datos.name]);
+}
+
+
+/****************************************************
+ * 💾 GESTIÓN DE CACHÉ
+ ****************************************************/
+function getRendicionCacheadaParaApp(turnoApp, repartidorApp) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAMES.CACHE);
+
+  // OPCIÓN 1: Hay datos en cache (flujo normal del JOB)
+  if (sh && sh.getLastRow() >= 2) {
+    const data = sh.getRange(2, 1, 1, 8).getValues()[0];
+    let fechaStr = data[2];
+    if (data[2] instanceof Date) {
+      fechaStr = Utilities.formatDate(data[2], "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
+    }
+
+    // Intentar enriquecer con datos de Supabase (transferencia, cheque, detalle por cliente)
+    const sb = buscarRendicionEnSupabase_(fechaStr, String(data[3]), String(data[4]));
+
+    return {
+      ok: true,
+      hayPendiente: true,
+      fecha: fechaStr,
+      turno: data[3],
+      repartidor: data[4],
+      efectivoEsperado:  sb ? sb.efectivo      : Number(data[5]),
+      transferencia:     sb ? sb.transferencia  : 0,
+      cheque:            sb ? sb.cheque         : 0,
+      total:             sb ? sb.total          : Number(data[5]),
+      detalleClientes:   sb ? (sb.detalle_clientes || []) : [],
+      fileId: data[1],
+      fuenteSupabase: !!sb
+    };
+  }
+
+  // OPCIÓN 2: Cache vacía → buscar en Supabase directamente
+  const sbRendicion = buscarUltimaRendicionPendienteSupabase_();
+  if (sbRendicion) {
+    Logger.log('✅ Rendición rescatada desde Supabase (cache vacía).');
+    return {
+      ok: true,
+      hayPendiente: true,
+      fecha:             sbRendicion.fecha,
+      turno:             sbRendicion.turno,
+      repartidor:        sbRendicion.repartidor,
+      efectivoEsperado:  sbRendicion.efectivo,
+      transferencia:     sbRendicion.transferencia,
+      cheque:            sbRendicion.cheque,
+      total:             sbRendicion.total,
+      detalleClientes:   sbRendicion.detalle_clientes || [],
+      fileId:            null,
+      fuenteSupabase:    true
+    };
+  }
+
+  return { ok: true, hayPendiente: false, mensaje: "Nada pendiente." };
+}
+
+
+function borrarCache() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAMES.CACHE);
+  if (sh && sh.getLastRow() > 1) {
+    sh.deleteRows(2, sh.getLastRow()-1);
+  }
+}
+
+/****************************************************
+ * 📝 PROCESAMIENTO
+ ****************************************************/
+function procesarRendicionDesdeRecibo(p) {
+  if (yaFueRendidaEnHoja(p.fechaStr, p.turno, p.repartidor)) {
+    borrarCache();
+    marcarRendicionProcesadaEnSupabase_(p.fechaStr, p.turno, p.repartidor);
+    return { ok: true, mensaje: "Planilla ya estaba registrada. Limpiando..." };
+  }
+
+  const registro = registrarRendicionEnHoja(p);
+  borrarCache();
+  marcarRendicionProcesadaEnSupabase_(p.fechaStr, p.turno, p.repartidor);
+  return registro;
+}
+
+
+function yaFueRendidaEnHoja(fechaStr, turno, repartidor) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAMES.RENDICIONES);
+  if (!sh || sh.getLastRow() < 2) return false;
+  
+  const fBusq = Utilities.formatDate(new Date(fechaStr), "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+  const data = sh.getDataRange().getValues(); 
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row[1]) continue;
+    const fRow = Utilities.formatDate(new Date(row[1]), "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+    if (fRow === fBusq && String(row[2]) === String(turno) && String(row[3]) === String(repartidor)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// 🔥 FUNCIÓN CORE DE CONTABILIDAD CORREGIDA (V3.8)
+function registrarRendicionEnHoja(p) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAMES.RENDICIONES);
+  
+  const efectivoEsperado = Number(p.efectivoEsperado);
+  const efectivoContado = Number(p.efectivoContado);
+  const diferencia = efectivoContado - efectivoEsperado;
+  
+  let tipoDif = 'Exacto';
+  if (diferencia > 0) tipoDif = 'Sobrante';
+  if (diferencia < 0) tipoDif = 'Faltante';
+
+  analizarComportamiento(p.monitorData, "RENDICION", p.usuario, diferencia);
+
+  const nextId = sh.getLastRow() < 2 ? 1 : Number(sh.getRange(sh.getLastRow(), 1).getValue()) + 1;
+  const now = new Date();
+
+  // A. Registrar en Hoja Rendiciones (para historial y diferencias)
+  sh.appendRow([
+    nextId, new Date(p.fechaStr), p.turno, p.repartidor, efectivoEsperado, efectivoContado,
+    diferencia, tipoDif, p.usuario, now, p.fileId, JSON.stringify(p.monitorData || {}) 
+  ]);
+
+  // 🔥 B. MOVIMIENTO 1: Registramos la BASE ESPERADA como INGRESO
+  // Este movimiento refleja la parte de la plata que sí debería haber entrado.
+  registrarMovimientoCaja(
+    'Ingreso', 'Efectivo', efectivoEsperado, 'Rendición Reparto - BASE', 
+    p.repartidor, p.turno, '', '', p.usuario, `Base Rendición ${p.repartidor} (${p.turno})`, "", "", ""
+  );
+
+  // 🔥 C. MOVIMIENTO 2: Registramos el AJUSTE (sobrante/faltante)
+  // Este movimiento cuadra la caja al monto real que entró (Contado = Esperado + Diferencia).
+  if (diferencia !== 0) {
+    const tipoMov = diferencia > 0 ? 'Ingreso' : 'Egreso'; // Sobrante es Ingreso, Faltante es Egreso
+    registrarMovimientoCaja(
+      tipoMov, 'Efectivo', Math.abs(diferencia), 'Diferencia Rendición - Ajuste', 
+      p.repartidor, p.turno, '', '', p.usuario, `Ajuste automático ${tipoDif}`
+    );
+  }
+  
+  // Resultado Neto en Caja: Ingreso(Esperado) + Ingreso/Egreso(Diferencia) = Contado. (Correcto)
+
+  logAccion(p.usuario, 'RENDICION', `Dif: ${diferencia}`, `ID:${nextId}`);
+
+  return { ok: true, diferencia };
+}
+
+function analizarComportamiento(data, tipoEvento, usuario, diferencia) {
+  if (!data) return;
+  const edits = data.edits || 0;
+  const deletes = data.deletes || 0;
+  const alertas = [];
+
+  if (diferencia === 0 && edits > 15) {
+    alertas.push(`POSIBLE DIBUJO: Diferencia exacta ($0) tras ${edits} ediciones de billetes.`);
+  }
+  if (deletes > 3) {
+    alertas.push(`INDECISIÓN: Borró el conteo completo ${deletes} veces.`);
+  }
+  if (data.submitAttempts && data.submitAttempts > 2) {
+    alertas.push(`INTENTOS FALLIDOS: Trató de confirmar ${data.submitAttempts} veces.`);
+  }
+
+  if (alertas.length > 0) {
+    registrarNotificacion("ANOMALIA_CAJA", "ALTA", `Sospecha en ${tipoEvento}`, `Usuario ${usuario}: ${alertas.join(" ")}`, data);
+  }
+}
+
+/****************************************************
+ * 📦 FUNCIONES DE CAJA, ARQUEO Y HELPERS
+ ****************************************************/
+
+function registrarMovimientoCaja(tipo, forma, importe, cat, rep, turno, banco, ch, user, obs, prov, veh, emp, idChequeOrigen) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  const id = sh.getLastRow() < 2 ? 1000 : Number(sh.getRange(sh.getLastRow(), 1).getValue()) + 1;
+  const now = new Date();
+  
+  if (tipo === 'Egreso' && forma === 'Cheque' && idChequeOrigen) {
+    marcarChequeEntregado(idChequeOrigen, now);
+  }
+
+  let obsFinal = obs || "";
+  // Guards anti-duplicado: la app ya puede mandar el tag dentro de la observación
+  if (prov && !obsFinal.includes('[Prov:')) obsFinal = `[Prov: ${prov}] ` + obsFinal;
+  if (veh && !obsFinal.includes('[Veh:'))   obsFinal = `[Veh: ${veh}] ` + obsFinal;
+  if (emp && !obsFinal.includes(`[${emp}]`)) obsFinal = `[${emp}] ` + obsFinal;
+
+  sh.appendRow([
+      id, now, Utilities.formatDate(now, "America/Argentina/Buenos_Aires", "HH:mm"), 
+      tipo, forma, banco||"", ch||"", Number(importe), cat, rep||"", turno||"", user||"Sistema", obsFinal, ""
+  ]);
+  
+  logAccion(user, 'MOVIMIENTO_CAJA', `Tipo: ${tipo} - Importe: ${importe}`, cat);
+
+  // 🔥 NUEVO: Verificar alerta de combustible (solo si es egreso de combustible y hay vehículo)
+  if (tipo === 'Egreso' && cat.includes('Combustible') && veh) {
+    const loads = getCombustibleLoadsThisWeek(veh);
+    // Si loads es 2, significa que ya hubo 2 cargas. La actual es la 3ra o más.
+    if (loads >= 2) { 
+      registrarNotificacion(
+        "ALERTA_COMBUSTIBLE", 
+        "MEDIA", 
+        `ALERTA: 3RA Carga de ${veh}`, 
+        `El vehículo ${veh} ya registró ${loads + 1} cargas esta semana. Esto excede el límite normal de 2.`,
+        { vehiculo: veh, cargas: loads + 1 }
+      );
+    }
+  }
+
+  // El tablero de combustible (LogsCombustible) YA NO se actualiza acá.
+  // Medido en producción: el agregado incremental por fila igual sumaba
+  // 5-6 llamadas extra a Sheets (insertRowBefore + setValues + formatos),
+  // y cada llamada tiene latencia propia en Apps Script — el registro de
+  // Combustible seguía tardando el doble que cualquier otra categoría.
+  // Ahora se actualiza solo, cada 10 min, vía trigger (ver
+  // JOB_ActualizarTableroCombustiblePeriodico) — así una carga de
+  // combustible cuesta exactamente lo mismo que cualquier otro egreso.
+
+  return id;
+}
+
+// 🔥 NUEVO: Lógica para contar cargas de combustible en la semana
+function getCombustibleLoadsThisWeek(vehiculo) {
+  if (!vehiculo) return 0;
+  
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  if (!sh || sh.getLastRow() < 2) return 0;
+  
+  const hoy = new Date();
+  const diaSemana = hoy.getDay(); 
+  // Calcular el Lunes de esta semana (inicio de semana: 1=Lunes, 0=Domingo)
+  const diffLunes = hoy.getDate() - diaSemana + (diaSemana == 0 ? -6 : 1);
+  const lunes = new Date(hoy);
+  lunes.setDate(diffLunes);
+  lunes.setHours(0, 0, 0, 0); // Inicio del día
+
+  // Optimización: en vez de leer TODA la hoja (miles de filas) alcanza con
+  // mirar las últimas ~400 — de sobra para cubrir una semana de actividad
+  // normal, y evita releer todo el historial en cada carga de combustible.
+  const lastRow  = sh.getLastRow();
+  const VENTANA  = 400;
+  const startRow = Math.max(2, lastRow - VENTANA + 1);
+  const numRows  = lastRow - startRow + 1;
+  const data = sh.getRange(startRow, 1, numRows, 13).getValues();
+  let count = 0;
+  const vehiculoClean = String(vehiculo).toLowerCase();
+  
+  for (let row of data) {
+    const fecha = row[1];
+    const tipo = row[3];
+    const categoria = String(row[8] || "").toLowerCase();
+    const observacion = String(row[12] || "");
+    
+    if (fecha instanceof Date && fecha >= lunes && fecha <= hoy && tipo === 'Egreso' && categoria.includes("combustible")) {
+      const match = observacion.match(/\[Veh: (.*?)\]/i);
+      // Usamos vehiculo si viene en la obs, o la categoria si es específica
+      let vehiculoEnMovimiento = "";
+      if (match) {
+        vehiculoEnMovimiento = String(match[1]).toLowerCase();
+      } else {
+         // Intentar deducir de la categoría si no está en la observación
+         if (categoria.includes('saveiro')) vehiculoEnMovimiento = 'saveiro';
+         else if (categoria.includes('toyota') || categoria.includes('hiace')) vehiculoEnMovimiento = 'toyota hiace';
+         else if (categoria.includes('fiat') || categoria.includes('uno')) vehiculoEnMovimiento = 'fiat uno cargo';
+      }
+      
+      if (vehiculoEnMovimiento === vehiculoClean) {
+          count++;
+      }
+    }
+  }
+  return count;
+}
+
+// 🔥 NUEVO: API para que el frontend pueda chequear la advertencia de combustible
+function checkCombustibleWarning(vehiculo) {
+  if (!vehiculo) return { ok: false, message: "Vehículo no especificado." };
+  const loads = getCombustibleLoadsThisWeek(vehiculo);
+  // Si loads es 2, significa que ya hubo 2 cargas. La actual es la 3ra o más.
+  return { 
+    ok: true, 
+    currentLoads: loads, 
+    isWarning: loads >= 2,
+    message: loads >= 2 ? `¡ALERTA! Esta sería la carga número ${loads + 1} del ${vehiculo} esta semana (límite normal 2).` : null
+  };
+}
+
+// ✅ NUEVO: Función para obtener estado de arqueo (Dueño)
+function getArqueoStatus(dateStr) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.ARQUEOS);
+  if (!sh || sh.getLastRow() < 2) return { status: 'missing', difference: 0 };
+
+  const fBusq = Utilities.formatDate(new Date(dateStr), "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+  const data = sh.getDataRange().getValues();
+
+  for (let i = data.length - 1; i >= 1; i--) {
+    const row = data[i];
+    const fRow = Utilities.formatDate(new Date(row[1]), "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+
+    if (fRow === fBusq) {
+      const difference = Number(row[5]);
+      const result = String(row[6]);
+      const closeTime = Utilities.formatDate(new Date(row[7]), "America/Argentina/Buenos_Aires", "HH:mm");
+
+      if (result === 'OK') {
+        return { status: 'ok', difference: difference, closeTime: closeTime };
+      } else if (result === 'Sobrante' || result === 'Faltante') {
+        return { status: 'discrepancy', difference: difference, closeTime: closeTime };
+      }
+    }
+  }
+
+  return { status: 'missing', difference: 0 };
+}
+
+
+function marcarChequeEntregado(idCheque, fechaEntrega) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(idCheque)) {
+      sh.getRange(i + 1, 14).setValue("ENTREGADO: " + Utilities.formatDate(fechaEntrega, "America/Argentina/Buenos_Aires", "dd/MM"));
+      break;
+    }
+  }
+}
+
+function getChequesCartera() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  if (!sh || sh.getLastRow() < 2) return { ok: true, data: [] };
+  
+  const data = sh.getRange(2, 1, sh.getLastRow()-1, 14).getValues();
+  const cartera = [];
+  
+  for (let r of data) {
+    if (String(r[3]) === 'Ingreso' && String(r[4]) === 'Cheque' && !String(r[13]).includes("ENTREGADO")) {
+      cartera.push({
+        id: r[0],
+        banco: r[5],
+        nro: r[6],
+        importe: r[7],
+        fecha: Utilities.formatDate(new Date(r[1]), "America/Argentina/Buenos_Aires", "dd/MM/yyyy")
+      });
+    }
+  }
+  return { ok: true, data: cartera };
+}
+
+function getEstadoCaja() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  const data = sh.getDataRange().getValues();
+  let ef = 0, ch = 0, bc = 0;
+  
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row[0]) continue;
+    
+    // row[7] es Importe, row[3] es Tipo (Ingreso/Egreso), row[4] es Forma de Pago
+    const importe = Number(row[7]) || 0;
+    const esIngreso = row[3] === 'Ingreso';
+
+    // 1. EFECTIVO: Suma ingresos, resta egresos (Correcto)
+    if (/efectivo/i.test(row[4])) {
+      ef += esIngreso ? importe : -importe;
+    } 
+    // 2. CHEQUES (CORREGIDO): 
+    // Solo sumamos los cheques que entraron y NO han sido entregados.
+    // NO restamos los egresos de cheques, porque al registrar el egreso, el sistema marca 
+    // el cheque original como "ENTREGADO", sacándolo automáticamente de esta suma.
+    else if (/cheque/i.test(row[4])) {
+      if (esIngreso && !String(row[13]).includes("ENTREGADO")) {
+        ch += importe;
+      }
+      // Eliminamos el "else if (!esIngreso) { ch -= importe }" para evitar el negativo doble.
+    }
+    // 3. BANCO: Suma ingresos, resta egresos (Correcto)
+    // Incluye "Transferencia" (pagos de haberes) además de "Banco"
+    else if (/banco|transferencia/i.test(row[4])) {
+      bc += esIngreso ? importe : -importe;
+    }
+  }
+  
+  return { efectivo: ef, cheques: ch, banco: bc, total: ef + ch + bc };
+}
+
+function getMovimientos(fechaStr) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  const fBusq = fechaStr ? new Date(fechaStr) : new Date();
+  const fStr = Utilities.formatDate(fBusq, "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+  
+  // Obtenemos todos los datos desde la fila 2 hasta la columna 13
+  const dataRange = sh.getRange(2, 1, sh.getLastRow() - 1 || 1, 13);
+  const data = dataRange.getValues();
+  
+  const results = data.filter(r => {
+    if (!r[1]) return false;
+    // Usamos el formato yyyy-MM-dd para ser robustos con las fechas ISO del frontend
+    const fRow = Utilities.formatDate(new Date(r[1]), "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
+    const fBusqIso = Utilities.formatDate(fBusq, "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
+    return fRow === fBusqIso;
+  }).map(r => ({
+    id: r[0],
+    fecha: Utilities.formatDate(new Date(r[1]), "America/Argentina/Buenos_Aires", "yyyy-MM-dd"),
+    hora: r[2] instanceof Date ? Utilities.formatDate(r[2], "America/Argentina/Buenos_Aires", "HH:mm") : String(r[2]),
+    tipo: r[3], formaPago: r[4], banco: r[5], nro: r[6], importe: r[7], categoria: r[8], observacion: r[12]
+  })).reverse();
+  
+  // Devolvemos el array directamente (sin envolver en {ok:true} para compatibilidad)
+  return results; 
+}
+
+
+// ✅ NUEVA FUNCIÓN PARA EL DUEÑO (Rango de Fechas) - CORREGIDA ZONA HORARIA
+function getMovimientosRango(startDateStr, endDateStr) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  if (!sh || sh.getLastRow() < 2) return { ok: true, data: [] };
+
+  // Limpiamos los strings para quedarnos estrictamente con "YYYY-MM-DD"
+  const startIso = startDateStr.split('T')[0];
+  const endIso = endDateStr.split('T')[0];
+  
+  // 14 columnas para incluir Estado Cheque (col N) — lo usa la reconciliación del worker
+  const dataRange = sh.getRange(2, 1, sh.getLastRow() - 1 || 1, 14);
+  const data = dataRange.getValues();
+
+  const results = data.filter(r => {
+    if (!r[1]) return false;
+
+    // Formateamos la fecha de la planilla a YYYY-MM-DD anclado a la hora de Argentina
+    const fRowIso = Utilities.formatDate(new Date(r[1]), "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
+
+    // Comparamos los textos directamente (ej: "2026-03-27" <= "2026-03-27")
+    return fRowIso >= startIso && fRowIso <= endIso;
+
+  }).map(r => ({
+    id: r[0],
+    fecha: Utilities.formatDate(new Date(r[1]), "America/Argentina/Buenos_Aires", "yyyy-MM-dd"),
+    hora: r[2] instanceof Date ? Utilities.formatDate(r[2], "America/Argentina/Buenos_Aires", "HH:mm") : String(r[2]),
+    tipo: r[3], formaPago: r[4], banco: r[5], nro: r[6], importe: r[7], categoria: r[8], observacion: r[12],
+    vehiculo: (String(r[12] || "").match(/\[Veh: (.*?)\]/i) || [])[1] || '',
+    estado: String(r[13] || '')
+  })).reverse();
+  
+  return { ok: true, data: results };
+}
+
+
+function registrarArqueo(user, fisico, monitorData) {
+  // 🔒 1. PROTECCIÓN CONTRA DOBLE CLIC (LOCK SERVICE)
+  // Esto obliga al script a esperar si hay otro arqueo guardándose en ese preciso milisegundo.
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000); // Espera hasta 10 segundos para obtener turno
+  } catch (e) {
+    return { ok: false, error: "El sistema está ocupado guardando otro dato. Intenta de nuevo." };
+  }
+
+  try {
+    const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.ARQUEOS);
+    
+    // Recalculamos el estado de caja DENTRO del bloqueo para máxima precisión
+    const estadoCaja = getEstadoCaja(); 
+    const sist = estadoCaja.efectivo; // Usamos el efectivo calculado
+    const dif = Number(fisico) - sist;
+    const res = dif === 0 ? 'OK' : (dif > 0 ? 'Sobrante' : 'Faltante');
+    const now = new Date();
+
+    // 2. PROTECCIÓN DE MONITOR DATA
+    // Si el JSON falla, no rompemos el arqueo, solo guardamos "{}"
+    let monitorString = "{}";
+    try {
+      monitorString = JSON.stringify(monitorData || {});
+    } catch (err) {
+      console.log("Error parseando monitorData: " + err.message);
+      monitorString = JSON.stringify({ error: "Data corrupta" });
+    }
+
+    analizarComportamiento(monitorData, "ARQUEO", user, dif);
+
+    // 3. ID ROBUSTO
+    // Si falla la lectura del último ID, asumimos que es el 1 o usamos Timestamp para no duplicar
+    const lastRow = sh.getLastRow();
+    let nextId = 1;
+    if (lastRow >= 2) {
+      const lastIdVal = sh.getRange(lastRow, 1).getValue();
+      nextId = (Number(lastIdVal) || 0) + 1;
+    }
+
+    // Guardado en Sheet
+    sh.appendRow([nextId, now, user, Number(fisico), sist, dif, res, now, monitorString]);
+    
+    // Forzamos que Google Sheets guarde los cambios AHORA MISMO
+    SpreadsheetApp.flush(); 
+
+    logAccion(user, 'ARQUEO', `Físico: ${fisico} vs Sist: ${sist}`, res);
+
+    // Ajuste de Caja automático
+    if (dif !== 0) {
+      const tipo = dif > 0 ? 'Ingreso' : 'Egreso';
+      registrarMovimientoCaja(
+        tipo, 'Efectivo', Math.abs(dif), 'Ajuste Post-Arqueo', 
+        '', '', '', '', user, `Ajuste auto arqueo ${nextId}`, "", "", ""
+      );
+    }
+
+    if (Math.abs(dif) >= 20000) {
+      registrarNotificacion('ANOMALIA_CAJA','ALTA','Desajuste Grande en Arqueo', `Faltan/Sobran $${dif}`, {usuario: user, fisico, sist});
+    }
+
+    // Auditoría IA
+    try {
+       analizarPatronesConIA(user, fisico, sist, monitorData);
+    } catch(e) {
+       console.log("⚠️ Error secundario en Auditoría IA: " + e.message);
+    }
+
+    return { ok: true, diferencia: dif }; // Devolvemos ok: true para que el frontend sepa que salió bien
+
+  } catch (e) {
+    // Si ocurre un error fatal, lo registramos en logs para que sepas qué pasó
+    logAccion(user, 'ERROR_FATAL_ARQUEO', e.message, e.stack);
+    return { ok: false, error: "Error interno al guardar: " + e.message };
+  } finally {
+    // 🔓 SIEMPRE liberamos el candado, pase lo que pase
+    lock.releaseLock();
+  }
+}
+
+/****************************************************
+ * 🧩 SETUP Y HELPERS VARIOS
+ ****************************************************/
+function setupCaja() {
+  const ss = SpreadsheetApp.getActive();
+  setupSheet(ss, SHEET_NAMES.MOVIMIENTOS, ['ID','Fecha','Hora','Tipo','Forma de pago','Banco','N° Cheque','Importe','Categoría','Repartidor','Turno','Usuario','Observación','Estado Cheque'], COLORS.HEADER_BLUE);
+  setupSheet(ss, SHEET_NAMES.RENDICIONES, ['ID','Fecha','Turno','Repartidor','Efectivo esperado','Efectivo contado','Diferencia','Tipo dif','Usuario','Hora','FileID','MonitorData'], COLORS.HEADER_GREEN);
+  setupSheet(ss, SHEET_NAMES.ARQUEOS, ['ID','Fecha','Usuario','Físico','Sistema','Diferencia','Resultado','Hora','MonitorData'], COLORS.HEADER_ORANGE);
+  setupSheet(ss, SHEET_NAMES.CONFIG, ['Clave','Valor','Descripción'], COLORS.HEADER_PURPLE);
+  setupSheet(ss, SHEET_NAMES.LOGS, ['Fecha','Hora','Usuario','Acción','Detalle','Contexto'], COLORS.HEADER_GREY);
+  setupSheet(ss, SHEET_NAMES.NOTIFICACIONES, ['ID','Fecha','Hora','Tipo','Severidad','Título','Mensaje','Contexto','Leída','Borrada'], '#111827');
+  
+  // ✅ COLUMNA DE FECHA DE ACTUALIZACIÓN AÑADIDA
+  setupSheet(ss, SHEET_NAMES.CONFIG_EMPLEADOS, ['Nombre', 'SueldoBase', 'FechaUltimaActualizacion'], COLORS.HEADER_RED);
+  // ✅ NUEVA HOJA GASTOS FIJOS
+  setupSheet(ss, SHEET_NAMES.CONFIG_GASTOS_FIJOS, ['Nombre', 'MontoMensual', 'FechaUltimaActualizacion'], COLORS.HEADER_CYAN);
+  setupSheet(ss, SHEET_NAMES.LOGS_COMBUSTIBLE, ['FECHA', 'VEHÍCULO', 'MONTO ($)', 'RESPONSABLE', 'PERÍODO', 'DETALLE'], '#37474F');
+  
+  setupSheet(ss, SHEET_NAMES.CACHE, ['Timestamp','FileID','Fecha','Turno','Repartidor','MontoEsperado','Estado','JSON_Data'], '#276749');
+  setupSheet(ss, SHEET_NAMES.HISTORIAL_IMPORTS, ['FechaImportacion','FileID','NombreArchivo'], '#5D4037');
+}
+
+function setupSheet(ss, name, headers, color) {
+  let sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(headers);
+    sh.getRange(1,1,1,headers.length).setBackground(color).setFontColor('#FFF').setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+}
+
+function logAccion(usuario, accion, detalle, contexto) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.LOGS);
+  if(sh) sh.appendRow([new Date(), new Date(), usuario, accion, detalle, contexto]);
+}
+
+function registrarNotificacion(tipo, severidad, titulo, mensaje, ctx) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.NOTIFICACIONES);
+  if (!sh) return;
+  const id = sh.getLastRow() < 2 ? 1 : Number(sh.getRange(sh.getLastRow(), 1).getValue()) + 1;
+  sh.appendRow([id, new Date(), new Date(), tipo, severidad, titulo, mensaje, JSON.stringify(ctx), false, false]);
+}
+
+function getNotificacionesCaja(soloActivas) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.NOTIFICACIONES);
+  if (!sh) return [];
+  const data = sh.getDataRange().getValues();
+  const res = [];
+  for (let i = 1; i < data.length; i++) {
+    const r = data[i];
+    if (!r[0]) continue;
+    const obj = { id: r[0], fecha: r[1], hora: r[2], tipo: r[3], severidad: r[4], titulo: r[5], mensaje: r[6], contexto: r[7]?JSON.parse(r[7]):null, leida: r[8], borrada: r[9] };
+    if (soloActivas && obj.borrada) continue;
+    res.push(obj);
+  }
+  return res.sort((a,b)=> (new Date(b.fecha).getTime() - new Date(a.fecha).getTime()));
+}
+
+function marcarNotificacionLeida(id) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.NOTIFICACIONES);
+  const data = sh.getDataRange().getValues();
+  for(let i=1; i<data.length; i++) {
+    if(Number(data[i][0]) === Number(id)) { sh.getRange(i+1, 9).setValue(true); return {ok:true}; }
+  }
+  return {ok:false};
+}
+
+function borrarNotificacion(id) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.NOTIFICACIONES);
+  const data = sh.getDataRange().getValues();
+  for(let i=1; i<data.length; i++) {
+    if(Number(data[i][0]) === Number(id)) { sh.getRange(i+1, 10).setValue(true); return {ok:true}; }
+  }
+  return {ok:false};
+}
+
+/**
+ * 📅 AUDITORÍA FINANCIERA SEMANAL
+ */
+function generarAuditoriaFinancieraSemanal() {
+  const EMAIL_PABLO = "santamariapablodaniel@gmail.com";
+  const ZONA_AR = "America/Argentina/Buenos_Aires";
+
+  const hoy = new Date();
+  const diaSemana = hoy.getDay(); 
+  let viernes = new Date(hoy);
+  const lunes = new Date(hoy);
+  lunes.setDate(hoy.getDate() - (diaSemana - 1));
+  lunes.setHours(0, 0, 0, 0);
+  viernes.setHours(23, 59, 59, 999);
+
+  const fechaInicioStr = Utilities.formatDate(lunes, ZONA_AR, "dd/MM/yyyy");
+  const fechaFinStr = Utilities.formatDate(viernes, ZONA_AR, "dd/MM/yyyy");
+
+  const movimientos = getMovimientosByDateRange(lunes, viernes);
+
+  let totalIngresos = 0;
+  let totalEgresos = 0;
+  const egresos = { sueldos: { total: 0 }, combustible: { total: 0 }, proveedores: { total: 0 }, libres: { total: 0 } };
+
+  movimientos.forEach(row => {
+    const tipo = row[3]; 
+    const importe = Number(row[7]) || 0;
+    const categoria = String(row[8] || "").toLowerCase();
+    
+    if (tipo === "Ingreso") {
+      totalIngresos += importe;
+    } else if (tipo === "Egreso") {
+      totalEgresos += importe;
+      if (categoria.includes("haber") || categoria.includes("adelanto")) egresos.sueldos.total += importe;
+      else if (categoria.includes("combustible")) egresos.combustible.total += importe;
+      else if (categoria.includes("proveedor")) egresos.proveedores.total += importe;
+      else if (categoria.includes("libre")) egresos.libres.total += importe;
+    }
+  });
+
+  const neto = totalIngresos - totalEgresos;
+  const format = (n) => "$ " + Number(n).toLocaleString("es-AR", { minimumFractionDigits: 2 });
+  
+  const htmlBody = `
+    <html>
+    <body style="background:#f4f7f6; font-family: sans-serif; padding: 20px; color: #333;">
+      <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+        <h2 style="color: #6C63FF; text-align: center; border-bottom: 2px solid #eee; padding-bottom: 15px;">📊 Auditoría Semanal</h2>
+        <p style="text-align:center; color:#777;">${fechaInicioStr} al ${fechaFinStr}</p>
+        
+        <div style="display:flex; justify-content:space-between; margin: 20px 0;">
+            <div>
+              <div style="font-size:0.9rem; color:#777;">INGRESOS</div>
+              <div style="font-size:1.4rem; font-weight:bold; color:#00B894;">${format(totalIngresos)}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:0.9rem; color:#777;">EGRESOS</div>
+              <div style="font-size:1.4rem; font-weight:bold; color:#FF6584;">${format(totalEgresos)}</div>
+            </div>
+        </div>
+
+        <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:20px;">
+            <table style="width:100%;">
+              <tr><td>👷 Sueldos</td><td style="text-align:right; font-weight:bold;">${format(egresos.sueldos.total)}</td></tr>
+              <tr><td>🏢 Proveedores</td><td style="text-align:right; font-weight:bold;">${format(egresos.proveedores.total)}</td></tr>
+              <tr><td>⛽ Combustible</td><td style="text-align:right; font-weight:bold;">${format(egresos.combustible.total)}</td></tr>
+              <tr><td>💸 Varios</td><td style="text-align:right; font-weight:bold;">${format(egresos.libres.total)}</td></tr>
+            </table>
+        </div>
+
+        <div style="text-align:center; padding-top:10px; border-top: 2px solid #eee;">
+            <div style="font-size:1rem; font-weight:bold;">RESULTADO NETO</div>
+            <div style="font-size:2rem; font-weight:900; color:${neto>=0?'#6C63FF':'#FF6584'};">${format(neto)}</div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  MailApp.sendEmail({ to: EMAIL_PABLO, subject: `📊 AFS — Auditoría Semanal (${fechaFinStr})`, htmlBody });
+}
+
+function getMovimientosByDateRange(desde, hasta) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  if (sh.getLastRow() < 2) return [];
+  const data = sh.getDataRange().getValues().slice(1);
+  return data.filter(r => {
+    const fecha = r[1];
+    return fecha instanceof Date && fecha >= desde && fecha <= hasta;
+  });
+}
+
+
+
+
+
+
+
+/* ==========================================================================
+ * 🕵️‍♂️ MÓDULO PARALELO V3 - LECTURA FILA POR FILA (ADAPTADO A TU ARCHIVO)
+ * ==========================================================================
+ */
+
+function getResumenBancosDueño() {
+  const hoy = new Date();
+  const fechaStr = Utilities.formatDate(hoy, "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
+  const mesCarpetaNombre = Utilities.formatDate(hoy, "en", "MMMM yyyy");
+  
+  let totalDia = 0;
+  let detalles = [];
+
+  try {
+    const rootFolder = DriveApp.getFolderById(RECIBOS_FOLDER_ID);
+    let targetFolder = rootFolder;
+
+    // 1. Entrar a carpeta del Mes
+    const subFolders = rootFolder.getFoldersByName(mesCarpetaNombre);
+    if (subFolders.hasNext()) targetFolder = subFolders.next();
+
+    const files = targetFolder.getFiles();
+    
+    // 2. Buscar archivos
+    while (files.hasNext()) {
+      const file = files.next();
+      const name = file.getName();
+      
+      // Buscamos archivos de HOY (por nombre de archivo)
+      if (name.includes(fechaStr) && !file.isTrashed()) {
+         if (file.getMimeType() === MimeType.GOOGLE_SHEETS) {
+            
+            // 🔥 LLAMAMOS A LA NUEVA FUNCIÓN DE LECTURA FILA X FILA
+            const infoArchivo = sumarTransferenciasFilaPorFila(file.getId());
+            
+            if (infoArchivo.total > 0) {
+              totalDia += infoArchivo.total;
+              // Guardamos un detalle limpio (ej: "Nico Turno Mañana")
+              let nombreCorto = name.replace("Rendición de", "").replace(fechaStr, "").replace(".xlsx", "").trim();
+              detalles.push({ archivo: nombreCorto, monto: infoArchivo.total });
+            }
+         }
+      }
+    }
+
+    // 3. Calcular Acumulado Mensual (Suma todo el mes)
+    const totalMes = calcularAcumuladoMensualFilas(targetFolder);
+
+    return { ok: true, totalDia: totalDia, totalMes: totalMes, detalles: detalles };
+
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// 🔥 FUNCIÓN DE LECTURA EXACTA PARA TU PLANILLA
+function sumarTransferenciasFilaPorFila(fileId) {
+  try {
+    const ss = SpreadsheetApp.openById(fileId);
+    const sh = ss.getSheets()[0];
+    // Obtenemos todos los datos de la hoja
+    const data = sh.getDataRange().getValues();
+    
+    let suma = 0;
+
+    // Recorremos desde la fila 1 (saltando encabezados si la fila 0 son titulos)
+    // SEGÚN TU CSV:
+    // Columna index 3 (D) = "Formas de Pago" (ej: "Transferencia: 61496.00")
+    // Columna index 4 (E) = "Total Pagado" (ej: 61496)
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row.length < 5) continue; // Seguridad para filas vacías
+
+      const formaPago = String(row[3]).toUpperCase(); // Columna D
+      const montoPagado = parseFloat(row[4]);         // Columna E (Total Pagado)
+
+      // Palabras clave que indican que NO es efectivo
+      if (formaPago.includes("TRANSFERENCIA") || 
+          formaPago.includes("MERCADO") || 
+          formaPago.includes("BANCO") || 
+          formaPago.includes("ALIAS") ||
+          formaPago.includes("CUENTA DNI")) {
+
+          // Si es un número válido, lo sumamos
+          if (!isNaN(montoPagado) && montoPagado > 0) {
+            suma += montoPagado;
+          }
+      }
+    }
+    
+    return { total: suma };
+
+  } catch (e) {
+    console.log("Error leyendo archivo: " + e.message);
+    return { total: 0 };
+  }
+}
+
+// Helper para sumar todo el mes con la misma lógica
+function calcularAcumuladoMensualFilas(folder) {
+  const files = folder.getFiles();
+  let sumaMes = 0;
+  while (files.hasNext()) {
+    const file = files.next();
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && !file.isTrashed()) {
+      sumaMes += sumarTransferenciasFilaPorFila(file.getId()).total;
+    }
+  }
+  return sumaMes;
+}
+
+
+
+
+
+
+/****************************************************
+ * 🕵️‍♂️ MÓDULO DE AUDITORÍA IA SEMANAL (GEMINI 2.5)
+ * Se ejecuta los Viernes. Analiza toda la semana en bloque.
+ * Genera un reporte narrativo experto sobre el flujo de caja.
+ ****************************************************/
+
+// ⚠️ Mantenemos esta función vacía para no romper 'registrarArqueo'
+// si todavía la estás llamando desde ahí. El análisis real ahora es Semanal.
+function analizarPatronesConIA(usuario, fisico, sist, dataBilletes) {
+  // Dejamos registro en consola pero no enviamos mail individual.
+  console.log(`[Registro Diario] Arqueo de ${usuario} guardado para análisis semanal.`);
+}
+
+// 🔥 ESTA ES LA FUNCIÓN A PROGRAMAR: VIERNES 16:00 HS
+function JOB_ReporteSemanalIA() {
+  const EMAIL_DUEÑO = "santamariapablodaniel@gmail.com";
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.ARQUEOS);
+  
+  // 1. Definir rango de fechas (Lunes a Viernes de esta semana)
+  const hoy = new Date();
+  const diaSemana = hoy.getDay(); // 0=Dom, 1=Lun, ..., 5=Vie
+  const diffLunes = hoy.getDate() - diaSemana + 1; // Lunes
+  
+  const lunes = new Date(hoy); lunes.setDate(diffLunes); lunes.setHours(0,0,0,0);
+  const viernes = new Date(hoy); // Asumimos que hoy es Viernes (día de ejecución)
+  
+  // 2. Obtener arqueos de la semana
+  const data = sh.getDataRange().getValues();
+  // Filtramos por fecha (Col B = index 1)
+  const arqueosSemana = data.slice(1).filter(r => {
+    const fecha = new Date(r[1]);
+    return fecha >= lunes && fecha <= new Date(); // Hasta el momento de ejecución
+  });
+
+  if (arqueosSemana.length === 0) {
+    console.log("💤 No hubo arqueos esta semana para analizar.");
+    return;
+  }
+
+  // Helper para traducir días
+  const traducirDia = (fechaRaw) => {
+    if (!fechaRaw) return "Fecha N/A";
+    const fecha = new Date(fechaRaw);
+    if (isNaN(fecha.getTime())) return "Fecha Inv.";
+    
+    const diaIngles = Utilities.formatDate(fecha, "America/Argentina/Buenos_Aires", "EEEE");
+    const map = {
+      "Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles", 
+      "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"
+    };
+    return (map[diaIngles] || diaIngles) + " " + Utilities.formatDate(fecha, "America/Argentina/Buenos_Aires", "dd/MM");
+  };
+
+  // 3. Preparar Datos para la IA
+  // Agrupamos la info para que la IA entienda el contexto completo
+  const resumenParaIA = arqueosSemana.map(r => {
+    // Parseo robusto de billetes (Col I / Index 8)
+    let billetesObj = {};
+    try {
+      if (r[8] && typeof r[8] === 'string' && r[8].trim().startsWith('{')) {
+         billetesObj = JSON.parse(r[8]);
+      } else if (r[8] && typeof r[8] === 'object') {
+         billetesObj = r[8];
+      }
+    } catch (e) { billetesObj = { error: "No legible" }; }
+
+    return {
+      dia: traducirDia(r[1]),
+      usuario: r[2],
+      sistema: Number(r[4]),
+      fisico: Number(r[3]),
+      dif: Number(r[5]),
+      billetes: billetesObj
+    };
+  });
+
+  // Estadísticas rápidas para el encabezado
+  const totalArqueos = resumenParaIA.length;
+  const totalPerfectos = resumenParaIA.filter(a => a.dif === 0).length;
+  const usuariosUnicos = [...new Set(resumenParaIA.map(a => a.usuario))].join(", ");
+
+  console.log(`🧠 Iniciando análisis inteligente de ${totalArqueos} arqueos...`);
+
+  // 4. PROMPT DE AUDITOR EXPERTO (Narrativo y Profundo)
+  // ⚠️ CAMBIO CLAVE: Pedimos TEXTO PLANO para evitar cortes por HTML
+  const prompt = `
+    Actúa como un Auditor Contable Forense Experto y Pedagógico. Estás preparando el "Reporte Semanal de Integridad de Caja" para Pablo, el dueño.
+    
+    DATOS DE LA SEMANA (Lunes a Viernes):
+    ${JSON.stringify(resumenParaIA, null, 2)}
+    
+    TU MISIÓN:
+    Analiza estos datos buscando patrones sospechosos y escríbelo en TEXTO PLANO (Sin HTML).
+    
+    ESTRUCTURA OBLIGATORIA (Usa estos títulos exactos):
+    
+    1. RESUMEN EJECUTIVO:
+    [Breve introducción sobre la salud de la caja esta semana]
+    
+    2. ANÁLISIS DE PATRONES Y EXPLICACIÓN:
+    [Aquí analiza los $0 y varianzas. OBLIGATORIO: Incluye una ANALOGÍA SIMPLE (ej: la del supermercado) explicando por qué matemáticamente es imposible que sobre $0 siempre, para que Pablo entienda que están copiando el saldo]
+    
+    3. AUDITORÍA DE BILLETES:
+    [Observa el desglose. ¿Parecen conteos reales o inventados?]
+    
+    4. VEREDICTO FINAL:
+    [Conclusión y advertencia clara]
+       
+    IMPORTANTE:
+    - NO uses etiquetas HTML ni Markdown. Solo texto y saltos de línea.
+    - Termina tus oraciones. No dejes ideas a medias.
+  `;
+
+  // 5. Consultar a Gemini
+  const analisisTextoPlano = consultarGeminiTexto(prompt);
+
+  if (analisisTextoPlano) {
+    // 6. Generar HTML del Email (Nosotros le damos formato al texto plano)
+    const htmlBody = generarPlantillaSemanal(lunes, viernes, totalArqueos, totalPerfectos, usuariosUnicos, analisisTextoPlano, resumenParaIA);
+    
+    MailApp.sendEmail({
+      to: EMAIL_DUEÑO,
+      subject: `📊 Auditoría Semanal (${Utilities.formatDate(lunes, "GMT-3", "dd/MM")} - ${Utilities.formatDate(viernes, "GMT-3", "dd/MM")})`,
+      htmlBody: htmlBody
+    });
+    console.log("✅ Reporte Semanal enviado con éxito.");
+  }
+}
+
+// --- PLANTILLA HTML SEMANAL (Diseño Aireado, Español y Detallado) ---
+function generarPlantillaSemanal(inicio, fin, cantidad, perfectos, usuarios, analisisTexto, datosRaw) {
+  const fInicio = Utilities.formatDate(inicio, "America/Argentina/Buenos_Aires", "dd/MM");
+  const fFin = Utilities.formatDate(fin, "America/Argentina/Buenos_Aires", "dd/MM");
+  
+  // PROCESAMIENTO INTELIGENTE DEL TEXTO IA
+  // Convertimos el texto plano en párrafos HTML bonitos
+  // Detectamos los títulos y los ponemos en negrita y color
+  let analisisFormateado = analisisTexto
+      .replace(/1. RESUMEN EJECUTIVO:/gi, "<strong style='color:#E65100; display:block; margin-bottom:5px;'>1. RESUMEN EJECUTIVO:</strong>")
+      .replace(/2. ANÁLISIS DE PATRONES Y EXPLICACIÓN:/gi, "<br><strong style='color:#E65100; display:block; margin-bottom:5px;'>2. ANÁLISIS DE PATRONES Y EXPLICACIÓN:</strong>")
+      .replace(/3. AUDITORÍA DE BILLETES:/gi, "<br><strong style='color:#E65100; display:block; margin-bottom:5px;'>3. AUDITORÍA DE BILLETES:</strong>")
+      .replace(/4. VEREDICTO FINAL:/gi, "<br><strong style='color:#C62828; display:block; margin-bottom:5px;'>4. VEREDICTO FINAL:</strong>")
+      .replace(/\n/g, "<br>"); // Saltos de línea normales
+
+  // Tabla resumen de días con MEJOR espaciado y DETALLE DE BILLETES
+  let filasTabla = "";
+  
+  datosRaw.forEach(d => {
+    const colorDif = d.dif === 0 ? '#2E7D32' : (d.dif < 0 ? '#C62828' : '#1565C0');
+    // Alternar fondo de filas para legibilidad (Zebra striping manual)
+    const bgRow = filasTabla.length % 2 === 0 ? '#FFFFFF' : '#FAFAFA';
+    
+    // --- LÓGICA DE BILLETES MEJORADA (Buscador Profundo) ---
+    let itemsBilletes = [];
+    
+    // Normalizamos el objeto de billetes por si está anidado
+    let conteo = d.billetes || {};
+    if (conteo.billetes) conteo = conteo.billetes; // Si está dentro de 'billetes'
+    if (conteo.conteo) conteo = conteo.conteo;     // Si está dentro de 'conteo'
+    
+    const dens = [20000, 10000, 2000, 1000, 500, 200, 100, 50, 20, 10];
+    
+    dens.forEach(val => {
+      // Chequeamos si existe la clave como número o string
+      if (conteo[val] > 0) itemsBilletes.push(`<b>$${val.toLocaleString()}</b> x${conteo[val]}`);
+      else if (conteo[String(val)] > 0) itemsBilletes.push(`<b>$${val.toLocaleString()}</b> x${conteo[String(val)]}`);
+    });
+    
+    // Si hay detalle extra de texto
+    if (conteo.detalle) itemsBilletes.push(`<em>"${conteo.detalle}"</em>`);
+
+    // Generar HTML de la celda
+    let billetesHTML = "";
+    if (itemsBilletes.length > 0) {
+      billetesHTML = `<div style="font-size: 11px; color: #546E7A; line-height: 1.5; margin-top: 4px;">${itemsBilletes.join('<br>')}</div>`;
+    } else {
+      // Si está vacío, mostramos algo del JSON raw para debuggear visualmente si hay datos raros
+      const rawKeys = Object.keys(conteo).filter(k => k !== 'edits' && k !== 'clicks' && k !== 'tiempo').join(', ');
+      if (rawKeys.length > 0) {
+         billetesHTML = `<div style="font-size: 10px; color: #90A4AE;">Datos: ${rawKeys}</div>`;
+      } else {
+         billetesHTML = `<div style="font-size: 11px; color: #B0BEC5; font-style: italic;">Sin detalle</div>`;
+      }
+    }
+
+    filasTabla += `
+      <tr style="background-color: ${bgRow}; border-bottom: 1px solid #EEEEEE;">
+        <td style="padding: 16px; color: #555; font-size: 13px; vertical-align: top; width: 15%;">${d.dia}</td>
+        <td style="padding: 16px; font-weight: 600; color: #37474F; font-size: 13px; vertical-align: top; width: 15%;">${d.usuario}</td>
+        
+        <!-- Columna de Composición (Billetes) -->
+        <td style="padding: 16px; font-size: 13px; vertical-align: top;">
+           <div style="font-weight: 500; color: #263238; margin-bottom: 4px;">Total: $${d.fisico.toLocaleString()}</div>
+           ${billetesHTML}
+        </td>
+
+        <td style="padding: 16px; text-align: right; color: ${colorDif}; font-weight: bold; font-size: 14px; vertical-align: top; width: 15%;">$${d.dif.toLocaleString()}</td>
+      </tr>
+    `;
+  });
+
+  return `
+  <!DOCTYPE html>
+  <html>
+  <body style="margin:0; padding:0; background-color:#F5F7FA; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    
+    <div style="max-width: 800px; margin: 30px auto; background: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+      
+      <!-- HEADER -->
+      <div style="background: linear-gradient(135deg, #263238 0%, #37474F 100%); padding: 40px 30px; text-align: center; color: #FFFFFF;">
+        <h1 style="margin: 0; font-size: 24px; letter-spacing: 1px; font-weight: 700;">AUDITORÍA DE CAJA SEMANAL</h1>
+        <p style="margin: 8px 0 0; color: #CFD8DC; font-size: 14px; font-weight: 400;">Período: ${fInicio} al ${fFin}</p>
+      </div>
+
+      <div style="padding: 40px 30px;">
+        
+        <!-- KPIs (Tarjetas con sombra suave) -->
+        <div style="display: flex; justify-content: space-between; gap: 15px; margin-bottom: 40px;">
+          
+          <div style="flex: 1; background: #FFFFFF; border: 1px solid #ECEFF1; padding: 20px 10px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+            <div style="font-size: 28px; font-weight: 800; color: #37474F; line-height: 1;">${cantidad}</div>
+            <div style="font-size: 11px; color: #90A4AE; text-transform: uppercase; margin-top: 8px; font-weight: 600;">Arqueos Totales</div>
+          </div>
+          
+          <div style="flex: 1; background: #FFFFFF; border: 1px solid #ECEFF1; padding: 20px 10px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+            <div style="font-size: 28px; font-weight: 800; color: ${perfectos/cantidad > 0.5 ? '#D32F2F' : '#2E7D32'}; line-height: 1;">${perfectos}</div>
+            <div style="font-size: 11px; color: #90A4AE; text-transform: uppercase; margin-top: 8px; font-weight: 600;">Exactos ($0)</div>
+          </div>
+          
+          <div style="flex: 1; background: #FFFFFF; border: 1px solid #ECEFF1; padding: 20px 10px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+            <div style="font-size: 14px; font-weight: 700; color: #37474F; line-height: 1.2; height: 28px; display: flex; align-items: center; justify-content: center;">${usuarios.split(",")[0]}</div>
+            <div style="font-size: 11px; color: #90A4AE; text-transform: uppercase; margin-top: 8px; font-weight: 600;">Responsable</div>
+          </div>
+
+        </div>
+
+        <!-- ANÁLISIS IA (Con estilo de documento) -->
+        <h3 style="color: #455A64; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #ECEFF1; padding-bottom: 10px; margin-bottom: 20px;">Análisis Forense Inteligente</h3>
+        
+        <div style="background: #FFFDE7; border-radius: 8px; padding: 25px; color: #37474F; line-height: 1.8; font-size: 15px; border: 1px solid #FFF59D;">
+          ${analisisFormateado} <!-- INYECTAMOS EL TEXTO FORMATEADO -->
+        </div>
+
+        <!-- DETALLE TABLA -->
+        <h3 style="color: #455A64; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #ECEFF1; padding-bottom: 10px; margin-top: 40px; margin-bottom: 20px;">Detalle de Composición de Caja</h3>
+        
+        <table style="width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid #EEEEEE; border-radius: 8px; overflow: hidden;">
+          <thead style="background: #F5F7FA;">
+            <tr>
+              <th style="padding: 16px; text-align: left; color: #90A4AE; font-size: 12px; text-transform: uppercase; font-weight: 600;">Día</th>
+              <th style="padding: 16px; text-align: left; color: #90A4AE; font-size: 12px; text-transform: uppercase; font-weight: 600;">Usuario</th>
+              <th style="padding: 16px; text-align: left; color: #90A4AE; font-size: 12px; text-transform: uppercase; font-weight: 600;">Composición (Declarado)</th>
+              <th style="padding: 16px; text-align: right; color: #90A4AE; font-size: 12px; text-transform: uppercase; font-weight: 600;">Dif.</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasTabla}
+          </tbody>
+        </table>
+
+      </div>
+      
+      <div style="background: #ECEFF1; text-align: center; padding: 20px; font-size: 12px; color: #90A4AE; border-top: 1px solid #E0E0E0;">
+        <strong>Mercado Limpio Auditoría</strong> • Generado por Inteligencia Artificial
+      </div>
+    </div>
+  </body>
+  </html>
+  `;
+}
+
+// Helper API Gemini (Texto)
+function consultarGeminiTexto(promptText) {
+  const API_KEY_USAR = "AIzaSyBYv9aoPpR0mTth2w4zpcfNXL7wybKpzJA";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY_USAR}`;
+  
+  const payload = {
+    "contents": [{ "parts": [{ "text": promptText }] }],
+    // 🚀 MAX TOKENS ALTO (4096) PARA ANÁLISIS LARGO
+    "generationConfig": { "temperature": 0.5, "maxOutputTokens": 4096 }
+  };
+
+  const options = { 'method': 'post', 'contentType': 'application/json', 'payload': JSON.stringify(payload), 'muteHttpExceptions': true };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const json = JSON.parse(response.getContentText());
+    if (json.candidates && json.candidates.length > 0) return json.candidates[0].content.parts[0].text;
+  } catch (e) { console.log("Error Gemini: " + e.message); }
+  return "No se pudo generar el análisis IA.";
+}
+
+
+
+/**
+ * 🧹 HERRAMIENTA DE LIMPIEZA DE EMERGENCIA
+ * Ejecutar esto manualmente para destrabar una rendición pendiente
+ * o limpiar el historial de importaciones de un archivo específico.
+ */
+function FORZAR_LIMPIEZA_CACHE_E_HISTORIAL() {
+  const ss = SpreadsheetApp.getActive();
+  
+  // 1. LIMPIAR LA CACHÉ (Hoja RendicionCache)
+  const cacheSh = ss.getSheetByName('RendicionCache');
+  if (cacheSh && cacheSh.getLastRow() > 1) {
+    cacheSh.deleteRows(2, cacheSh.getLastRow() - 1);
+    console.log("✅ Caché limpiada: Se borraron las rendiciones pendientes en memoria.");
+  } else {
+    console.log("ℹ️ La Caché ya estaba vacía.");
+  }
+
+  // 2. (OPCIONAL) BORRAR DEL HISTORIAL DE IMPORTS
+  // Si el archivo ya fue marcado como "leído" en HistorialImports, el script
+  // lo va a ignorar siempre. Si querés que lo vuelva a leer, tenés que borrar esa línea.
+  
+  // Escribe aquí parte del nombre del archivo que quieres que vuelva a leer
+  // Ejemplo: "Rendición de Nico Turno Tarde - 2026-02-12"
+  const NOMBRE_ARCHIVO_A_OLVIDAR = "ESCRIBE_AQUI_PARTE_DEL_NOMBRE"; 
+  
+  if (NOMBRE_ARCHIVO_A_OLVIDAR !== "ESCRIBE_AQUI_PARTE_DEL_NOMBRE") {
+    const histSh = ss.getSheetByName('HistorialImports');
+    if (histSh) {
+      const data = histSh.getDataRange().getValues();
+      // Recorremos de abajo hacia arriba para borrar sin romper índices
+      for (let i = data.length - 1; i >= 1; i--) {
+        if (String(data[i][2]).includes(NOMBRE_ARCHIVO_A_OLVIDAR)) { // Columna C es Nombre
+           console.log(`♻️ Olvidando archivo importado: ${data[i][2]}`);
+           histSh.deleteRow(i + 1);
+        }
+      }
+    }
+  }
+
+  console.log("🏁 Proceso de limpieza terminado. Ahora corre JOB_OrquestadorRendiciones.");
+}
+
+
+
+/* ==========================================================================
+ * ⛽ MÓDULO LOGÍSTICA Y COMBUSTIBLE (NUEVO)
+ * ==========================================================================
+ */
+
+// 1. Detecta qué vehículo es basándose en la observación o categoría
+function detectarVehiculo(observacion, categoria) {
+  const obs = String(observacion || "").toLowerCase();
+  const cat = String(categoria || "").toLowerCase();
+
+  const match = obs.match(/\[veh:\s*(.*?)\]/i);
+  if (match && match[1]) return match[1].trim().toUpperCase();
+
+  if (obs.includes("kangoo") || cat.includes("kangoo")) return "KANGOO";
+  if (obs.includes("saveiro") || cat.includes("saveiro")) return "SAVEIRO";
+  if (obs.includes("hiace") || obs.includes("toyota") || cat.includes("toyota")) return "TOYOTA HIACE";
+  if (obs.includes("uno") || obs.includes("fiat") || cat.includes("fiat")) return "FIAT UNO";
+  if (obs.includes("partner") || cat.includes("partner")) return "PARTNER";
+  
+  return "FLOTA GENERAL";
+}
+
+// 2. Borra y reescribe la hoja LogsCombustible con datos limpios.
+// Ya NO se llama en cada carga — se dispara sola cada 10 min via trigger
+// (ver JOB_ActualizarTableroCombustiblePeriodico + setupTriggerTableroCombustible
+// más abajo). Así el registro de un combustible cuesta lo mismo que cualquier
+// otro egreso, y el tablero igual se mantiene al día (con hasta 10 min de demora).
+function actualizarTableroCombustible() {
+  const ss = SpreadsheetApp.getActive();
+  const sourceSh = ss.getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  let targetSh = ss.getSheetByName(SHEET_NAMES.LOGS_COMBUSTIBLE);
+  if (!targetSh) targetSh = ss.insertSheet(SHEET_NAMES.LOGS_COMBUSTIBLE);
+  
+  const data = sourceSh.getDataRange().getValues();
+  const logsLimpios = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const tipo = String(row[3]);
+    const categoria = String(row[8]);
+    
+    if (tipo === 'Egreso' && categoria.toLowerCase().includes('combustible')) {
+      const fecha = row[1];
+      const importe = Number(row[7]);
+      const usuario = row[11];
+      const observacion = row[12];
+      const vehiculo = detectarVehiculo(observacion, categoria);
+      const mesAnio = Utilities.formatDate(new Date(fecha), "America/Argentina/Buenos_Aires", "MM/yyyy");
+
+      logsLimpios.push([new Date(fecha), vehiculo, importe, usuario, mesAnio, observacion]);
+    }
+  }
+
+  // Ordenar por fecha descendente (más nuevo arriba)
+  logsLimpios.sort((a, b) => b[0] - a[0]);
+
+  targetSh.clearContents(); 
+  targetSh.appendRow(['FECHA', 'VEHÍCULO', 'MONTO ($)', 'RESPONSABLE', 'PERÍODO', 'DETALLE']);
+  
+  if (logsLimpios.length > 0) {
+    targetSh.getRange(2, 1, logsLimpios.length, 6).setValues(logsLimpios);
+  }
+
+  // Formato visual
+  targetSh.getRange("A1:F1").setBackground("#37474F").setFontColor("white").setFontWeight("bold");
+  targetSh.getRange(2, 1, targetSh.getLastRow(), 1).setNumberFormat("dd/MM/yyyy");
+  targetSh.getRange(2, 3, targetSh.getLastRow(), 1).setNumberFormat("$ #,##0.00");
+  targetSh.autoResizeColumns(1, 6);
+}
+
+// 2.1 Job periódico: refresca el tablero de combustible fuera del camino
+// crítico del registro. Se instala UNA vez con setupTriggerTableroCombustible().
+function JOB_ActualizarTableroCombustiblePeriodico() {
+  try { actualizarTableroCombustible(); }
+  catch(e) { console.log('Error actualizando tablero combustible: ' + e.message); }
+}
+
+// Ejecutar UNA sola vez (manualmente desde el editor, o via clasp run) para
+// instalar el trigger de 10 minutos. Es seguro volver a ejecutarla: borra
+// cualquier trigger previo de esta misma función antes de crear uno nuevo,
+// así nunca queda duplicado.
+function setupTriggerTableroCombustible() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'JOB_ActualizarTableroCombustiblePeriodico') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('JOB_ActualizarTableroCombustiblePeriodico')
+    .timeBased()
+    .everyMinutes(10)
+    .create();
+  return { ok: true, mensaje: 'Trigger instalado: cada 10 minutos' };
+}
+
+// 3. JOB MENSUAL: Envía el reporte por Email (Configurar Trigger Mensual)
+function JOB_ReporteMensualCombustible() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAMES.LOGS_COMBUSTIBLE);
+  actualizarTableroCombustible(); // Aseguramos datos frescos
+
+  const hoy = new Date();
+  // Calcular mes anterior completo
+  const primerDiaMesAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+  const ultimoDiaMesAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+  
+  const mesStr = Utilities.formatDate(primerDiaMesAnterior, "es", "MMMM yyyy").toUpperCase();
+  
+  const data = sh.getDataRange().getValues();
+  const stats = {}; 
+  let granTotal = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const fecha = new Date(row[0]);
+    
+    // Solo procesamos datos del mes anterior
+    if (fecha >= primerDiaMesAnterior && fecha <= ultimoDiaMesAnterior) {
+      const vehiculo = String(row[1]);
+      const monto = Number(row[2]);
+      const dia = parseInt(Utilities.formatDate(fecha, "America/Argentina/Buenos_Aires", "d"));
+      const semanaIdx = Math.floor((dia - 1) / 7); 
+
+      if (!stats[vehiculo]) {
+        stats[vehiculo] = { total: 0, semanas: [0, 0, 0, 0, 0] };
+      }
+
+      stats[vehiculo].total += monto;
+      if(semanaIdx < 5) stats[vehiculo].semanas[semanaIdx] += monto;
+      granTotal += monto;
+    }
+  }
+
+  if (granTotal === 0) {
+      console.log("No hubo gastos de combustible el mes pasado.");
+      return;
+  }
+
+  // Generar HTML
+  let filasTabla = "";
+  const formatMoney = (n) => "$ " + n.toLocaleString("es-AR", {minimumFractionDigits: 0});
+
+  for (const [veh, info] of Object.entries(stats)) {
+    let semanasHTML = "";
+    info.semanas.forEach((montoSem, idx) => {
+        semanasHTML += `
+            <div style="display:inline-block; text-align:center; margin-right:4px;">
+                <div style="font-size:9px; color:#aaa;">S${idx+1}</div>
+                <div style="font-weight:bold; color:#333; font-size:10px;">${montoSem > 0 ? (montoSem/1000).toFixed(0)+"k" : "-"}</div>
+            </div>`;
+    });
+
+    filasTabla += `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding:15px; font-weight:bold; color:#263238;">${veh}</td>
+        <td style="padding:15px;">${semanasHTML}</td>
+        <td style="padding:15px; text-align:right; font-weight:bold; font-size:16px; color:#1a237e;">${formatMoney(info.total)}</td>
+      </tr>
+    `;
+  }
+
+  const htmlBody = `
+    <html>
+    <body style="font-family: Roboto, sans-serif; background-color: #f5f5f5; padding: 20px;">
+      <div style="max-width: 600px; margin: 0 auto; background: white; border-top: 5px solid #1a237e; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+        <div style="background: #263238; color: white; padding: 30px; text-align: center;">
+            <h1 style="margin: 10px 0 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px;">Reporte de Combustibles</h1>
+            <p style="margin: 5px 0 0; color: #cfd8dc; font-size: 14px;">PERÍODO: ${mesStr}</p>
+        </div>
+        <div style="padding: 20px; text-align: center; background: #e8eaf6; border-bottom: 1px solid #c5cae9;">
+            <div style="font-size: 12px; color: #5c6bc0; font-weight: bold; letter-spacing: 1px;">GASTO TOTAL DE FLOTA</div>
+            <div style="font-size: 36px; color: #1a237e; font-weight: 900;">${formatMoney(granTotal)}</div>
+        </div>
+        <div style="padding: 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background: #f9fafb;">
+                    <tr>
+                        <th style="text-align:left; padding:15px; font-size:11px; color:#888; text-transform:uppercase;">Vehículo</th>
+                        <th style="text-align:left; padding:15px; font-size:11px; color:#888; text-transform:uppercase;">Consumo Semanal</th>
+                        <th style="text-align:right; padding:15px; font-size:11px; color:#888; text-transform:uppercase;">Total Mes</th>
+                    </tr>
+                </thead>
+                <tbody>${filasTabla}</tbody>
+            </table>
+        </div>
+        <div style="background: #263238; color: #78909c; padding: 15px; text-align: center; font-size: 11px;">
+            LOGÍSTICA MERCADO LIMPIO • CONTROL DE FLOTA
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  MailApp.sendEmail({
+    to: "santamariapablodaniel@gmail.com",
+    subject: `⛽ Reporte Combustibles - ${mesStr}`,
+    htmlBody: htmlBody
+  });
+}
+
+/****************************************************
+ * 🔍 MÓDULO CRUCE: RENDICIONES vs ARQUEO
+ * Cruza fuentes independientes (rendiciones de Drive)
+ * contra lo que Laura declaró en el arqueo del día.
+ ****************************************************/
+function getResumenCruceDiario(dateStr) {
+  const ZONA_AR = "America/Argentina/Buenos_Aires";
+  const fechaBusq = new Date(dateStr);
+  const fStr = Utilities.formatDate(fechaBusq, ZONA_AR, "yyyy-MM-dd");
+  const ss = SpreadsheetApp.getActive();
+
+  // ---- 1. RENDICIONES DEL DÍA (fuente independiente: vienen de Drive) ----
+  const rendSh = ss.getSheetByName(SHEET_NAMES.RENDICIONES);
+  const rendiciones = [];
+  let totalRendContado = 0;
+  let totalRendEsperado = 0;
+
+  if (rendSh && rendSh.getLastRow() >= 2) {
+    rendSh.getDataRange().getValues().slice(1).forEach(row => {
+      if (!row[1]) return;
+      const fRow = Utilities.formatDate(new Date(row[1]), ZONA_AR, "yyyy-MM-dd");
+      if (fRow !== fStr) return;
+      const esperado = Number(row[4]) || 0;
+      const contado  = Number(row[5]) || 0;
+      rendiciones.push({ turno: row[2], repartidor: row[3], esperado, contado, tipo: row[7] });
+      totalRendEsperado += esperado;
+      totalRendContado  += contado;
+    });
+  }
+
+  // ---- 2. MOVIMIENTOS MANUALES DEL DÍA (excluyendo los auto-generados) ----
+  // Los auto-generados son: bases de rendición, ajustes de rendición, ajustes de arqueo.
+  // Queremos solo lo que Laura registró manualmente.
+  const CATEGORIAS_AUTO = [
+    'rendición reparto - base',
+    'diferencia rendición - ajuste',
+    'ajuste post-arqueo'
+  ];
+  const movSh = ss.getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  let ingresosManual = 0;
+  let egresosManual  = 0;
+  const movDetalle   = [];
+
+  if (movSh && movSh.getLastRow() >= 2) {
+    movSh.getDataRange().getValues().slice(1).forEach(row => {
+      if (!row[1] || !/efectivo/i.test(row[4])) return;
+      const fRow = Utilities.formatDate(new Date(row[1]), ZONA_AR, "yyyy-MM-dd");
+      if (fRow !== fStr) return;
+      const cat = String(row[8] || "").toLowerCase();
+      if (CATEGORIAS_AUTO.some(c => cat.includes(c))) return; // saltar auto-generados
+      const importe = Number(row[7]) || 0;
+      if (row[3] === 'Ingreso') ingresosManual += importe;
+      else if (row[3] === 'Egreso') egresosManual += importe;
+      movDetalle.push({ tipo: row[3], importe, categoria: row[8] });
+    });
+  }
+
+  // ---- 3. ARQUEO DEL DÍA ----
+  const arqueoSh = ss.getSheetByName(SHEET_NAMES.ARQUEOS);
+  let arqueo = null;
+  if (arqueoSh && arqueoSh.getLastRow() >= 2) {
+    const rows = arqueoSh.getDataRange().getValues().slice(1);
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (!rows[i][1]) continue;
+      const fRow = Utilities.formatDate(new Date(rows[i][1]), ZONA_AR, "yyyy-MM-dd");
+      if (fRow === fStr) {
+        arqueo = {
+          fisico:     Number(rows[i][3]),
+          sistema:    Number(rows[i][4]),
+          diferencia: Number(rows[i][5]),
+          resultado:  rows[i][6],
+          hora:       rows[i][7] instanceof Date
+                        ? Utilities.formatDate(rows[i][7], ZONA_AR, "HH:mm")
+                        : String(rows[i][7])
+        };
+        break;
+      }
+    }
+  }
+
+  // ---- 4. SALDO APERTURA = arqueo del día anterior ----
+  let saldoApertura = 0;
+  if (arqueoSh && arqueoSh.getLastRow() >= 2) {
+    const ayer    = new Date(fechaBusq.getTime() - 86400000);
+    const ayerStr = Utilities.formatDate(ayer, ZONA_AR, "yyyy-MM-dd");
+    const rows    = arqueoSh.getDataRange().getValues().slice(1);
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (!rows[i][1]) continue;
+      const fRow = Utilities.formatDate(new Date(rows[i][1]), ZONA_AR, "yyyy-MM-dd");
+      if (fRow === ayerStr) {
+        // Usamos el saldo sistema (ya ajustado por el arqueo de ayer)
+        saldoApertura = Number(rows[i][4]);
+        break;
+      }
+    }
+  }
+
+  // ---- 5. CRUCE FINAL ----
+  // Qué debería haber en caja al cerrar el día:
+  // apertura + lo que entró de rendiciones (independiente) + ingresos manuales - egresos manuales
+  const saldoEsperado = saldoApertura + totalRendContado + ingresosManual - egresosManual;
+
+  // Brecha = lo que Laura declaró vs lo que el cruce espera
+  // Negativo = declaró menos de lo esperado (posible robo)
+  // Positivo = declaró más (raro, podría ser ingreso no categorizado)
+  const brecha = arqueo ? (arqueo.fisico - saldoEsperado) : null;
+  const alerta = brecha !== null && Math.abs(brecha) >= 1000;
+
+  // Si hay alerta, crear notificación para Pablo
+  if (alerta) {
+    registrarNotificacion(
+      'CRUCE_RENDICION_ARQUEO',
+      Math.abs(brecha) >= 5000 ? 'ALTA' : 'MEDIA',
+      `Brecha detectada el ${fStr}`,
+      `El cruce de rendiciones vs arqueo muestra una diferencia de $${brecha}. ` +
+      `Esperado: $${saldoEsperado} | Declarado: $${arqueo.fisico}`,
+      { fecha: fStr, saldoEsperado, declarado: arqueo ? arqueo.fisico : null, brecha }
+    );
+  }
+
+  return {
+    ok: true,
+    fecha: fStr,
+    saldoApertura,
+    rendiciones: {
+      detalle: rendiciones,
+      totalEsperado: totalRendEsperado,
+      totalContado:  totalRendContado,
+      diferencia:    totalRendContado - totalRendEsperado
+    },
+    movimientosManuales: {
+      ingresos: ingresosManual,
+      egresos:  egresosManual,
+      neto:     ingresosManual - egresosManual,
+      detalle:  movDetalle
+    },
+    saldoEsperado,
+    arqueo,
+    brecha,
+    alerta,
+    sinArqueo:     !arqueo,
+    sinRendiciones: rendiciones.length === 0
+  };
+}
+
+
+// Versión por rango de fechas (para el panel de tendencias de Pablo)
+function getResumenCruceRango(startDateStr, endDateStr) {
+  const ZONA_AR = "America/Argentina/Buenos_Aires";
+  const start = new Date(startDateStr.split('T')[0]);
+  const end   = new Date(endDateStr.split('T')[0]);
+  const resultados = [];
+
+  // Iteramos día por día en el rango
+  const cur = new Date(start);
+  while (cur <= end) {
+    const fStr = Utilities.formatDate(cur, ZONA_AR, "yyyy-MM-dd");
+    const resumen = getResumenCruceDiario(fStr);
+    // Solo incluimos días con arqueo registrado
+    if (!resumen.sinArqueo) {
+      resultados.push({
+        fecha:          resumen.fecha,
+        saldoApertura:  resumen.saldoApertura,
+        rendContado:    resumen.rendiciones.totalContado,
+        ingresosManual: resumen.movimientosManuales.ingresos,
+        egresosManual:  resumen.movimientosManuales.egresos,
+        saldoEsperado:  resumen.saldoEsperado,
+        declarado:      resumen.arqueo ? resumen.arqueo.fisico : null,
+        brecha:         resumen.brecha,
+        alerta:         resumen.alerta
+      });
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  return { ok: true, data: resultados };
+}
+
+// =================================================================================
+// SUPABASE — CONSULTAS PARA RENDICIÓN
+// =================================================================================
+
+var SB_REND_URL = PropertiesService.getScriptProperties().getProperty('SB_URL');
+var SB_REND_KEY = PropertiesService.getScriptProperties().getProperty('SB_KEY');
+
+
+/**
+ * Busca una rendición específica en Supabase por fecha + turno + repartidor.
+ */
+function buscarRendicionEnSupabase_(fecha, turno, repartidor) {
+  try {
+    var params = 'fecha=eq.' + fecha
+               + '&turno=eq.'       + encodeURIComponent(turno)
+               + '&repartidor=eq.'  + encodeURIComponent(repartidor)
+               + '&limit=1';
+
+    var resp = UrlFetchApp.fetch(
+      SB_REND_URL + '/rest/v1/rendiciones_reparto?' + params,
+      { method: 'GET',
+        headers: { 'apikey': SB_REND_KEY, 'Authorization': 'Bearer ' + SB_REND_KEY },
+        muteHttpExceptions: true }
+    );
+    var rows = JSON.parse(resp.getContentText());
+    return (rows && rows.length > 0) ? rows[0] : null;
+  } catch (e) {
+    Logger.log('❌ buscarRendicionEnSupabase_: ' + e.message);
+    return null;
+  }
+}
+
+/**
+ * Busca la rendición más antigua sin procesar de los últimos 2 días.
+ * Orden: ayer-mañana → ayer-tarde → hoy-mañana → hoy-tarde
+ */
+function buscarUltimaRendicionPendienteSupabase_() {
+  try {
+    var ayer = new Date();
+    ayer.setDate(ayer.getDate() - 1);
+    var ayerStr = Utilities.formatDate(ayer, "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
+
+    var params = 'procesado=eq.false'
+               + '&fecha=gte.' + ayerStr
+               + '&order=fecha.asc,turno.asc'
+               + '&limit=1';
+
+    var resp = UrlFetchApp.fetch(
+      SB_REND_URL + '/rest/v1/rendiciones_reparto?' + params,
+      { method: 'GET',
+        headers: { 'apikey': SB_REND_KEY, 'Authorization': 'Bearer ' + SB_REND_KEY },
+        muteHttpExceptions: true }
+    );
+    var rows = JSON.parse(resp.getContentText());
+    Logger.log('🔍 Supabase pending check: ' + rows.length + ' rendición(es) pendiente(s).');
+    return (rows && rows.length > 0) ? rows[0] : null;
+  } catch (e) {
+    Logger.log('❌ buscarUltimaRendicionPendienteSupabase_: ' + e.message);
+    return null;
+  }
+}
+
+/**
+ * Marca la rendición como procesada en Supabase (PATCH).
+ */
+function marcarRendicionProcesadaEnSupabase_(fecha, turno, repartidor) {
+  try {
+    var params = 'fecha=eq.'      + fecha
+               + '&turno=eq.'      + encodeURIComponent(turno)
+               + '&repartidor=eq.' + encodeURIComponent(repartidor);
+
+    UrlFetchApp.fetch(
+      SB_REND_URL + '/rest/v1/rendiciones_reparto?' + params,
+      { method:      'PATCH',
+        contentType: 'application/json',
+        headers: { 'apikey': SB_REND_KEY, 'Authorization': 'Bearer ' + SB_REND_KEY },
+        payload: JSON.stringify({ procesado: true }),
+        muteHttpExceptions: true }
+    );
+    Logger.log('✅ Rendición marcada procesada en Supabase: ' + fecha + ' ' + turno);
+  } catch (e) {
+    Logger.log('❌ marcarRendicionProcesadaEnSupabase_: ' + e.message);
+  }
+}
+
+/**
+ * Endpoint para que la app de Laura pida el detalle completo por cliente.
+ */
+function getDetalleRendicionParaApp(fecha, turno, repartidor) {
+  var sb = buscarRendicionEnSupabase_(fecha, turno, repartidor);
+  if (!sb) return { ok: false, error: 'Rendición no encontrada en Supabase.' };
+  return {
+    ok: true,
+    fecha:         sb.fecha,
+    turno:         sb.turno,
+    repartidor:    sb.repartidor,
+    efectivo:      sb.efectivo,
+    transferencia: sb.transferencia,
+    cheque:        sb.cheque,
+    total:         sb.total,
+    clientes:      sb.detalle_clientes || []
+  };
+}
+
+// =================================================================================
+// SYNC CLIENTES BASE → SUPABASE
+// Ejecutar manualmente o programar 1 vez por día
+// =================================================================================
+function JOB_SyncClientesBase() {
+  var SS_CLIENTES_ID = "1F6hnbgfs8Ga0C0dQ9jkJa7Zh954PWUdibGUov-D2wkA";
+  var ss = SpreadsheetApp.openById(SS_CLIENTES_ID);
+  var sh = ss.getSheets()[0];
+  var data = sh.getDataRange().getValues();
+  
+  var clientes = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (!row[0]) continue;
+    clientes.push({
+      numero_cliente:   String(row[0]).trim(),
+      nombre:           String(row[1] || ''),
+      domicilio:        String(row[2] || ''),
+      localidad:        String(row[3] || ''),
+      telefono:         String(row[4] || ''),
+      importe_habitual: parseFloat(row[5] || 0),
+      coordenadas:      String(row[12] || ''),
+      activo:           true,
+      updated_at:       new Date().toISOString()
+    });
+  }
+  
+  // Upsert en lotes de 100
+  var batch = [];
+  clientes.forEach(function(c, i) {
+    batch.push(c);
+    if (batch.length === 100 || i === clientes.length - 1) {
+      UrlFetchApp.fetch(SB_REND_URL + '/rest/v1/clientes_base', {
+        method: 'POST',
+        contentType: 'application/json',
+        headers: {
+          'apikey': SB_REND_KEY,
+          'Authorization': 'Bearer ' + SB_REND_KEY,
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        payload: JSON.stringify(batch),
+        muteHttpExceptions: true
+      });
+      batch = [];
+    }
+  });
+  Logger.log('✅ Sync clientes: ' + clientes.length + ' registros subidos a Supabase.');
+}
+
+
+// =================================================================================
+// REPORTE SEMANAL REPARTO (cada Lunes 08:00)
+// =================================================================================
+function JOB_ReporteRepartoSemanal() {
+  var EMAIL = "santamariapablodaniel@gmail.com";
+  var ZONA  = "America/Argentina/Buenos_Aires";
+  
+  var hoy    = new Date();
+  // Semana anterior: Lunes–Domingo
+  var lunes  = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() - 6); lunes.setHours(0,0,0,0);
+  var domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6); domingo.setHours(23,59,59,999);
+  
+  var semanaStr = Utilities.formatDate(lunes, ZONA, 'dd/MM') + ' al ' + Utilities.formatDate(domingo, ZONA, 'dd/MM/yyyy');
+  
+  // Consulta a la vista v_reparto_stats
+  var params = 'fecha=gte.' + Utilities.formatDate(lunes, ZONA, 'yyyy-MM-dd')
+             + '&fecha=lte.' + Utilities.formatDate(domingo, ZONA, 'yyyy-MM-dd')
+             + '&procesado=eq.true&order=fecha.asc,turno.asc';
+  
+  var resp = UrlFetchApp.fetch(SB_REND_URL + '/rest/v1/rendiciones_reparto?' + params, {
+    method: 'GET',
+    headers: { 'apikey': SB_REND_KEY, 'Authorization': 'Bearer ' + SB_REND_KEY },
+    muteHttpExceptions: true
+  });
+  var rows = JSON.parse(resp.getContentText());
+  if (!rows || rows.length === 0) { Logger.log('Sin rendiciones la semana pasada.'); return; }
+
+  var totalEntregas = 0, totalDevoluciones = 0, totalNoPago = 0;
+  var totalEf = 0, totalTr = 0, totalCh = 0, totalRec = 0;
+  var filasTabla = '';
+  
+  var diasMap = {'Monday':'Lunes','Tuesday':'Martes','Wednesday':'Miércoles',
+                 'Thursday':'Jueves','Friday':'Viernes','Saturday':'Sábado','Sunday':'Domingo'};
+  
+  rows.forEach(function(r) {
+    var detalle = r.detalle_clientes || [];
+    // Entrega = todo pedido entregado, incluyendo los que tuvieron devolución de un artículo. Solo "No pagó" queda afuera.
+    var entregas   = detalle.filter(function(c){ return c.formaPago1 !== 'No pagó'; }).length;
+    var devs       = detalle.filter(function(c){ return c.devolucion; }).length;
+    var noPago     = detalle.filter(function(c){ return c.formaPago1 === 'No pagó'; }).length;
+    
+    totalEntregas    += entregas;
+    totalDevoluciones += devs;
+    totalNoPago      += noPago;
+    totalEf  += r.efectivo || 0;
+    totalTr  += r.transferencia || 0;
+    totalCh  += r.cheque || 0;
+    totalRec += r.total || 0;
+    
+    // Calcular duración desde ts en detalle
+    var tss = detalle.map(function(c){ return c.ts ? new Date(c.ts).getTime() : null; }).filter(Boolean);
+    var durMin = tss.length > 1 ? Math.round((Math.max.apply(null,tss) - Math.min.apply(null,tss)) / 60000) : null;
+    var promMin = (tss.length > 1 && entregas > 1) ? Math.round(durMin / (entregas - 1)) : null;
+    
+    // Mediodía UTC + formato UTC → evita el corrimiento de día por zona horaria (–3h Argentina)
+    var diaEn = Utilities.formatDate(new Date(r.fecha + 'T12:00:00Z'), 'UTC', 'EEEE');
+    var dia = (diasMap[diaEn] || diaEn) + ' ' + r.fecha.slice(5).replace('-','/');
+    
+    filasTabla += '<tr>'
+      + '<td style="padding:11px 10px;border-bottom:1px solid #eef1f5">'
+          + '<div style="font-size:13px;color:#1f2a37;font-weight:600">' + dia + '</div>'
+          + '<div style="font-size:11px;color:#98a2b3;margin-top:1px">' + r.turno + '</div></td>'
+      + '<td align="center" style="padding:11px 6px;border-bottom:1px solid #eef1f5">'
+          + '<div style="font-size:15px;font-weight:700;color:#2563eb">' + entregas + '</div>'
+          + (devs > 0 ? '<div style="font-size:10px;color:#c2820a;margin-top:1px">' + devs + ' c/ dev.</div>' : '')
+          + '</td>'
+      + '<td align="center" style="padding:11px 6px;border-bottom:1px solid #eef1f5;font-size:14px;font-weight:700;color:' + (noPago > 0 ? '#d4302f' : '#cbd2dc') + '">' + (noPago > 0 ? noPago : '—') + '</td>'
+      + '<td align="right" style="padding:11px 10px;border-bottom:1px solid #eef1f5;font-size:13px;font-weight:700;color:#0d9f57;white-space:nowrap">$' + (r.total||0).toLocaleString('es-AR') + '</td>'
+      + '</tr>';
+  });
+
+  var fmt = function(n){ return '$ ' + Number(n).toLocaleString('es-AR'); };
+
+  // Celda KPI (grilla 2×2 con tabla — a prueba de Gmail móvil, sin flexbox)
+  var kc = function(value, label, sub, numColor, bg, fs) {
+    var s = fs || 24;
+    return '<td width="50%" valign="top" style="width:50%;background:' + bg + ';border-radius:10px;padding:16px 8px;text-align:center">'
+      + '<div style="font-size:' + s + 'px;font-weight:800;color:' + numColor + ';line-height:1.15">' + value + '</div>'
+      + '<div style="font-size:10.5px;font-weight:700;color:#8a95a5;text-transform:uppercase;letter-spacing:.5px;margin-top:5px">' + label + '</div>'
+      + (sub ? '<div style="font-size:10.5px;color:#aeb6c2;margin-top:3px">' + sub + '</div>' : '')
+      + '</td>';
+  };
+  var subDev = totalDevoluciones > 0 ? 'incl. ' + totalDevoluciones + ' c/ devolución' : '';
+
+  var html = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head>'
+    + '<body style="margin:0;padding:0;background:#eef1f5;font-family:Arial,Helvetica,sans-serif">'
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f5">'
+    + '<tr><td align="center" style="padding:16px 12px">'
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.08)">'
+
+    // ── Header ──
+    + '<tr><td style="background:linear-gradient(135deg,#1e3a5f,#2563eb);padding:26px 20px;text-align:center">'
+    + '<div style="font-size:32px;line-height:1">📦</div>'
+    + '<div style="margin:6px 0 0;font-size:19px;color:#ffffff;font-weight:800">Reporte Semanal de Reparto</div>'
+    + '<div style="margin:5px 0 0;font-size:13px;color:rgba(255,255,255,.78)">Semana del ' + semanaStr + '</div>'
+    + '</td></tr>'
+
+    // ── KPIs 2×2 ──
+    + '<tr><td style="padding:14px 8px 4px">'
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="8">'
+    + '<tr>' + kc(totalEntregas, 'Entregas', subDev, '#2563eb', '#eef4ff') + kc(fmt(totalRec), 'Recaudado', '', '#0d9f57', '#e8f7ef', 19) + '</tr>'
+    + '<tr>' + kc(totalDevoluciones, 'Devoluciones', '', '#c2820a', '#fbf3e4') + kc(totalNoPago, 'Sin pago', '', '#d4302f', '#fdecec') + '</tr>'
+    + '</table></td></tr>'
+
+    // ── Detalle por turno ──
+    + '<tr><td style="padding:14px 18px 4px">'
+    + '<div style="font-size:12px;font-weight:700;color:#5b6472;text-transform:uppercase;letter-spacing:.6px;padding-bottom:8px;border-bottom:2px solid #eef1f5">Detalle por turno</div>'
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">'
+    + '<tr>'
+    + '<th align="left" style="padding:10px 10px 8px;font-size:10px;color:#98a2b3;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Día / Turno</th>'
+    + '<th align="center" style="padding:10px 6px 8px;font-size:10px;color:#98a2b3;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Entregas</th>'
+    + '<th align="center" style="padding:10px 6px 8px;font-size:10px;color:#98a2b3;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Sin pago</th>'
+    + '<th align="right" style="padding:10px 10px 8px;font-size:10px;color:#98a2b3;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Total</th>'
+    + '</tr>' + filasTabla + '</table></td></tr>'
+
+    // ── Footer totales (apilado, sin flexbox) ──
+    + '<tr><td style="padding:8px 18px 22px">'
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px">'
+    + '<tr><td style="padding:14px 16px 6px;font-size:13px;color:#5b6472">💵 Efectivo</td><td align="right" style="padding:14px 16px 6px;font-size:13px;font-weight:700;color:#1f2a37">' + fmt(totalEf) + '</td></tr>'
+    + '<tr><td style="padding:6px 16px;font-size:13px;color:#5b6472">📱 Transferencia</td><td align="right" style="padding:6px 16px;font-size:13px;font-weight:700;color:#1f2a37">' + fmt(totalTr) + '</td></tr>'
+    + '<tr><td style="padding:6px 16px;font-size:13px;color:#5b6472">🏦 Cheque</td><td align="right" style="padding:6px 16px;font-size:13px;font-weight:700;color:#1f2a37">' + fmt(totalCh) + '</td></tr>'
+    + '<tr><td colspan="2" style="padding:2px 16px"><div style="border-top:1px solid #e5e9f0"></div></td></tr>'
+    + '<tr><td style="padding:8px 16px 14px;font-size:14px;font-weight:800;color:#1f2a37">Total recaudado</td><td align="right" style="padding:8px 16px 14px;font-size:15px;font-weight:800;color:#0d9f57">' + fmt(totalRec) + '</td></tr>'
+    + '</table></td></tr>'
+
+    + '</table>'
+    + '<div style="max-width:600px;margin:10px auto 0;font-size:11px;color:#98a2b3;text-align:center">Mercado Limpio · Reporte automático semanal</div>'
+    + '</td></tr></table></body></html>';
+  
+  MailApp.sendEmail({ to: EMAIL, subject: '📦 Reparto Semanal — ' + semanaStr, htmlBody: html });
+  Logger.log('✅ Reporte semanal enviado.');
+}
+
+function kpi(label, val, color) {
+  return '<div style="flex:1;text-align:center;padding:20px 10px;border-right:1px solid #eee">'
+    + '<div style="font-size:22px;font-weight:800;color:' + color + '">' + val + '</div>'
+    + '<div style="font-size:11px;color:#999;text-transform:uppercase;margin-top:6px">' + label + '</div></div>';
+}
+
+
+// =================================================================================
+// REPORTE MENSUAL COMPARATIVO (1ro de cada mes, 08:00)
+// =================================================================================
+function JOB_ReporteRepartoMensual() {
+  var EMAIL = "santamariapablodaniel@gmail.com";
+  var ZONA  = "America/Argentina/Buenos_Aires";
+  
+  var hoy          = new Date();
+  var mesActual    = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);   // mes que acaba de cerrar
+  var mesAnterior  = new Date(hoy.getFullYear(), hoy.getMonth() - 2, 1);   // mes previo para comparar
+  
+  function fetchMes(inicio) {
+    var fin = new Date(inicio.getFullYear(), inicio.getMonth() + 1, 0);
+    var params = 'fecha=gte.' + Utilities.formatDate(inicio, ZONA, 'yyyy-MM-dd')
+               + '&fecha=lte.' + Utilities.formatDate(fin,   ZONA, 'yyyy-MM-dd')
+               + '&procesado=eq.true';
+    var resp = UrlFetchApp.fetch(SB_REND_URL + '/rest/v1/rendiciones_reparto?' + params, {
+      method: 'GET',
+      headers: { 'apikey': SB_REND_KEY, 'Authorization': 'Bearer ' + SB_REND_KEY },
+      muteHttpExceptions: true
+    });
+    return JSON.parse(resp.getContentText()) || [];
+  }
+  
+  function resumir(rows) {
+    var r = { turnos:0, entregas:0, devoluciones:0, noPago:0, ef:0, tr:0, ch:0, total:0, duraciones:[] };
+    rows.forEach(function(row) {
+      var detalle = row.detalle_clientes || [];
+      r.turnos++;
+      r.entregas     += detalle.filter(function(c){ return !c.devolucion && c.formaPago1 !== 'No pagó'; }).length;
+      r.devoluciones += detalle.filter(function(c){ return c.devolucion; }).length;
+      r.noPago       += detalle.filter(function(c){ return c.formaPago1 === 'No pagó'; }).length;
+      r.ef           += row.efectivo || 0;
+      r.tr           += row.transferencia || 0;
+      r.ch           += row.cheque || 0;
+      r.total        += row.total || 0;
+      var tss = detalle.map(function(c){ return c.ts ? new Date(c.ts).getTime() : null; }).filter(Boolean);
+      if (tss.length > 1) r.duraciones.push((Math.max.apply(null,tss) - Math.min.apply(null,tss)) / 60000);
+    });
+    r.promEntregas   = r.turnos > 0 ? (r.entregas / r.turnos).toFixed(1) : 0;
+    r.promDuracion   = r.duraciones.length > 0 ? Math.round(r.duraciones.reduce(function(a,b){return a+b;},0) / r.duraciones.length) : null;
+    return r;
+  }
+  
+  var meses_es = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var dataMes  = resumir(fetchMes(mesActual));
+  var dataAnt  = resumir(fetchMes(mesAnterior));
+  var labelMes = meses_es[mesActual.getMonth()]  + ' ' + mesActual.getFullYear();
+  var labelAnt = meses_es[mesAnterior.getMonth()] + ' ' + mesAnterior.getFullYear();
+  var fmt = function(n){ return '$ ' + Number(n).toLocaleString('es-AR'); };
+  
+  function delta(a, b) {
+    if (!b) return '';
+    var d = ((a - b) / b * 100).toFixed(1);
+    var color = d >= 0 ? '#0d9f57' : '#d4302f';
+    return ' <span style="font-size:11px;color:' + color + '">(' + (d >= 0 ? '+' : '') + d + '%)</span>';
+  }
+  
+  function fila(label, valMes, valAnt, fmt) {
+    return '<tr style="border-bottom:1px solid #f0f0f0">'
+      + '<td style="padding:10px 14px;font-size:13px;color:#555">' + label + '</td>'
+      + '<td style="padding:10px 14px;text-align:right;font-weight:700;font-size:14px">' + (fmt ? fmt(valMes) : valMes) + delta(valMes, valAnt) + '</td>'
+      + '<td style="padding:10px 14px;text-align:right;font-size:13px;color:#999">' + (fmt ? fmt(valAnt) : valAnt) + '</td>'
+      + '</tr>';
+  }
+  
+  var html = '<!DOCTYPE html><html><body style="font-family:sans-serif;background:#f5f7fa;padding:20px">'
+    + '<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.08)">'
+    + '<div style="background:linear-gradient(135deg,#0d9f57,#10b981);padding:30px;color:#fff;text-align:center">'
+    + '<h1 style="margin:0;font-size:22px">📊 Reporte Mensual de Reparto</h1>'
+    + '<p style="margin:8px 0 0;opacity:.85;font-size:14px">' + labelMes + ' vs ' + labelAnt + '</p></div>'
+    + '<div style="padding:24px">'
+    + '<table style="width:100%;border-collapse:collapse">'
+    + '<thead><tr><th style="padding:8px 14px;text-align:left;font-size:11px;color:#999;text-transform:uppercase">Métrica</th>'
+    + '<th style="padding:8px 14px;text-align:right;font-size:11px;color:#2563eb;text-transform:uppercase">' + labelMes + '</th>'
+    + '<th style="padding:8px 14px;text-align:right;font-size:11px;color:#999;text-transform:uppercase">' + labelAnt + '</th>'
+    + '</tr></thead><tbody>'
+    + fila('Turnos trabajados',       dataMes.turnos,       dataAnt.turnos)
+    + fila('Total entregas',          dataMes.entregas,     dataAnt.entregas)
+    + fila('Promedio entregas/turno', dataMes.promEntregas, dataAnt.promEntregas)
+    + fila('Devoluciones',            dataMes.devoluciones, dataAnt.devoluciones)
+    + fila('Sin cobrar',              dataMes.noPago,       dataAnt.noPago)
+    + fila('Duración prom. de turno', dataMes.promDuracion !== null ? dataMes.promDuracion + ' min' : '—',
+                                      dataAnt.promDuracion !== null ? dataAnt.promDuracion + ' min' : '—')
+    + fila('Recaudación total',       dataMes.total,        dataAnt.total,    fmt)
+    + fila('Efectivo',                dataMes.ef,           dataAnt.ef,       fmt)
+    + fila('Transferencia',           dataMes.tr,           dataAnt.tr,       fmt)
+    + fila('Cheque',                  dataMes.ch,           dataAnt.ch,       fmt)
+    + '</tbody></table></div>'
+    + '<div style="background:#f8f9fa;text-align:center;padding:14px;font-size:12px;color:#90a4ae;border-top:1px solid #eee">Mercado Limpio · Analytics Automático</div>'
+    + '</div></body></html>';
+  
+  MailApp.sendEmail({ to: EMAIL, subject: '📊 Reparto ' + labelMes + ' vs ' + labelAnt, htmlBody: html });
+  Logger.log('✅ Reporte mensual enviado.');
+}
+
+function obtenerHistorialRendicionesHoja_() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_NAMES.RENDICIONES);
+  if (!sh || sh.getLastRow() < 2) return [];
+
+  const data = sh.getDataRange().getValues();
+  const result = [];
+  // Columnas: ID, Fecha, Turno, Repartidor, Esperado, Contado, Diferencia, TipoDif, Usuario, Timestamp
+  for (let i = data.length - 1; i >= 1 && result.length < 40; i--) {
+    const row = data[i];
+    if (!row[1]) continue;
+    result.push({
+      id:         Number(row[0]),
+      fecha:      Utilities.formatDate(new Date(row[1]), "America/Argentina/Buenos_Aires", "yyyy-MM-dd"),
+      turno:      String(row[2] || ''),
+      repartidor: String(row[3] || ''),
+      esperado:   Number(row[4] || 0),
+      contado:    Number(row[5] || 0),
+      diferencia: Number(row[6] || 0),
+      tipo:       String(row[7] || 'Exacto'),
+      usuario:    String(row[8] || ''),
+      ts:         row[9] ? Utilities.formatDate(new Date(row[9]), "America/Argentina/Buenos_Aires", "dd/MM HH:mm") : ''
+    });
+  }
+  return result;
+}
+
+
+function editarMovimientoCaja(id, tipo, formaPago, importe, categoria, observacion) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return { ok: false, error: "Sin datos en la hoja" };
+  const ids = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (Number(ids[i][0]) === Number(id)) {
+      const row = i + 2;
+      if (tipo        != null) sh.getRange(row, 4).setValue(tipo);
+      if (formaPago   != null) sh.getRange(row, 5).setValue(formaPago);
+      if (importe     != null) sh.getRange(row, 8).setValue(Number(importe));
+      if (categoria   != null) sh.getRange(row, 9).setValue(categoria);
+      if (observacion != null) sh.getRange(row, 13).setValue(observacion);
+      logAccion("Pablo", 'EDITAR_MOVIMIENTO_CAJA', 'ID: ' + id, String(categoria || ''));
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: 'Movimiento no encontrado (ID: ' + id + ')' };
+}
+
+function eliminarMovimientoCaja(id) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return { ok: false, error: "Sin datos en la hoja" };
+  const ids = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (Number(ids[i][0]) === Number(id)) {
+      sh.deleteRow(i + 2);
+      logAccion("Pablo", 'ELIMINAR_MOVIMIENTO_CAJA', 'ID: ' + id, '');
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: 'Movimiento no encontrado (ID: ' + id + ')' };
+}
+
+function renombrarEmpleado(params) {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('ConfigEmpleados');
+  const data  = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i][0] || '').toString().trim() === (params.oldNombre || '').trim()) {
+      sheet.getRange(i + 1, 1).setValue(params.nombre);
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: 'Empleado no encontrado: ' + params.oldNombre };
+}
+
+function enviarEmailVTV(params) {
+  const vehiculo      = params.vehiculo      || "Vehículo desconocido";
+  const diasRestantes = params.diasRestantes != null ? params.diasRestantes : "?";
+  const vencimiento   = params.vencimiento   || "-";
+  const fechaVTV      = params.fechaVTV      || "-";
+
+  const email   = "santamariapablodaniel@gmail.com";
+  const subject = `⚠️ VTV ${vehiculo} — vence en ${diasRestantes} día${diasRestantes !== 1 ? 's' : ''}`;
+  const body    =
+    `Hola,\n\nLa VTV del vehículo ${vehiculo} está próxima a vencer.\n\n` +
+    `  Última VTV registrada: ${fechaVTV}\n` +
+    `  Fecha de vencimiento:  ${vencimiento}\n` +
+    `  Días restantes:        ${diasRestantes}\n\n` +
+    `Por favor coordiná la realización de la VTV dentro de los próximos días.\n\n` +
+    `— Caja Mercado Limpio`;
+
+  MailApp.sendEmail(email, subject, body);
+  return { ok: true };
+}
+
+
+function eliminarMovimientoPorCampos(params) {
+  const ZONA     = "America/Argentina/Buenos_Aires";
+  const fecha    = params.fecha;
+  const hora     = (params.hora || "").substring(0, 5);
+  const importe  = Number(params.importe);
+  const categoria = (params.categoria || "").toLowerCase();
+
+  const sheet = SpreadsheetApp.getActive().getSheetByName("MovimientosCaja");
+  const data  = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    const rawFecha   = data[i][1];  // col B — Date object en GAS
+    const rawHora    = data[i][2];  // col C — Date object en GAS
+    const rowImporte = Number(data[i][7]);
+    const rowCat     = (data[i][8] || "").toLowerCase();
+
+    const rowFechaStr = rawFecha instanceof Date
+      ? Utilities.formatDate(rawFecha, ZONA, "yyyy-MM-dd")
+      : String(rawFecha).substring(0, 10);
+
+    const rowHoraStr = rawHora instanceof Date
+      ? Utilities.formatDate(rawHora, ZONA, "HH:mm")
+      : String(rawHora).substring(0, 5);
+
+    if (rowFechaStr === fecha && rowHoraStr === hora
+        && rowImporte === importe && rowCat === categoria) {
+      sheet.deleteRow(i + 1);
+      return { ok: true, filaEliminada: i + 1 };
+    }
+  }
+  return { ok: false, error: "No encontrado" };
+}
+
+
+
+
+
+
+
+

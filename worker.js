@@ -605,6 +605,23 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, data }, 200, cors);
   }
 
+  // POST /sb/delete-rendicion  body: { id: 123 }  — borra solo el registro
+  // de rendiciones_caja. Los movimientos asociados (BASE, ajuste, etc.) se
+  // borran aparte con /sb/delete-mov.
+  if (seg === "delete-rendicion") {
+    if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
+    const svcKey = env.SUPABASE_SERVICE_KEY;
+    if (!svcKey) return json({ error: "Sin SUPABASE_SERVICE_KEY" }, 500, cors);
+    const body = await request.json().catch(() => ({}));
+    if (!body.id) return json({ error: "id requerido" }, 400, cors);
+    const r = await fetch(`${SB_URL}/rendiciones_caja?id=eq.${body.id}`, {
+      method:  "DELETE",
+      headers: sbWriteH(svcKey),
+    });
+    if (!r.ok) return json({ error: `HTTP ${r.status}` }, 502, cors);
+    return json({ ok: true, deleted: body.id }, 200, cors);
+  }
+
   // ── Audit: totales y gaps entre rendiciones y movimientos ───
   // GET /sb/audit?from=YYYY-MM-DD&to=YYYY-MM-DD
   if (seg === "audit") {
