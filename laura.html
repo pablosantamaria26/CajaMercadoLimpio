@@ -2647,6 +2647,31 @@
         async function intentarArqueo() {
             const fisico = parseFloat(document.getElementById('arqueo-fisico').value) || 0;
             if (fisico === 0) return showToast("⚠️ Ingresa el efectivo físico", false);
+
+            // ⚠️ Si ya se cerró la caja hoy, avisar ANTES de recontar/reintentar.
+            // Cada cierre adicional agrega OTRO ajuste ENCIMA del anterior (no lo
+            // reemplaza) — recontar y reintentar varias veces en confusión puede
+            // generar ajustes en cascada difíciles de entender después.
+            const hoyStr = new Date().toISOString().split('T')[0];
+            const estado = await api("getArqueoStatus", { dateStr: hoyStr }).catch(() => null);
+            if (estado && estado.status && estado.status !== 'missing') {
+                const difTxt = estado.difference === 0
+                    ? 'exacta (sin diferencia)'
+                    : `$${Math.abs(estado.difference).toLocaleString('es-AR')} (${estado.difference > 0 ? 'sobrante' : 'faltante'})`;
+                showModal(
+                    "⚠️ Ya cerraste la caja hoy",
+                    `A las <b>${estado.closeTime}</b> ya se cerró la caja con una diferencia ${difTxt}.<br><br>Si cerrás de nuevo, se va a registrar un <b>ajuste adicional</b> arriba de ese — no lo reemplaza.<br><br>Si contaste mal antes, mejor avisale a Pablo para corregirlo directamente. ¿Igual querés cerrar otra vez?`,
+                    "warning_amber", "#e17055",
+                    () => confirmarArqueo(fisico),
+                    () => {},
+                    "Sí, cerrar de nuevo", "Cancelar"
+                );
+                return;
+            }
+            confirmarArqueo(fisico);
+        }
+
+        async function confirmarArqueo(fisico) {
             // Refrescar saldo antes de confirmar para que la comparación sea exacta
             const freshSaldo = await sb('saldo').catch(() => null);
             if (freshSaldo?.efectivo != null) saldoSistema = parseInt(freshSaldo.efectivo);

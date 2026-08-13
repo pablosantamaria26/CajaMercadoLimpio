@@ -42,6 +42,20 @@ const COLORS = {
   BG_LIGHT: '#E3F2FD', BG_ALT: '#F5F5F5', WHITE: '#FFFFFF', TEXT_DARK: '#263238'
 };
 
+/**
+ * Parsea una fecha de forma segura para comparar "día calendario" en
+ * Argentina. "YYYY-MM-DD" sin hora se interpreta como medianoche UTC,
+ * que en Argentina (UTC-3) cae en el día ANTERIOR — bug real encontrado
+ * en getArqueoStatus el 13/08/2026 (una fecha pedida como "2026-08-07"
+ * devolvía datos del 06/08). Si el string ya trae hora, se respeta tal cual.
+ */
+function parseFechaSegura(dateStr) {
+  if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return new Date(dateStr + "T12:00:00");
+  }
+  return new Date(dateStr);
+}
+
 /****************************************************
  * 🌐 API JSON (DOPOST) - CEREBRO DE LA APP
  ****************************************************/
@@ -662,8 +676,8 @@ function yaFueRendidaEnHoja(fechaStr, turno, repartidor) {
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(SHEET_NAMES.RENDICIONES);
   if (!sh || sh.getLastRow() < 2) return false;
-  
-  const fBusq = Utilities.formatDate(new Date(fechaStr), "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+
+  const fBusq = Utilities.formatDate(parseFechaSegura(fechaStr), "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
   const data = sh.getDataRange().getValues(); 
 
   for (let i = 1; i < data.length; i++) {
@@ -872,7 +886,7 @@ function getArqueoStatus(dateStr) {
   const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.ARQUEOS);
   if (!sh || sh.getLastRow() < 2) return { status: 'missing', difference: 0 };
 
-  const fBusq = Utilities.formatDate(new Date(dateStr), "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
+  const fBusq = Utilities.formatDate(parseFechaSegura(dateStr), "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
   const data = sh.getDataRange().getValues();
 
   for (let i = data.length - 1; i >= 1; i--) {
@@ -967,7 +981,7 @@ function getEstadoCaja() {
 
 function getMovimientos(fechaStr) {
   const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
-  const fBusq = fechaStr ? new Date(fechaStr) : new Date();
+  const fBusq = fechaStr ? parseFechaSegura(fechaStr) : new Date();
   const fStr = Utilities.formatDate(fBusq, "America/Argentina/Buenos_Aires", "dd/MM/yyyy");
   
   // Obtenemos todos los datos desde la fila 2 hasta la columna 13
@@ -1077,12 +1091,19 @@ function registrarArqueo(user, fisico, monitorData) {
     logAccion(user, 'ARQUEO', `Físico: ${fisico} vs Sist: ${sist}`, res);
 
     // Ajuste de Caja automático
+    // (try/catch propio: si esto llegara a fallar, el arqueo en sí ya quedó
+    // guardado arriba — no queremos perder ESE registro, pero sí necesitamos
+    // que la falla quede visible en Logs en vez de desaparecer en silencio)
     if (dif !== 0) {
-      const tipo = dif > 0 ? 'Ingreso' : 'Egreso';
-      registrarMovimientoCaja(
-        tipo, 'Efectivo', Math.abs(dif), 'Ajuste Post-Arqueo', 
-        '', '', '', '', user, `Ajuste auto arqueo ${nextId}`, "", "", ""
-      );
+      try {
+        const tipo = dif > 0 ? 'Ingreso' : 'Egreso';
+        registrarMovimientoCaja(
+          tipo, 'Efectivo', Math.abs(dif), 'Ajuste Post-Arqueo',
+          '', '', '', '', user, `Ajuste auto arqueo ${nextId}`, "", "", ""
+        );
+      } catch (eAjuste) {
+        logAccion(user, 'ERROR_AJUSTE_ARQUEO', `Arqueo #${nextId} guardado pero el ajuste de $${dif} FALLÓ`, eAjuste.message);
+      }
     }
 
     if (Math.abs(dif) >= 20000) {
@@ -1944,7 +1965,7 @@ function JOB_ReporteMensualCombustible() {
  ****************************************************/
 function getResumenCruceDiario(dateStr) {
   const ZONA_AR = "America/Argentina/Buenos_Aires";
-  const fechaBusq = new Date(dateStr);
+  const fechaBusq = parseFechaSegura(dateStr);
   const fStr = Utilities.formatDate(fechaBusq, ZONA_AR, "yyyy-MM-dd");
   const ss = SpreadsheetApp.getActive();
 
