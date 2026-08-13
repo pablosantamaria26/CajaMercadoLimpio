@@ -134,13 +134,15 @@ async function calcSaldoSB(rH) {
 }
 
 /**
- * RECONCILIACIÓN AUTOMÁTICA — la planilla GAS es la fuente de verdad.
- * Compara movimientos GAS vs Supabase en una ventana de días y repara solo:
- *  - Inserta en Supabase los movimientos que están en GAS y faltan en SB.
- *  - Soft-borra (deleted_at, reversible) los de SB que no existen en GAS
- *    (duplicados por reintentos viejos o filas borradas a mano en la sheet).
+ * RECONCILIACIÓN AUTOMÁTICA — Supabase es la fuente de verdad (desde
+ * 08/2026). Compara movimientos Supabase vs GAS en una ventana de días:
+ *  - Lo que está en Supabase y falta en GAS → se ESPEJA a la planilla
+ *    (reintenta lo que el mirror en segundo plano no haya logrado).
+ *  - Lo que está en GAS pero NO en Supabase → NUNCA se borra ni se toca
+ *    nada en Supabase por esto (Supabase manda). Solo se reporta —
+ *    normalmente significa una edición manual directa en la sheet.
  * Clave de comparación: fecha|tipo|forma_pago|importe|categoria — sin hora,
- * para tolerar diferencias de minuto entre el reloj de GAS y el del worker.
+ * para tolerar diferencias de segundos entre el reloj de GAS y el del worker.
  */
 async function reconciliarMovimientos(env, days = 3) {
   const svcKey = env.SUPABASE_SERVICE_KEY;
@@ -151,7 +153,16 @@ async function reconciliarMovimientos(env, days = 3) {
   desde.setDate(desde.getDate() - days);
   const from  = desde.toISOString().split("T")[0];
 
-  // 1. GAS (fuente de verdad)
+  // 1. Supabase (fuente de verdad)
+  const sbR = await fetch(
+    `${SB_URL}/movimientos_caja?deleted_at=is.null&fecha=gte.${from}&fecha=lte.${to}` +
+    `&select=id,fecha,hora,tipo,forma_pago,banco,nro_cheque,importe,categoria,repartidor,turno,usuario,observacion,vehiculo,estado,id_cheque_origen`,
+    { headers: sbReadH(svcKey) }
+  );
+  const sbRows = await sbR.json().catch(() => null);
+  if (!Array.isArray(sbRows)) return { ok: false, error: "Supabase no devolvió movimientos" };
+
+  // 2. GAS
   let gasRows;
   try {
     const r = await fetch(GAS_URL, {
@@ -164,14 +175,6 @@ async function reconciliarMovimientos(env, days = 3) {
   } catch (e) {
     return { ok: false, error: "GAS: " + e.message };
   }
-
-  // 2. Supabase
-  const sbR = await fetch(
-    `${SB_URL}/movimientos_caja?deleted_at=is.null&fecha=gte.${from}&fecha=lte.${to}&select=id,fecha,hora,tipo,forma_pago,importe,categoria,nro_cheque,estado`,
-    { headers: sbReadH(svcKey) }
-  );
-  const sbRows = await sbR.json().catch(() => null);
-  if (!Array.isArray(sbRows)) return { ok: false, error: "Supabase no devolvió movimientos" };
 
   const keyOf = (fecha, tipo, fp, imp, cat) =>
     `${fecha}|${tipo}|${String(fp).toLowerCase()}|${Number(imp)}|${String(cat).trim()}`;
@@ -189,92 +192,104 @@ async function reconciliarMovimientos(env, days = 3) {
     sbMap.get(k).push(s);
   }
 
-  const insertados = [], borrados = [], errores = [];
+  const espejados = [], soloEnGAS = [], errores = [];
 
-  // Faltantes en SB → insertar desde GAS
-  for (const [k, gRows] of gasMap) {
-    const have = sbMap.get(k)?.length || 0;
-    for (let i = have; i < gRows.length; i++) {
-      const g = gRows[i];
-      try {
-        await sbInsertWithRetry(env, "movimientos_caja", {
-          id:          genId(),
-          fecha:       g.fecha,
-          hora:        (g.hora || "12:00") + ":00",
-          tipo:        g.tipo,
-          forma_pago:  g.formaPago,
-          banco:       g.banco || null,
-          nro_cheque:  g.nro   || null,
-          importe:     Number(g.importe),
-          categoria:   g.categoria,
-          usuario:     "Reconciliación",
-          observacion: g.observacion || null,
-          vehiculo:    g.vehiculo || null,
-          estado:      g.estado || null,
-        });
-        insertados.push({ fecha: g.fecha, tipo: g.tipo, importe: g.importe, categoria: g.categoria });
-      } catch (e) {
-        errores.push(`insert ${k}: ${e.message}`);
-      }
-    }
-  }
-
-  // Sobrantes en SB (no existen en GAS) → soft-delete reversible
+  // Faltantes en GAS → espejar desde Supabase (reintento del mirror async)
   for (const [k, sRows] of sbMap) {
-    const should = gasMap.get(k)?.length || 0;
-    if (sRows.length > should) {
-      const exceso = sRows.sort((a, b) => Number(a.id) - Number(b.id)).slice(should);
-      for (const s of exceso) {
-        try {
-          const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${s.id}`, {
-            method:  "PATCH",
-            headers: sbWriteH(svcKey),
-            body:    JSON.stringify({ deleted_at: new Date().toISOString() }),
-          });
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          borrados.push({ id: s.id, fecha: s.fecha, tipo: s.tipo, importe: s.importe, categoria: s.categoria });
-        } catch (e) {
-          errores.push(`delete ${s.id}: ${e.message}`);
-        }
+    const have = gasMap.get(k)?.length || 0;
+    for (let i = have; i < sRows.length; i++) {
+      const s = sRows[i];
+      try {
+        await fetch(GAS_URL, {
+          method: "POST",
+          body: JSON.stringify({
+            fn: "registrarMovimientoCaja",
+            params: {
+              tipo: s.tipo, formaPago: s.forma_pago, importe: s.importe, categoria: s.categoria,
+              repartidor: s.repartidor, turno: s.turno, banco: s.banco, nroCheque: s.nro_cheque,
+              usuario: s.usuario, observacion: s.observacion, vehiculo: s.vehiculo,
+              idChequeOrigen: s.id_cheque_origen || undefined,
+            },
+          }),
+        });
+        espejados.push({ fecha: s.fecha, tipo: s.tipo, importe: s.importe, categoria: s.categoria });
+      } catch (e) {
+        errores.push(`espejar ${k}: ${e.message}`);
       }
     }
   }
 
-  // Estados de cheques: si GAS dice ENTREGADO y SB no, copiar la marca.
-  // (Requiere que getMovimientosRango de GAS devuelva el campo 'estado'.)
-  let estadosReparados = 0;
-  for (const g of gasRows) {
-    if (g.tipo !== "Ingreso" || String(g.formaPago) !== "Cheque") continue;
-    if (!g.estado || !String(g.estado).includes("ENTREGADO") || !g.nro) continue;
-    const sMatch = sbRows.find(s =>
-      s.tipo === "Ingreso" && s.forma_pago === "Cheque" &&
-      String(s.nro_cheque) === String(g.nro) && Number(s.importe) === Number(g.importe) &&
-      !(s.estado || "").includes("ENTREGADO")
-    );
-    if (!sMatch) continue;
-    try {
-      const r = await fetch(`${SB_URL}/movimientos_caja?id=eq.${sMatch.id}`, {
-        method:  "PATCH",
-        headers: sbWriteH(svcKey),
-        body:    JSON.stringify({ estado: String(g.estado) }),
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      estadosReparados++;
-    } catch (e) {
-      errores.push(`estado cheque ${g.nro}: ${e.message}`);
+  // Sobrantes en GAS (no están en Supabase) → NO TOCAR Supabase. Reportar
+  // nomás — suele ser una edición manual directa en la sheet.
+  for (const [k, gRows] of gasMap) {
+    const should = sbMap.get(k)?.length || 0;
+    if (gRows.length > should) {
+      for (const g of gRows.slice(should)) {
+        soloEnGAS.push({ fecha: g.fecha, hora: g.hora, tipo: g.tipo, importe: g.importe, categoria: g.categoria });
+      }
     }
   }
 
-  return { ok: true, from, to, insertados, borrados, errores, estadosReparados,
-           reparado: insertados.length + borrados.length + estadosReparados };
+  return { ok: true, from, to, espejados, soloEnGAS, errores,
+           reparado: espejados.length, atencion: soloEnGAS.length };
+}
+
+/**
+ * Avisa por mail cuando el cron encuentra movimientos que el espejo
+ * automático no logró llevar solo a la planilla (la reconciliación ya
+ * los reparó — esto es solo para que quede visible si pasa seguido).
+ */
+async function alertarSyncAtrasado(items) {
+  try {
+    await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        fn: "enviarEmailAlertaSync",
+        params: { cantidad: items.length, items: items.slice(0, 15) },
+      }),
+    });
+  } catch (e) {
+    console.error("[alertarSyncAtrasado] no se pudo enviar el mail:", e.message);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
-// DOBLE ESCRITURA: después de que GAS responde OK, escribir en SB
+// SUPABASE PRIMERO — registro rápido y confiable, GAS se espeja
+// en segundo plano sin que el usuario espere (ver mirrorToGAS más abajo).
 // ════════════════════════════════════════════════════════════════
 
-async function syncMovimiento(env, params, gasRes) {
-  if (!gasRes?.ok) return;
+/**
+ * Inserta con protección de idempotencia: si data.client_op_id ya fue
+ * procesado antes (choca contra el índice UNIQUE de Postgres), devuelve
+ * el registro YA CREADO en vez de duplicarlo. Esto es lo que evita que
+ * un reintento (doble tap, red que se corta y el cliente reintenta)
+ * cree dos movimientos idénticos — la garantía la da la base de datos,
+ * no una revisión desde el código (que tiene ventana de carrera).
+ */
+async function sbInsertIdempotente(env, table, data) {
+  const r = await fetch(`${SB_URL}/${table}`, {
+    method:  "POST",
+    headers: { ...sbWriteH(env.SUPABASE_SERVICE_KEY), "Prefer": "return=representation" },
+    body:    JSON.stringify(data),
+  });
+  if (r.ok) {
+    const rows = await r.json();
+    return { row: rows[0], duplicado: false };
+  }
+  const detail = await r.text().catch(() => "");
+  // 23505 = unique_violation de Postgres — este client_op_id ya se procesó
+  if (data.client_op_id && (r.status === 409 || detail.includes("23505") || detail.toLowerCase().includes("duplicate key"))) {
+    const rExist = await fetch(
+      `${SB_URL}/${table}?client_op_id=eq.${encodeURIComponent(data.client_op_id)}&limit=1`,
+      { headers: sbReadH(env.SUPABASE_SERVICE_KEY) }
+    );
+    const existing = await rExist.json().catch(() => []);
+    if (existing[0]) return { row: existing[0], duplicado: true };
+  }
+  throw new Error(`sbInsertIdempotente(${table}) HTTP ${r.status}: ${detail.slice(0, 200)}`);
+}
+
+async function registrarMovimientoSB(env, params) {
   const { fecha, hora } = arNow();
   let obs = params.observacion || null;
   if (params.vehiculo) {
@@ -287,92 +302,95 @@ async function syncMovimiento(env, params, gasRes) {
     if (!obs) obs = tag;
     else if (!obs.includes('[Prov:')) obs = `${tag} ${obs}`;
   }
-  try {
-    await sbInsertWithRetry(env, "movimientos_caja", {
-      id:          genId(),
-      fecha:       params.fechaStr?.split("T")[0] || fecha,
-      hora:        hora,
-      tipo:        params.tipo,
-      forma_pago:  params.formaPago,
-      banco:       params.banco        || null,
-      nro_cheque:  params.nroCheque    || null,
-      importe:     Number(params.importe),
-      categoria:   params.categoria,
-      repartidor:  params.repartidor   || null,
-      turno:       params.turno        || null,
-      usuario:     params.usuario      || "Laura",
-      observacion: obs,
-      vehiculo:    params.vehiculo     || null,
-    });
-  } catch (e) {
-    console.error("[syncMovimiento] falló tras reintentos:", e.message);
-    return false;
-  }
 
-  // Entrega de cheque en cartera: GAS marca el ingreso original como ENTREGADO
-  // en la sheet (marcarChequeEntregado) — replicar la marca en Supabase para
-  // que el saldo de cheques de la app no quede inflado.
-  if (params.tipo === "Egreso" && params.formaPago === "Cheque" && params.idChequeOrigen && params.nroCheque) {
+  const row = {
+    id:           genId(),
+    fecha:        params.fechaStr?.split("T")[0] || fecha,
+    hora,
+    tipo:         params.tipo,
+    forma_pago:   params.formaPago,
+    banco:        params.banco     || null,
+    nro_cheque:   params.nroCheque || null,
+    importe:      Number(params.importe),
+    categoria:    params.categoria,
+    repartidor:   params.repartidor || null,
+    turno:        params.turno      || null,
+    usuario:      params.usuario    || "Laura",
+    observacion:  obs,
+    vehiculo:     params.vehiculo   || null,
+    client_op_id: params.opId || null,
+  };
+
+  const { row: saved, duplicado } = await sbInsertIdempotente(env, "movimientos_caja", row);
+
+  // Entrega de cheque en cartera: marcar el ingreso original como ENTREGADO.
+  if (!duplicado && params.tipo === "Egreso" && params.formaPago === "Cheque" && params.idChequeOrigen && params.nroCheque) {
     try {
       const [y, m, d] = fecha.split("-");
       const q = `${SB_URL}/movimientos_caja?tipo=eq.Ingreso&forma_pago=eq.Cheque` +
                 `&nro_cheque=eq.${encodeURIComponent(params.nroCheque)}` +
                 `&importe=eq.${Number(params.importe)}&deleted_at=is.null`;
-      const r = await fetch(q, {
+      await fetch(q, {
         method:  "PATCH",
         headers: sbWriteH(env.SUPABASE_SERVICE_KEY),
         body:    JSON.stringify({ estado: `ENTREGADO: ${d}/${m}` }),
       });
-      if (!r.ok) {
-        console.error("[syncMovimiento] no se pudo marcar cheque ENTREGADO en SB:", r.status);
-        return false; // dispara la auto-reparación en el cliente
-      }
     } catch (e) {
-      console.error("[syncMovimiento] estado cheque:", e.message);
-      return false;
+      console.error("[registrarMovimientoSB] estado cheque:", e.message);
     }
   }
-  return true;
+
+  return { ok: true, id: saved.id, duplicado };
 }
 
-async function syncArqueo(env, params, gasRes) {
-  if (!gasRes?.ok) return;
+async function registrarArqueoSB(env, params) {
   const { fecha, hora } = arNow();
+  const rH    = sbReadH(env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY);
+  const saldo = await calcSaldoSB(rH);
+  if (!saldo) throw new Error("No se pudo calcular el saldo desde Supabase");
+
   const efFis = Number(params.efectivoFisico);
-  const dif   = Number(gasRes.diferencia ?? 0);
-  const efSis = efFis - dif;
+  const sist  = saldo.efectivo;
+  const dif   = efFis - sist;
   const res   = dif === 0 ? "OK" : dif > 0 ? "Sobrante" : "Faltante";
+  const horaCierre = `${fecha}T${hora}`;
 
-  const tasks = [
-    sbInsertWithRetry(env, "arqueos_caja", {
-      id: genId(), fecha, usuario: params.usuario || "Laura",
-      efectivo_fisico: efFis, efectivo_sistema: efSis, diferencia: dif,
-      resultado: res, hora_cierre: `${fecha}T${hora}`, monitor: params.monitorData || null,
-    }),
-  ];
+  const { row: savedArqueo, duplicado } = await sbInsertIdempotente(env, "arqueos_caja", {
+    id: genId(), fecha, usuario: params.usuario || "Laura",
+    efectivo_fisico: efFis, efectivo_sistema: sist, diferencia: dif,
+    resultado: res, hora_cierre: horaCierre, monitor: params.monitorData || null,
+    client_op_id: params.opId || null,
+  });
 
-  if (dif !== 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
-    id: genId(), fecha, hora,
-    tipo: dif > 0 ? "Ingreso" : "Egreso", forma_pago: "Efectivo",
-    importe: Math.abs(dif), categoria: "Ajuste Post-Arqueo",
-    usuario: params.usuario || "Laura", observacion: "Ajuste auto arqueo",
-  }));
+  if (!duplicado && dif !== 0) {
+    await sbInsertWithRetry(env, "movimientos_caja", {
+      id: genId(), fecha, hora,
+      tipo: dif > 0 ? "Ingreso" : "Egreso", forma_pago: "Efectivo",
+      importe: Math.abs(dif), categoria: "Ajuste Post-Arqueo",
+      usuario: params.usuario || "Laura", observacion: `Ajuste auto arqueo ${savedArqueo.id}`,
+      client_op_id: params.opId ? params.opId + ":ajuste" : null,
+    });
+  }
 
-  const results = await Promise.allSettled(tasks);
-  const failed  = results.filter(r => r.status === "rejected");
-  if (failed.length > 0)
-    console.error("[syncArqueo] falló:", failed.map(f => f.reason?.message).join(" | "));
-  return failed.length === 0;
+  return { ok: true, diferencia: dif, efectivoFisico: efFis, efectivoSistema: sist, resultado: res, horaCierre, id: savedArqueo.id, duplicado };
 }
 
-async function syncRendicion(env, params, gasRes) {
-  if (!gasRes?.ok) return;
-  // 🛡️ Si GAS detectó que la planilla YA estaba registrada (reintento de Laura),
-  // NO volver a insertar en Supabase — evita movimientos duplicados.
-  if (typeof gasRes.mensaje === "string" && gasRes.mensaje.includes("ya estaba")) return true;
+async function yaFueRendidaSB(env, fechaReparto, turno, repartidor) {
+  const rH = sbReadH(env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY);
+  const q  = `${SB_URL}/rendiciones_caja?fecha=eq.${fechaReparto}&turno=eq.${encodeURIComponent(turno)}&repartidor=eq.${encodeURIComponent(repartidor)}&limit=1`;
+  const r  = await fetch(q, { headers: rH });
+  const rows = await r.json().catch(() => []);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+async function registrarRendicionSB(env, params) {
   const { fecha, hora } = arNow();
   const fechaReparto = params.fechaStr?.split("T")[0] || fecha;
-  const fechaMov = fecha;
+
+  if (await yaFueRendidaSB(env, fechaReparto, params.turno, params.repartidor)) {
+    return { ok: true, mensaje: "Planilla ya estaba registrada.", duplicado: true };
+  }
+
   const contado  = Number(params.efectivoContado  || 0);
   const esperado = Number(params.efectivoEsperado || 0);
   const transf   = Number(params.transferencia    || 0);
@@ -380,61 +398,94 @@ async function syncRendicion(env, params, gasRes) {
   const dif      = contado - esperado;
   const tipoDif  = dif === 0 ? "Exacto" : dif > 0 ? "Sobrante" : "Faltante";
 
-  // Todas las escrituras son INDEPENDIENTES con retry propio.
-  // Una falla no cancela las demás (Promise.allSettled).
-  const tasks = [
-    // 1. rendiciones_caja
-    sbInsertWithRetry(env, "rendiciones_caja", {
-      id: genId(), fecha: fechaReparto, turno: params.turno,
-      repartidor: params.repartidor, efectivo_esperado: esperado,
-      efectivo_contado: contado, diferencia: dif, tipo_diferencia: tipoDif,
-      usuario: params.usuario || "Laura", hora_rendicion: `${fecha}T${hora}`, notas: {},
-    }),
-  ];
+  const { row: savedRend, duplicado } = await sbInsertIdempotente(env, "rendiciones_caja", {
+    id: genId(), fecha: fechaReparto, turno: params.turno,
+    repartidor: params.repartidor, efectivo_esperado: esperado,
+    efectivo_contado: contado, diferencia: dif, tipo_diferencia: tipoDif,
+    usuario: params.usuario || "Laura", hora_rendicion: `${fecha}T${hora}`, notas: {},
+    client_op_id: params.opId || null,
+  });
 
-  // 2. Movimiento base efectivo
-  if (esperado > 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
-    id: genId(), fecha: fechaMov, hora, tipo: "Ingreso", forma_pago: "Efectivo",
-    importe: esperado, categoria: "Rendición Reparto - BASE",
-    repartidor: params.repartidor || null, turno: params.turno || null,
-    usuario: "Sistema",
-    observacion: `Base Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
-  }));
+  if (!duplicado) {
+    const tasks = [];
+    if (esperado > 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
+      id: genId(), fecha, hora, tipo: "Ingreso", forma_pago: "Efectivo",
+      importe: esperado, categoria: "Rendición Reparto - BASE",
+      repartidor: params.repartidor || null, turno: params.turno || null,
+      usuario: "Sistema",
+      observacion: `Base Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
+    }));
+    if (transf > 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
+      id: genId(), fecha, hora, tipo: "Ingreso", forma_pago: "Transferencia",
+      importe: transf, categoria: "Rendición Reparto - TRANSFERENCIA",
+      repartidor: params.repartidor || null, turno: params.turno || null,
+      usuario: "Sistema",
+      observacion: `Transferencia Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
+    }));
+    if (cheque > 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
+      id: genId(), fecha, hora, tipo: "Ingreso", forma_pago: "Cheque",
+      importe: cheque, categoria: "Rendición Reparto - CHEQUE",
+      repartidor: params.repartidor || null, turno: params.turno || null,
+      usuario: "Sistema",
+      observacion: `Cheque Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
+    }));
+    if (dif !== 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
+      id: genId(), fecha, hora,
+      tipo: dif > 0 ? "Ingreso" : "Egreso", forma_pago: "Efectivo",
+      importe: Math.abs(dif), categoria: "Diferencia Rendición - Ajuste",
+      usuario: "Sistema",
+      observacion: `Ajuste automático ${dif > 0 ? "Sobrante" : "Faltante"} ${params.repartidor}`,
+    }));
+    await Promise.all(tasks);
+  }
 
-  // 3. Transferencia
-  if (transf > 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
-    id: genId(), fecha: fechaMov, hora, tipo: "Ingreso", forma_pago: "Transferencia",
-    importe: transf, categoria: "Rendición Reparto - TRANSFERENCIA",
-    repartidor: params.repartidor || null, turno: params.turno || null,
-    usuario: "Sistema",
-    observacion: `Transferencia Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
-  }));
-
-  // 4. Cheque
-  if (cheque > 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
-    id: genId(), fecha: fechaMov, hora, tipo: "Ingreso", forma_pago: "Cheque",
-    importe: cheque, categoria: "Rendición Reparto - CHEQUE",
-    repartidor: params.repartidor || null, turno: params.turno || null,
-    usuario: "Sistema",
-    observacion: `Cheque Rendición ${params.repartidor} (${params.turno}) — reparto ${fechaReparto}`,
-  }));
-
-  // 5. Ajuste diferencia
-  if (dif !== 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
-    id: genId(), fecha: fechaMov, hora,
-    tipo: dif > 0 ? "Ingreso" : "Egreso", forma_pago: "Efectivo",
-    importe: Math.abs(dif), categoria: "Diferencia Rendición - Ajuste",
-    usuario: "Sistema",
-    observacion: `Ajuste automático ${dif > 0 ? "Sobrante" : "Faltante"} ${params.repartidor}`,
-  }));
-
-  const results = await Promise.allSettled(tasks);
-  const failed  = results.filter(r => r.status === "rejected");
-  if (failed.length > 0)
-    console.error(`[syncRendicion] ${failed.length}/${tasks.length} escrituras fallaron:`,
-      failed.map(f => f.reason?.message).join(" | "));
-  return failed.length === 0;
+  return { ok: true, diferencia: dif, id: savedRend.id, duplicado };
 }
+
+/**
+ * Espeja la escritura a la planilla EN SEGUNDO PLANO (después de responder
+ * al cliente — se invoca vía ctx.waitUntil, que mantiene el worker vivo
+ * hasta que termine sin bloquear la respuesta). Si esto falla, la
+ * reconciliación inversa (Supabase → GAS) lo detecta y repara solo.
+ *
+ * Para movimientos y rendiciones se reusa la función GAS existente tal
+ * cual (no recalculan nada propio — solo escriben lo que reciben, así que
+ * no hay riesgo de que GAS "decida" un valor distinto al ya guardado).
+ * El arqueo es la excepción: registrarArqueo() de GAS SÍ recalcula su
+ * propio saldo internamente, lo que podría no coincidir con el saldo que
+ * ya quedó grabado como oficial en Supabase — por eso usa mirrorArqueo(),
+ * una función nueva en GAS que solo graba los valores YA decididos.
+ */
+async function mirrorToGAS(fn, params, sbResult) {
+  if (sbResult.duplicado) return; // ya se procesó antes — no volver a espejar
+  if (fn === "registrarMovimientoCaja" || fn === "procesarRendicionDesdeRecibo") {
+    await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ fn, params }) });
+  } else if (fn === "registrarArqueo") {
+    await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        fn: "mirrorArqueo",
+        params: {
+          fecha: arNow().fecha,
+          usuario: params.usuario || "Laura",
+          efectivoFisico: sbResult.efectivoFisico,
+          efectivoSistema: sbResult.efectivoSistema,
+          diferencia: sbResult.diferencia,
+          resultado: sbResult.resultado,
+          horaCierre: sbResult.horaCierre,
+          monitorData: params.monitorData,
+        },
+      }),
+    });
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// DOBLE ESCRITURA: después de que GAS responde OK, escribir en SB
+// (legacy — sigue usándose para editar/eliminar movimientos, que
+//  todavía van GAS-primero por menor volumen y mayor complejidad
+//  de "encontrar la fila correcta" para espejar)
+// ════════════════════════════════════════════════════════════════
 
 async function syncEditMovimiento(env, params, gasRes) {
   if (!gasRes?.ok) return;
@@ -594,6 +645,28 @@ async function handleSb(request, env, url, cors) {
     if (!Array.isArray(data)) return json({ error: "Error Supabase", detail: data }, 502, cors);
     if (hasRange) return json({ ok: true, data }, 200, cors);
     return json({ ok: true, data: data[0] || null }, 200, cors);
+  }
+
+  // ── Cheques en cartera (leído de Supabase, ya no de GAS) ─────
+  // Ingresos por cheque que todavía no fueron entregados/cobrados/depositados.
+  if (seg === "cheques-cartera") {
+    const r = await fetch(
+      `${SB_URL}/movimientos_caja?deleted_at=is.null&tipo=eq.Ingreso&forma_pago=eq.Cheque` +
+      `&select=id,fecha,banco,nro_cheque,importe,estado&order=fecha.asc`,
+      { headers: rH }
+    );
+    const data = await r.json().catch(() => null);
+    if (!Array.isArray(data)) return json({ error: "Error Supabase", detail: data }, 502, cors);
+    const cartera = data
+      .filter(m => {
+        const st = (m.estado || "").toUpperCase();
+        return !st.startsWith("ENTREGADO") && st !== "COBRADO" && st !== "DEPOSITADO";
+      })
+      .map(m => ({
+        id: m.id, banco: m.banco, nro: m.nro_cheque, importe: m.importe,
+        fecha: m.fecha ? m.fecha.split("-").reverse().join("/") : "",
+      }));
+    return json({ ok: true, data: cartera }, 200, cors);
   }
 
   // ── Rendiciones ──────────────────────────────────────────────
@@ -951,8 +1024,11 @@ export default {
   // inmediata que dispara la app cuando detecta una falla de copia.
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
-      reconciliarMovimientos(env, 3)
-        .then(r => console.log("[cron reconciliar]", JSON.stringify(r)))
+      reconciliarMovimientos(env, 2)
+        .then(r => {
+          console.log("[cron reconciliar]", JSON.stringify(r));
+          if (r.ok && r.espejados?.length > 0) return alertarSyncAtrasado(r.espejados);
+        })
         .catch(e => console.error("[cron reconciliar] error:", e.message))
     );
   },
@@ -970,14 +1046,39 @@ export default {
     // ── Supabase read/sync endpoints
     if (url.pathname.startsWith("/sb/")) return handleSb(request, env, url, cors);
 
-    // ── GAS proxy + doble escritura
     if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
 
     let body;
     try { body = await request.json(); }
     catch { return json({ error: "JSON inválido" }, 400, cors); }
 
-    // Llamar GAS
+    const fn     = body.fn     || "";
+    const params = body.params || {};
+
+    // ── SUPABASE PRIMERO: alto volumen / camino crítico de Laura.
+    // Responde apenas Supabase confirma (rápido y confiable) — la planilla
+    // se actualiza en segundo plano sin que nadie espere por ella.
+    const SB_FIRST = new Set(["registrarMovimientoCaja", "registrarArqueo", "procesarRendicionDesdeRecibo"]);
+    if (SB_FIRST.has(fn)) {
+      let result;
+      try {
+        if      (fn === "registrarMovimientoCaja")      result = await registrarMovimientoSB(env, params);
+        else if (fn === "registrarArqueo")              result = await registrarArqueoSB(env, params);
+        else /* procesarRendicionDesdeRecibo */         result = await registrarRendicionSB(env, params);
+      } catch (e) {
+        return json({ ok: false, error: "Error guardando: " + e.message }, 500, cors);
+      }
+
+      ctx.waitUntil(
+        mirrorToGAS(fn, params, result).catch(e =>
+          console.error(`[mirrorToGAS:${fn}] falló — la reconciliación inversa lo va a reparar:`, e.message)
+        )
+      );
+
+      return json(result, 200, cors);
+    }
+
+    // ── Resto de operaciones (lecturas, editar/eliminar): GAS primero, como antes.
     let gasRes = null;
     try {
       const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(body) });
@@ -987,21 +1088,8 @@ export default {
       return json({ error: err.toString() }, 500, cors);
     }
 
-    // Doble escritura en Supabase — SÍNCRONA: espera antes de responder al cliente.
-    // Esto garantiza que Supabase recibe los datos aunque el proceso termine inmediatamente.
-    // Agrega ~100-300ms de latencia pero elimina la pérdida silenciosa de datos.
-    const fn     = body.fn     || "";
-    const params = body.params || {};
-    let sbSync = true;
-    if      (fn === "registrarMovimientoCaja")      sbSync = (await syncMovimiento(env, params, gasRes)) !== false;
-    else if (fn === "registrarArqueo")              sbSync = (await syncArqueo(env, params, gasRes)) !== false;
-    else if (fn === "procesarRendicionDesdeRecibo") sbSync = (await syncRendicion(env, params, gasRes)) !== false;
-    else if (fn === "editarMovimientoCaja")         await syncEditMovimiento(env, params, gasRes);
-    else if (fn === "eliminarMovimientoCaja")       await syncDeleteMovimiento(env, params, gasRes);
-
-    // Avisar al cliente cuando la copia a Supabase falló (GAS quedó OK pero la app
-    // va a mostrar datos desactualizados) — permite alertar en vez de perder plata en silencio.
-    if (!sbSync && gasRes && typeof gasRes === "object") gasRes.sbSync = false;
+    if      (fn === "editarMovimientoCaja")   await syncEditMovimiento(env, params, gasRes);
+    else if (fn === "eliminarMovimientoCaja") await syncDeleteMovimiento(env, params, gasRes);
 
     const response = typeof gasRes === "string" ? gasRes : JSON.stringify(gasRes);
     return new Response(response, { status: 200, headers: { "Content-Type": "application/json", ...cors } });

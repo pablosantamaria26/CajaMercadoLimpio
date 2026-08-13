@@ -1571,6 +1571,11 @@
             if (payload.tipo === 'Egreso' && pago === 'Cheque' && idChequeSeleccionado) {
                 payload.idChequeOrigen = idChequeSeleccionado;
             }
+            // ID único por intento de confirmación — si el mismo pago se reintenta
+            // (doble tap, red que se corta y se reintenta) el servidor lo reconoce
+            // y no lo duplica. Se genera una sola vez acá; sobrevive aunque
+            // finalizarRegistro() se dispare más de una vez para ESTE payload.
+            payload.opId = (crypto.randomUUID ? crypto.randomUUID() : ('op' + Date.now() + Math.random()));
             tempMovimientoPayload = payload;
             showConfirmModal(payload);
         }
@@ -1758,10 +1763,6 @@
             btn.disabled = false;
 
             if (res && res.ok) {
-                if (res.sbSync === false) {
-                    showToast("🔄 Falló la copia en la app — reparando automáticamente...", false);
-                    repararCopiaApp();
-                }
                 // Reseteo de campos
                 const inputImporte = document.getElementById('mov-importe');
                 const inputObs = document.getElementById('mov-obs');
@@ -2140,7 +2141,7 @@
             select.classList.add('loading-cheques');
             select.innerHTML = '<option value="" disabled selected>⏳ Buscando en cartera...</option>';
             select.disabled = true;
-            const res = await api('getChequesCartera');
+            const res = await sb('cheques-cartera');
             select.classList.remove('loading-cheques');
             select.disabled = false;
             if (res && res.ok && res.data && res.data.length > 0) {
@@ -2445,6 +2446,9 @@
             const total = parseInt(document.getElementById('rendicion-contado-display').getAttribute('data-numeric')) || 0;
             const efectivoEsperado = parseInt(rendicionPendiente.efectivoEsperado) || 0;
             if (total === 0 && efectivoEsperado > 0) return showToast("⚠️ Contá los billetes primero", false);
+            // Un solo opId por intento — protege contra doble tap en confirmar
+            // (además del guard natural por fecha+turno+repartidor del lado del servidor).
+            const opId = (crypto.randomUUID ? crypto.randomUUID() : ('op' + Date.now() + Math.random()));
             showModal("Confirmar Rendición", "¿Estás segura?", "verified", "var(--success)", async () => {
                 // Capturar billetes ANTES de que se limpie el contador
                 const billsSnapshot = [];
@@ -2460,15 +2464,11 @@
                     fechaStr: rendicionPendiente.fecha, turno: rendicionPendiente.turno,
                     repartidor: rendicionPendiente.repartidor,
                     efectivoEsperado: rendicionPendiente.efectivoEsperado,
-                    efectivoContado: total, usuario: USUARIO_APP
+                    efectivoContado: total, usuario: USUARIO_APP, opId
                 });
                 hideLoading();
 
                 if (res && res.ok) {
-                    if (res.sbSync === false) {
-                        showToast("🔄 Falló la copia en la app — reparando automáticamente...", false);
-                        repararCopiaApp();
-                    }
                     const dif = total - efectivoEsperado;
                     const hayFaltante = efectivoEsperado > 0 && dif < 0;
 
@@ -2653,14 +2653,18 @@
             // reemplaza) — recontar y reintentar varias veces en confusión puede
             // generar ajustes en cascada difíciles de entender después.
             const hoyStr = new Date().toISOString().split('T')[0];
-            const estado = await api("getArqueoStatus", { dateStr: hoyStr }).catch(() => null);
-            if (estado && estado.status && estado.status !== 'missing') {
-                const difTxt = estado.difference === 0
+            const resArq = await sb(`arqueos?fecha=${hoyStr}`).catch(() => null);
+            const yaHubo = resArq?.ok && resArq.data;
+            if (yaHubo) {
+                const d = resArq.data;
+                const dif = Number(d.diferencia || 0);
+                const closeTime = (d.hora_cierre || '').split('T')[1]?.substring(0, 5) || '?';
+                const difTxt = dif === 0
                     ? 'exacta (sin diferencia)'
-                    : `$${Math.abs(estado.difference).toLocaleString('es-AR')} (${estado.difference > 0 ? 'sobrante' : 'faltante'})`;
+                    : `$${Math.abs(dif).toLocaleString('es-AR')} (${dif > 0 ? 'sobrante' : 'faltante'})`;
                 showModal(
                     "⚠️ Ya cerraste la caja hoy",
-                    `A las <b>${estado.closeTime}</b> ya se cerró la caja con una diferencia ${difTxt}.<br><br>Si cerrás de nuevo, se va a registrar un <b>ajuste adicional</b> arriba de ese — no lo reemplaza.<br><br>Si contaste mal antes, mejor avisale a Pablo para corregirlo directamente. ¿Igual querés cerrar otra vez?`,
+                    `A las <b>${closeTime}</b> ya se cerró la caja con una diferencia ${difTxt}.<br><br>Si cerrás de nuevo, se va a registrar un <b>ajuste adicional</b> arriba de ese — no lo reemplaza.<br><br>Si contaste mal antes, mejor avisale a Pablo para corregirlo directamente. ¿Igual querés cerrar otra vez?`,
                     "warning_amber", "#e17055",
                     () => confirmarArqueo(fisico),
                     () => {},
@@ -2675,29 +2679,23 @@
             // Refrescar saldo antes de confirmar para que la comparación sea exacta
             const freshSaldo = await sb('saldo').catch(() => null);
             if (freshSaldo?.efectivo != null) saldoSistema = parseInt(freshSaldo.efectivo);
+            // Un solo opId por intento de cierre — protege contra doble tap en confirmar.
+            const opId = (crypto.randomUUID ? crypto.randomUUID() : ('op' + Date.now() + Math.random()));
             showModal("Cierre de Caja", `Registrar físico: <b>$ ${fisico.toLocaleString('es-AR')}</b><br><small style="color:#aaa">Sistema: $ ${saldoSistema.toLocaleString('es-AR')}</small>`, "lock", "#D63031", async () => {
                 showLoading("Cerrando caja...");
-                const res = await api("registrarArqueo", { usuario: USUARIO_APP, efectivoFisico: fisico, monitorData: monitor.getReport() });
+                const res = await api("registrarArqueo", { usuario: USUARIO_APP, efectivoFisico: fisico, monitorData: monitor.getReport(), opId });
                 hideLoading();
                 if (res && res.ok) {
                     lanzarConfeti();
 
-                    // Diferencia con saldo fresco (ya actualizado arriba)
-                    const dif = fisico - saldoSistema;
+                    // La diferencia ya viene decidida por el servidor (Supabase,
+                    // fuente de verdad) — no hace falta comparar contra la planilla,
+                    // que ahora se limita a espejar este mismo valor sin recalcularlo.
+                    const dif = Number(res.diferencia != null ? res.diferencia : (fisico - saldoSistema));
                     const colorDif = dif === 0 ? 'var(--success)' : (dif > 0 ? 'var(--success)' : 'var(--danger)');
                     const simbolo = dif > 0 ? '+' : '';
+                    const htmlDesync = '';
 
-                    // ⚠️ Detección de desincronización: la planilla (GAS) calcula su propio
-                    // ajuste. Si difiere del de la app, las dos bases están desincronizadas.
-                    const difGAS = res.diferencia != null ? Number(res.diferencia) : dif;
-                    const desincronizada = difGAS !== dif;
-                    const htmlDesync = desincronizada ? `
-                                <div style="margin-top:12px;padding:10px;background:#fff3cd;border:2px solid #ffc107;border-radius:10px;font-size:0.78rem;color:#856404;font-weight:700;text-align:left;">
-                                    ⚠️ La planilla registró un ajuste de <b>$ ${difGAS.toLocaleString('es-AR')}</b> (la app calculaba $ ${dif.toLocaleString('es-AR')}).<br>
-                                    Hay una diferencia de <b>$ ${Math.abs(difGAS - dif).toLocaleString('es-AR')}</b> entre la planilla y la app. Avisale a Pablo.
-                                </div>` : '';
-                    if (res.sbSync === false) repararCopiaApp(); // reparación best-effort antes del reload
-                    
                     const htmlResumen = `
                         <div style="height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px;">
                             <span class="material-icons-round" style="font-size:80px; color:var(--success); animation:popIn 0.5s;">check_circle</span>
@@ -3577,6 +3575,9 @@
             _haberesRegistrando = true;
             const btnPagar = document.getElementById('btn-pagar-haberes');
             if (btnPagar) { btnPagar.disabled = true; btnPagar.textContent = '⏳ Registrando...'; }
+            // Base para los 3 sub-pagos (sueldo/comisión/aguinaldo) — cada uno
+            // con su propio sufijo, para que un reintento no duplique ninguno.
+            const opIdBase = (crypto.randomUUID ? crypto.randomUUID() : ('op' + Date.now() + Math.random()));
 
             const nombre     = haberesEmpActual;
             const sueldoBase = Number(haberesConfigEmp?.sueldoBase || 0);
@@ -3643,6 +3644,7 @@
                         tipo: "Egreso", formaPago: _hfpSueldo,
                         importe: neto, categoria: "Pago de Haberes",
                         observacion: obsBase, fechaStr, usuario: USUARIO_APP,
+                        opId: opIdBase + ':sueldo',
                     }),
                 ];
                 if (netoComision > 0) tareas.push(api("registrarMovimientoCaja", {
@@ -3652,11 +3654,13 @@
                         ? `[${nombre}] Comisión ${mesLabel} | $${com.toLocaleString('es-AR')} - resto de adelanto`
                         : `[${nombre}] Comisión ${mesLabel}`,
                     fechaStr, usuario: USUARIO_APP,
+                    opId: opIdBase + ':comision',
                 }));
                 if (aguMonto > 0) tareas.push(api("registrarMovimientoCaja", {
                     tipo: "Egreso", formaPago: _hfpAguinaldo,
                     importe: aguMonto, categoria: "Pago de Aguinaldo",
                     observacion: obsAgu, fechaStr, usuario: USUARIO_APP,
+                    opId: opIdBase + ':aguinaldo',
                 }));
 
                 const resultados = await Promise.allSettled(tareas);
@@ -3675,13 +3679,7 @@
                         haberesRenderGrid();
                     }
                     const totalPagado = neto + netoComision + aguMonto;
-                    const sinCopiaSB = resultados.some(r => r.status === 'fulfilled' && r.value?.sbSync === false);
-                    if (sinCopiaSB) {
-                        showToast("🔄 Pago guardado — reparando copia de la app...", false);
-                        repararCopiaApp();
-                    } else {
-                        showToast(`✅ Pago registrado — $${totalPagado.toLocaleString('es-AR')}`, true);
-                    }
+                    showToast(`✅ Pago registrado — $${totalPagado.toLocaleString('es-AR')}`, true);
 
                     // Marcar empleado como pagado y preparar el picker para el siguiente
                     _haberesPagadosHoy.add(nombre);

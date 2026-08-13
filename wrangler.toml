@@ -2,6 +2,8 @@ name            = "cajamercadolimpio"
 main            = "worker.js"
 compatibility_date = "2025-11-21"
 
-# Reconciliación automática diaria GAS → Supabase (06:00 UTC = 03:00 AR)
+# Reconciliación automática Supabase → GAS, cada 20 min. Solo agrega a GAS
+# lo que falte (reintento del espejo async) — nunca borra nada de Supabase,
+# por eso es seguro correrla seguido.
 [triggers]
-crons = ["0 6 * * *"]
+crons = ["*/20 * * * *"]

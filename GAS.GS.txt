@@ -84,6 +84,15 @@ function doPost(e) {
 
       case 'renombrarEmpleado': return ContentService.createTextOutput(JSON.stringify(renombrarEmpleado(params))).setMimeType(ContentService.MimeType.JSON);
 
+      // Espejo de arqueo: graba los valores YA decididos por Supabase
+      // (fuente de verdad ahora), sin recalcular el saldo de nuevo acá.
+      // Evita el problema del 07/08: dos cálculos independientes del
+      // mismo saldo que pueden no coincidir si uno de los dos quedó
+      // desactualizado en el momento.
+      case 'mirrorArqueo':
+        result = mirrorArqueo(params);
+        break;
+
 
       case 'registrarMovimientoCaja':
         const idMov = registrarMovimientoCaja(
@@ -197,6 +206,10 @@ function doPost(e) {
 
       case 'enviarEmailVTV':
         result = enviarEmailVTV(params);
+        break;
+
+      case 'enviarEmailAlertaSync':
+        result = enviarEmailAlertaSync(params);
         break;
 
        default:
@@ -711,7 +724,7 @@ function registrarRendicionEnHoja(p) {
 
   // A. Registrar en Hoja Rendiciones (para historial y diferencias)
   sh.appendRow([
-    nextId, new Date(p.fechaStr), p.turno, p.repartidor, efectivoEsperado, efectivoContado,
+    nextId, parseFechaSegura(p.fechaStr), p.turno, p.repartidor, efectivoEsperado, efectivoContado,
     diferencia, tipoDif, p.usuario, now, p.fileId, JSON.stringify(p.monitorData || {}) 
   ]);
 
@@ -1040,6 +1053,48 @@ function getMovimientosRango(startDateStr, endDateStr) {
   return { ok: true, data: results };
 }
 
+
+// Espejo de arqueo: NO recalcula el saldo — graba exactamente lo que
+// Supabase ya decidió (fuente de verdad para arqueos desde 08/2026).
+// Usa el mismo LockService que registrarArqueo por las dudas, pero acá
+// es solo para evitar pisarse escribiendo la fila, no para "esperar
+// el turno de recalcular" (no hay nada que recalcular).
+function mirrorArqueo(p) {
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(10000); } catch (e) {
+    logAccion(p.usuario, 'ERROR_MIRROR_ARQUEO', 'No se pudo tomar el lock', e.message);
+    return { ok: false, error: 'Lock ocupado' };
+  }
+  try {
+    const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.ARQUEOS);
+    const lastRow = sh.getLastRow();
+    let nextId = 1;
+    if (lastRow >= 2) {
+      const lastIdVal = sh.getRange(lastRow, 1).getValue();
+      nextId = (Number(lastIdVal) || 0) + 1;
+    }
+    const fisico = Number(p.efectivoFisico), sistema = Number(p.efectivoSistema), dif = Number(p.diferencia);
+    const now = new Date();
+    sh.appendRow([nextId, parseFechaSegura(p.fecha), p.usuario, fisico, sistema, dif, p.resultado, now, JSON.stringify(p.monitorData || {})]);
+    SpreadsheetApp.flush();
+    logAccion(p.usuario, 'ARQUEO (espejo Supabase)', `Físico: ${fisico} vs Sist: ${sistema}`, p.resultado);
+
+    if (dif !== 0) {
+      try {
+        const tipo = dif > 0 ? 'Ingreso' : 'Egreso';
+        registrarMovimientoCaja(tipo, 'Efectivo', Math.abs(dif), 'Ajuste Post-Arqueo', '', '', '', '', p.usuario, `Ajuste auto arqueo ${nextId}`, "", "", "");
+      } catch (eAjuste) {
+        logAccion(p.usuario, 'ERROR_AJUSTE_MIRROR_ARQUEO', `Arqueo #${nextId} espejado pero el ajuste de $${dif} FALLÓ`, eAjuste.message);
+      }
+    }
+    return { ok: true, id: nextId };
+  } catch (e) {
+    logAccion(p.usuario, 'ERROR_FATAL_MIRROR_ARQUEO', e.message, e.stack);
+    return { ok: false, error: e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
 
 function registrarArqueo(user, fisico, monitorData) {
   // 🔒 1. PROTECCIÓN CONTRA DOBLE CLIC (LOCK SERVICE)
@@ -2618,6 +2673,25 @@ function enviarEmailVTV(params) {
     `Por favor coordiná la realización de la VTV dentro de los próximos días.\n\n` +
     `— Caja Mercado Limpio`;
 
+  MailApp.sendEmail(email, subject, body);
+  return { ok: true };
+}
+
+// Alerta cuando el espejo automático Supabase → planilla no llegó solo y
+// la reconciliación tuvo que reintentarlo. Un aviso ocasional es normal
+// (cortes de red); varios seguidos suelen indicar algo estructural.
+function enviarEmailAlertaSync(params) {
+  const email = "santamariapablodaniel@gmail.com";
+  const n = params.cantidad || 0;
+  const subject = `⚠️ Caja: ${n} movimiento${n !== 1 ? 's' : ''} necesitó reintento de sincronización`;
+  const detalle = (params.items || [])
+    .map(it => `  • ${it.fecha} — ${it.categoria} — $${it.importe}`)
+    .join('\n');
+  const body =
+    `Hola,\n\nLa reconciliación automática encontró ${n} movimiento${n !== 1 ? 's' : ''} que estaban en la app ` +
+    `pero no habían llegado todavía a la planilla, y los reintentó:\n\n${detalle}\n\n` +
+    `Si esto pasa seguido, avisale a Claude para revisar por qué el espejo automático no está llegando solo.\n\n` +
+    `— Caja Mercado Limpio`;
   MailApp.sendEmail(email, subject, body);
   return { ok: true };
 }
