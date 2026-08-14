@@ -135,6 +135,10 @@ function doPost(e) {
         result = eliminarMovimientoCaja(params.id);
         break;
 
+      case 'eliminarArqueoPorCampos':
+        result = eliminarArqueoPorCampos(params);
+        break;
+
 
       case 'procesarRendicionDesdeRecibo':
         result = procesarRendicionDesdeRecibo(params);
@@ -2723,6 +2727,30 @@ function eliminarMovimientoPorCampos(params) {
 
     if (rowFechaStr === fecha && rowHoraStr === hora
         && rowImporte === importe && rowCat === categoria) {
+      sheet.deleteRow(i + 1);
+      return { ok: true, filaEliminada: i + 1 };
+    }
+  }
+  return { ok: false, error: "No encontrado" };
+}
+
+// Mismo patrón que eliminarMovimientoPorCampos, para la hoja Arqueos.
+// Útil para limpiar filas de prueba o corregir un arqueo mal hecho.
+function eliminarArqueoPorCampos(params) {
+  const ZONA   = "America/Argentina/Buenos_Aires";
+  const fecha  = params.fecha;
+  const usuario = params.usuario;
+  const fisico = Number(params.efectivoFisico);
+
+  const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.ARQUEOS);
+  const data  = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    const rawFecha   = data[i][1];
+    const rowFechaStr = rawFecha instanceof Date
+      ? Utilities.formatDate(rawFecha, ZONA, "yyyy-MM-dd")
+      : String(rawFecha).substring(0, 10);
+    if (rowFechaStr === fecha && String(data[i][2]) === String(usuario) && Number(data[i][3]) === fisico) {
       sheet.deleteRow(i + 1);
       return { ok: true, filaEliminada: i + 1 };
     }
