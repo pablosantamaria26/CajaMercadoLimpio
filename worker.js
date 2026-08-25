@@ -669,6 +669,24 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, data: cartera }, 200, cors);
   }
 
+  // ── Historial completo de cheques (para el buscador de pablo.html) ──
+  // Todos los movimientos con forma_pago=Cheque, tanto los recibidos
+  // (Ingreso — quedan "en cartera") como los usados para pagar (Egreso —
+  // salen de un cheque de cartera). El cliente los agrupa por banco+nro
+  // para reconstruir la historia de cada cheque: quién lo trajo, si
+  // sigue en cartera o a quién se le pagó con él y cuándo.
+  if (seg === "cheques-historial") {
+    const r = await fetch(
+      `${SB_URL}/movimientos_caja?deleted_at=is.null&forma_pago=eq.Cheque` +
+      `&select=id,fecha,hora,tipo,importe,banco,nro_cheque,estado,categoria,observacion,usuario` +
+      `&order=fecha.desc,hora.desc`,
+      { headers: rH }
+    );
+    const data = await r.json().catch(() => null);
+    if (!Array.isArray(data)) return json({ error: "Error Supabase", detail: data }, 502, cors);
+    return json({ ok: true, data }, 200, cors);
+  }
+
   // ── Rendiciones ──────────────────────────────────────────────
   if (seg === "rendiciones") {
     const limit = parseInt(p.get("limit") || "40", 10);

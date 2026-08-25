@@ -455,6 +455,7 @@
         <button class="seg-btn"        onclick="setGestion('empleados')">Empleados</button>
         <button class="seg-btn"        onclick="setGestion('fijos')">Gastos fijos</button>
         <button class="seg-btn"        onclick="setGestion('proveedores')">Proveedores</button>
+        <button class="seg-btn"        onclick="setGestion('cheques')">Cheques</button>
       </div>
 
       <!-- Reparto -->
@@ -536,6 +537,21 @@
         </div>
         <div class="card" id="g-prov-list">
           <div class="empty"><span class="material-icons-round">inventory_2</span><span>Sin pagos hoy</span></div>
+        </div>
+      </div>
+
+      <!-- Cheques -->
+      <div id="g-cheques" class="section" style="display:none">
+        <div class="card" style="padding:14px;margin-bottom:10px;text-align:center">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:4px;">En cartera ahora</div>
+          <div style="font-size:26px;font-weight:800;color:var(--teal);" id="cheq-total-cartera">—</div>
+        </div>
+        <div style="position:relative;margin-bottom:12px;">
+          <span class="material-icons-round" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:19px;color:var(--text3);pointer-events:none;">search</span>
+          <input type="text" id="cheq-search" class="sheet-input" style="padding-left:40px;margin-bottom:0;" placeholder="Buscar por monto, banco o nombre..." oninput="renderChequesFiltrados()">
+        </div>
+        <div class="card" id="g-cheq-list">
+          <div class="empty"><span class="material-icons-round spin" style="font-size:24px">sync</span></div>
         </div>
       </div>
 
@@ -720,7 +736,7 @@ let empleadosData = [], fijosData = [];
 let addMode = "";
 let editMovId = null;
 let alertsLoaded = false;
-let gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:false, proveedores:false };
+let gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:false, proveedores:false, cheques:false };
 
 // ═══════════════════════════════════════════════════════
 // UTILS
@@ -894,7 +910,7 @@ async function refresh() {
   const ico = $('refresh-icon');
   ico.classList.add('spin');
   alertsLoaded = false;
-  gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:false, proveedores:false };
+  gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:false, proveedores:false, cheques:false };
   await Promise.all([loadInicio(), currentTab===1 && loadSemana(), currentTab===2 && loadMovimientos()].filter(Boolean));
   if (currentTab === 3) loadGestion();
   if (currentTab === 4) loadAlertas();
@@ -1494,10 +1510,10 @@ async function doDeleteMov() {
 function setGestion(name) {
   currentGestion = name;
   document.querySelectorAll('#tab3 .seg-wrap .seg-btn').forEach((b, i) => {
-    const names = ['reparto','combustible','empleados','fijos','proveedores'];
+    const names = ['reparto','combustible','empleados','fijos','proveedores','cheques'];
     b.classList.toggle('active', names[i] === name);
   });
-  ['reparto','combustible','empleados','fijos','proveedores'].forEach(n => {
+  ['reparto','combustible','empleados','fijos','proveedores','cheques'].forEach(n => {
     $('g-' + n).style.display = n === name ? 'block' : 'none';
   });
   loadGestionContent();
@@ -1513,6 +1529,7 @@ async function loadGestionContent() {
   if (currentGestion === 'empleados'   && !gestionLoaded.empleados)   await loadGEmpleados();
   if (currentGestion === 'fijos'       && !gestionLoaded.fijos)       await loadGFijos();
   if (currentGestion === 'proveedores' && !gestionLoaded.proveedores) await loadGProveedores();
+  if (currentGestion === 'cheques'     && !gestionLoaded.cheques)     await loadGCheques();
 }
 
 async function loadGReparto() {
@@ -1735,6 +1752,67 @@ async function loadGProveedores() {
   gestionLoaded.proveedores = true;
 }
 
+// CHEQUES — buscador
+let chequesCache = null; // historial completo, ya agrupado (se pide una sola vez)
+
+async function loadGCheques() {
+  const r = await sb('cheques-historial');
+  chequesCache = agruparCheques(r?.ok ? r.data : []);
+  gestionLoaded.cheques = true;
+  renderChequesFiltrados();
+}
+
+// Agrupa los movimientos de cheque por banco+número+importe para
+// reconstruir la historia de cada cheque físico: quién lo trajo (Ingreso)
+// y, si ya se usó, a quién se le pagó con él (Egreso).
+function agruparCheques(rows) {
+  const grupos = {};
+  rows.forEach(m => {
+    const key = `${(m.banco || '').trim().toUpperCase()}|${(m.nro_cheque || '').trim()}|${m.importe}`;
+    if (!grupos[key]) grupos[key] = { banco: m.banco, nro: m.nro_cheque, importe: m.importe, origen: null, aplicaciones: [] };
+    if (m.tipo === 'Ingreso') grupos[key].origen = m;
+    else grupos[key].aplicaciones.push(m);
+  });
+  return Object.values(grupos)
+    .filter(g => g.origen) // sin el ingreso no sabemos de dónde salió — se descarta
+    .sort((a, b) => (b.origen.fecha || '').localeCompare(a.origen.fecha || ''));
+}
+
+function renderChequesFiltrados() {
+  if (!chequesCache) return;
+  const q = ($('cheq-search').value || '').trim().toLowerCase();
+  const filtrados = !q ? chequesCache : chequesCache.filter(g => {
+    const haystack = `${g.importe} ${g.banco} ${g.nro} ${g.origen?.observacion || ''} ${g.aplicaciones.map(a => a.observacion).join(' ')}`.toLowerCase();
+    return haystack.includes(q);
+  });
+
+  const enCartera = chequesCache.filter(g => !g.aplicaciones.length);
+  $('cheq-total-cartera').textContent = `${fm(enCartera.reduce((s, g) => s + Number(g.importe || 0), 0))} · ${enCartera.length} cheque${enCartera.length === 1 ? '' : 's'}`;
+
+  const c = $('g-cheq-list');
+  if (!filtrados.length) {
+    c.innerHTML = `<div class="empty"><span class="material-icons-round">${q ? 'search_off' : 'inventory_2'}</span><span>${q ? 'Sin resultados' : 'Sin cheques registrados'}</span></div>`;
+    return;
+  }
+  c.innerHTML = filtrados.map(g => {
+    const entregado = g.aplicaciones.length > 0;
+    const fechaOrigen = g.origen.fecha ? g.origen.fecha.split('-').reverse().join('/') : '';
+    const badge = entregado ? `<span class="pill pill-gray">Entregado</span>` : `<span class="pill pill-green">En cartera</span>`;
+    const aplicHtml = g.aplicaciones.map(a => {
+      const fechaAp = a.fecha ? a.fecha.split('-').reverse().join('/') : '';
+      return `<div class="rend-sub" style="margin-top:4px;">→ <b>Pagado a:</b> ${(a.observacion || a.categoria || '').trim()} · ${fechaAp}</div>`;
+    }).join('');
+    return `<div class="rend-row" style="align-items:flex-start;">
+      <div class="rend-info">
+        <div class="rend-title">${fm(g.importe)} · ${g.banco || '—'} (#${g.nro || '—'})</div>
+        <div class="rend-sub"><b>De:</b> ${(g.origen.observacion || '—').trim()} · ${fechaOrigen}</div>
+        ${aplicHtml}
+      </div>
+      ${badge}
+    </div>`;
+  }).join('');
+}
+
 // ADD MODAL
 function openAddModal(mode) {
   addMode = mode;
@@ -1915,7 +1993,7 @@ function confirmCal() {
   const wk = setCurrentDate(v);
   weekMovs = [];
   semanaLoaded = false;
-  gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:false, proveedores:false };
+  gestionLoaded = { reparto:false, combustible:false, empleados:false, fijos:false, proveedores:false, cheques:false };
   if (currentTab === 0) loadInicio();
   if (currentTab === 1) loadSemana();
   if (currentTab === 2) loadMovimientos();
