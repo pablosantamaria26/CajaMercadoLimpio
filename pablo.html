@@ -1773,9 +1773,16 @@ function agruparCheques(rows) {
     if (m.tipo === 'Ingreso') grupos[key].origen = m;
     else grupos[key].aplicaciones.push(m);
   });
+  // Ojo: NO se descartan los grupos sin "origen" (Ingreso). Puede pasar que
+  // el ingreso original se haya borrado (ej: duplicado eliminado a mano) y
+  // el egreso que lo usó siga siendo un pago real y válido — tiene que
+  // seguir apareciendo en la búsqueda igual, aunque no sepamos "de quién" vino.
   return Object.values(grupos)
-    .filter(g => g.origen) // sin el ingreso no sabemos de dónde salió — se descarta
-    .sort((a, b) => (b.origen.fecha || '').localeCompare(a.origen.fecha || ''));
+    .sort((a, b) => {
+      const fa = a.origen?.fecha || a.aplicaciones[0]?.fecha || '';
+      const fb = b.origen?.fecha || b.aplicaciones[0]?.fecha || '';
+      return fb.localeCompare(fa);
+    });
 }
 
 function renderChequesFiltrados() {
@@ -1786,7 +1793,7 @@ function renderChequesFiltrados() {
     return haystack.includes(q);
   });
 
-  const enCartera = chequesCache.filter(g => !g.aplicaciones.length);
+  const enCartera = chequesCache.filter(g => g.origen && !g.aplicaciones.length);
   $('cheq-total-cartera').textContent = `${fm(enCartera.reduce((s, g) => s + Number(g.importe || 0), 0))} · ${enCartera.length} cheque${enCartera.length === 1 ? '' : 's'}`;
 
   const c = $('g-cheq-list');
@@ -1796,8 +1803,18 @@ function renderChequesFiltrados() {
   }
   c.innerHTML = filtrados.map(g => {
     const entregado = g.aplicaciones.length > 0;
-    const fechaOrigen = g.origen.fecha ? g.origen.fecha.split('-').reverse().join('/') : '';
-    const badge = entregado ? `<span class="pill pill-gray">Entregado</span>` : `<span class="pill pill-green">En cartera</span>`;
+    let badge, deHtml;
+    if (g.origen) {
+      const fechaOrigen = g.origen.fecha ? g.origen.fecha.split('-').reverse().join('/') : '';
+      badge  = entregado ? `<span class="pill pill-gray">Entregado</span>` : `<span class="pill pill-green">En cartera</span>`;
+      deHtml = `<div class="rend-sub"><b>De:</b> ${(g.origen.observacion || '—').trim()} · ${fechaOrigen}</div>`;
+    } else {
+      // Egreso con cheque pero sin ingreso emparejado en cartera (ej: el
+      // ingreso se borró por ser un duplicado, o el cheque nunca se cargó
+      // como Ingreso). Igual se muestra — es un pago real.
+      badge  = `<span class="pill pill-orange">Sin ingreso registrado</span>`;
+      deHtml = `<div class="rend-sub" style="color:var(--text3);">No hay un Ingreso de cartera emparejado para este cheque.</div>`;
+    }
     const aplicHtml = g.aplicaciones.map(a => {
       const fechaAp = a.fecha ? a.fecha.split('-').reverse().join('/') : '';
       return `<div class="rend-sub" style="margin-top:4px;">→ <b>Pagado a:</b> ${(a.observacion || a.categoria || '').trim()} · ${fechaAp}</div>`;
@@ -1805,7 +1822,7 @@ function renderChequesFiltrados() {
     return `<div class="rend-row" style="align-items:flex-start;">
       <div class="rend-info">
         <div class="rend-title">${fm(g.importe)} · ${g.banco || '—'} (#${g.nro || '—'})</div>
-        <div class="rend-sub"><b>De:</b> ${(g.origen.observacion || '—').trim()} · ${fechaOrigen}</div>
+        ${deHtml}
         ${aplicHtml}
       </div>
       ${badge}
