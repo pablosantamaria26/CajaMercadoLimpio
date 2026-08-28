@@ -131,6 +131,14 @@ function doPost(e) {
         result = editarMovimientoCaja(params.id, params.tipo, params.formaPago, params.importe, params.categoria, params.observacion);
         break;
 
+      case 'editarMovimientoPorCampos':
+        result = editarMovimientoPorCampos(params);
+        break;
+
+      case 'desmarcarChequeEntregadoPorCampos':
+        result = { ok: desmarcarChequeEntregadoPorCampos(params.banco, params.nroCheque, params.importe) };
+        break;
+
       case 'eliminarMovimientoCaja':
         result = eliminarMovimientoCaja(params.id);
         break;
@@ -967,6 +975,28 @@ function marcarChequeEntregadoPorCampos(banco, nroCheque, importe, fechaEntrega)
     if (bancoNorm && String(row[5] || "").trim().toLowerCase() !== bancoNorm) continue;
     if (String(row[13] || "").includes("ENTREGADO")) continue; // ya estaba marcado
     sh.getRange(i + 1, 14).setValue("ENTREGADO: " + Utilities.formatDate(fechaEntrega, "America/Argentina/Buenos_Aires", "dd/MM"));
+    return true;
+  }
+  return false;
+}
+
+// Inversa de marcarChequeEntregadoPorCampos: cuando se borra el egreso que
+// había entregado un cheque de cartera, el cheque tiene que volver a estar
+// disponible — si no, queda "perdido" (ni el pago existe, ni el cheque se
+// puede volver a usar). Se llama automáticamente desde /sb/delete-mov.
+function desmarcarChequeEntregadoPorCampos(banco, nroCheque, importe) {
+  if (!nroCheque || importe == null) return false;
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  const data = sh.getDataRange().getValues();
+  const bancoNorm = String(banco || "").trim().toLowerCase();
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (String(row[3]) !== 'Ingreso' || String(row[4]) !== 'Cheque') continue;
+    if (String(row[6]).trim() !== String(nroCheque).trim()) continue;
+    if (Number(row[7]) !== Number(importe)) continue;
+    if (bancoNorm && String(row[5] || "").trim().toLowerCase() !== bancoNorm) continue;
+    if (!String(row[13] || "").includes("ENTREGADO")) continue; // no estaba marcado, nada que revertir
+    sh.getRange(i + 1, 14).setValue("");
     return true;
   }
   return false;
@@ -2763,6 +2793,49 @@ function eliminarMovimientoPorCampos(params) {
         && rowImporte === importe && rowCat === categoria) {
       sheet.deleteRow(i + 1);
       return { ok: true, filaEliminada: i + 1 };
+    }
+  }
+  return { ok: false, error: "No encontrado" };
+}
+
+// Mismo matching que eliminarMovimientoPorCampos (fecha+hora+importe+categoria
+// ORIGINALES, antes del edit), pero en vez de borrar la fila le aplica los
+// valores nuevos. Reemplaza a editarMovimientoCaja(id,...), que buscaba por
+// el ID nativo de esta hoja — desde que pablo.html lee los movimientos de
+// Supabase, el id que llegaba era el de Supabase y nunca coincidía con
+// ninguna fila acá, así que editar fallaba siempre con "no encontrado".
+function editarMovimientoPorCampos(params) {
+  const ZONA = "America/Argentina/Buenos_Aires";
+  const fecha    = params.fechaOriginal;
+  const hora     = (params.horaOriginal || "").substring(0, 5);
+  const importe  = Number(params.importeOriginal);
+  const categoria = (params.categoriaOriginal || "").toLowerCase();
+
+  const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  const data  = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    const rawFecha   = data[i][1];
+    const rawHora    = data[i][2];
+    const rowImporte = Number(data[i][7]);
+    const rowCat     = (data[i][8] || "").toLowerCase();
+
+    const rowFechaStr = rawFecha instanceof Date
+      ? Utilities.formatDate(rawFecha, ZONA, "yyyy-MM-dd")
+      : String(rawFecha).substring(0, 10);
+    const rowHoraStr = rawHora instanceof Date
+      ? Utilities.formatDate(rawHora, ZONA, "HH:mm")
+      : String(rawHora).substring(0, 5);
+
+    if (rowFechaStr === fecha && rowHoraStr === hora
+        && rowImporte === importe && rowCat === categoria) {
+      const row = i + 1;
+      if (params.tipo        != null) sheet.getRange(row, 4).setValue(params.tipo);
+      if (params.formaPago   != null) sheet.getRange(row, 5).setValue(params.formaPago);
+      if (params.importe     != null) sheet.getRange(row, 8).setValue(Number(params.importe));
+      if (params.categoria   != null) sheet.getRange(row, 9).setValue(params.categoria);
+      if (params.observacion != null) sheet.getRange(row, 13).setValue(params.observacion);
+      return { ok: true, filaEditada: row };
     }
   }
   return { ok: false, error: "No encontrado" };

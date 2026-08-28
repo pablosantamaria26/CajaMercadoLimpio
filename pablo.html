@@ -1456,7 +1456,9 @@ async function confirmEditMov() {
   };
   closeSheet('edit-mov');
   toast('Guardando...');
-  const res = await api("editarMovimientoCaja", params);
+  const res = await fetch(`${API_URL}sb/edit-mov`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
+  }).then(r => r.json()).catch(() => null);
   if (res?.ok) {
     const idx = currentMovs.findIndex(m => Number(m.id) === Number(editMovId));
     if (idx !== -1) currentMovs[idx] = { ...currentMovs[idx], ...params, formaPago: params.formaPago, forma_pago: params.formaPago, vehiculo: veh || null };

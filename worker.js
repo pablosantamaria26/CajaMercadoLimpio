@@ -927,6 +927,69 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, id: mov.id }, 200, cors);
   }
 
+  // POST /sb/edit-mov  body: { id: 123, tipo, formaPago, importe, categoria, observacion, vehiculo }
+  // Supabase-primero (autoritativo) + espejo a GAS por campos (fecha/hora/
+  // importe/categoria ORIGINALES, antes del edit, para ubicar la fila).
+  // Reemplaza al viejo fn:"editarMovimientoCaja", que buscaba por el ID
+  // nativo de la hoja — desde que pablo.html lee de Supabase, ese id nunca
+  // coincidía y la edición fallaba siempre con "no encontrado".
+  if (seg === "edit-mov") {
+    if (request.method !== "POST") return json({ error: "Usar POST" }, 405, cors);
+    const svcKey = env.SUPABASE_SERVICE_KEY;
+    if (!svcKey) return json({ error: "Sin SUPABASE_SERVICE_KEY" }, 500, cors);
+    const body = await request.json().catch(() => ({}));
+    if (!body.id) return json({ error: "id requerido" }, 400, cors);
+
+    // 1. Leer el estado ORIGINAL (antes del edit) — es la clave para ubicar
+    //    la fila en GAS, igual que hace delete-mov.
+    const movR = await fetch(`${SB_URL}/movimientos_caja?id=eq.${body.id}&limit=1`, { headers: sbReadH(svcKey) });
+    const [movOriginal] = await movR.json().catch(() => [null]) || [null];
+    if (!movOriginal) return json({ error: "Movimiento no encontrado en Supabase" }, 404, cors);
+
+    // 2. Patch a Supabase — autoritativo, se aplica siempre.
+    const patch = {};
+    if (body.tipo        != null)      patch.tipo        = body.tipo;
+    if (body.formaPago    != null)      patch.forma_pago  = body.formaPago;
+    if (body.importe     != null)      patch.importe     = Number(body.importe);
+    if (body.categoria   != null)      patch.categoria   = body.categoria;
+    if (body.observacion != null)      patch.observacion = body.observacion;
+    if (body.vehiculo    !== undefined) patch.vehiculo   = body.vehiculo || null;
+    if (Object.keys(patch).length) {
+      const rPatch = await fetch(`${SB_URL}/movimientos_caja?id=eq.${body.id}`, {
+        method: "PATCH", headers: sbWriteH(svcKey), body: JSON.stringify(patch),
+      });
+      if (!rPatch.ok) return json({ error: `Supabase HTTP ${rPatch.status}` }, 502, cors);
+    }
+
+    // 3. Espejar a GAS por campos — best-effort, no bloquea la respuesta si falla
+    //    (la reconciliación de movimientos_caja no cubre ediciones, solo
+    //    faltantes/sobrantes — por eso este intento es directo y sincrónico).
+    let gasEditado = false, gasMatches = -1;
+    try {
+      const editR = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          fn: "editarMovimientoPorCampos",
+          params: {
+            fechaOriginal:     movOriginal.fecha,
+            horaOriginal:      (movOriginal.hora || "").substring(0, 5),
+            importeOriginal:   Number(movOriginal.importe),
+            categoriaOriginal: movOriginal.categoria,
+            tipo: body.tipo, formaPago: body.formaPago, importe: body.importe,
+            categoria: body.categoria, observacion: body.observacion,
+          },
+        }),
+      });
+      const editData = await editR.json().catch(() => null);
+      if (editData?.ok === true) { gasEditado = true; gasMatches = 1; }
+      else if (editData?.error === "No encontrado") gasMatches = 0;
+    } catch (e) {
+      console.error("[edit-mov] GAS edit failed:", e.message);
+    }
+
+    return json({ ok: true, id: body.id, gasEditado, gasMatches }, 200, cors);
+  }
+
   // POST /sb/delete-mov  body: { id: 123 }
   // Borra en Supabase Y en GAS Sheet via eliminarMovimientoPorCampos (1 llamada).
   if (seg === "delete-mov") {
@@ -944,6 +1007,34 @@ async function handleSb(request, env, url, cors) {
         { headers: sbReadH(svcKey) }
       );
       const [mov] = await movR.json().catch(() => [null]) || [null];
+
+      // Si lo que se borra es un Egreso que pagó con un cheque de cartera,
+      // el cheque tiene que volver a estar disponible — si no, queda "perdido"
+      // (ni el pago existe más, ni el cheque se puede volver a usar). Revierte
+      // la marca ENTREGADO tanto en Supabase como en la planilla.
+      if (mov?.tipo === "Egreso" && mov?.forma_pago === "Cheque" && mov?.nro_cheque) {
+        try {
+          const qCheque = `${SB_URL}/movimientos_caja?tipo=eq.Ingreso&forma_pago=eq.Cheque` +
+                          `&nro_cheque=eq.${encodeURIComponent(mov.nro_cheque)}` +
+                          `&importe=eq.${Number(mov.importe)}&deleted_at=is.null&estado=like.ENTREGADO*`;
+          const rCheque = await fetch(qCheque, { headers: sbReadH(svcKey) });
+          const chequeRows = await rCheque.json().catch(() => []);
+          if (Array.isArray(chequeRows) && chequeRows.length) {
+            await fetch(`${SB_URL}/movimientos_caja?id=eq.${chequeRows[0].id}`, {
+              method: "PATCH", headers: sbWriteH(svcKey), body: JSON.stringify({ estado: null }),
+            });
+          }
+          await fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({
+              fn: "desmarcarChequeEntregadoPorCampos",
+              params: { banco: mov.banco, nroCheque: mov.nro_cheque, importe: Number(mov.importe) },
+            }),
+          });
+        } catch (e) {
+          console.error("[delete-mov] no se pudo revertir el cheque a cartera:", e.message);
+        }
+      }
 
       if (mov?.fecha && mov?.importe != null && mov?.categoria) {
         const delR = await fetch(GAS_URL, {
