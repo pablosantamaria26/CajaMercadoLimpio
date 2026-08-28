@@ -216,6 +216,10 @@ function doPost(e) {
         result = enviarEmailAlertaSync(params);
         break;
 
+      case 'marcarChequeEntregadoPorCampos':
+        result = { ok: marcarChequeEntregadoPorCampos(params.banco, params.nroCheque, params.importe, new Date(params.fecha || Date.now())) };
+        break;
+
        default:
         result = { ok: false, error: 'Función no soportada: ' + fn };
     }
@@ -787,7 +791,12 @@ function registrarMovimientoCaja(tipo, forma, importe, cat, rep, turno, banco, c
   const id = sh.getLastRow() < 2 ? 1000 : Number(sh.getRange(sh.getLastRow(), 1).getValue()) + 1;
   const now = new Date();
   
-  if (tipo === 'Egreso' && forma === 'Cheque' && idChequeOrigen) {
+  if (tipo === 'Egreso' && forma === 'Cheque' && banco && ch) {
+    // Por campos (banco+número+importe) — confiable sin importar de qué
+    // sistema vino el id del cheque. idChequeOrigen queda solo como
+    // respaldo por si algún día vuelve a tener sentido usar un id directo.
+    marcarChequeEntregadoPorCampos(banco, ch, importe, now);
+  } else if (tipo === 'Egreso' && forma === 'Cheque' && idChequeOrigen) {
     marcarChequeEntregado(idChequeOrigen, now);
   }
 
@@ -936,6 +945,31 @@ function marcarChequeEntregado(idCheque, fechaEntrega) {
       break;
     }
   }
+}
+
+// Mismo efecto que marcarChequeEntregado, pero busca por banco+número+importe
+// en vez de por id de fila. Necesaria desde que el selector de cheques en
+// cartera pasó a leer de Supabase (laura.html): el "idChequeOrigen" que
+// manda el cliente ahora es un ID de Supabase, no el ID nativo de esta
+// hoja — con el id viejo nunca encontraba la fila y el cheque quedaba sin
+// marcar acá (aunque en Supabase sí se marcaba bien, por este mismo tipo
+// de matching). Se usa esto como método principal ahora.
+function marcarChequeEntregadoPorCampos(banco, nroCheque, importe, fechaEntrega) {
+  if (!nroCheque || importe == null) return false;
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.MOVIMIENTOS);
+  const data = sh.getDataRange().getValues();
+  const bancoNorm = String(banco || "").trim().toLowerCase();
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (String(row[3]) !== 'Ingreso' || String(row[4]) !== 'Cheque') continue;
+    if (String(row[6]).trim() !== String(nroCheque).trim()) continue;
+    if (Number(row[7]) !== Number(importe)) continue;
+    if (bancoNorm && String(row[5] || "").trim().toLowerCase() !== bancoNorm) continue;
+    if (String(row[13] || "").includes("ENTREGADO")) continue; // ya estaba marcado
+    sh.getRange(i + 1, 14).setValue("ENTREGADO: " + Utilities.formatDate(fechaEntrega, "America/Argentina/Buenos_Aires", "dd/MM"));
+    return true;
+  }
+  return false;
 }
 
 function getChequesCartera() {

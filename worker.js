@@ -605,11 +605,20 @@ async function handleSb(request, env, url, cors) {
     // Suma de lo efectivamente descontado por plan — NO cuenta de "cuotas" fijas,
     // porque Pablo puede descontar más o menos que la cuota sugerida cada semana
     // (típico con vendedores de comisión variable: si la semana vino bien, paga
-    // de más para saldar el adelanto antes).
+    // de más para saldar el adelanto antes). El DINERO manda siempre.
+    //
+    // "vecesPagado" es aparte: solo cuenta CUÁNTOS pagos parciales hubo, para
+    // poder mostrar una etiqueta legible tipo "Cuota 2/3" — es un cartel
+    // informativo, no la fuente de verdad. Si algún pago no coincide
+    // exactamente con la cuota sugerida (paga de más o de menos), el monto
+    // real que queda pendiente (restante) sigue siendo 100% exacto igual;
+    // solo el NÚMERO de cuota mostrado puede quedar aproximado en ese caso.
     const pagadoPorPlan = {};
+    const vecesPagadoPorPlan = {};
     for (const row of (Array.isArray(pagosRaw) ? pagosRaw : [])) {
       for (const m of (row.observacion || "").matchAll(/\[PLAN:(\S+) pagada monto=(\d+)\]/g)) {
         pagadoPorPlan[m[1]] = (pagadoPorPlan[m[1]] || 0) + Number(m[2]);
+        vecesPagadoPorPlan[m[1]] = (vecesPagadoPorPlan[m[1]] || 0) + 1;
       }
     }
 
@@ -627,7 +636,9 @@ async function handleSb(request, env, url, cors) {
       const restante = total - totalPagado;
       if (restante <= 0) continue; // plan saldado
       const montoSugerido = Math.max(0, Math.min(cuotaMonto, restante));
-      planes.push({ planId, fecha: row.fecha, total, cuotaMonto, totalCuotas, totalPagado, restante, montoSugerido });
+      const vecesPagado  = vecesPagadoPorPlan[planId] || 0;
+      const cuotaActual  = Math.min(totalCuotas, vecesPagado + 1); // la cuota que corresponde pagar ahora
+      planes.push({ planId, fecha: row.fecha, total, cuotaMonto, totalCuotas, totalPagado, restante, montoSugerido, vecesPagado, cuotaActual });
     }
     return json({ ok: true, planes }, 200, cors);
   }
