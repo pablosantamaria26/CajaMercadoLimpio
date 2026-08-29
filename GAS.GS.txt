@@ -462,12 +462,27 @@ function buscarArchivoInteligente(fecha, turno, repartidor) {
     let subFoldersEn = rootFolder.getFoldersByName(nombreCarpetaEn);
     if (subFoldersEn.hasNext()) carpetasABuscar.push(subFoldersEn.next());
 
-    // 2. Buscamos en todas las carpetas candidatas
+    // 2. Buscamos en todas las carpetas candidatas.
+    // OJO: antes esto iteraba TODOS los archivos de cada carpeta uno por uno
+    // (folder.getFiles()) — con la carpeta de recibos creciendo, eso termina
+    // pasando el límite de 6 minutos de GAS ("Exceeded maximum execution
+    // time"). Se reemplaza por una búsqueda indexada de Drive (searchFiles)
+    // que filtra del lado del servidor por fecha+turno en el nombre, así
+    // solo llegan a Apps Script los pocos archivos candidatos en vez de
+    // recorrer la carpeta entera. Si por algún motivo la búsqueda indexada
+    // fallara, cae de nuevo al recorrido completo (nunca se rompe el job).
     for (let folder of carpetasABuscar) {
-        const files = folder.getFiles();
+        let files;
+        try {
+          const query = `trashed = false and title contains '${fechaStr}' and title contains '${turno}'`;
+          files = folder.searchFiles(query);
+        } catch (eSearch) {
+          console.log(`⚠️ searchFiles falló (${eSearch.message}), usando recorrido completo como respaldo.`);
+          files = folder.getFiles();
+        }
         while (files.hasNext()) {
             const file = files.next();
-            
+
             // Filtros rápidos de basura
             if (file.isTrashed()) continue;
             if (file.getMimeType() === MimeType.PDF) continue;
