@@ -622,12 +622,15 @@ async function handleSb(request, env, url, cors) {
       }
     }
 
-    const empLower = empleado.toLowerCase();
+    // Sin tildes para comparación segura (un plan puede haber quedado tageado
+    // como "[Martin]" y consultarse después como "Martín", o viceversa).
+    const normNombre = s => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    const empLower = normNombre(empleado);
     const planes = [];
     for (const row of (Array.isArray(planesRaw) ? planesRaw : [])) {
       const obs = row.observacion || "";
       const nombreMatch = obs.match(/^\[([^\]]+)\]/);
-      if (!nombreMatch || nombreMatch[1].trim().toLowerCase() !== empLower) continue;
+      if (!nombreMatch || normNombre(nombreMatch[1].trim()) !== empLower) continue;
       const planMatch = obs.match(/\[PLAN:(\S+) total=(\d+) cuota=(\d+) cuotas=(\d+)\]/);
       if (!planMatch) continue;
       const [, planId, totalStr, cuotaStr, cuotasStr] = planMatch;
