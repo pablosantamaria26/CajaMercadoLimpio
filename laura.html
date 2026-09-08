@@ -284,6 +284,7 @@
         .obs-period { font-size:0.72rem; color:#aaa; font-weight:500; }
         .mov-totales { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:linear-gradient(135deg,#2d3436 0%,#1e272e 100%); border-radius:14px; margin-bottom:10px; font-weight:800; font-size:0.88rem; list-style:none; color:white; letter-spacing:0.3px; }
         .mov-optimistic { opacity:0.65; }
+        .mov-failed { background:#fff5f5; }
         @keyframes fadeInDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
         .mov-new { animation: fadeInDown 0.2s ease; }
         .mov-nav { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
@@ -931,7 +932,6 @@
         // 🔥 GLOBAL: CHEQUES CARTERA 🔥
         let chequesCarteraGlobal = [];
         let idChequeSeleccionado = null; 
-        let fuelWarningBypass = false; // Bandera para omitir la advertencia de combustible una vez
         
         // 🔥 GLOBAL: MODO CIEGO (ARQUEO) 🔥
         let modoCiegoActivo = false;
@@ -1256,6 +1256,10 @@
 
         // Movimientos optimistas pendientes de confirmación
         let _pendingMovs = [];
+        // Última lista confirmada que vino del servidor. Se cachea para poder
+        // re-renderizar por un cambio en los pendientes (uno nuevo, uno que falló)
+        // sin borrar de pantalla el resto de los movimientos del día.
+        let _lastMovs = [];
 
         // ── Polling silencioso: detecta cambios de Pablo sin que Laura lo note ──
         let _pollTimer = null;
@@ -1280,8 +1284,10 @@
         }
 
         async function _pollMovimientos() {
-            // No pollear si hay pendientes optimistas ni si la pestaña está oculta
-            if (_pendingMovs.length > 0) return;
+            // No pollear si hay algo viajando al servidor ni si la pestaña está oculta.
+            // Los que ya fallaron NO frenan el polling: se quedan visibles esperando
+            // que Laura reintente, y mientras tanto la lista tiene que seguir viva.
+            if (_pendingMovs.some(p => !p._failed)) return;
             if (document.visibilityState === 'hidden') return;
 
             const fechaStr = document.getElementById('fecha-historial')?.value;
@@ -1295,8 +1301,9 @@
 
             // Algo cambió (Pablo editó o eliminó) → actualizar silenciosamente
             _lastMovsHash = hash;
+            _lastMovs = sbRes.data;
             const lista = document.getElementById('lista-movimientos');
-            if (lista) _renderMovimientos(lista, sbRes.data);
+            if (lista) _renderMovimientos(lista, _lastMovs);
         }
 
         // Pausar polling cuando la app pasa a segundo plano, reanudar al volver
@@ -1408,7 +1415,8 @@
 
             lista.dataset.loaded = '1';
             _lastMovsHash = _movsHash(movs || []);
-            _renderMovimientos(lista, movs || []);
+            _lastMovs = movs || [];
+            _renderMovimientos(lista, _lastMovs);
         }
 
         function _fpIcon(fp) {
@@ -1471,6 +1479,7 @@
         }
 
         function _renderMovimientos(lista, movs) {
+            if (!Array.isArray(movs)) movs = _lastMovs;
             // Agregar pending que no estén ya en la lista confirmada
             const confirmIds = new Set(movs.map(m => m._tempId).filter(Boolean));
             const pendientes = _pendingMovs.filter(p => !confirmIds.has(p._tempId));
@@ -1497,9 +1506,22 @@
             todos.forEach(m => {
                 const esIngreso = m.tipo === 'Ingreso';
                 const obs = parseObsHTML(m.observacion, m.categoria);
-                const syncBadge = m._optimistic ? '<div style="font-size:0.65rem;color:#b2bec3;text-align:right;margin-top:2px;">sincronizando...</div>' : '';
+                let syncBadge = '';
+                if (m._failed) syncBadge = '<div style="font-size:0.65rem;color:#d63031;font-weight:800;text-align:right;margin-top:2px;">no se guardó</div>';
+                else if (m._optimistic) syncBadge = '<div style="font-size:0.65rem;color:#b2bec3;text-align:right;margin-top:2px;">sincronizando...</div>';
+
+                // El que falló no desaparece en silencio: queda a la vista, en rojo,
+                // con el botón para reintentarlo (reusa el opId, no puede duplicar).
+                const accionFallo = m._failed
+                    ? `<button onclick="reintentarMovimiento(${m._tempId})" style="margin-top:5px;padding:5px 11px;border:none;border-radius:8px;background:#d63031;color:white;font-weight:800;font-size:0.68rem;font-family:Quicksand;cursor:pointer;">Reintentar</button>`
+                    : '';
+
+                let clase = 'mov-item';
+                if (m._failed) clase += ' mov-failed';
+                else if (m._optimistic) clase += ' mov-optimistic mov-new';
+
                 lista.innerHTML += `
-                    <li class="mov-item${m._optimistic ? ' mov-optimistic mov-new' : ''}" style="border-left-color:${esIngreso ? 'var(--success)' : 'var(--accent)'};">
+                    <li class="${clase}" style="border-left-color:${m._failed ? '#d63031' : (esIngreso ? 'var(--success)' : 'var(--accent)')};">
                         <div class="mov-info">
                             <span class="mov-title">${m.categoria}</span>
                             <span class="mov-sub">${m.hora || '--:--'} · ${_fpIcon(m.formaPago)} ${m.formaPago}</span>
@@ -1508,6 +1530,7 @@
                         <div style="text-align:right;">
                             <div class="${esIngreso ? 'amount-in' : 'amount-out'}">${esIngreso ? '+' : '-'} $ ${parseInt(m.importe).toLocaleString('es-AR')}</div>
                             ${syncBadge}
+                            ${accionFallo}
                         </div>
                     </li>`;
             });
@@ -1568,7 +1591,7 @@
 
         // Arma el payload final (agrega cheque origen si corresponde) y abre el modal
         // de confirmación. Compartido por el registro normal y por el flujo de cuotas.
-        function prepararYMostrarConfirmacion(payload) {
+        async function prepararYMostrarConfirmacion(payload) {
             payload.usuario = USUARIO_APP;
             const pago = document.getElementById('mov-pago').value;
             if (payload.tipo === 'Egreso' && pago === 'Cheque' && idChequeSeleccionado) {
@@ -1579,6 +1602,27 @@
             // y no lo duplica. Se genera una sola vez acá; sobrevive aunque
             // finalizarRegistro() se dispare más de una vez para ESTE payload.
             payload.opId = (crypto.randomUUID ? crypto.randomUUID() : ('op' + Date.now() + Math.random()));
+
+            // La advertencia de combustible se chequea ACÁ, antes de confirmar, y no
+            // después: así el modal de confirmación es el único freno del flujo y,
+            // una vez que Laura confirma, no queda ninguna espera por delante.
+            if (payload.categoria === 'Combustible' && payload.vehiculo) {
+                const warning = await api("checkCombustibleWarning", { vehiculo: payload.vehiculo });
+                if (warning && warning.ok && warning.isWarning) {
+                    showModal(
+                        "⛽ Alerta de Carga",
+                        `¡Cuidado! Esta sería la **carga N° ${warning.currentLoads + 1}** del ${payload.vehiculo} en la semana. Normalmente solo se hacen 2. ¿Deseas registrar este egreso de todas formas?`,
+                        "local_gas_station",
+                        "var(--accent)",
+                        () => { tempMovimientoPayload = payload; showConfirmModal(payload); },
+                        () => { showToast("Carga cancelada. Revisá el vehículo.", false); },
+                        "Sí, Registrar",
+                        "No, Cancelar"
+                    );
+                    return;
+                }
+            }
+
             tempMovimientoPayload = payload;
             showConfirmModal(payload);
         }
@@ -1724,98 +1768,126 @@
             modal.style.display = 'none';
         }
 
-        async function finalizarRegistro() {
+        function finalizarRegistro() {
             if (!tempMovimientoPayload) return;
 
-            closeConfirmModal();
-            showToast("Guardando operación...", true);
-
+            // 🔒 Candado de re-entrada: se toma el payload y se libera el global en el
+            // MISMO tick, antes de cualquier await. Un segundo tap en "Confirmar"
+            // entra acá y se va por el return de arriba — es imposible que un tap
+            // doble dispare dos pedidos. (El opId es la segunda barrera: si igual
+            // llegaran dos, el worker reconoce el duplicado y guarda uno solo.)
             const payload = tempMovimientoPayload;
-            const btn = document.getElementById('btn-registrar');
-            btn.disabled = true;
+            tempMovimientoPayload = null;
 
-            // Validación diferida de combustible (antes del optimistic para no duplicar)
-            if (payload.categoria === 'Combustible' && payload.vehiculo && !fuelWarningBypass) {
-                const warning = await api("checkCombustibleWarning", { vehiculo: payload.vehiculo });
-                if (warning.ok && warning.isWarning) {
-                    btn.disabled = false;
-                    showModal(
-                        "⛽ Alerta de Carga",
-                        `¡Cuidado! Esta sería la **carga N° ${warning.currentLoads + 1}** del ${payload.vehiculo} en la semana. Normalmente solo se hacen 2. ¿Deseas registrar este egreso de todas formas?`,
-                        "local_gas_station",
-                        "var(--accent)",
-                        () => { fuelWarningBypass = true; finalizarRegistro(); },
-                        () => { showToast("Carga cancelada. Revisá el vehículo.", false); },
-                        "Sí, Registrar",
-                        "No, Cancelar"
-                    );
-                    return;
-                }
-            }
-            fuelWarningBypass = false;
+            closeConfirmModal();
 
-            // UI optimista: agregar movimiento a la lista al instante
+            // UI optimista: el movimiento aparece en la lista al instante
             const tempId = Date.now();
             const nowH = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
-            const movOptimista = { ...payload, hora: nowH, _optimistic: true, _tempId: tempId };
-            _pendingMovs.unshift(movOptimista);
+            _pendingMovs.unshift({ ...payload, hora: nowH, _optimistic: true, _tempId: tempId });
             const lista = document.getElementById('lista-movimientos');
             lista.dataset.loaded = '1';
-            _renderMovimientos(lista, []); // Muestra el pending inmediatamente
+            _renderMovimientos(lista, _lastMovs);
 
+            // El formulario se libera YA, sin esperar la respuesta: Laura puede
+            // encadenar cargas mientras esta viaja. Es seguro porque el pedido ya
+            // lleva su propio payload y su opId — lo que se escriba en pantalla a
+            // partir de acá no lo toca, y un reintento reusa ESE payload, no el form.
+            resetFormularioMovimiento(payload);
+            _ajustarSaldoOptimista(payload);
+
+            _enviarMovimiento(payload, tempId);
+        }
+
+        // Deja el formulario listo para la carga siguiente.
+        function resetFormularioMovimiento(payload) {
+            const inputImporte = document.getElementById('mov-importe');
+            const selectCat = document.getElementById('mov-categoria');
+            const selectEmp = document.getElementById('mov-empleado');
+            const selectChequeCartera = document.getElementById('mov-cheque-cartera');
+
+            inputImporte.value = "";
+            inputImporte.setAttribute('data-clean-value', '0');
+            document.getElementById('mov-obs').value = "";
+            document.getElementById('mov-banco').value = '';
+            document.getElementById('mov-cheque-nro').value = '';
+
+            if (payload.categoria !== "Pago de Haberes") {
+                selectCat.value = '';
+                document.getElementById('mov-tipo').value = 'Egreso';
+            } else {
+                if (selectEmp) selectEmp.value = '';
+            }
+
+            document.getElementById('mov-proveedor').value = '';
+            if (document.getElementById('mov-vehiculo')) document.getElementById('mov-vehiculo').value = '';
+            if (document.getElementById('mov-bidones'))  document.getElementById('mov-bidones').value  = '';
+            const dispText = document.getElementById('categoria-display-text');
+            if (dispText) { dispText.textContent = '-- Motivo --'; dispText.style.color = '#aaa'; }
+            resetEmpleadoPicker();
+
+            if (inputImporte.classList.contains('importe-cheque-lock')) {
+                inputImporte.classList.remove('importe-cheque-lock');
+                inputImporte.disabled = false;
+                idChequeSeleccionado = null;
+                if (selectChequeCartera) selectChequeCartera.value = '';
+            }
+
+            actualizarCategorias();
+            checkCamposExtra();
+        }
+
+        // Mueve el saldo del header en el acto para que no quede atrasado respecto
+        // de la lista. El número real llega igual cuando el registro se confirma.
+        function _ajustarSaldoOptimista(payload) {
+            if (payload.formaPago !== 'Efectivo') return;
+            const el = document.getElementById('big-balance');
+            if (!el || modoCiegoActivo) return;
+            const imp = Number(payload.importe) || 0;
+            saldoSistema += (payload.tipo === 'Ingreso' ? imp : -imp);
+            el.innerText = "$ " + saldoSistema.toLocaleString('es-AR');
+        }
+
+        // Envía (o reintenta) un movimiento en segundo plano. Siempre con el mismo
+        // payload.opId, así reintentar nunca puede generar un duplicado.
+        async function _enviarMovimiento(payload, tempId) {
+            const lista = document.getElementById('lista-movimientos');
             const res = await api("registrarMovimientoCaja", payload);
-            btn.disabled = false;
 
             if (res && res.ok) {
-                // Reseteo de campos
-                const inputImporte = document.getElementById('mov-importe');
-                const inputObs = document.getElementById('mov-obs');
-                const selectCat = document.getElementById('mov-categoria');
-                const selectEmp = document.getElementById('mov-empleado');
-                const selectChequeCartera = document.getElementById('mov-cheque-cartera');
-
-                inputImporte.value = "";
-                inputImporte.setAttribute('data-clean-value', '0');
-                inputObs.value = "";
-                document.getElementById('mov-banco').value = '';
-                document.getElementById('mov-cheque-nro').value = '';
-
-                if (payload.categoria !== "Pago de Haberes") {
-                    selectCat.value = '';
-                    document.getElementById('mov-tipo').value = 'Egreso';
-                } else {
-                    if (selectEmp) selectEmp.value = '';
-                }
-
-                document.getElementById('mov-proveedor').value = '';
-                if (document.getElementById('mov-vehiculo')) document.getElementById('mov-vehiculo').value = '';
-                if (document.getElementById('mov-bidones'))  document.getElementById('mov-bidones').value  = '';
-                const dispText = document.getElementById('categoria-display-text');
-                if (dispText) { dispText.textContent = '-- Motivo --'; dispText.style.color = '#aaa'; }
-                resetEmpleadoPicker();
-
-                if (inputImporte.classList.contains('importe-cheque-lock')) {
-                    inputImporte.classList.remove('importe-cheque-lock');
-                    inputImporte.disabled = false;
-                    idChequeSeleccionado = null;
-                    if (selectChequeCartera) selectChequeCartera.value = '';
-                }
-
-                actualizarCategorias();
-                checkCamposExtra();
-                actualizarSaldoHeader();
-
-                // El sync a Supabase ya terminó (síncrono en el worker) — refrescar lista
-                setTimeout(() => {
-                    _pendingMovs = _pendingMovs.filter(p => p._tempId !== tempId);
-                    cargarMovimientos();
-                }, 500);
-            } else {
-                // Error: quitar el optimista y mostrar error
                 _pendingMovs = _pendingMovs.filter(p => p._tempId !== tempId);
-                _renderMovimientos(lista, []);
-                showToast(res?.error || "Error al guardar", false);
+                cargarMovimientos();
+                actualizarSaldoHeader();
+                return;
             }
+
+            // Falló: el renglón NO desaparece — queda en rojo, marcado, esperando
+            // que se reintente. Nada se pierde en silencio.
+            const pend = _pendingMovs.find(p => p._tempId === tempId);
+            if (pend) { pend._failed = true; pend._optimistic = false; pend._payload = payload; }
+            _renderMovimientos(lista, _lastMovs);
+            _ajustarSaldoOptimista({ ...payload, tipo: payload.tipo === 'Ingreso' ? 'Egreso' : 'Ingreso' });
+
+            showModal(
+                "No se pudo guardar",
+                `<b>${payload.categoria}</b> por <b>$${Number(payload.importe).toLocaleString('es-AR')}</b> no llegó al servidor.<br><br>${res?.error || "Revisá la conexión."}<br><br>Quedó marcado en rojo en la lista. Podés reintentarlo ahora o más tarde desde ahí.`,
+                "cloud_off",
+                "#d63031",
+                () => reintentarMovimiento(tempId),
+                () => {},
+                "Reintentar",
+                "Ahora no"
+            );
+        }
+
+        function reintentarMovimiento(tempId) {
+            const pend = _pendingMovs.find(p => p._tempId === tempId);
+            if (!pend || !pend._payload) return;
+            pend._failed = false;
+            pend._optimistic = true;
+            _renderMovimientos(document.getElementById('lista-movimientos'), _lastMovs);
+            _ajustarSaldoOptimista(pend._payload);
+            _enviarMovimiento(pend._payload, tempId);
         }
 
         // --- PICKER DE CATEGORÍAS ---
