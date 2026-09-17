@@ -667,8 +667,9 @@ function getRendicionCacheadaParaApp(turnoApp, repartidorApp) {
     };
   }
 
-  // OPCIÓN 2: Cache vacía → buscar en Supabase directamente
-  const sbRendicion = buscarUltimaRendicionPendienteSupabase_();
+  // OPCIÓN 2: Cache vacía → buscar en Supabase directamente, SOLO del repartidor
+  // que la app está pidiendo (ver comentario en buscarUltimaRendicionPendienteSupabase_).
+  const sbRendicion = buscarUltimaRendicionPendienteSupabase_(repartidorApp);
   if (sbRendicion) {
     Logger.log('✅ Rendición rescatada desde Supabase (cache vacía).');
     return {
@@ -2307,10 +2308,18 @@ function buscarRendicionEnSupabase_(fecha, turno, repartidor) {
 }
 
 /**
- * Busca la rendición más antigua sin procesar de los últimos 2 días.
- * Orden: ayer-mañana → ayer-tarde → hoy-mañana → hoy-tarde
+ * Busca la rendición más antigua sin procesar de los últimos 2 días, PARA
+ * UN REPARTIDOR PUNTUAL. Orden: ayer-mañana → ayer-tarde → hoy-mañana → hoy-tarde.
+ *
+ * ⚠️ Antes esto no filtraba por repartidor: tomaba la fila pendiente más
+ * vieja de TODA la tabla. Una rendición de otro repartidor (ej. una prueba
+ * de Pablo usando su propio usuario) quedaba sin procesar y bloqueaba para
+ * siempre la cola del repartidor real (Nico) — la rendición de hoy nunca
+ * aparecía en la app de Laura porque el filtro "más vieja pendiente" traía
+ * esa otra fila primero. Filtrar por repartidor aísla las colas: una fila
+ * huérfana de un repartidor no puede trabar la de otro.
  */
-function buscarUltimaRendicionPendienteSupabase_() {
+function buscarUltimaRendicionPendienteSupabase_(repartidor) {
   try {
     var ayer = new Date();
     ayer.setDate(ayer.getDate() - 1);
@@ -2318,6 +2327,7 @@ function buscarUltimaRendicionPendienteSupabase_() {
 
     var params = 'procesado=eq.false'
                + '&fecha=gte.' + ayerStr
+               + (repartidor ? '&repartidor=ilike.' + encodeURIComponent(repartidor) : '')
                + '&order=fecha.asc,turno.asc'
                + '&limit=1';
 
@@ -2328,7 +2338,7 @@ function buscarUltimaRendicionPendienteSupabase_() {
         muteHttpExceptions: true }
     );
     var rows = JSON.parse(resp.getContentText());
-    Logger.log('🔍 Supabase pending check: ' + rows.length + ' rendición(es) pendiente(s).');
+    Logger.log('🔍 Supabase pending check (' + (repartidor || 'CUALQUIERA') + '): ' + rows.length + ' rendición(es) pendiente(s).');
     return (rows && rows.length > 0) ? rows[0] : null;
   } catch (e) {
     Logger.log('❌ buscarUltimaRendicionPendienteSupabase_: ' + e.message);
