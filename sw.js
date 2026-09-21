@@ -1,5 +1,5 @@
 // Service Worker — Caja Mercado Limpio
-const CACHE_NAME = 'caja-ml-v51';
+const CACHE_NAME = 'caja-ml-v52';
 
 const urlsToCache = [
   './',
@@ -26,6 +26,9 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Los guardados (POST) van directo a la red, sin pasar por el service worker:
+  // así un envío con keepalive puede terminar aunque se bloquee el celular.
+  if (event.request.method !== 'GET') return;
   event.respondWith(
     caches.match(event.request).then(r => r || fetch(event.request))
   );
