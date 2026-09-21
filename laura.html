@@ -529,9 +529,11 @@
                     </div>
                 </div>
 
+                <div id="party-dup-warning" style="display:none;margin:12px 0 4px;padding:10px 12px;border-radius:12px;background:#fff0f0;border:2px solid #d63031;color:#b71c1c;font-size:0.82rem;font-weight:800;line-height:1.35;text-align:left;"></div>
+
                 <div class="party-actions">
-                    <button class="btn-party btn-party-cancel" onclick="closeConfirmModal()">Cancelar</button>
-                    <button class="btn-party btn-party-confirm" onclick="finalizarRegistro()">CONFIRMAR</button>
+                    <button class="btn-party btn-party-cancel" onclick="cancelarConfirmacion()">Cancelar</button>
+                    <button class="btn-party btn-party-confirm" id="btn-party-confirm" onclick="finalizarRegistro()">CONFIRMAR</button>
                 </div>
             </div>
         </div>
@@ -1261,6 +1263,47 @@
         // sin borrar de pantalla el resto de los movimientos del día.
         let _lastMovs = [];
 
+        // ── Anti-duplicados ──────────────────────────────────────────────
+        // Candado de "preparación": mientras se verifica algo antes de mostrar
+        // el modal de confirmación, un segundo toque en REGISTRAR no hace nada.
+        let _registroEnCurso = false;
+        // opId del FORMULARIO (la intención de registrar), no del toque: se
+        // crea una vez y solo cambia cuando esa carga se despacha. Así, aunque
+        // el modal se abra dos veces, ambas confirmaciones llevan el mismo opId
+        // y el servidor descarta la segunda.
+        let _opIdFormulario = null;
+        function opIdFormulario() {
+            if (!_opIdFormulario) _opIdFormulario = (crypto.randomUUID ? crypto.randomUUID() : ('op' + Date.now() + Math.random()));
+            return _opIdFormulario;
+        }
+        // Movimientos despachados en esta sesión (para avisar de un posible duplicado).
+        let _recentDispatched = [];
+        function _sigMov(m) {
+            return [m.categoria, Number(m.importe), m.formaPago || m.forma_pago, String(m.observacion || '').trim()].join('|');
+        }
+        // ¿Hay un movimiento idéntico guardado/enviado en los últimos 2 minutos?
+        function _detectarDuplicadoReciente(p) {
+            const VENTANA_S = 120;
+            const buscada = _sigMov(p);
+            const ahora = Date.now();
+            _recentDispatched = _recentDispatched.filter(r => ahora - r.ts <= 300000);
+            const enMemoria = _recentDispatched.find(r => r.sig === buscada && ahora - r.ts <= VENTANA_S * 1000);
+            if (enMemoria) return { hace: Math.round((ahora - enMemoria.ts) / 1000) };
+            // Segunda fuente: la lista ya confirmada por el servidor (cubre recargas de la app).
+            const ar = new Date().toLocaleString('sv-SE', { timeZone: 'America/Argentina/Buenos_Aires' });
+            const hoyAR = ar.slice(0, 10);
+            const [hh, mm, ss] = ar.slice(11, 19).split(':').map(Number);
+            const nowSec = hh * 3600 + mm * 60 + ss;
+            for (const m of _lastMovs) {
+                if (m.fecha !== hoyAR) continue;
+                const [a, b, c] = String(m.hora || '').split(':').map(Number);
+                if (isNaN(a) || isNaN(b)) continue;
+                const diff = nowSec - (a * 3600 + b * 60 + (c || 0));
+                if (diff >= 0 && diff <= VENTANA_S && _sigMov(m) === buscada) return { hace: diff };
+            }
+            return null;
+        }
+
         // ── Polling silencioso: detecta cambios de Pablo sin que Laura lo note ──
         let _pollTimer = null;
         let _lastMovsHash = '';
@@ -1536,7 +1579,24 @@
             });
         }
 
+        // Punto de entrada del botón REGISTRAR. Un solo intento de preparación a
+        // la vez: si Laura toca dos veces mientras se verifica algo, el segundo
+        // toque se ignora (antes abría un segundo modal tarde y duplicaba).
         async function registrarMovimiento() {
+            if (_registroEnCurso) return;
+            _registroEnCurso = true;
+            const btn = document.getElementById('btn-registrar');
+            const textoOriginal = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ Verificando...'; }
+            try {
+                await _registrarMovimientoImpl();
+            } finally {
+                _registroEnCurso = false;
+                if (btn) { btn.disabled = false; btn.textContent = textoOriginal; }
+            }
+        }
+
+        async function _registrarMovimientoImpl() {
             const tipo = document.getElementById('mov-tipo').value;
             const cat = document.getElementById('mov-categoria').value;
             const veh = document.getElementById('mov-vehiculo').value;
@@ -1582,7 +1642,8 @@
             if (cat === "Bidón de Agua" && bidones) obs = `[${bidones} bidón${bidones > 1 ? 'es' : ''} de agua]${obs ? ' ' + obs : ''}`;
             if (cat.includes("Proveedor") && prov && !obs.includes('[Prov:')) obs = `[Prov: ${prov}]${obs ? ' ' + obs : ''}`;
 
-            prepararYMostrarConfirmacion({
+            // await: el candado de registrarMovimiento() debe durar hasta que el modal esté a la vista
+            await prepararYMostrarConfirmacion({
                 tipo, formaPago: pago, importe: imp, categoria: cat,
                 observacion: obs, proveedor: prov, vehiculo: veh, empleado: emp,
                 banco: banco, nroCheque: nroCheque
@@ -1591,6 +1652,22 @@
 
         // Arma el payload final (agrega cheque origen si corresponde) y abre el modal
         // de confirmación. Compartido por el registro normal y por el flujo de cuotas.
+        // Aviso de "carga N° X de la semana" desde Supabase (rápido). Si no
+        // responde en 3 s o falla, se sigue sin aviso: la caja no se traba por esto.
+        async function consultarAvisoCombustible(vehiculo) {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 3000);
+            try {
+                const r = await fetch(API_URL.replace(/\/$/, '') + '/sb/combustible-warning?vehiculo=' + encodeURIComponent(vehiculo), { signal: ctrl.signal });
+                const d = await r.json();
+                return d && d.ok ? d : null;
+            } catch (e) {
+                return null;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
         async function prepararYMostrarConfirmacion(payload) {
             payload.usuario = USUARIO_APP;
             const pago = document.getElementById('mov-pago').value;
@@ -1601,17 +1678,18 @@
             // (doble tap, red que se corta y se reintenta) el servidor lo reconoce
             // y no lo duplica. Se genera una sola vez acá; sobrevive aunque
             // finalizarRegistro() se dispare más de una vez para ESTE payload.
-            payload.opId = (crypto.randomUUID ? crypto.randomUUID() : ('op' + Date.now() + Math.random()));
+            // (opId del formulario, no del toque — ver opIdFormulario())
+            payload.opId = opIdFormulario();
 
             // La advertencia de combustible se chequea ACÁ, antes de confirmar, y no
             // después: así el modal de confirmación es el único freno del flujo y,
             // una vez que Laura confirma, no queda ninguna espera por delante.
             if (payload.categoria === 'Combustible' && payload.vehiculo) {
-                const warning = await api("checkCombustibleWarning", { vehiculo: payload.vehiculo });
-                if (warning && warning.ok && warning.isWarning) {
+                const warning = await consultarAvisoCombustible(payload.vehiculo);
+                if (warning && warning.isWarning) {
                     showModal(
                         "⛽ Alerta de Carga",
-                        `¡Cuidado! Esta sería la **carga N° ${warning.currentLoads + 1}** del ${payload.vehiculo} en la semana. Normalmente solo se hacen 2. ¿Deseas registrar este egreso de todas formas?`,
+                        `¡Cuidado! Esta sería la <b>carga N° ${warning.currentLoads + 1}</b> del ${payload.vehiculo} en la semana. Normalmente solo se hacen 2. ¿Deseas registrar este egreso de todas formas?`,
                         "local_gas_station",
                         "var(--accent)",
                         () => { tempMovimientoPayload = payload; showConfirmModal(payload); },
@@ -1760,12 +1838,33 @@
                 extraRow.style.display = 'none';
             }
 
+            // Aviso de posible duplicado (mismo movimiento guardado hace < 2 min)
+            const dupEl = document.getElementById('party-dup-warning');
+            const btnConf = document.getElementById('btn-party-confirm');
+            const dup = _detectarDuplicadoReciente(data);
+            if (dup) {
+                const cuando = dup.hace < 60 ? `${dup.hace} seg` : `${Math.round(dup.hace / 60)} min`;
+                dupEl.innerHTML = `⚠️ Ya registraste este mismo movimiento (<b>$ ${Number(data.importe).toLocaleString('es-AR')} · ${data.categoria}</b>) hace <b>${cuando}</b>.<br>Si fue un toque doble, tocá <b>Cancelar</b>.`;
+                dupEl.style.display = 'block';
+                btnConf.textContent = 'SÍ, ES OTRO';
+            } else {
+                dupEl.style.display = 'none';
+                btnConf.textContent = 'CONFIRMAR';
+            }
+
             modal.style.display = 'flex';
         }
 
         function closeConfirmModal() {
             const modal = document.getElementById('confirm-modal');
             modal.style.display = 'none';
+        }
+
+        // Cancelar desde el modal: además de cerrarlo, descarta el pedido armado
+        // para que no quede un payload viejo listo para confirmarse por error.
+        function cancelarConfirmacion() {
+            closeConfirmModal();
+            tempMovimientoPayload = null;
         }
 
         function finalizarRegistro() {
@@ -1778,6 +1877,7 @@
             // llegaran dos, el worker reconoce el duplicado y guarda uno solo.)
             const payload = tempMovimientoPayload;
             tempMovimientoPayload = null;
+            _opIdFormulario = null; // esta intención ya se despachó: la próxima carga tendrá opId propio
 
             closeConfirmModal();
 
@@ -1785,6 +1885,7 @@
             const tempId = Date.now();
             const nowH = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
             _pendingMovs.unshift({ ...payload, hora: nowH, _optimistic: true, _tempId: tempId });
+            _recentDispatched.push({ sig: _sigMov(payload), ts: Date.now(), tempId });
             const lista = document.getElementById('lista-movimientos');
             lista.dataset.loaded = '1';
             _renderMovimientos(lista, _lastMovs);
@@ -1865,6 +1966,7 @@
             // que se reintente. Nada se pierde en silencio.
             const pend = _pendingMovs.find(p => p._tempId === tempId);
             if (pend) { pend._failed = true; pend._optimistic = false; pend._payload = payload; }
+            _recentDispatched = _recentDispatched.filter(r => r.tempId !== tempId);
             _renderMovimientos(lista, _lastMovs);
             _ajustarSaldoOptimista({ ...payload, tipo: payload.tipo === 'Ingreso' ? 'Egreso' : 'Ingreso' });
 
@@ -1885,6 +1987,7 @@
             if (!pend || !pend._payload) return;
             pend._failed = false;
             pend._optimistic = true;
+            _recentDispatched.push({ sig: _sigMov(pend._payload), ts: Date.now(), tempId });
             _renderMovimientos(document.getElementById('lista-movimientos'), _lastMovs);
             _ajustarSaldoOptimista(pend._payload);
             _enviarMovimiento(pend._payload, tempId);

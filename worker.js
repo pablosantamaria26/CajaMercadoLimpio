@@ -581,6 +581,44 @@ async function handleSb(request, env, url, cors) {
     return json({ ok: true, data }, 200, cors);
   }
 
+  // ── Aviso de combustible (cargas del vehículo en la semana) ───
+  // GET /sb/combustible-warning?vehiculo=Nombre
+  // Misma regla que checkCombustibleWarning de GAS (semana desde el lunes,
+  // mismo vehículo, aviso desde la 3ra carga) pero leyendo Supabase: ~300 ms
+  // en vez de 2-5 s. Ese silencio antes del modal de confirmación llevó a
+  // tocar "Registrar" dos veces y duplicar la carga del Fiat (21/09).
+  if (seg === "combustible-warning") {
+    const vehiculo = (p.get("vehiculo") || "").trim();
+    if (!vehiculo) return json({ ok: false, message: "Vehículo no especificado." }, 400, cors);
+
+    const hoy = arNow().fecha;
+    const [y, m, d] = hoy.split("-").map(Number);
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=domingo
+    const lunes = new Date(Date.UTC(y, m - 1, d - (dow === 0 ? 6 : dow - 1))).toISOString().slice(0, 10);
+
+    const q = `${SB_URL}/movimientos_caja?deleted_at=is.null&tipo=eq.Egreso&categoria=ilike.${encodeURIComponent("*combustible*")}&fecha=gte.${lunes}&fecha=lte.${hoy}&select=categoria,observacion`;
+    const r = await fetch(q, { headers: rH });
+    const rows = await r.json();
+    if (!Array.isArray(rows)) return json({ ok: false, error: "Error Supabase", detail: rows }, 502, cors);
+
+    const veh = vehiculo.toLowerCase();
+    const loads = rows.filter(mv => {
+      const cat = String(mv.categoria || "").toLowerCase();
+      const match = String(mv.observacion || "").match(/\[Veh: (.*?)\]/i);
+      let v = "";
+      if (match) v = match[1].toLowerCase();
+      else if (cat.includes("saveiro")) v = "saveiro";
+      else if (cat.includes("toyota") || cat.includes("hiace")) v = "toyota hiace";
+      else if (cat.includes("fiat") || cat.includes("uno")) v = "fiat uno cargo";
+      return v === veh;
+    }).length;
+
+    return json({
+      ok: true, currentLoads: loads, isWarning: loads >= 2,
+      message: loads >= 2 ? `¡ALERTA! Esta sería la carga número ${loads + 1} del ${vehiculo} esta semana (límite normal 2).` : null,
+    }, 200, cors);
+  }
+
   // ── Adelantos en cuotas activos de un empleado ────────────────
   // GET /sb/adelantos-cuotas?empleado=Nombre
   // Un adelanto grande se puede registrar en cuotas semanales (ver laura.html:
