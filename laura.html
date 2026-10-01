@@ -1091,12 +1091,28 @@
         }
 
         // 🔥 FUNCIONES DE RECORDATORIO DE ARQUEO 🔥
+        // Usa SIEMPRE la hora de Buenos Aires, calculada con Intl — no la hora/zona
+        // horaria que tenga configurada el dispositivo. Antes usaba new Date().getHours()
+        // directo: si la PC tenía mal la zona horaria (o el reloj corrido unas horas),
+        // la notificación de "son las 15:30" salía en cualquier otro momento del día.
+        function horaBuenosAires() {
+            const partes = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/Argentina/Buenos_Aires',
+                weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hour12: false,
+            }).formatToParts(new Date());
+            const get = t => partes.find(p => p.type === t)?.value;
+            const diasSemana = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+            let hour = Number(get('hour'));
+            if (hour === 24) hour = 0; // Intl puede devolver "24" para medianoche con hour12:false
+            return {
+                day: diasSemana[get('weekday')], hours: hour, minutes: Number(get('minute')),
+                fecha: `${get('year')}-${get('month')}-${get('day')}`, // fecha AR, para el "ya se mostró hoy"
+            };
+        }
+
         function checkArqueoReminder() {
-            const now = new Date();
-            const day = now.getDay(); // 0 (Dom) - 6 (Sab)
-            const hours = now.getHours();
-            const minutes = now.getMinutes();
-            const todayStr = now.toDateString(); 
+            const { day, hours, minutes, fecha: todayStr } = horaBuenosAires();
             const lastReminder = localStorage.getItem('lastArqueoReminder');
 
             // 1. Días de Lunes (1) a Viernes (5)
