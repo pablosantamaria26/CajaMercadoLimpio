@@ -1,5 +1,5 @@
 // Service Worker — Caja Mercado Limpio
-const CACHE_NAME = 'caja-ml-v53';
+const CACHE_NAME = 'caja-ml-v54';
 
 const urlsToCache = [
   './',
@@ -19,7 +19,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(names =>
-      Promise.all(names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n)))
+      Promise.all(names.filter(n => n.startsWith("caja-ml-") && n !== CACHE_NAME).map(n => caches.delete(n)))
     )
   );
   self.clients.claim();
