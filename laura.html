@@ -3031,6 +3031,8 @@
                 if (!esSoloDigital) calcBilletes('rend');
             } else {
                 content.style.display = 'none'; zen.style.display = 'block';
+                /* 15/11/2026: si la consulta falló, «nada pendiente» sería mentira: se avisa. */
+                if (res && res.consultaFallida) showToast('⚠️ No se pudo consultar las rendiciones pendientes. Eso NO quiere decir que no haya: volvé a intentar.', false);
             }
         }
 

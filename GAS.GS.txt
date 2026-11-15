@@ -362,7 +362,7 @@ function JOB_OrquestadorRendiciones() {
   if (!histSh) { histSh = ss.insertSheet(SHEET_NAMES.HISTORIAL_IMPORTS); histSh.appendRow(['Fecha','FileID','Nombre']); }
 
   // 🛑 FRENO DE MANO: Si Laura ya tiene algo en pantalla, no la molestamos.
-  if (cacheSh.getLastRow() > 1) {
+  if (cacheSh.getLastRow() > 1 && !cacheYaProcesada_()) {
     console.log("⏳ JOB: Hay una rendición pendiente en pantalla. Esperando al usuario.");
     return;
   }
@@ -639,6 +639,9 @@ function cargarEnCache(sheetCache, sheetHist, datos) {
 function getRendicionCacheadaParaApp(turnoApp, repartidorApp) {
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName(SHEET_NAMES.CACHE);
+  // rendición pendiente: no se pierde (15/11/2026)
+  // Si lo que quedó en la caché ya figura procesado en Supabase, se descarta: no puede ocultar a las pendientes.
+  cacheYaProcesada_();
 
   // OPCIÓN 1: Hay datos en cache (flujo normal del JOB)
   if (sh && sh.getLastRow() >= 2) {
@@ -670,6 +673,9 @@ function getRendicionCacheadaParaApp(turnoApp, repartidorApp) {
   // OPCIÓN 2: Cache vacía → buscar en Supabase directamente, SOLO del repartidor
   // que la app está pidiendo (ver comentario en buscarUltimaRendicionPendienteSupabase_).
   const sbRendicion = buscarUltimaRendicionPendienteSupabase_(repartidorApp);
+  if (sbRendicion && sbRendicion.error) {
+    return { ok: true, hayPendiente: false, consultaFallida: true, mensaje: "No se pudo consultar las rendiciones pendientes." };
+  }
   if (sbRendicion) {
     Logger.log('✅ Rendición rescatada desde Supabase (cache vacía).');
     return {
@@ -691,6 +697,27 @@ function getRendicionCacheadaParaApp(turnoApp, repartidorApp) {
   return { ok: true, hayPendiente: false, mensaje: "Nada pendiente." };
 }
 
+
+/**
+ * ¿La fila de la caché ya fue procesada? (Supabase la marca procesado = true). Si sí, se borra la caché y devuelve true.
+ * Si Supabase no responde NO se decide nada: la caché se conserva (borrar ante la duda sería perder una rendición).
+ */
+function cacheYaProcesada_() {
+  try {
+    const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.CACHE);
+    if (!sh || sh.getLastRow() < 2) return false;
+    const d = sh.getRange(2, 1, 1, 8).getValues()[0];
+    let f = d[2];
+    if (f instanceof Date) f = Utilities.formatDate(f, "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
+    const sb = buscarRendicionEnSupabase_(String(f), String(d[3]), String(d[4]));
+    if (sb && !sb.error && sb.procesado === true) {
+      Logger.log('🧹 La caché tenía una rendición ya procesada (' + f + ' ' + d[3] + '): se descarta.');
+      borrarCache();
+      return true;
+    }
+  } catch (e) { Logger.log('⚠️ cacheYaProcesada_: ' + e.message); }
+  return false;
+}
 
 function borrarCache() {
   const ss = SpreadsheetApp.getActive();
@@ -2321,8 +2348,10 @@ function buscarRendicionEnSupabase_(fecha, turno, repartidor) {
  */
 function buscarUltimaRendicionPendienteSupabase_(repartidor) {
   try {
+    // Antes: solo desde ayer. Una rendición sin procesar de hace 2 días dejaba de aparecer sola (13/11/2026): ahora sigue
+    // pendiente hasta 30 días, siempre la más vieja primero.
     var ayer = new Date();
-    ayer.setDate(ayer.getDate() - 1);
+    ayer.setDate(ayer.getDate() - 30);
     var ayerStr = Utilities.formatDate(ayer, "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
 
     var params = 'procesado=eq.false'
@@ -2338,11 +2367,15 @@ function buscarUltimaRendicionPendienteSupabase_(repartidor) {
         muteHttpExceptions: true }
     );
     var rows = JSON.parse(resp.getContentText());
+    if (resp.getResponseCode() !== 200 || !Array.isArray(rows)) {
+      Logger.log('❌ buscarUltimaRendicionPendienteSupabase_: respuesta ' + resp.getResponseCode());
+      return { error: true };   // no se pudo saber: NO es lo mismo que «no hay pendientes»
+    }
     Logger.log('🔍 Supabase pending check (' + (repartidor || 'CUALQUIERA') + '): ' + rows.length + ' rendición(es) pendiente(s).');
-    return (rows && rows.length > 0) ? rows[0] : null;
+    return rows.length > 0 ? rows[0] : null;
   } catch (e) {
     Logger.log('❌ buscarUltimaRendicionPendienteSupabase_: ' + e.message);
-    return null;
+    return { error: true };
   }
 }
 
