@@ -355,80 +355,32 @@ function updateConfigEmpleado(nombre, sueldoBase, lastUpdate) {
  * * NOTA: "Hoy Tarde" NO se busca. Se procesará mañana como "Ayer Tarde".
  ****************************************************/
 function JOB_OrquestadorRendiciones() {
+  // Caja v2: una sola fuente (15/11/2026)
+  // Ya no se importan planillas de Drive a una caché: la fuente de lo pendiente es Supabase (rendiciones_reparto).
+  // Este trabajo solo (1) vacía la caché heredada y (2) avisa cuando hay pendientes nuevas o cuando no se pudo consultar.
   const ss = SpreadsheetApp.getActive();
   const cacheSh = ss.getSheetByName(SHEET_NAMES.CACHE);
-  
-  let histSh = ss.getSheetByName(SHEET_NAMES.HISTORIAL_IMPORTS);
-  if (!histSh) { histSh = ss.insertSheet(SHEET_NAMES.HISTORIAL_IMPORTS); histSh.appendRow(['Fecha','FileID','Nombre']); }
+  if (cacheSh && cacheSh.getLastRow() > 1) { borrarCache(); console.log("🧹 JOB: caché heredada vaciada."); }
 
-  // 🛑 FRENO DE MANO: Si Laura ya tiene algo en pantalla, no la molestamos.
-  if (cacheSh.getLastRow() > 1) {
-    console.log("⏳ JOB: Hay una rendición pendiente en pantalla. Esperando al usuario.");
+  const lista = listarRendicionesPendientesSupabase_(REPARTIDOR_PRINCIPAL);
+  const props = PropertiesService.getScriptProperties();
+  if (lista.error) {
+    if (props.getProperty('REND_AVISO_ERROR') !== '1') {
+      registrarNotificacion('ERROR', 'ALTA', 'No se pudo consultar las rendiciones', 'No se pudo consultar las rendiciones pendientes (' + lista.motivo + '). Eso NO significa que no haya.', {});
+      props.setProperty('REND_AVISO_ERROR', '1');
+    }
+    console.log("❌ JOB: no se pudo consultar rendiciones: " + lista.motivo);
     return;
   }
-  
-  const hoy = new Date();
-  const ayer = new Date(hoy.getTime() - 24 * 60 * 60 * 1000);
-  
-  console.log("🕵️ JOB: Iniciando escaneo (V4.2 - Sin adelantarse al futuro)...");
-
-  // =================================================================
-  // 1️⃣ EL RECUPERO: AYER - TURNO MAÑANA
-  // =================================================================
-  // Si ayer fue un caos y Nico no subió la mañana, la sube hoy.
-  // Esto debe aparecer ANTES que la tarde de ayer para respetar el orden de la caja.
-  const ayerManana = buscarArchivoInteligente(ayer, "Mañana", REPARTIDOR_PRINCIPAL);
-  if (ayerManana && !yaFueImportado(ayerManana.id, histSh)) {
-    console.log(`🚨 RECUPERADO: Turno Mañana de AYER (${ayerManana.fecha})`);
-    
-    cargarEnCache(cacheSh, histSh, ayerManana);
-    
-    registrarNotificacion(
-      'INFO', 'ALTA', 
-      'Rendición Recuperada', 
-      `Apareció el turno Mañana de AYER que estaba pendiente.`, 
-      ayerManana
-    );
-    return; // Cortamos y entregamos esto.
+  props.deleteProperty('REND_AVISO_ERROR');
+  const firma = lista.filas.map(function (r) { return r.id; }).join(',');
+  if (lista.filas.length && props.getProperty('REND_AVISO_FIRMA') !== firma) {
+    const r0 = lista.filas[0];
+    registrarNotificacion('INFO', 'MEDIA', 'Rendiciones pendientes',
+      lista.filas.length + ' rendición(es) para procesar. La más vieja: ' + r0.turno + ' del ' + r0.fecha + '.', { rendicionId: r0.id });
   }
-
-  // =================================================================
-  // 2️⃣ EL CIERRE: AYER - TURNO TARDE
-  // =================================================================
-  // Esto es lo primero que Laura debería ver en un día normal al llegar.
-  const ayerTarde = buscarArchivoInteligente(ayer, "Tarde", REPARTIDOR_PRINCIPAL);
-  if (ayerTarde && !yaFueImportado(ayerTarde.id, histSh)) {
-    console.log(`✅ ENCONTRADO: Turno Tarde de AYER (${ayerTarde.fecha})`);
-    cargarEnCache(cacheSh, histSh, ayerTarde);
-    // Notificación normal
-    registrarNotificacion('INFO', 'MEDIA', 'Rendición Pendiente', `Listo el cierre de ayer tarde.`, ayerTarde);
-    return;
-  }
-
-  // =================================================================
-  // 3️⃣ EL DÍA EN CURSO: HOY - TURNO MAÑANA
-  // =================================================================
-  // Esto llega después del mediodía (13:00 - 15:00 hs).
-  const hoyManana = buscarArchivoInteligente(hoy, "Mañana", REPARTIDOR_PRINCIPAL);
-  if (hoyManana && !yaFueImportado(hoyManana.id, histSh)) {
-    console.log(`✅ ENCONTRADO: Turno Mañana de HOY (${hoyManana.fecha})`);
-    cargarEnCache(cacheSh, histSh, hoyManana);
-    registrarNotificacion('INFO', 'BAJA', 'Nueva Rendición', `Llegó el turno mañana de hoy.`, hoyManana);
-    return;
-  }
-  
-  // =================================================================
-  // 4️⃣ EL CIERRE DE HOY: HOY - TURNO TARDE
-  // =================================================================
-  const hoyTarde = buscarArchivoInteligente(hoy, "Tarde", REPARTIDOR_PRINCIPAL);
-  if (hoyTarde && !yaFueImportado(hoyTarde.id, histSh)) {
-    console.log(`✅ ENCONTRADO: Turno Tarde de HOY (${hoyTarde.fecha})`);
-    cargarEnCache(cacheSh, histSh, hoyTarde);
-    registrarNotificacion('INFO', 'MEDIA', 'Cierre de Hoy', `Listo el cierre de hoy a la tarde.`, hoyTarde);
-    return;
-  }
-
-  console.log("💤 JOB: Nada pendiente por ahora.");
+  props.setProperty('REND_AVISO_FIRMA', firma);
+  console.log("💤 JOB: " + lista.filas.length + " rendición(es) pendiente(s).");
 }
 
 
@@ -637,60 +589,33 @@ function cargarEnCache(sheetCache, sheetHist, datos) {
  * 💾 GESTIÓN DE CACHÉ
  ****************************************************/
 function getRendicionCacheadaParaApp(turnoApp, repartidorApp) {
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName(SHEET_NAMES.CACHE);
-
-  // OPCIÓN 1: Hay datos en cache (flujo normal del JOB)
-  if (sh && sh.getLastRow() >= 2) {
-    const data = sh.getRange(2, 1, 1, 8).getValues()[0];
-    let fechaStr = data[2];
-    if (data[2] instanceof Date) {
-      fechaStr = Utilities.formatDate(data[2], "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
-    }
-
-    // Intentar enriquecer con datos de Supabase (transferencia, cheque, detalle por cliente)
-    const sb = buscarRendicionEnSupabase_(fechaStr, String(data[3]), String(data[4]));
-
-    return {
-      ok: true,
-      hayPendiente: true,
-      fecha: fechaStr,
-      turno: data[3],
-      repartidor: data[4],
-      efectivoEsperado:  sb ? sb.efectivo      : Number(data[5]),
-      transferencia:     sb ? sb.transferencia  : 0,
-      cheque:            sb ? sb.cheque         : 0,
-      total:             sb ? sb.total          : Number(data[5]),
-      detalleClientes:   sb ? (sb.detalle_clientes || []) : [],
-      fileId: data[1],
-      fuenteSupabase: !!sb
-    };
+  // Una sola fuente: Supabase. Ninguna pendiente se oculta ni tiene límite de antigüedad.
+  const lista = listarRendicionesPendientesSupabase_(repartidorApp);
+  if (lista.error) {
+    return { ok: false, hayPendiente: false, consultaFallida: true,
+      error: "No se pudo consultar las rendiciones pendientes (" + lista.motivo + "). Esto NO significa que no haya: reintentá." };
   }
-
-  // OPCIÓN 2: Cache vacía → buscar en Supabase directamente, SOLO del repartidor
-  // que la app está pidiendo (ver comentario en buscarUltimaRendicionPendienteSupabase_).
-  const sbRendicion = buscarUltimaRendicionPendienteSupabase_(repartidorApp);
-  if (sbRendicion) {
-    Logger.log('✅ Rendición rescatada desde Supabase (cache vacía).');
-    return {
-      ok: true,
-      hayPendiente: true,
-      fecha:             sbRendicion.fecha,
-      turno:             sbRendicion.turno,
-      repartidor:        sbRendicion.repartidor,
-      efectivoEsperado:  sbRendicion.efectivo,
-      transferencia:     sbRendicion.transferencia,
-      cheque:            sbRendicion.cheque,
-      total:             sbRendicion.total,
-      detalleClientes:   sbRendicion.detalle_clientes || [],
-      fileId:            null,
-      fuenteSupabase:    true
-    };
-  }
-
-  return { ok: true, hayPendiente: false, mensaje: "Nada pendiente." };
+  if (lista.filas.length === 0) return { ok: true, hayPendiente: false, mensaje: "Nada pendiente." };
+  const r = lista.filas[0];
+  return {
+    ok: true,
+    hayPendiente: true,
+    rendicionId:       r.id,
+    fecha:             r.fecha,
+    turno:             r.turno,
+    repartidor:        r.repartidor,
+    efectivoEsperado:  r.efectivo,
+    transferencia:     r.transferencia,
+    cheque:            r.cheque,
+    total:             r.total,
+    detalleClientes:   r.detalle_clientes || [],
+    enviadoAt:         r.enviado_at || null,
+    fileId:            null,
+    fuenteSupabase:    true,
+    pendientes:        lista.filas.length,
+    pendientesLista:   lista.filas.map(function (x) { return { id: x.id, fecha: x.fecha, turno: x.turno, repartidor: x.repartidor, total: x.total }; })
+  };
 }
-
 
 function borrarCache() {
   const ss = SpreadsheetApp.getActive();
@@ -704,15 +629,16 @@ function borrarCache() {
  * 📝 PROCESAMIENTO
  ****************************************************/
 function procesarRendicionDesdeRecibo(p) {
-  if (yaFueRendidaEnHoja(p.fechaStr, p.turno, p.repartidor)) {
-    borrarCache();
-    marcarRendicionProcesadaEnSupabase_(p.fechaStr, p.turno, p.repartidor);
-    return { ok: true, mensaje: "Planilla ya estaba registrada. Limpiando..." };
+  // Idempotente: si ya estaba registrada en la hoja solo se completa la marca; nunca se vuelve a sumar.
+  let registro = { ok: true, mensaje: "Planilla ya estaba registrada. Limpiando..." };
+  if (!yaFueRendidaEnHoja(p.fechaStr, p.turno, p.repartidor)) registro = registrarRendicionEnHoja(p);
+  // Marcar procesada VERIFICA que se actualizó una fila. Si no, la rendición sigue pendiente y se avisa.
+  const marca = marcarRendicionProcesadaEnSupabase_(p.fechaStr, p.turno, p.repartidor, p.rendicionId);
+  if (!marca.ok) {
+    return { ok: false, registrada: true,
+      error: "Quedó registrada en Caja pero NO se pudo marcar como recibida (" + marca.motivo + "). Volvé a confirmar: no se duplica." };
   }
-
-  const registro = registrarRendicionEnHoja(p);
   borrarCache();
-  marcarRendicionProcesadaEnSupabase_(p.fechaStr, p.turno, p.repartidor);
   return registro;
 }
 
@@ -2308,64 +2234,57 @@ function buscarRendicionEnSupabase_(fecha, turno, repartidor) {
 }
 
 /**
- * Busca la rendición más antigua sin procesar de los últimos 2 días, PARA
- * UN REPARTIDOR PUNTUAL. Orden: ayer-mañana → ayer-tarde → hoy-mañana → hoy-tarde.
- *
- * ⚠️ Antes esto no filtraba por repartidor: tomaba la fila pendiente más
- * vieja de TODA la tabla. Una rendición de otro repartidor (ej. una prueba
- * de Pablo usando su propio usuario) quedaba sin procesar y bloqueaba para
- * siempre la cola del repartidor real (Nico) — la rendición de hoy nunca
- * aparecía en la app de Laura porque el filtro "más vieja pendiente" traía
- * esa otra fila primero. Filtrar por repartidor aísla las colas: una fila
- * huérfana de un repartidor no puede trabar la de otro.
+ * Lista TODAS las rendiciones sin procesar, la más vieja primero, SIN límite de antigüedad.
+ * Devuelve { filas: [...] } o { error: true, motivo } — una falla de consulta nunca se confunde con «no hay».
  */
-function buscarUltimaRendicionPendienteSupabase_(repartidor) {
+function listarRendicionesPendientesSupabase_(repartidor) {
   try {
-    var ayer = new Date();
-    ayer.setDate(ayer.getDate() - 1);
-    var ayerStr = Utilities.formatDate(ayer, "America/Argentina/Buenos_Aires", "yyyy-MM-dd");
-
     var params = 'procesado=eq.false'
-               + '&fecha=gte.' + ayerStr
                + (repartidor ? '&repartidor=ilike.' + encodeURIComponent(repartidor) : '')
-               + '&order=fecha.asc,turno.asc'
-               + '&limit=1';
-
+               + '&order=fecha.asc,turno.asc,id.asc&limit=200';
     var resp = UrlFetchApp.fetch(
       SB_REND_URL + '/rest/v1/rendiciones_reparto?' + params,
-      { method: 'GET',
-        headers: { 'apikey': SB_REND_KEY, 'Authorization': 'Bearer ' + SB_REND_KEY },
-        muteHttpExceptions: true }
+      { method: 'GET', headers: { 'apikey': SB_REND_KEY, 'Authorization': 'Bearer ' + SB_REND_KEY }, muteHttpExceptions: true }
     );
+    var code = resp.getResponseCode();
     var rows = JSON.parse(resp.getContentText());
-    Logger.log('🔍 Supabase pending check (' + (repartidor || 'CUALQUIERA') + '): ' + rows.length + ' rendición(es) pendiente(s).');
-    return (rows && rows.length > 0) ? rows[0] : null;
+    if (code !== 200 || !Array.isArray(rows)) return { error: true, motivo: 'HTTP ' + code };
+    return { filas: rows };
   } catch (e) {
-    Logger.log('❌ buscarUltimaRendicionPendienteSupabase_: ' + e.message);
-    return null;
+    Logger.log('❌ listarRendicionesPendientesSupabase_: ' + e.message);
+    return { error: true, motivo: e.message };
   }
 }
 
 /**
- * Marca la rendición como procesada en Supabase (PATCH).
+ * Marca la rendición como procesada en Supabase (PATCH) y VERIFICA que se actualizó una fila.
+ * Por id si se conoce; si no, por fecha + turno + repartidor. Devuelve { ok, motivo }.
  */
-function marcarRendicionProcesadaEnSupabase_(fecha, turno, repartidor) {
+function marcarRendicionProcesadaEnSupabase_(fecha, turno, repartidor, id) {
   try {
-    var params = 'fecha=eq.'      + fecha
-               + '&turno=eq.'      + encodeURIComponent(turno)
-               + '&repartidor=eq.' + encodeURIComponent(repartidor);
-
-    UrlFetchApp.fetch(
+    var params = id ? 'id=eq.' + encodeURIComponent(id)
+      : 'fecha=eq.' + String(fecha).split('T')[0]
+        + '&turno=eq.'      + encodeURIComponent(turno)
+        + '&repartidor=eq.' + encodeURIComponent(repartidor);
+    var resp = UrlFetchApp.fetch(
       SB_REND_URL + '/rest/v1/rendiciones_reparto?' + params,
       { method:      'PATCH',
         contentType: 'application/json',
-        headers: { 'apikey': SB_REND_KEY, 'Authorization': 'Bearer ' + SB_REND_KEY },
+        headers: { 'apikey': SB_REND_KEY, 'Authorization': 'Bearer ' + SB_REND_KEY, 'Prefer': 'return=representation' },
         payload: JSON.stringify({ procesado: true }),
         muteHttpExceptions: true }
     );
-    Logger.log('✅ Rendición marcada procesada en Supabase: ' + fecha + ' ' + turno);
+    var code = resp.getResponseCode();
+    var rows = []; try { rows = JSON.parse(resp.getContentText()); } catch (x) {}
+    if (code >= 200 && code < 300 && Array.isArray(rows) && rows.length > 0) {
+      Logger.log('✅ Rendición marcada procesada en Supabase: ' + (id || (fecha + ' ' + turno)));
+      return { ok: true, filas: rows.length };
+    }
+    Logger.log('❌ marcarRendicionProcesadaEnSupabase_: HTTP ' + code + ', filas ' + (rows && rows.length));
+    return { ok: false, motivo: code >= 300 ? 'HTTP ' + code : 'no se encontró esa rendición en Supabase' };
   } catch (e) {
     Logger.log('❌ marcarRendicionProcesadaEnSupabase_: ' + e.message);
+    return { ok: false, motivo: e.message };
   }
 }
 

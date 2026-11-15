@@ -2979,15 +2979,9 @@
             load.style.display = 'none';
 
             if (res && res.ok && res.hayPendiente) {
-                // 🛡️ GUARD anti-duplicado: el GAS devuelve la misma fila aunque ya fue procesada
-                // porque no actualiza el estado en Supabase. Usamos localStorage como memoria local.
-                const guardKey = `rend_ok_${res.fecha}_${res.turno}_${res.repartidor || RENDICION_REPARTIDOR}`;
-                const procesadaTs = localStorage.getItem(guardKey);
-                if (procesadaTs && (Date.now() - parseInt(procesadaTs)) < 20 * 60 * 60 * 1000) {
-                    content.style.display = 'none'; zen.style.display = 'block';
-                    return;
-                }
-
+                // 15/11/2026: ya no hay memoria local que oculte una pendiente. Lo pendiente es lo que dice Supabase
+                // (procesado = false); se deja de mostrar solo cuando Caja la marcó recibida y se verificó.
+                const errBox = document.getElementById('rendicion-error'); if (errBox) errBox.style.display = 'none';
                 rendicionPendiente = res;
                 // 🔧 Normalizar: Supabase usa snake_case, el GAS puede devolver cualquiera
                 rendicionPendiente.efectivoEsperado = (Math.round((Number(res.efectivoEsperado ?? res.efectivo ?? 0) || 0) * 100) / 100);
@@ -3001,7 +2995,7 @@
 
                 dataCard.style.display = 'block';
                 document.getElementById('card-billetes-rendicion').style.display = esSoloDigital ? 'none' : 'block';
-                document.getElementById('rendicion-narrativa').innerHTML = `Planilla de <b>${res.repartidor}</b><br>Turno: <b>${res.turno}</b><br>Fecha: <b>${res.fecha}</b>`;
+                document.getElementById('rendicion-narrativa').innerHTML = `Planilla de <b>${res.repartidor}</b><br>Turno: <b>${res.turno}</b><br>Fecha del reparto: <b>${String(res.fecha).split('-').reverse().join('/')}</b>` + (res.pendientes > 1 ? `<br><b style="color:var(--accent)">Hay ${res.pendientes} rendiciones pendientes: procesá esta primero (la más vieja).</b>` : '');
                 document.getElementById('rendicion-esperado').textContent = esSoloDigital ? '$ 0 (sin efectivo)' : "$ " + ef.toLocaleString('es-AR');
 
                 if (esSoloDigital) {
@@ -3025,33 +3019,20 @@
                     if (rendicionPendiente.detalleClientes.length > 0) {
                         html += `<button onclick="abrirModalRendicionCompleta()" style="width:100%; margin-top:8px; padding:9px; border:2px solid var(--primary); border-radius:10px; background:transparent; color:var(--primary); font-weight:700; font-size:0.85rem; cursor:pointer; font-family:Quicksand;">📋 Ver rendición completa</button>`;
                     }
-                    html += `<div style="text-align:center; margin-top:12px;"><button onclick="marcarRendicionYaProcesada()" style="background:none; border:none; color:#bbb; font-size:0.75rem; cursor:pointer; font-family:Quicksand; text-decoration:underline;">¿Ya fue procesada antes? Ocultarla</button></div>`;
                     desgEl.innerHTML = html;
                 }
                 if (!esSoloDigital) calcBilletes('rend');
+            } else if (!res || !res.ok || res.consultaFallida) {
+                /* 15/11/2026: si la consulta falló NUNCA se muestra «Nada pendiente»: se muestra el error y un botón para reintentar. */
+                let eb = document.getElementById('rendicion-error');
+                if (!eb) { eb = document.createElement('div'); eb.id = 'rendicion-error'; content.parentNode.insertBefore(eb, content); }
+                const motivo = (res && (res.error || res.mensaje)) || 'Sin respuesta del servidor.';
+                eb.innerHTML = '<div style="margin:12px;padding:14px;border:2px solid var(--accent);border-radius:12px;background:#fff0f3;color:var(--text-main);font-weight:700;text-align:center">⚠️ No se pudieron consultar las rendiciones pendientes.<br><span style="font-weight:600;font-size:0.85rem">' + String(motivo).replace(/</g, '&lt;') + '</span><br><span style="font-size:0.85rem">Esto <b>no</b> significa que no haya pendientes.</span><br><button onclick="buscarRendicionPendiente()" style="margin-top:10px;padding:9px 16px;border:2px solid var(--accent);border-radius:10px;background:#fff;color:var(--accent);font-weight:800;cursor:pointer;font-family:Quicksand">Reintentar</button></div>';
+                eb.style.display = 'block'; content.style.display = 'none'; zen.style.display = 'none';
             } else {
+                const eb = document.getElementById('rendicion-error'); if (eb) eb.style.display = 'none';
                 content.style.display = 'none'; zen.style.display = 'block';
             }
-        }
-
-        function marcarRendicionYaProcesada() {
-            if (!rendicionPendiente) return;
-            showModal(
-                "Ocultar rendición",
-                `¿Confirmás que la rendición de <b>${rendicionPendiente.turno} del ${rendicionPendiente.fecha}</b> ya fue procesada antes?`,
-                "check_circle", "var(--success)",
-                () => {
-                    try {
-                        const guardKey = `rend_ok_${rendicionPendiente.fecha}_${rendicionPendiente.turno}_${rendicionPendiente.repartidor || RENDICION_REPARTIDOR}`;
-                        localStorage.setItem(guardKey, Date.now().toString());
-                    } catch(_) {}
-                    rendicionPendiente = null;
-                    const zen = document.getElementById('zen-state-container');
-                    const content = document.getElementById('rendicion-content');
-                    content.style.display = 'none'; zen.style.display = 'block';
-                    showToast("✅ Rendición ocultada. Modo Zen activado.", true);
-                }
-            );
         }
 
         function actualizarDiferenciaRendicion(totalContado) {
@@ -3112,7 +3093,7 @@
                 showLoading("Procesando...");
                 const res = await api("procesarRendicionDesdeRecibo", {
                     fechaStr: rendicionPendiente.fecha, turno: rendicionPendiente.turno,
-                    repartidor: rendicionPendiente.repartidor,
+                    repartidor: rendicionPendiente.repartidor, rendicionId: rendicionPendiente.rendicionId,
                     efectivoEsperado: rendicionPendiente.efectivoEsperado,
                     efectivoContado: total, usuario: USUARIO_APP, opId
                 });
@@ -3121,12 +3102,6 @@
                 if (res && res.ok) {
                     const dif = total - efectivoEsperado;
                     const hayFaltante = efectivoEsperado > 0 && dif < 0;
-
-                    // 🛡️ Marcar procesada en localStorage
-                    try {
-                        const guardKey = `rend_ok_${rendicionPendiente.fecha}_${rendicionPendiente.turno}_${rendicionPendiente.repartidor || RENDICION_REPARTIDOR}`;
-                        localStorage.setItem(guardKey, Date.now().toString());
-                    } catch(_) {}
 
                     // Reset completo — siempre ocurre independientemente del faltante
                     actualizarSaldoHeader();
@@ -3736,7 +3711,6 @@
                 dHtml += `</div>`;
             }
             dHtml += `<button onclick="abrirModalRendicionCompleta()" style="width:100%;margin-top:8px;padding:9px;border:2px solid var(--primary);border-radius:10px;background:transparent;color:var(--primary);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:Quicksand;">📋 Ver rendición completa</button>`;
-            dHtml += `<div style="text-align:center;margin-top:12px;"><button onclick="marcarRendicionYaProcesada()" style="background:none;border:none;color:#bbb;font-size:0.75rem;cursor:pointer;font-family:Quicksand;text-decoration:underline;">¿Ya fue procesada antes? Ocultarla</button></div>`;
             desgEl.innerHTML = dHtml;
         }
 
@@ -6010,6 +5984,7 @@
     window.api = async function (fn, params) {
       if (fn === "getDatosRendicionEsperada") {
         const real = (await original(fn, params)) || {};
+        if (real.consultaFallida || real.ok === false) return real;   /* 15/11/2026: un error de consulta no se pisa con «ok» */
         const h = historicas(), qr = rendQR().filter(x => !h.qr.has(x.id));
         const mismoDia = q => !real.hayPendiente || (String(q.turno) === String(real.turno) && String(q.repartidor || "").toUpperCase() === String(real.repartidor || "").toUpperCase());
         const obj = window.__qrRendObjetivo;

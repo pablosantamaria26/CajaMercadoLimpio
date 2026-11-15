@@ -383,11 +383,36 @@ async function yaFueRendidaSB(env, fechaReparto, turno, repartidor) {
   return Array.isArray(rows) && rows.length > 0;
 }
 
+/**
+ * Marca la rendición del reparto como procesada y VERIFICA que se actualizó una fila (15/11/2026).
+ * Antes esto lo hacía solo el espejo de Apps Script en segundo plano y sin verificar nada: si fallaba o no
+ * coincidía la clave, la rendición quedaba «pendiente» para siempre sin que nadie lo supiera.
+ * Por id si la pantalla lo mandó; si no, por fecha + turno + repartidor.
+ */
+async function marcarProcesadaRendReparto(env, params, fechaReparto) {
+  const q = params.rendicionId
+    ? `id=eq.${encodeURIComponent(params.rendicionId)}`
+    : `fecha=eq.${fechaReparto}&turno=eq.${encodeURIComponent(params.turno)}&repartidor=eq.${encodeURIComponent(params.repartidor)}`;
+  try {
+    const r = await fetch(`${SB_URL}/rendiciones_reparto?${q}`, {
+      method: "PATCH",
+      headers: { ...sbWriteH(env.SUPABASE_SERVICE_KEY), "Prefer": "return=representation" },
+      body: JSON.stringify({ procesado: true }),
+    });
+    const rows = await r.json().catch(() => []);
+    if (r.ok && Array.isArray(rows) && rows.length > 0) return { ok: true };
+    return { ok: false, motivo: r.ok ? "no se encontró esa rendición del reparto" : "HTTP " + r.status };
+  } catch (e) { return { ok: false, motivo: e.message }; }
+}
+
 async function registrarRendicionSB(env, params) {
   const { fecha, hora } = arNow();
   const fechaReparto = params.fechaStr?.split("T")[0] || fecha;
 
   if (await yaFueRendidaSB(env, fechaReparto, params.turno, params.repartidor)) {
+    // Ya estaba contada en Caja: solo se completa la marca (idempotente). Nunca se vuelve a sumar el importe.
+    const m = await marcarProcesadaRendReparto(env, params, fechaReparto);
+    if (!m.ok) return { ok: false, error: "Estaba registrada en Caja pero NO se pudo marcar como recibida (" + m.motivo + "). Reintentá: no se duplica." };
     return { ok: true, mensaje: "Planilla ya estaba registrada.", duplicado: true };
   }
 
@@ -402,11 +427,15 @@ async function registrarRendicionSB(env, params) {
     id: genId(), fecha: fechaReparto, turno: params.turno,
     repartidor: params.repartidor, efectivo_esperado: esperado,
     efectivo_contado: contado, diferencia: dif, tipo_diferencia: tipoDif,
-    usuario: params.usuario || "Laura", hora_rendicion: `${fecha}T${hora}`, notas: {},
+    usuario: params.usuario || "Laura", hora_rendicion: `${fecha}T${hora}-03:00`, /* hora real de Argentina (antes quedaba como UTC: 3 h corrida) */
+    notas: params.conciliarMovimientoId ? { conciliado_con_movimiento: params.conciliarMovimientoId, sin_movimientos_nuevos: true } : {},
     client_op_id: params.opId || null,
   });
 
-  if (!duplicado) {
+  /* Conciliación: el efectivo ya había entrado a Caja a mano (p. ej. «Ingreso Varios»). Se registra la rendición
+     y su diferencia, pero NO se crean movimientos nuevos: no se vuelve a sumar el importe. */
+  const conciliar = !!params.conciliarMovimientoId;
+  if (!duplicado && !conciliar) {
     const tasks = [];
     if (esperado > 0) tasks.push(sbInsertWithRetry(env, "movimientos_caja", {
       id: genId(), fecha, hora, tipo: "Ingreso", forma_pago: "Efectivo",
@@ -439,7 +468,12 @@ async function registrarRendicionSB(env, params) {
     await Promise.all(tasks);
   }
 
-  return { ok: true, diferencia: dif, id: savedRend.id, duplicado };
+  const marca = await marcarProcesadaRendReparto(env, params, fechaReparto);
+  if (!marca.ok) {
+    return { ok: false, registrada: true, id: savedRend.id,
+      error: "Quedó registrada en Caja pero NO se pudo marcar como recibida (" + marca.motivo + "). Volvé a confirmar: no se duplica." };
+  }
+  return { ok: true, diferencia: dif, id: savedRend.id, duplicado, conciliado: conciliar };
 }
 
 /**
@@ -457,7 +491,7 @@ async function registrarRendicionSB(env, params) {
  * una función nueva en GAS que solo graba los valores YA decididos.
  */
 async function mirrorToGAS(fn, params, sbResult) {
-  if (sbResult.duplicado) return; // ya se procesó antes — no volver a espejar
+  if (sbResult.duplicado || sbResult.conciliado) return; // ya se procesó antes / conciliada con un movimiento existente — no volver a espejar
   if (fn === "registrarMovimientoCaja" || fn === "procesarRendicionDesdeRecibo") {
     await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ fn, params }) });
   } else if (fn === "registrarArqueo") {
