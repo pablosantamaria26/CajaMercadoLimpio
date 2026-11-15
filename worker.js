@@ -405,6 +405,41 @@ async function marcarProcesadaRendReparto(env, params, fechaReparto) {
   } catch (e) { return { ok: false, motivo: e.message }; }
 }
 
+/* ── Correcciones del medio de pago en «Ver rendición completa» (15/11/2026) ──────────────────────────────
+   Se guarda el valor anterior y el nuevo, el motivo, quién y cuándo en rendicion_pago_correcciones (solo la clave de
+   servicio escribe). El dato original de la rendición NO se modifica: las correcciones se aplican al leerla. */
+const FORMAS_OK = ["Efectivo", "Transferencia", "Cheque"];
+async function registrarCorreccionPago(env, p) {
+  const motivo = String(p.motivo || "").trim(), quien = String(p.quien || "").trim();
+  if (!p.rendicionId) return { ok: false, error: "Falta identificar la rendición." };
+  if (motivo.length < 3) return { ok: false, error: "Escribí el motivo de la corrección." };
+  if (!quien) return { ok: false, error: "Falta quién hace el cambio." };
+  const a = p.antes || {}, d = p.despues || {};
+  const forma = (x, obligatoria) => (!x ? !obligatoria : FORMAS_OK.includes(x));
+  if (!forma(d.formaPago1, true) || !forma(d.formaPago2, false)) return { ok: false, error: "Medio de pago no válido." };
+  const num = x => Math.round((Number(x) || 0) * 100);
+  if (num(a.importe1) !== num(d.importe1) || num(a.importe2) !== num(d.importe2)) return { ok: false, error: "Solo se corrige el medio de pago: los importes no cambian." };
+  if (String(a.formaPago1 || "") === String(d.formaPago1 || "") && String(a.formaPago2 || "") === String(d.formaPago2 || "")) return { ok: false, error: "No hay cambios para guardar." };
+  const rr = await fetch(`${SB_URL}/rendiciones_reparto?id=eq.${encodeURIComponent(p.rendicionId)}&select=id,procesado`, { headers: sbReadH(env.SUPABASE_SERVICE_KEY) });
+  const filas = await rr.json().catch(() => []);
+  if (!rr.ok || !Array.isArray(filas)) return { ok: false, error: "No se pudo consultar la rendición. Reintentá." };
+  if (!filas.length) return { ok: false, error: "No existe esa rendición." };
+  if (filas[0].procesado === true) return { ok: false, error: "La rendición ya fue procesada: el medio de pago no se corrige desde acá." };
+  const { row, duplicado } = await sbInsertIdempotente(env, "rendicion_pago_correcciones", {
+    rendicion_id: p.rendicionId, fecha: p.fecha || null, turno: p.turno || null, repartidor: p.repartidor || null,
+    num_cliente: String(p.numCliente || ""), linea: p.linea || "habituales", antes: a, despues: d, motivo, quien,
+    client_op_id: p.opId || null,
+  });
+  return { ok: true, id: row && row.id, creado: row && row.creado, duplicado };
+}
+async function getCorreccionesPago(env, p) {
+  if (!p.rendicionId) return { ok: false, error: "Falta identificar la rendición." };
+  const r = await fetch(`${SB_URL}/rendicion_pago_correcciones?rendicion_id=eq.${encodeURIComponent(p.rendicionId)}&order=creado.asc,id.asc`, { headers: sbReadH(env.SUPABASE_SERVICE_KEY) });
+  const filas = await r.json().catch(() => null);
+  if (!r.ok || !Array.isArray(filas)) return { ok: false, error: "No se pudieron leer las correcciones de pago." };
+  return { ok: true, correcciones: filas };
+}
+
 async function registrarRendicionSB(env, params) {
   const { fecha, hora } = arNow();
   const fechaReparto = params.fechaStr?.split("T")[0] || fecha;
@@ -1249,6 +1284,12 @@ export default {
 
     const fn     = body.fn     || "";
     const params = body.params || {};
+
+    // ── Correcciones del medio de pago de una rendición (no pasan por la planilla).
+    if (fn === "registrarCorreccionPagoRendicion" || fn === "getCorreccionesPagoRendicion") {
+      try { return json(fn === "registrarCorreccionPagoRendicion" ? await registrarCorreccionPago(env, params) : await getCorreccionesPago(env, params), 200, cors); }
+      catch (e) { return json({ ok: false, error: "Error guardando: " + e.message }, 500, cors); }
+    }
 
     // ── SUPABASE PRIMERO: alto volumen / camino crítico de Laura.
     // Responde apenas Supabase confirma (rápido y confiable) — la planilla

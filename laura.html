@@ -2986,6 +2986,7 @@
                 // 🔧 Normalizar: Supabase usa snake_case, el GAS puede devolver cualquiera
                 rendicionPendiente.efectivoEsperado = (Math.round((Number(res.efectivoEsperado ?? res.efectivo ?? 0) || 0) * 100) / 100);
                 rendicionPendiente.detalleClientes  = res.detalleClientes || res.detalle_clientes || [];
+                await aplicarCorreccionesPago(rendicionPendiente);   // correcciones de medio de pago ya registradas (el dato original se conserva)
 
                 const ef  = rendicionPendiente.efectivoEsperado;
                 const tr  = parseInt(res.transferencia || 0);
@@ -3444,227 +3445,326 @@
                 showToast("El contador está en cero", false);
             }
         }
-        // === MODAL RENDICION COMPLETA v2 ===
+        // === MODAL RENDICION COMPLETA v3 (15/11/2026) ===
+        /* Ventana ancha, una fila por cliente. Habituales y Queruclor van SEPARADOS: importe cobrado, medio de pago,
+           comprobante propio, estado y detalle. Solo se muestra lo que efectivamente llegó; no se completa nada por
+           inferencia. Sin acciones de recibo: Habituales se carga en E-PyME y Queruclor se gestiona en su sección. */
+        const RC_H = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        const RC_$ = n => '$ ' + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-AR');
+        const RC_BUCKET = fp => { const f = String(fp || '').toLowerCase(); return f.includes('transfer') ? 'transferencia' : f.includes('cheque') ? 'cheque' : f ? 'efectivo' : ''; };
+        const RC_FP_COLOR = fp => ({ transferencia: '#6C63FF', cheque: '#e17055', efectivo: '#00b894' }[RC_BUCKET(fp)] || '#aaa');
+        const RC_FP_ICON = fp => ({ transferencia: '📲', cheque: '📋', efectivo: '💵' }[RC_BUCKET(fp)] || '');
+        function rcDriveUrl(ref) {
+            ref = String(ref || '').trim(); if (!ref) return '';
+            if (/^https?:\/\//i.test(ref)) return ref;
+            const id = ref.replace(/^drive:/i, '');
+            return /^[\w-]{20,}$/.test(id) ? 'https://drive.google.com/file/d/' + id + '/view' : '';
+        }
+        function rcFechaHora(iso) {
+            if (!iso) return '';
+            const d = new Date(iso); if (isNaN(d)) return String(iso);
+            return d.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+        function rcPago(r) {
+            const i1 = parseFloat(r.importe1 || 0), i2 = parseFloat(r.importe2 || 0);
+            const total = parseFloat(r.totalPagado || 0) || (i1 + i2);
+            return { fp1: String(r.formaPago1 || ''), i1, fp2: String(r.formaPago2 || ''), i2, total, mixto: !!r.formaPago2 && i2 > 0 };
+        }
+        function rcPagoHTML(r) {
+            if (!r) return '<span class="rc-nd">—</span>';
+            const p = rcPago(r);
+            const medio = p.fp1 || 'No pagó';
+            const linea = (fp, imp) => `<div class="rc-medio" style="color:${RC_FP_COLOR(fp)}">${RC_FP_ICON(fp)} ${RC_H(fp || 'No pagó')}${imp != null ? ' <b>' + RC_$(imp) + '</b>' : ''}</div>`;
+            return `<div class="rc-imp">${RC_$(p.total)}</div>` + (p.mixto ? '<div class="rc-mixto">Pago mixto</div>' + linea(p.fp1, p.i1) + linea(p.fp2, p.i2) : linea(medio, null));
+        }
+        /* Estado de la entrega de cada circuito, solo con lo que llegó. */
+        function rcEstadoHab(r) {
+            const p = rcPago(r), fact = parseFloat(r.importeFact || 0), dev = r.devolucion === true || parseFloat(r.devolucion || 0) > 0;
+            if (dev && p.total === 0) return ['Devuelta', 'dev'];
+            if (dev) return ['Parcial', 'par'];
+            if (fact > 0 && p.total < fact - 1 && p.total > 0) return ['Parcial', 'par'];
+            return ['Completa', 'ok'];
+        }
+        function rcEstadoQR(r) {
+            const e = String(r.estadoEntrega || '').toLowerCase(), devs = (r.devoluciones || []).length;
+            if (e === 'rechazado') return ['Devuelta', 'dev'];
+            if (e === 'pendiente') return ['Sin registrar', 'nd'];
+            if (devs > 0 || parseFloat(r.devolucion || 0) > 0) return ['Parcial', 'par'];
+            if (e === 'entregado') return ['Completa', 'ok'];
+            return ['Completa', 'ok'];
+        }
+        function rcEstadoCliente(g) {
+            const ests = g.hab.map(rcEstadoHab).concat(g.qr.map(rcEstadoQR)).map(x => x[1]).filter(x => x !== 'nd');
+            if (!ests.length) return ['Sin registrar', 'nd'];
+            if (ests.every(x => x === 'dev')) return ['Devuelta', 'dev'];
+            if (ests.some(x => x === 'dev' || x === 'par')) return ['Parcial', 'par'];
+            return ['Completa', 'ok'];
+        }
+        function rcComprobanteHTML(titulo, r, ref) {
+            if (!r) return '';
+            const url = rcDriveUrl(ref);
+            if (url) return `<a class="rc-comp" href="${RC_H(url)}" target="_blank" rel="noopener">📄 Ver comprobante ${titulo}</a>`;
+            if (ref) return `<span class="rc-sin">Comprobante ${titulo} registrado (no se puede abrir desde acá)</span>`;
+            return `<span class="rc-sin">${titulo}: Sin comprobante registrado</span>`;
+        }
+        function rcGrupos(detalle) {
+            const mapa = new Map(), orden = [];
+            detalle.forEach(r => {
+                const k = String(r.numCliente || r.nombre || '');
+                if (!mapa.has(k)) { mapa.set(k, { num: r.numCliente || '', nombre: '', hab: [], qr: [] }); orden.push(k); }
+                const g = mapa.get(k);
+                if (r.linea === 'Queruclor') { g.qr.push(r); if (!g.nombre) g.nombre = r.clienteNombre || String(r.nombre || '').replace(/\s·\sQueruclor.*$/, ''); }
+                else { g.hab.push(r); if (r.nombre) g.nombre = r.nombre; }
+            });
+            return orden.map(k => mapa.get(k));
+        }
+        function rcDetalleHTML(g) {
+            let h = '<div class="rc-det">';
+            // Detalle del reparto / pedido (Habituales)
+            g.hab.forEach(r => {
+                const p = rcPago(r), fact = parseFloat(r.importeFact || 0);
+                const notas = String(r.notas || '').split('\n').map(x => x.trim()).filter(Boolean);
+                h += `<div class="rc-det-col"><div class="rc-det-t">Habituales · detalle del reparto</div>`;
+                h += notas.length ? '<ul class="rc-ul">' + notas.map(x => `<li>${RC_H(x)}</li>`).join('') + '</ul>' : '<div class="rc-nd">Sin observaciones de Reparto</div>';
+                if (r.localidad) h += `<div class="rc-kv"><span>Localidad</span><b>${RC_H(r.localidad)}</b></div>`;
+                if (r.orden) h += `<div class="rc-kv"><span>Orden de entrega</span><b>${RC_H(r.orden)}</b></div>`;
+                if (r.ts) h += `<div class="rc-kv"><span>Hora de entrega</span><b>${RC_H(rcFechaHora(r.ts))}</b></div>`;
+                h += `</div><div class="rc-det-col"><div class="rc-det-t">Habituales · montos</div>`;
+                if (fact > 0) h += `<div class="rc-kv"><span>Total de la factura</span><b>${RC_$(fact)}</b></div>`;
+                h += `<div class="rc-kv"><span>Cobrado</span><b>${RC_$(p.total)}</b></div>`;
+                if (fact > 0 && p.total < fact - 1) h += `<div class="rc-kv rc-par"><span>Diferencia con la factura</span><b>${RC_$(fact - p.total)}</b></div>`;
+                if (r.pagoOriginal) {
+                    const o = r.pagoOriginal;
+                    h += `<div class="rc-kv rc-corr"><span>Pago original (informado por Reparto)</span><b>${RC_H(o.formaPago1 || '—')}${o.formaPago2 ? ' + ' + RC_H(o.formaPago2) : ''}</b></div>`;
+                }
+                h += '</div>';
+            });
+            // Queruclor
+            g.qr.forEach(r => {
+                const p = rcPago(r), tot = parseFloat(r.importeFact || 0);
+                h += `<div class="rc-det-col"><div class="rc-det-t">Queruclor · remito ${RC_H(r.remito || '—')}</div>`;
+                if (r.estadoEntrega) h += `<div class="rc-kv"><span>Estado de la entrega</span><b>${RC_H(r.estadoEntrega)}</b></div>`;
+                if (r.vendedor) h += `<div class="rc-kv"><span>Vendedor del remito</span><b>${RC_H(r.vendedor)}</b></div>`;
+                const devs = r.devoluciones || [];
+                if (devs.length) {
+                    h += '<div class="rc-sub">Devoluciones</div><ul class="rc-ul">' + devs.map(d => {
+                        const items = Array.isArray(d.items) ? d.items.map(i => ((i.cantidad || i.cajas || i.unidades || '') + ' ' + (i.nombre || i.descripcion || i.ean || '')).trim()).filter(Boolean).join(', ') : '';
+                        return `<li>${RC_H(items || 'Devolución registrada')}${d.estado ? ' · ' + RC_H(d.estado) : ''}${d.valor != null ? ' · ' + RC_$(d.valor) : ''}</li>`;
+                    }).join('') + '</ul>';
+                }
+                if (r.nota) h += `<div class="rc-kv"><span>Observación</span><b>${RC_H(r.nota)}</b></div>`;
+                h += `</div><div class="rc-det-col"><div class="rc-det-t">Queruclor · montos</div>`;
+                if (tot > 0) h += `<div class="rc-kv"><span>Total del remito</span><b>${RC_$(tot)}</b></div>`;
+                h += `<div class="rc-kv"><span>Cobrado</span><b>${RC_$(p.total)}</b></div>`;
+                if (r.saldoAnterior) h += `<div class="rc-kv"><span>Saldo anterior</span><b>${RC_$(r.saldoAnterior)}</b></div>`;
+                if (r.fechaCobro) h += `<div class="rc-kv"><span>Cobro registrado el</span><b>${RC_H(rcFechaHora(r.fechaCobro))}</b></div>`;
+                h += '</div>';
+            });
+            // Comprobantes del circuito
+            h += `<div class="rc-det-col"><div class="rc-det-t">Comprobantes del circuito</div>`;
+            g.hab.forEach(r => { h += rcComprobanteHTML('Habituales', r, r.comprobanteId); });
+            g.qr.forEach(r => { h += rcComprobanteHTML('Queruclor', r, r.comprobanteRef); });
+            h += '</div>';
+            // Historial de correcciones
+            const cors = g.hab.reduce((a, r) => a.concat(r.correcciones || []), []);
+            if (cors.length) {
+                h += `<div class="rc-det-col rc-det-wide"><div class="rc-det-t">Correcciones del medio de pago (el dato original se conserva)</div><ul class="rc-ul">` +
+                    cors.map(c => `<li><b>${RC_H(rcFmtPago(c.antes))}</b> → <b>${RC_H(rcFmtPago(c.despues))}</b> · motivo: ${RC_H(c.motivo)} · ${RC_H(c.quien)} · ${RC_H(rcFechaHora(c.creado))}</li>`).join('') + '</ul></div>';
+            }
+            return h + '</div>';
+        }
+        function rcFmtPago(p) { p = p || {}; return (p.formaPago1 || '—') + (p.formaPago2 ? ' + ' + p.formaPago2 : ''); }
+
         window.abrirModalRendicionCompleta = function() {
             if (!rendicionPendiente || !rendicionPendiente.detalleClientes) return;
-            const modal  = document.getElementById('modal-rendicion-completa');
-            const body   = document.getElementById('rendicion-completa-body');
+            const modal = document.getElementById('modal-rendicion-completa');
+            const body  = document.getElementById('rendicion-completa-body');
             const detalle = rendicionPendiente.detalleClientes;
             const ef = (Math.round((Number(rendicionPendiente.efectivoEsperado) || 0) * 100) / 100);
-            const tr = parseInt(rendicionPendiente.transferencia   || 0);
-            const ch = parseInt(rendicionPendiente.cheque          || 0);
+            const tr = parseFloat(rendicionPendiente.transferencia || 0);
+            const ch = parseFloat(rendicionPendiente.cheque || 0);
+            const grupos = rcGrupos(detalle);
+            const estados = grupos.map(rcEstadoCliente);
+            const nParc = estados.filter(e => e[1] === 'par').length, nDev = estados.filter(e => e[1] === 'dev').length;
+            const fechaFmt = rendicionPendiente.fecha ? String(rendicionPendiente.fecha).split('-').reverse().join('/') : '';
+            const tit = document.getElementById('rendicion-completa-titulo');
+            if (tit) tit.textContent = '📋 Rendición completa · ' + (rendicionPendiente.repartidor || '') + ' · ' + (rendicionPendiente.turno || '') + ' · ' + fechaFmt;
 
-            // ── Estadísticas rápidas ──
-            const totalClientes  = new Set(detalle.map(c => String(c.numCliente || c.nombre || ''))).size; const totalDocs = detalle.length;
-            const conDevolucion  = detalle.filter(c => parseFloat(c.devolucion || 0) > 0).length;
-            const conParcial     = detalle.filter(c => {
-                const fact = parseFloat(c.importeFact || 0);
-                const pag  = parseFloat(c.totalPagado || (parseFloat(c.importe1||0)+parseFloat(c.importe2||0)));
-                return fact > 0 && pag < fact - 1;
-            }).length;
+            let html = '<div class="rc-top"><div class="rc-chips">';
+            html += `<span class="rc-chip" style="background:#f0f2ff;color:var(--primary)">${grupos.length} cliente${grupos.length !== 1 ? 's' : ''}</span>`;
+            if (window.qrBotonRendicionVinculada) html += qrBotonRendicionVinculada();
+            if (nDev) html += `<span class="rc-chip" style="background:#fff3cd;color:#c0392b">⚠️ ${nDev} devuelta${nDev !== 1 ? 's' : ''}</span>`;
+            if (nParc) html += `<span class="rc-chip" style="background:#ffe8e8;color:#c0392b">📉 ${nParc} parcial${nParc !== 1 ? 'es' : ''}</span>`;
+            html += '</div><div class="rc-tiles">';
+            if (ef > 0) html += `<div class="rc-tile" style="background:#e8f5e9;border-color:#00b894;color:#00b894"><div>EFECTIVO</div><b>${RC_$(ef)}</b></div>`;
+            if (tr > 0) html += `<div class="rc-tile" style="background:#f0f2ff;border-color:#6C63FF;color:#6C63FF"><div>TRANSFERENCIAS</div><b>${RC_$(tr)}</b></div>`;
+            if (ch > 0) html += `<div class="rc-tile" style="background:#fff4f0;border-color:#e17055;color:#e17055"><div>CHEQUE</div><b>${RC_$(ch)}</b></div>`;
+            html += '</div></div>';
+            if (rendicionPendiente.correccionesError) html += '<div class="rc-aviso">⚠️ No se pudieron cargar las correcciones de pago ya registradas: los medios de pago pueden no reflejarlas. Cerrá y volvé a abrir la rendición.</div>';
 
-            let html = '';
-
-            // ── Chips de resumen ──
-            html += `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:13px;">`;
-            html += `<span style="background:#f0f2ff; color:var(--primary); border-radius:20px; padding:4px 11px; font-size:0.77rem; font-weight:700;">${totalClientes} cliente${totalClientes !== 1 ? 's' : ''}${totalDocs !== totalClientes ? ' · ' + totalDocs + ' documentos' : ''}</span>`; if (window.qrBotonRendicionVinculada) html += qrBotonRendicionVinculada();
-            if (conDevolucion > 0) html += `<span style="background:#fff3cd; color:#c0392b; border-radius:20px; padding:4px 11px; font-size:0.77rem; font-weight:700;">⚠️ ${conDevolucion} dev.</span>`;
-            if (conParcial    > 0) html += `<span style="background:#ffe8e8; color:#c0392b; border-radius:20px; padding:4px 11px; font-size:0.77rem; font-weight:700;">📉 ${conParcial} parcial${conParcial !== 1 ? 'es' : ''}</span>`;
-            html += `</div>`;
-
-            // ── Tiles de totales (solo los no-cero) ──
-            if (ef > 0 || tr > 0 || ch > 0) {
-                html += `<div style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap;">`;
-                if (ef > 0) html += `<div style="flex:1;min-width:70px;background:#e8f5e9;border-radius:10px;padding:10px;text-align:center;border:2px solid #00b894;"><div style="font-size:0.63rem;font-weight:700;color:#00b894;">EFECTIVO</div><div style="font-weight:900;color:#00b894;font-size:0.93rem;">$ ${ef.toLocaleString('es-AR')}</div></div>`;
-                if (tr > 0) html += `<div style="flex:1;min-width:70px;background:#f0f2ff;border-radius:10px;padding:10px;text-align:center;border:2px solid #6C63FF;"><div style="font-size:0.63rem;font-weight:700;color:#6C63FF;">TRANSFER.</div><div style="font-weight:900;color:#6C63FF;font-size:0.93rem;">$ ${tr.toLocaleString('es-AR')}</div></div>`;
-                if (ch > 0) html += `<div style="flex:1;min-width:70px;background:#fff4f0;border-radius:10px;padding:10px;text-align:center;border:2px solid #e17055;"><div style="font-size:0.63rem;font-weight:700;color:#e17055;">CHEQUE</div><div style="font-weight:900;color:#e17055;font-size:0.93rem;">$ ${ch.toLocaleString('es-AR')}</div></div>`;
-                html += `</div>`;
-            }
-
-            // ── Helpers de color por forma de pago ──
-            const fpColor = fp => {
-                const f = String(fp || '').toLowerCase();
-                if (f.includes('transfer')) return '#6C63FF';
-                if (f.includes('cheque'))   return '#e17055';
-                return '#00b894';
-            };
-            const fpIcon = fp => {
-                const f = String(fp || '').toLowerCase();
-                if (f.includes('transfer')) return '📲';
-                if (f.includes('cheque'))   return '📋';
-                return '💵';
-            };
-            const fpOrder = fp => {
-                const f = String(fp || '').toLowerCase();
-                if (f.includes('transfer')) return 2;
-                if (f.includes('cheque'))   return 3;
-                if (!f) return 4;
-                return 1; // efectivo primero
-            };
-
-            // ── Ordenar: efectivo → mixto → transfer → cheque ──
-            const sorted = [...detalle].sort((a, b) => fpOrder(a.formaPago1) - fpOrder(b.formaPago1));
-
-            // ── Lista de clientes ──
-            let lastGroup = null;
-            sorted.forEach(c => {
-                const fp1      = String(c.formaPago1 || '');
-                const fp2      = String(c.formaPago2 || '');
-                const hasMixed = !!c.formaPago2;
-                const imp1     = parseFloat(c.importe1   || 0);
-                const imp2     = parseFloat(c.importe2   || 0);
-                const totalPag = parseFloat(c.totalPagado || 0) || (imp1 + imp2);
-                const importeFact = parseFloat(c.importeFact || 0);
-                const devolucion  = parseFloat(c.devolucion  || 0);
-                const esParcial   = importeFact > 0 && totalPag < importeFact - 1;
-
-                const color1 = fpColor(fp1);
-                const icon1  = fpIcon(fp1);
-                const borderColor = hasMixed ? '#f39c12' : color1;
-
-                // Separador de grupo
-                const group = hasMixed ? 'mixto' : fp1.toLowerCase().includes('transfer') ? 'transfer' : fp1.toLowerCase().includes('cheque') ? 'cheque' : fp1 ? 'efectivo' : 'sin-dato';
-                if (group !== lastGroup) {
-                    const gLabels = { efectivo:'💵 Efectivo', transfer:'📲 Transferencia', cheque:'📋 Cheque', mixto:'🔀 Pago mixto', 'sin-dato':'— Sin dato' };
-                    const gColors = { efectivo:'#00b894', transfer:'#6C63FF', cheque:'#e17055', mixto:'#f39c12', 'sin-dato':'#aaa' };
-                    html += `<div style="font-size:0.7rem;font-weight:800;color:${gColors[group]||'#aaa'};text-transform:uppercase;letter-spacing:0.5px;margin:10px 0 5px;padding-left:4px;">${gLabels[group]||group}</div>`;
-                    lastGroup = group;
-                }
-
-                // Etiqueta de pago
-                let pagoLabel = fp1;
-                if (hasMixed) pagoLabel = `${fp1} $${imp1.toLocaleString('es-AR')} + ${fp2} $${imp2.toLocaleString('es-AR')}`;
-
-                html += `<div style="background:#f8f9fa;border-radius:12px;padding:10px 12px;margin-bottom:7px;border-left:4px solid ${borderColor};">`;
-                // Fila principal: número | datos | importe
-                html += `<div style="display:flex;align-items:flex-start;gap:10px;">`;
-                // ── Número de cliente (grande, para recibo) ──
-                html += `<div style="background:${borderColor};color:white;border-radius:10px;padding:6px 9px;font-size:1.05rem;font-weight:900;min-width:42px;text-align:center;flex-shrink:0;line-height:1.1;letter-spacing:-0.5px;">`;
-                html += `<div style="font-size:0.55rem;font-weight:700;opacity:0.8;margin-bottom:1px;">CLI</div>`;
-                html += `${c.numCliente || '?'}`;
-                html += `</div>`;
-                // ── Datos del cliente ──
-                html += `<div style="flex:1;min-width:0;">`;
-                html += `<div style="font-weight:700;font-size:0.88rem;color:#333;display:flex;align-items:center;flex-wrap:wrap;gap:5px;">`;
-                html += `<span>${c.nombre || '—'}</span>`;
-                if (devolucion > 0) html += `<span style="background:#fff3cd;color:#c0392b;border-radius:8px;padding:1px 7px;font-size:0.66rem;font-weight:800;">⚠️ DEV</span>`;
-                if (c.comprobanteId) html += `<span style="color:#6C63FF;font-size:0.78rem;" title="Comprobante subido">📎</span>`;
-                html += `</div>`;
-                html += `<div style="font-size:0.72rem;color:#888;margin-top:2px;">${icon1} ${pagoLabel}</div>`;
-                if (esParcial) html += `<div style="font-size:0.69rem;color:#c0392b;font-weight:700;margin-top:2px;">📉 Parcial · Factura: $${importeFact.toLocaleString('es-AR')}</div>`;
-                if (devolucion > 0) html += `<div style="font-size:0.69rem;color:#d35400;font-weight:700;margin-top:2px;">↩ Devolución: $${devolucion.toLocaleString('es-AR')}</div>`;
-                html += `</div>`;
-                // ── Importe + botón editar ──
-                html += `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;">`;
-                html += `<div style="font-weight:900;color:${borderColor};font-size:0.97rem;white-space:nowrap;">$ ${totalPag.toLocaleString('es-AR')}</div>`;
-                html += `<button onclick="abrirEditarCliente('${c.numCliente}')" style="background:none;border:1px solid #ddd;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:0.7rem;color:#999;font-family:Quicksand;font-weight:700;">✏️ editar</button>`;
-                html += `</div>`;
-                html += `</div>`;
-                // Notas
-                if (c.notas) html += `<div style="font-size:0.71rem;color:#888;margin-top:6px;font-style:italic;border-top:1px solid #eee;padding-top:5px;">📝 ${c.notas}</div>`;
-                html += `</div>`;
+            html += '<div class="rc-tabla" role="table"><div class="rc-th" role="row"><span>Cliente</span><span>Estado de entrega</span><span>Habituales</span><span>Queruclor</span><span>Total cobrado</span><span>Comprobantes</span><span>Acción</span></div>';
+            grupos.forEach((g, ix) => {
+                const [estTxt, estCls] = estados[ix];
+                const hab = g.hab, qr = g.qr;
+                const totHab = hab.reduce((a, r) => a + rcPago(r).total, 0), totQR = qr.reduce((a, r) => a + rcPago(r).total, 0);
+                const mixto = hab.some(r => rcPago(r).mixto);
+                const medios = new Set(); hab.concat(qr).forEach(r => { const p = rcPago(r); if (p.total > 0 || p.fp1) { medios.add(RC_BUCKET(p.fp1)); if (p.mixto) medios.add(RC_BUCKET(p.fp2)); } });
+                const borde = (mixto || medios.size > 1) ? '#f39c12' : RC_FP_COLOR((hab[0] || qr[0] || {}).formaPago1);
+                const circ = hab.length && qr.length ? 'Habituales + Queruclor' : qr.length ? 'Solo Queruclor' : 'Solo Habituales';
+                const editable = hab.length > 0 && !!rendicionPendiente.rendicionId;
+                html += `<div class="rc-fila" role="row" style="border-left-color:${borde}">`;
+                html += `<div class="rc-c rc-cli" data-l="Cliente"><div class="rc-badge" style="background:${borde}"><small>CLI</small>${RC_H(g.num || '?')}</div><div><b>${RC_H(g.nombre || '—')}</b><small>${circ}</small></div></div>`;
+                html += `<div class="rc-c" data-l="Estado de entrega"><span class="rc-est rc-est-${estCls}">${RC_H(estTxt)}</span>` +
+                    (hab.length && qr.length ? `<small>Hab.: ${RC_H(rcEstadoHab(hab[0])[0])} · Q.: ${RC_H(rcEstadoQR(qr[0])[0])}</small>` : '') + '</div>';
+                html += `<div class="rc-c" data-l="Habituales">${hab.length ? hab.map(rcPagoHTML).join('') : '<span class="rc-nd">No tiene</span>'}</div>`;
+                html += `<div class="rc-c" data-l="Queruclor">${qr.length ? qr.map(rcPagoHTML).join('') : '<span class="rc-nd">No tiene</span>'}</div>`;
+                html += `<div class="rc-c rc-tot" data-l="Total cobrado"><b>${RC_$(totHab + totQR)}</b>${hab.length && qr.length ? `<small>Hab. ${RC_$(totHab)} + Q. ${RC_$(totQR)}</small>` : ''}</div>`;
+                html += `<div class="rc-c rc-compc" data-l="Comprobantes">${hab.map(r => rcComprobanteHTML('Habituales', r, r.comprobanteId)).join('')}${qr.map(r => rcComprobanteHTML('Queruclor', r, r.comprobanteRef)).join('')}</div>`;
+                html += `<div class="rc-c rc-acc" data-l="Acción">` +
+                    (hab.length ? `<button class="rc-btn" ${editable ? '' : 'disabled title="No se puede editar: falta identificar la rendición"'} onclick="abrirEditarCliente('${RC_H(g.num)}')">✏️ Editar pago</button>` : '<span class="rc-nd" title="El medio de pago de Queruclor se corrige desde su sección">Pago de Queruclor: en su sección</span>') +
+                    `<button class="rc-btn rc-btn-det" aria-expanded="false" onclick="rcDetalle(this,'${ix}')">Ver detalle ▾</button></div>`;
+                html += `<div class="rc-detalle" id="rc-det-${ix}" hidden>${rcDetalleHTML(g)}</div>`;
+                html += '</div>';
             });
-
-            // ── Total general ──
-            const totalGeneral = ef + tr + ch;
-            html += `<div style="margin-top:13px;padding:11px 14px;background:#f0f2ff;border-radius:10px;display:flex;justify-content:space-between;align-items:center;border:2px solid var(--primary);">`;
-            html += `<span style="font-weight:800;color:var(--primary);font-size:0.87rem;">TOTAL COBRADO</span>`;
-            html += `<span style="font-weight:900;color:var(--primary);font-size:1.05rem;">$ ${totalGeneral.toLocaleString('es-AR')}</span>`;
-            html += `</div>`;
-
+            html += '</div>';
+            html += `<div class="rc-pie"><span>ℹ️ Los cambios de medio de pago quedan registrados con motivo, quién y cuándo. El dato original se conserva.</span><span class="rc-total">TOTAL COBRADO <b>${RC_$(ef + tr + ch)}</b></span></div>`;
             body.innerHTML = html;
             modal.style.display = 'flex';
+        };
+        window.rcDetalle = function(btn, ix) {
+            const d = document.getElementById('rc-det-' + ix); if (!d) return;
+            const abrir = d.hidden; d.hidden = !abrir;
+            btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+            btn.textContent = abrir ? 'Ocultar detalle ▴' : 'Ver detalle ▾';
         };
         window.cerrarModalRendicionCompleta = function() {
             document.getElementById('modal-rendicion-completa').style.display = 'none';
         };
 
-        // ── EDICIÓN DE FORMA DE PAGO POR CLIENTE ──
+        // ── Correcciones del medio de pago: se guardan aparte (valor anterior y nuevo, motivo, quién, cuándo) ──
+        function rcBucketTotales(r, p, signo) {
+            const sumar = (fp, imp) => {
+                const b = RC_BUCKET(fp); imp = (Number(imp) || 0) * signo;
+                if (b === 'transferencia') r.transferencia = (Number(r.transferencia) || 0) + imp;
+                else if (b === 'cheque') r.cheque = (Number(r.cheque) || 0) + imp;
+                else if (b === 'efectivo') r.efectivoEsperado = (Number(r.efectivoEsperado) || 0) + imp;
+            };
+            sumar(p.formaPago1, p.importe1); if (p.formaPago2) sumar(p.formaPago2, p.importe2);
+            r.efectivoEsperado = Math.round((Number(r.efectivoEsperado) || 0) * 100) / 100;
+            r.transferencia = Math.round((Number(r.transferencia) || 0) * 100) / 100;
+            r.cheque = Math.round((Number(r.cheque) || 0) * 100) / 100;
+        }
+        /* Aplica una corrección a la fila y actualiza los totales por diferencia (sin recalcular todo ni tocar lo demás). */
+        function rcAplicarCorreccion(r, cor) {
+            const c = (r.detalleClientes || []).find(d => d.linea !== 'Queruclor' && String(d.numCliente) === String(cor.num_cliente));
+            if (!c) return false;
+            if (!c.pagoOriginal) c.pagoOriginal = { formaPago1: (cor.antes || {}).formaPago1 || '', importe1: (cor.antes || {}).importe1 || 0, formaPago2: (cor.antes || {}).formaPago2 || '', importe2: (cor.antes || {}).importe2 || 0 };
+            rcBucketTotales(r, cor.antes || {}, -1);
+            rcBucketTotales(r, cor.despues || {}, +1);
+            c.formaPago1 = cor.despues.formaPago1 || ''; c.importe1 = cor.despues.importe1; c.formaPago2 = cor.despues.formaPago2 || ''; c.importe2 = cor.despues.importe2;
+            (c.correcciones = c.correcciones || []).push(cor);
+            (r.correcciones = r.correcciones || []).push(cor);
+            return true;
+        }
+        window.aplicarCorreccionesPago = async function(r) {
+            r.correcciones = []; r.correccionesError = false;
+            if (!r.rendicionId) return;
+            let x = null;
+            try { x = await api('getCorreccionesPagoRendicion', { rendicionId: r.rendicionId }); } catch (e) {}
+            if (!x || !x.ok) { r.correccionesError = true; return; }
+            (x.correcciones || []).forEach(cor => rcAplicarCorreccion(r, cor));
+        };
+
+        // ── EDICIÓN DE FORMA DE PAGO POR CLIENTE (Habituales) ──
         window.abrirEditarCliente = function(numCliente) {
             const c = rendicionPendiente && rendicionPendiente.detalleClientes &&
-                      rendicionPendiente.detalleClientes.find(x => String(x.numCliente) === String(numCliente));
+                      rendicionPendiente.detalleClientes.find(x => x.linea !== 'Queruclor' && String(x.numCliente) === String(numCliente));
             if (!c) return;
             const body = document.getElementById('rendicion-completa-body');
-            const imp1 = parseFloat(c.importe1 || 0);
-            const imp2 = parseFloat(c.importe2 || 0);
+            const imp1 = parseFloat(c.importe1 || 0), imp2 = parseFloat(c.importe2 || 0);
             const hasFp2 = !!c.formaPago2 && imp2 > 0;
             const opts = (sel) => ['Efectivo','Transferencia','Cheque'].map(fp =>
-                `<option value="${fp}" ${(sel||'').toLowerCase()===fp.toLowerCase()?'selected':''}>${fp}</option>`
-            ).join('');
+                `<option value="${fp}" ${(sel||'').toLowerCase()===fp.toLowerCase()?'selected':''}>${fp}</option>`).join('');
             const selStyle = `width:100%;padding:9px 10px;border-radius:8px;border:2px solid #e0e0e0;font-family:Quicksand;font-weight:600;font-size:0.88rem;color:#333;appearance:auto;`;
             const amtStyle = `display:flex;align-items:center;justify-content:space-between;background:#f4f5f7;border-radius:8px;padding:8px 12px;margin-top:6px;border:1.5px dashed #ddd;`;
+            const lbl = `font-size:0.77rem;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;`;
             body.innerHTML = `
-              <div style="padding:4px 2px;">
+              <div class="rc-edit">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #f0f0f0;">
-                  <div style="background:var(--primary);color:white;border-radius:10px;padding:5px 10px;font-size:1rem;font-weight:900;min-width:40px;text-align:center;">
-                    <div style="font-size:0.5rem;opacity:0.8;">CLI</div>${c.numCliente||'?'}
-                  </div>
-                  <div>
-                    <div style="font-weight:700;font-size:0.9rem;color:#333;">${c.nombre||'—'}</div>
-                    <div style="font-size:0.72rem;color:#aaa;">Corregir forma de pago</div>
-                  </div>
+                  <div class="rc-badge" style="background:var(--primary)"><small>CLI</small>${RC_H(c.numCliente||'?')}</div>
+                  <div><div style="font-weight:700;font-size:0.95rem;color:#333;">${RC_H(c.nombre||'—')}</div><div style="font-size:0.72rem;color:#aaa;">Corregir el medio de pago informado (Habituales). El valor original se conserva.</div></div>
                 </div>
-
-                <div style="margin-bottom:14px;">
-                  <label style="font-size:0.77rem;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Forma de pago${hasFp2 ? ' 1' : ''}</label>
+                <div style="margin-bottom:14px;"><label style="${lbl}">Medio de pago${hasFp2 ? ' 1' : ''}</label>
                   <select id="edit-fp1" style="${selStyle}"><option value="">— elegir —</option>${opts(c.formaPago1)}</select>
-                  <div style="${amtStyle}">
-                    <span style="font-size:0.71rem;color:#bbb;font-weight:700;">🔒 importe fijo</span>
-                    <span style="font-weight:900;color:#555;font-size:0.92rem;">$${imp1.toLocaleString('es-AR')}</span>
-                  </div>
-                </div>
-
-                ${hasFp2 ? `
-                <div style="margin-bottom:14px;">
-                  <label style="font-size:0.77rem;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Forma de pago 2</label>
+                  <div style="${amtStyle}"><span style="font-size:0.71rem;color:#bbb;font-weight:700;">🔒 importe fijo</span><span style="font-weight:900;color:#555;font-size:0.92rem;">${RC_$(imp1)}</span></div></div>
+                ${hasFp2 ? `<div style="margin-bottom:14px;"><label style="${lbl}">Medio de pago 2</label>
                   <select id="edit-fp2" style="${selStyle}"><option value="">— elegir —</option>${opts(c.formaPago2)}</select>
-                  <div style="${amtStyle}">
-                    <span style="font-size:0.71rem;color:#bbb;font-weight:700;">🔒 importe fijo</span>
-                    <span style="font-weight:900;color:#555;font-size:0.92rem;">$${imp2.toLocaleString('es-AR')}</span>
-                  </div>
-                </div>` : ''}
-
+                  <div style="${amtStyle}"><span style="font-size:0.71rem;color:#bbb;font-weight:700;">🔒 importe fijo</span><span style="font-weight:900;color:#555;font-size:0.92rem;">${RC_$(imp2)}</span></div></div>` : ''}
+                <div style="margin-bottom:14px;"><label style="${lbl}">Motivo de la corrección (obligatorio)</label>
+                  <textarea id="edit-motivo" rows="2" maxlength="300" style="${selStyle}resize:vertical" placeholder="Ej.: el cliente transfirió, Reparto lo informó como efectivo"></textarea>
+                  <div style="font-size:0.72rem;color:#999;margin-top:4px;">Lo registra: <b>${RC_H(typeof USUARIO_APP !== 'undefined' ? USUARIO_APP : '')}</b> · queda con fecha y hora.</div></div>
                 <div style="display:flex;gap:10px;margin-top:18px;">
-                  <button onclick="guardarEdicionCliente('${numCliente}')"
-                    style="flex:1;padding:12px;background:var(--success);color:white;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:Quicksand;">
-                    ✅ Guardar cambio
-                  </button>
-                  <button onclick="abrirModalRendicionCompleta()"
-                    style="flex:1;padding:12px;background:#f1f2f6;color:#555;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:Quicksand;">
-                    Cancelar
-                  </button>
+                  <button onclick="guardarEdicionCliente('${RC_H(numCliente)}')" style="flex:1;padding:12px;background:var(--success);color:white;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:Quicksand;">✅ Guardar cambio</button>
+                  <button onclick="abrirModalRendicionCompleta()" style="flex:1;padding:12px;background:#f1f2f6;color:#555;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:Quicksand;">Cancelar</button>
                 </div>
               </div>`;
         };
 
-
-        window.guardarEdicionCliente = function(numCliente) {
+        window.guardarEdicionCliente = async function(numCliente) {
             const c = rendicionPendiente && rendicionPendiente.detalleClientes &&
-                      rendicionPendiente.detalleClientes.find(x => String(x.numCliente) === String(numCliente));
+                      rendicionPendiente.detalleClientes.find(x => x.linea !== 'Queruclor' && String(x.numCliente) === String(numCliente));
             if (!c) return;
             const newFp1 = document.getElementById('edit-fp1').value;
-            if (!newFp1) { showToast('Elegí la forma de pago', false); return; }
-            const hasFp2  = !!c.formaPago2 && parseFloat(c.importe2 || 0) > 0;
-            const newFp2  = hasFp2 ? (document.getElementById('edit-fp2').value || '') : '';
-            if (hasFp2 && !newFp2) { showToast('Elegí la forma de pago 2', false); return; }
-            // Importes originales sin cambio — solo se actualiza el método
-            const imp1 = parseFloat(c.importe1 || 0);
-            const imp2 = hasFp2 ? parseFloat(c.importe2 || 0) : 0;
-            // Actualizar en memoria
-            c.formaPago1 = newFp1; c.importe1 = imp1;
-            c.formaPago2 = newFp2; c.importe2 = imp2;
-            c.totalPagado = imp1 + imp2;
-            // Recalcular totales generales y actualizar pantalla
-            recalcularTotalesRendicion();
-            // Guardar en backend (no bloqueante)
-            api("actualizarFormaPagoCliente", {
-                fecha: rendicionPendiente.fecha, turno: rendicionPendiente.turno,
-                repartidor: rendicionPendiente.repartidor, numCliente: c.numCliente,
-                formaPago1: newFp1, importe1: imp1, formaPago2: newFp2, importe2: imp2
-            });
+            if (!newFp1) { showToast('Elegí el medio de pago', false); return; }
+            const hasFp2 = !!c.formaPago2 && parseFloat(c.importe2 || 0) > 0;
+            const newFp2 = hasFp2 ? (document.getElementById('edit-fp2').value || '') : '';
+            if (hasFp2 && !newFp2) { showToast('Elegí el medio de pago 2', false); return; }
+            const motivo = (document.getElementById('edit-motivo').value || '').trim();
+            if (motivo.length < 3) { showToast('Escribí el motivo de la corrección', false); return; }
+            const antes = { formaPago1: c.formaPago1 || '', importe1: parseFloat(c.importe1 || 0), formaPago2: c.formaPago2 || '', importe2: hasFp2 ? parseFloat(c.importe2 || 0) : 0 };
+            const despues = { formaPago1: newFp1, importe1: antes.importe1, formaPago2: newFp2, importe2: antes.importe2 };
+            if (antes.formaPago1 === despues.formaPago1 && antes.formaPago2 === despues.formaPago2) { showToast('No hay cambios para guardar', false); return; }
+            const opId = (crypto.randomUUID ? crypto.randomUUID() : ('op' + Date.now() + Math.random()));
+            showLoading('Guardando corrección...');
+            let res = null;
+            try {
+                res = await api('registrarCorreccionPagoRendicion', {
+                    rendicionId: rendicionPendiente.rendicionId, fecha: rendicionPendiente.fecha, turno: rendicionPendiente.turno,
+                    repartidor: rendicionPendiente.repartidor, numCliente: c.numCliente, linea: 'habituales',
+                    antes, despues, motivo, quien: (typeof USUARIO_APP !== 'undefined' ? USUARIO_APP : ''), opId });
+            } catch (e) {}
+            hideLoading();
+            /* Solo cambia lo que se ve si el servidor confirmó que quedó registrado: no se muestra un cambio que no se guardó. */
+            if (!res || !res.ok) { showToast((res && res.error) || 'No se guardó la corrección. Reintentá.', false); return; }
+            rcAplicarCorreccion(rendicionPendiente, { num_cliente: c.numCliente, antes, despues, motivo, quien: (typeof USUARIO_APP !== 'undefined' ? USUARIO_APP : ''), creado: res.creado || new Date().toISOString() });
+            // Pantalla principal: solo se actualizan los números que ya muestra (esperado y desglose); el contador y «Confirmar» no se tocan.
+            try { rcRefrescarPrincipal(); } catch (e) {}
             abrirModalRendicionCompleta();
-            showToast('✅ Forma de pago actualizada', true);
+            showToast('✅ Medio de pago corregido y registrado', true);
         };
+        function rcRefrescarPrincipal() {
+            const r = rendicionPendiente; if (!r) return;
+            const ef = r.efectivoEsperado, esSoloDigital = (ef === 0);
+            const efEl = document.getElementById('rendicion-esperado');
+            if (efEl) efEl.textContent = esSoloDigital ? '$ 0 (sin efectivo)' : '$ ' + ef.toLocaleString('es-AR');
+            const tarjeta = document.getElementById('card-billetes-rendicion');
+            if (tarjeta) tarjeta.style.display = esSoloDigital ? 'none' : 'block';
+            const tr = parseInt(r.transferencia || 0), ch = parseInt(r.cheque || 0), tot = ef + tr + ch;
+            const desg = document.getElementById('rendicion-desglose-pagos');
+            if (desg) {
+                let h = '';
+                if (tr > 0 || ch > 0) {
+                    h += `<div style="background:#f8f9fa; border-radius:10px; padding:10px; margin-top:8px; font-size:0.85rem;">`;
+                    if (ef > 0) h += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:#00b894; font-weight:700;">💵 Efectivo:</span><span style="color:#00b894; font-weight:800;">$ ${ef.toLocaleString('es-AR')}</span></div>`;
+                    if (tr > 0) h += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:#6C63FF; font-weight:700;">📲 Transferencia:</span><span style="color:#6C63FF; font-weight:800;">$ ${tr.toLocaleString('es-AR')}</span></div>`;
+                    if (ch > 0) h += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:#e17055; font-weight:700;">📋 Cheque:</span><span style="color:#e17055; font-weight:800;">$ ${ch.toLocaleString('es-AR')}</span></div>`;
+                    h += `<div style="display:flex; justify-content:space-between; border-top:1px solid #dee2e6; padding-top:5px; margin-top:5px;"><span style="font-weight:700; color:#555;">Total Cobrado:</span><span style="font-weight:900; color:var(--text-main);">$ ${tot.toLocaleString('es-AR')}</span></div></div>`;
+                }
+                h += `<button onclick="abrirModalRendicionCompleta()" style="width:100%; margin-top:8px; padding:9px; border:2px solid var(--primary); border-radius:10px; background:transparent; color:var(--primary); font-weight:700; font-size:0.85rem; cursor:pointer; font-family:Quicksand;">📋 Ver rendición completa</button>`;
+                desg.innerHTML = h;
+            }
+            if (typeof actualizarDiferenciaRendicion === 'function') { const v = parseInt((document.getElementById('rendicion-contado-display') || {getAttribute: () => '0'}).getAttribute('data-numeric')) || 0; actualizarDiferenciaRendicion(v); }
+        }
 
         function recalcularTotalesRendicion() {
             if (!rendicionPendiente) return;
@@ -4339,10 +4439,77 @@
     </div>
 
     <!-- MODAL RENDICION COMPLETA -->
-    <div id="modal-rendicion-completa" onclick="if(event.target===this)cerrarModalRendicionCompleta()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); z-index:8000; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px 15px; box-sizing:border-box;">
-        <div style="background:white; width:100%; max-width:500px; border-radius:20px; padding:20px; margin:0 auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <style>
+    /* «Ver rendición completa» v3 (15/11/2026): ancho de monitor, una fila por cliente. Mismos colores y componentes. */
+    #modal-rendicion-completa .rc-top { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+    #modal-rendicion-completa .rc-chips { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    #modal-rendicion-completa .rc-chip { border-radius:20px; padding:6px 14px; font-size:0.9rem; font-weight:800; }
+    #modal-rendicion-completa .rc-tiles { display:flex; gap:12px; flex:1 1 420px; justify-content:flex-end; flex-wrap:wrap; }
+    #modal-rendicion-completa .rc-tile { min-width:200px; border-radius:12px; padding:10px 18px; text-align:center; border:2px solid; }
+    #modal-rendicion-completa .rc-tile div { font-size:0.72rem; font-weight:800; letter-spacing:0.4px; }
+    #modal-rendicion-completa .rc-tile b { font-size:1.35rem; font-weight:900; }
+    #modal-rendicion-completa .rc-aviso { background:#fff3cd; color:#8a5a00; border-radius:10px; padding:9px 12px; margin-bottom:10px; font-weight:700; font-size:0.85rem; }
+    #modal-rendicion-completa .rc-tabla { border-radius:12px; background:#fff; }
+    #modal-rendicion-completa .rc-th, #modal-rendicion-completa .rc-fila { display:grid; grid-template-columns: minmax(230px,2.3fr) minmax(120px,1fr) minmax(170px,1.35fr) minmax(170px,1.35fr) minmax(130px,1fr) minmax(210px,1.6fr) minmax(150px,1.1fr); gap:10px 14px; align-items:center; }
+    #modal-rendicion-completa .rc-th { background:#e9eaff; color:#333; font-weight:800; font-size:0.82rem; padding:11px 16px 11px 20px; border-radius:10px; position:sticky; top:0; z-index:2; }
+    #modal-rendicion-completa .rc-fila { background:#f8f9fa; border-left:5px solid #00b894; border-radius:12px; padding:12px 16px; margin-top:8px; }
+    #modal-rendicion-completa .rc-c { min-width:0; display:flex; flex-direction:column; gap:3px; font-size:0.88rem; color:#333; }
+    #modal-rendicion-completa .rc-c small { color:#888; font-size:0.72rem; font-weight:600; }
+    #modal-rendicion-completa .rc-cli { flex-direction:row; align-items:center; gap:10px; }
+    #modal-rendicion-completa .rc-cli b { font-size:0.97rem; display:block; }
+    #modal-rendicion-completa .rc-badge { color:#fff; border-radius:10px; padding:6px 9px; font-size:1.05rem; font-weight:900; min-width:56px; text-align:center; flex-shrink:0; line-height:1.1; }
+    #modal-rendicion-completa .rc-badge small { display:block; font-size:0.55rem; font-weight:700; opacity:0.85; color:#fff; }
+    #modal-rendicion-completa .rc-est { display:inline-block; align-self:flex-start; border-radius:9px; padding:3px 11px; font-weight:800; font-size:0.82rem; }
+    #modal-rendicion-completa .rc-est-ok { background:#e8f5e9; color:#1e8e5a; }
+    #modal-rendicion-completa .rc-est-par { background:#ffe8e8; color:#c0392b; }
+    #modal-rendicion-completa .rc-est-dev { background:#fff3cd; color:#c0392b; }
+    #modal-rendicion-completa .rc-est-nd { background:#eee; color:#666; }
+    #modal-rendicion-completa .rc-imp { font-weight:900; font-size:1rem; color:#333; }
+    #modal-rendicion-completa .rc-medio { font-size:0.8rem; font-weight:700; }
+    #modal-rendicion-completa .rc-mixto { font-size:0.7rem; font-weight:800; color:#f39c12; text-transform:uppercase; letter-spacing:0.3px; }
+    #modal-rendicion-completa .rc-nd { color:#aaa; font-size:0.8rem; }
+    #modal-rendicion-completa .rc-tot b { font-size:1.08rem; font-weight:900; color:var(--primary); }
+    #modal-rendicion-completa .rc-compc { gap:6px; align-items:stretch; }
+    #modal-rendicion-completa .rc-comp { display:block; text-align:center; text-decoration:none; background:#fff; color:var(--primary); border:1.5px solid #cfd2ff; border-radius:9px; padding:6px 10px; font-weight:800; font-size:0.78rem; }
+    #modal-rendicion-completa .rc-comp:hover { background:#f0f2ff; }
+    #modal-rendicion-completa .rc-sin { display:block; text-align:center; background:#eceff1; color:#555; border-radius:9px; padding:6px 10px; font-size:0.76rem; font-weight:700; }
+    #modal-rendicion-completa .rc-acc { gap:6px; align-items:stretch; }
+    #modal-rendicion-completa .rc-btn { background:#fff; border:1.5px solid #cfd2ff; color:var(--primary); border-radius:9px; padding:7px 10px; font-weight:800; font-size:0.8rem; cursor:pointer; font-family:Quicksand; }
+    #modal-rendicion-completa .rc-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    #modal-rendicion-completa .rc-btn-det { border-color:var(--primary); }
+    #modal-rendicion-completa .rc-detalle { grid-column:1 / -1; background:#fff; border:1.5px solid #e4e6ff; border-radius:12px; padding:14px 16px; }
+    #modal-rendicion-completa .rc-detalle[hidden] { display:none; }
+    #modal-rendicion-completa .rc-det { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px 22px; }
+    #modal-rendicion-completa .rc-det-wide { grid-column:1 / -1; }
+    #modal-rendicion-completa .rc-det-t { color:var(--primary); font-weight:900; font-size:0.9rem; margin-bottom:6px; }
+    #modal-rendicion-completa .rc-sub { font-weight:800; font-size:0.76rem; color:#555; margin:6px 0 2px; }
+    #modal-rendicion-completa .rc-ul { margin:2px 0 4px 18px; padding:0; font-size:0.84rem; color:#333; }
+    #modal-rendicion-completa .rc-kv { display:flex; justify-content:space-between; gap:12px; font-size:0.84rem; padding:2px 0; }
+    #modal-rendicion-completa .rc-kv span { color:#777; }
+    #modal-rendicion-completa .rc-par b { color:#c0392b; }
+    #modal-rendicion-completa .rc-corr b { color:#f39c12; }
+    #modal-rendicion-completa .rc-pie { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; background:#f0f2ff; border:2px solid var(--primary); border-radius:12px; padding:11px 16px; margin-top:14px; color:var(--primary); font-weight:700; font-size:0.84rem; }
+    #modal-rendicion-completa .rc-total b { font-size:1.25rem; font-weight:900; margin-left:8px; }
+    #modal-rendicion-completa .rc-edit { max-width:560px; margin:0 auto; }
+    @media (max-width: 1100px) {
+      #modal-rendicion-completa .rc-th { display:none; }
+      #modal-rendicion-completa .rc-fila { grid-template-columns:1fr 1fr; }
+      #modal-rendicion-completa .rc-fila .rc-cli, #modal-rendicion-completa .rc-fila .rc-compc, #modal-rendicion-completa .rc-fila .rc-acc { grid-column:1 / -1; }
+      #modal-rendicion-completa .rc-c::before { content:attr(data-l); font-size:0.66rem; font-weight:800; color:#999; text-transform:uppercase; letter-spacing:0.4px; }
+      #modal-rendicion-completa .rc-cli::before { content:none; }
+      #modal-rendicion-completa .rc-acc { flex-direction:row; }
+      #modal-rendicion-completa .rc-acc .rc-btn { flex:1; }
+    }
+    @media (max-width: 560px) {
+      #modal-rendicion-completa .rc-fila { grid-template-columns:1fr; }
+      #modal-rendicion-completa .rc-sheet { padding:14px 12px !important; }
+    }
+
+    </style>
+    <div id="modal-rendicion-completa" onclick="if(event.target===this)cerrarModalRendicionCompleta()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); z-index:8000; justify-content:center; align-items:flex-start; overflow-y:auto; padding:2.5vh 2vw; box-sizing:border-box;">
+        <div class="rc-sheet" style="background:white; width:min(1440px, 96vw); max-width:96vw; border-radius:20px; padding:20px 24px; margin:0 auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #f0f0f0; padding-bottom:10px;">
-                <h3 style="margin:0; font-size:1.1rem; color:var(--primary);">📋 Rendición Completa</h3>
+                <h3 id="rendicion-completa-titulo" style="margin:0; font-size:1.25rem; color:var(--primary);">📋 Rendición completa</h3>
                 <button onclick="cerrarModalRendicionCompleta()" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#aaa; line-height:1;">✕</button>
             </div>
             <div id="rendicion-completa-body"></div>
@@ -5925,9 +6092,14 @@
     if (fi && fi.clientes) return fi.clientes.map(c => ({ linea: "Queruclor", numCliente: c.cliente_id, nombre: (c.cliente_nombre || "") + " · Queruclor " + c.remito,
       formaPago1: FORMA(c.cobrado ? c.forma : ""), importe1: Number(c.cobrado) || 0, formaPago2: "", importe2: 0, totalPagado: Number(c.cobrado) || 0,
       importeFact: Number(c.total) || 0, devolucion: (c.devoluciones || []).reduce((a, d) => a + (d.estado !== "acreditada" ? Number(d.valor) || 0 : 0), 0),
-      notas: c.estado === "rechazado" ? "Rechazó todo" : "", comprobanteId: "" }));
+      notas: c.estado === "rechazado" ? "Rechazó todo" : "", comprobanteId: "",
+      /* 15/11/2026 — lo que llegó de Queruclor, tal cual, para «Ver rendición completa» (nada se infiere). */
+      clienteNombre: c.cliente_nombre || "", remito: c.remito || "", estadoEntrega: c.estado || "", vendedor: c.vendedor || "", nota: c.nota || "",
+      saldoAnterior: c.saldo_anterior == null ? null : Number(c.saldo_anterior), devoluciones: c.devoluciones || [],
+      comprobanteRef: (c.cobro && c.cobro.comprobante_ref) || "", fechaCobro: (c.cobro && c.cobro.fecha_cobro) || "", estadoCobro: (c.cobro && c.cobro.estado) || "" }));
     return cobrosDe(q.id).map(c => ({ linea: "Queruclor", numCliente: c.cliente_id, nombre: (c.cliente_nombre || "") + " · Queruclor " + c.remito,
-      formaPago1: FORMA(c.forma), importe1: c.importe, totalPagado: c.importe, importeFact: null, devolucion: 0, notas: "" }));
+      formaPago1: FORMA(c.forma), importe1: c.importe, totalPagado: c.importe, importeFact: null, devolucion: 0, notas: "",
+      clienteNombre: c.cliente_nombre || "", remito: c.remito || "", vendedor: c.vendedor || "", comprobanteRef: c.comprobante_ref || "", fechaCobro: c.fecha_cobro || "", estadoCobro: c.estado || "" }));
   }
 
   /* 20/10/2026: un envío histórico que solo tiene registros sin cargo (R-0001…)
