@@ -2975,7 +2975,7 @@
             dataCard.style.display = 'none'; document.getElementById('card-billetes-rendicion').style.display = 'none';
             rendicionPendiente = null;
 
-            const res = await api("getDatosRendicionEsperada", { repartidor: RENDICION_REPARTIDOR, turno: RENDICION_TURNO_DEFECTO });
+            const res = await api("getDatosRendicionEsperada", { repartidor: RENDICION_REPARTIDOR, turno: RENDICION_TURNO_DEFECTO, rendicionId: window.__rendSel || undefined });
             load.style.display = 'none';
 
             if (res && res.ok && res.hayPendiente) {
@@ -2995,7 +2995,8 @@
 
                 dataCard.style.display = 'block';
                 document.getElementById('card-billetes-rendicion').style.display = esSoloDigital ? 'none' : 'block';
-                document.getElementById('rendicion-narrativa').innerHTML = `Planilla de <b>${res.repartidor}</b><br>Turno: <b>${res.turno}</b><br>Fecha del reparto: <b>${String(res.fecha).split('-').reverse().join('/')}</b>` + (res.pendientes > 1 ? `<br><b style="color:var(--accent)">Hay ${res.pendientes} rendiciones pendientes: procesá esta primero (la más vieja).</b>` : '');
+                document.getElementById('rendicion-narrativa').innerHTML = `Planilla de <b>${res.repartidor}</b><br>Turno: <b>${res.turno}</b><br>Fecha del reparto: <b>${String(res.fecha).split('-').reverse().join('/')}</b>` + (res.pendientes > 1 ? `<br><b style="color:var(--accent)">Hay ${res.pendientes} rendiciones pendientes.</b> Una vieja sin contar no frena a las nuevas: elegí cuál procesar.<br>` +
+                    (res.pendientesLista || []).map(p => `<button onclick="elegirRendicion(${Number(p.id)})" style="margin:3px 4px 0 0;padding:5px 9px;border:2px solid ${Number(p.id) === Number(res.rendicionId) ? 'var(--primary)' : '#ccc'};border-radius:9px;background:${Number(p.id) === Number(res.rendicionId) ? '#f0f2ff' : '#fff'};font-weight:700;font-size:0.78rem;cursor:pointer;font-family:Quicksand">${String(p.fecha).split('-').reverse().slice(0,2).join('/')} ${p.turno}</button>`).join('') : '');
                 document.getElementById('rendicion-esperado').textContent = esSoloDigital ? '$ 0 (sin efectivo)' : "$ " + ef.toLocaleString('es-AR');
 
                 if (esSoloDigital) {
@@ -3034,6 +3035,8 @@
                 content.style.display = 'none'; zen.style.display = 'block';
             }
         }
+
+        window.elegirRendicion = function (id) { window.__rendSel = Number(id) || null; buscarRendicionPendiente(); };
 
         function actualizarDiferenciaRendicion(totalContado) {
             const div = document.getElementById('rendicion-diferencia-container');
@@ -3107,6 +3110,7 @@
                     actualizarSaldoHeader();
                     monitor.reset();
                     limpiarBilletes('rend');
+                    window.__rendSel = null;
                     buscarRendicionPendiente();
 
                     if (hayFaltante) {
@@ -6225,7 +6229,7 @@
   function accionCobro(e) {
     if (!enBase()) return `<button class="qr-b" onclick="qrConfirmarRecibo('${e.id}')">Aceptar</button>`;
     const [txt, cls] = ESTADO_COBRO[e.estado] || [e.estado, ""];
-    if (e.estado === "verificado") return `<button class="qr-b" onclick="qrConfirmarRecibo('${esc(e.id)}')">Confirmar recibo</button>`;
+    if (e.estado === "verificado") return `<button class="qr-b" onclick="qrConfirmarRecibo('${esc(e.id)}')">Emitir recibo</button>`;
     if (e.forma === "cheque" && e.estado === "rendido") return `<span class="qr-cobro-acc">
       <button class="qr-b" onclick="qrChequeOk('${esc(e.id)}', true)">Cheque recibido</button>
       <button class="qr-b ghost" onclick="qrChequeOk('${esc(e.id)}', false)">No vino / observado</button></span>`;
@@ -10407,6 +10411,38 @@
         <div class="qv3-m">${money(c.importe)}</div><span class="qr-chip-est mal">Recibo bloqueado</span>
         <div class="qv3-mot">${esc(c.motivo)}</div></div>`).join("")}</details>`;
   }
+  /* 15/11/2026 — Pagos listos para emitir recibo: una persona toca «Emitir recibo»; nunca sale solo. Sin verificación
+     bancaria previa: alcanza con que el pago y su comprobante estén registrados (o que Pablo lo haya confirmado). */
+  function listosSinRecibo() { try { return S.get("qr_cobros", "recibo=is.null&estado=eq.verificado&order=fecha_cobro.asc", 0) || []; } catch (e) { return null; } }
+  function listosHTML() {
+    const l = listosSinRecibo();
+    if (l === null) return `<div class="qr-aviso qv6-err">No se pudo consultar los pagos listos para emitir recibo. Eso no significa que no haya. <button class="qr-b chico" onclick="qrRecibosV3()">Volver a consultar</button></div>`;
+    if (!l.length) return "";
+    const resp = c => {
+      const ref = String(c.comprobante_ref || "");
+      if (ref.indexOf("drive:") === 0) return `<a href="https://drive.google.com/file/d/${encodeURIComponent(ref.slice(6))}/view" target="_blank" rel="noopener">Ver comprobante</a>`;
+      const manual = (c.historial || []).some(h => h && h.accion === "confirmación manual del pago");
+      return manual ? "Confirmación manual de Pablo · sin comprobante en el sistema" : (ref ? esc(ref) : "");
+    };
+    return `<div class="qr-card" id="qvListos"><div class="qr-card-t">Pagos de Queruclor listos para emitir recibo (${l.length})</div>
+      <div class="qr-card-s">Mercadería entregada y pago registrado. No hace falta verificación bancaria. El recibo lo emitís vos con el botón.</div>
+      ${l.map(c => `<div class="qv3-fila"><div class="qv3-c"><b>${esc(c.cliente_nombre)}</b>
+        <small>${esc(c.remito)} · ${esc(c.forma)} · cobrado el ${fh(c.fecha_cobro)} · vendedor ${esc(c.vendedor || "—")} · ${resp(c)}</small></div>
+        <div class="qv3-m">${money(c.importe)}</div>
+        <button class="qr-b" onclick="qrEmitirListo('${esc(c.id)}')">Emitir recibo</button></div>`).join("")}</div>`;
+  }
+  window.qrEmitirListo = function (id) {
+    if (enCurso || Date.now() - finEnCurso < 350 || !id) return;   // doble clic: no hace nada
+    enCurso = true;
+    try {
+      const x = emitir({ id });
+      const txt = x.estado === "ok" ? "Recibo " + (x.numero || "") + " emitido." : x.estado === "ya" ? "Ya estaba emitido (no se repitió)." : (x.motivo || "No se emitió.");
+      if (window.showToast) showToast(txt + (x.sinComision || ""), x.estado === "ok" || x.estado === "ya"); else console.log(txt);
+      recibosCache = {};
+      if (window.qrAvisosContador) try { qrAvisosContador(); } catch (e) {}
+    } finally { enCurso = false; finEnCurso = Date.now(); }
+    pintarLista(); contar();
+  };
   function pintarLista() {
     const v = $("qv-recibos"); if (!v) return;
     if (abierta) return pintarFicha();
@@ -10417,6 +10453,7 @@
     const filtradas = conEstado.filter(x => (filtro.estado === "pendientes" ? x.pend.length : !x.pend.length) &&
       (!filtro.fecha || diaAR((x.q || x.m).fecha) === filtro.fecha));
     v.innerHTML = `
+      ${listosHTML()}
       ${pendientesLocalesHTML()}
       <div class="qr-card qv3-rends" id="qv2Rends">
         ${errLista ? `<div class="qr-aviso qv6-err">No se pudo consultar las rendiciones de Queruclor (sin conexión con el servidor). Lo que ves abajo puede estar incompleto: no significa que no haya rendiciones. <button class="qr-b chico" onclick="qrRecibosV3()">Volver a consultar</button></div>` : ""}
@@ -10493,7 +10530,7 @@
       ? { txt: "Requiere revisión (guardado en este equipo)", cls: "mal", acc: "", motivo: pl.motivo || "" }
       : { txt: "Guardado en este equipo · pendiente de sincronizar", cls: "ojo", acc: `<button class="qr-b ghost" onclick="qrRendSincronizar()">Sincronizar ahora</button>` };
     if (cob.estado === "verificado") return { txt: "Pago listo para confirmar", cls: "listo", listo: true,
-      acc: `<button class="qr-b" onclick="qrRendConfirmar(['${esc(cob.id)}'])">Confirmar recibo</button>` };
+      acc: `<button class="qr-b" onclick="qrRendConfirmar(['${esc(cob.id)}'])">Emitir recibo</button>` };
     if (cob.forma === "cheque" && cob.estado === "rendido") return { txt: "Pendiente de verificación", cls: "ojo",
       acc: `<button class="qr-b" onclick="qrRendCheque('${esc(cob.id)}', true)">Cheque recibido</button>
             <button class="qr-b ghost" onclick="qrRendCheque('${esc(cob.id)}', false)">No vino / observado</button>` };

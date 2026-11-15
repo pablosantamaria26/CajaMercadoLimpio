@@ -120,7 +120,7 @@ function doPost(e) {
 
       // --- RENDICIONES (MOTOR V3.7) ---
       case 'getDatosRendicionEsperada':
-        result = getRendicionCacheadaParaApp(params.turno, params.repartidor);
+        result = getRendicionCacheadaParaApp(params.turno, params.repartidor, params.rendicionId);
         break;
 
       case 'getDetalleRendicion':
@@ -588,7 +588,7 @@ function cargarEnCache(sheetCache, sheetHist, datos) {
 /****************************************************
  * 💾 GESTIÓN DE CACHÉ
  ****************************************************/
-function getRendicionCacheadaParaApp(turnoApp, repartidorApp) {
+function getRendicionCacheadaParaApp(turnoApp, repartidorApp, rendicionIdApp) {
   // Una sola fuente: Supabase. Ninguna pendiente se oculta ni tiene límite de antigüedad.
   const lista = listarRendicionesPendientesSupabase_(repartidorApp);
   if (lista.error) {
@@ -596,7 +596,8 @@ function getRendicionCacheadaParaApp(turnoApp, repartidorApp) {
       error: "No se pudo consultar las rendiciones pendientes (" + lista.motivo + "). Esto NO significa que no haya: reintentá." };
   }
   if (lista.filas.length === 0) return { ok: true, hayPendiente: false, mensaje: "Nada pendiente." };
-  const r = lista.filas[0];
+  // Se puede elegir cuál procesar: una vieja sin contar (p. ej. con efectivo por contar) no frena a las nuevas.
+  const r = (rendicionIdApp && lista.filas.filter(function (x) { return String(x.id) === String(rendicionIdApp); })[0]) || lista.filas[0];
   return {
     ok: true,
     hayPendiente: true,
