@@ -440,6 +440,52 @@ async function getCorreccionesPago(env, p) {
   return { ok: true, correcciones: filas };
 }
 
+/* ── Queruclor dentro de Habituales (15/11/2026) — solo lectura ───────────────────────────────────────────
+   Por cada cliente de la rendición con fila de Habituales, mira los remitos de Queruclor emitidos en los 14 días previos y avisa:
+   · qr_en_habituales: remito sin cobro en Queruclor y un pago de Habituales por el MISMO importe (±$1): probablemente el pago de
+     Queruclor viajó dentro de Habituales.
+   · posible_duplicado: el remito ya tiene su cobro en Queruclor y un pago de Habituales por el mismo importe: el mismo pago en dos circuitos.
+   · qr_sin_registrar: remito sin cobro ni entrega registrada (el cliente NO debe figurar como «No tiene» Queruclor). */
+async function alertasQueruclor(env, p) {
+  if (!p.rendicionId) return { ok: false, error: "Falta identificar la rendición." };
+  const H = sbReadH(env.SUPABASE_SERVICE_KEY);
+  const rr = await fetch(`${SB_URL}/rendiciones_reparto?id=eq.${encodeURIComponent(p.rendicionId)}&select=id,fecha,detalle_clientes`, { headers: H });
+  const filas = await rr.json().catch(() => null);
+  if (!rr.ok || !Array.isArray(filas) || !filas.length) return { ok: false, error: "No se pudo leer la rendición." };
+  const detalle = filas[0].detalle_clientes || [], fecha = String(filas[0].fecha);
+  const nums = [...new Set(detalle.map(d => String(d.numCliente || "")).filter(Boolean))];
+  if (!nums.length) return { ok: true, alertas: [] };
+  const inList = nums.map(encodeURIComponent).join(",");
+  const [re, rc] = await Promise.all([
+    fetch(`${SB_URL}/qr_entregas?cliente_id=in.(${inList})&select=remito,cliente_id,total,estado,creada`, { headers: H }),
+    fetch(`${SB_URL}/qr_cobros?cliente_id=in.(${inList})&select=remito,cliente_id,importe,estado,recibo`, { headers: H }),
+  ]);
+  const entregas = await re.json().catch(() => null), cobros = await rc.json().catch(() => null);
+  if (!re.ok || !rc.ok || !Array.isArray(entregas) || !Array.isArray(cobros)) return { ok: false, error: "No se pudo consultar Queruclor." };
+  const f0 = Date.parse(fecha + "T12:00:00-03:00"), ms = 86400000;
+  const alertas = [];
+  for (const e of entregas) {
+    const t = Date.parse(e.creada);
+    if (!(t >= f0 - 14 * ms && t <= f0 + 1.5 * ms)) continue;           // solo remitos recientes respecto de la rendición
+    if (e.estado === "rechazado") continue;
+    const cobro = cobros.find(c => c.remito === e.remito && c.estado !== "anulado");
+    const total = Math.round(Number(e.total) || 0);
+    for (const d of detalle.filter(x => x.linea !== "Queruclor" && String(x.numCliente) === String(e.cliente_id))) {
+      const pagos = [[d.formaPago1, Number(d.importe1) || 0], [d.formaPago2, Number(d.importe2) || 0]].filter(x => x[1] > 0);
+      const igual = pagos.find(x => Math.abs(x[1] - total) <= 1);
+      const base = { cliente: String(e.cliente_id), nombre: d.nombre || "", remito: e.remito, importeRemito: total };
+      if (igual && !cobro) alertas.push(Object.assign(base, { tipo: "qr_en_habituales", importe: igual[1], forma: igual[0] || "",
+        mensaje: "El pago de $" + igual[1].toLocaleString("es-AR") + " (" + (igual[0] || "sin medio") + ") coincide con el remito de Queruclor " + e.remito + ", que no tiene cobro registrado en Queruclor: probablemente es el pago de Queruclor cargado dentro de Habituales." }));
+      else if (igual && cobro) alertas.push(Object.assign(base, { tipo: "posible_duplicado", importe: igual[1], forma: igual[0] || "",
+        mensaje: "El remito " + e.remito + " ya tiene su cobro en Queruclor ($" + Number(cobro.importe).toLocaleString("es-AR") + ") y Habituales también muestra un pago de $" + igual[1].toLocaleString("es-AR") + ": puede ser el mismo pago en dos circuitos. No lo cargues dos veces." }));
+      else if (!cobro) alertas.push(Object.assign(base, { tipo: "qr_sin_registrar", importe: 0, forma: "",
+        mensaje: "El cliente tiene el remito de Queruclor " + e.remito + " ($" + total.toLocaleString("es-AR") + ") sin entrega ni cobro registrados en Reparto." }));
+      break;                                                              // una alerta por remito (la primera fila de Habituales alcanza)
+    }
+  }
+  return { ok: true, alertas };
+}
+
 async function registrarRendicionSB(env, params) {
   const { fecha, hora } = arNow();
   const fechaReparto = params.fechaStr?.split("T")[0] || fecha;
@@ -1286,8 +1332,8 @@ export default {
     const params = body.params || {};
 
     // ── Correcciones del medio de pago de una rendición (no pasan por la planilla).
-    if (fn === "registrarCorreccionPagoRendicion" || fn === "getCorreccionesPagoRendicion") {
-      try { return json(fn === "registrarCorreccionPagoRendicion" ? await registrarCorreccionPago(env, params) : await getCorreccionesPago(env, params), 200, cors); }
+    if (fn === "registrarCorreccionPagoRendicion" || fn === "getCorreccionesPagoRendicion" || fn === "alertasQueruclorRendicion") {
+      try { return json(fn === "registrarCorreccionPagoRendicion" ? await registrarCorreccionPago(env, params) : fn === "alertasQueruclorRendicion" ? await alertasQueruclor(env, params) : await getCorreccionesPago(env, params), 200, cors); }
       catch (e) { return json({ ok: false, error: "Error guardando: " + e.message }, 500, cors); }
     }
 

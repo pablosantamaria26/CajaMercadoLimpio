@@ -2987,6 +2987,7 @@
                 rendicionPendiente.efectivoEsperado = (Math.round((Number(res.efectivoEsperado ?? res.efectivo ?? 0) || 0) * 100) / 100);
                 rendicionPendiente.detalleClientes  = res.detalleClientes || res.detalle_clientes || [];
                 await aplicarCorreccionesPago(rendicionPendiente);   // correcciones de medio de pago ya registradas (el dato original se conserva)
+                await cargarAlertasQR(rendicionPendiente);           // Queruclor dentro de Habituales (solo aviso; no bloquea)
 
                 const ef  = rendicionPendiente.efectivoEsperado;
                 const tr  = parseInt(res.transferencia || 0);
@@ -3600,6 +3601,10 @@
             if (tr > 0) html += `<div class="rc-tile" style="background:#f0f2ff;border-color:#6C63FF;color:#6C63FF"><div>TRANSFERENCIAS</div><b>${RC_$(tr)}</b></div>`;
             if (ch > 0) html += `<div class="rc-tile" style="background:#fff4f0;border-color:#e17055;color:#e17055"><div>CHEQUE</div><b>${RC_$(ch)}</b></div>`;
             html += '</div></div>';
+            const alQR = rendicionPendiente.alertasQR || {};
+            const graves = Object.values(alQR).flat().filter(a => a.tipo !== 'qr_sin_registrar');
+            if (graves.length) html += '<div class="rc-aviso rc-aviso-rojo"><b>⚠️ Revisar antes de cargar en E-PyME:</b><ul class="rc-ul">' + graves.map(a => '<li><b>' + RC_H(a.nombre || a.cliente) + '</b> · ' + RC_H(a.mensaje) + '</li>').join('') + '</ul></div>';
+            if (rendicionPendiente.alertasQRError) html += '<div class="rc-aviso">⚠️ No se pudo comprobar si hay Queruclor dentro de Habituales. Reintentá abriendo de nuevo la rendición.</div>';
             if (rendicionPendiente.correccionesError) html += '<div class="rc-aviso">⚠️ No se pudieron cargar las correcciones de pago ya registradas: los medios de pago pueden no reflejarlas. Cerrá y volvé a abrir la rendición.</div>';
 
             html += '<div class="rc-tabla" role="table"><div class="rc-th" role="row"><span>Cliente</span><span>Estado de entrega</span><span>Habituales</span><span>Queruclor</span><span>Total cobrado</span><span>Comprobantes</span><span>Acción</span></div>';
@@ -3617,7 +3622,9 @@
                 html += `<div class="rc-c" data-l="Estado de entrega"><span class="rc-est rc-est-${estCls}">${RC_H(estTxt)}</span>` +
                     (hab.length && qr.length ? `<small>Hab.: ${RC_H(rcEstadoHab(hab[0])[0])} · Q.: ${RC_H(rcEstadoQR(qr[0])[0])}</small>` : '') + '</div>';
                 html += `<div class="rc-c" data-l="Habituales">${hab.length ? hab.map(rcPagoHTML).join('') : '<span class="rc-nd">No tiene</span>'}</div>`;
-                html += `<div class="rc-c" data-l="Queruclor">${qr.length ? qr.map(rcPagoHTML).join('') : '<span class="rc-nd">No tiene</span>'}</div>`;
+                const alG = (rendicionPendiente.alertasQR || {})[String(g.num)] || [];
+                const alCelda = alG.length ? alG.map(a => `<div class="rc-alerta rc-alerta-${a.tipo === 'qr_sin_registrar' ? 'amar' : 'rojo'}">⚠️ Remito ${RC_H(a.remito)} (${RC_$(a.importeRemito)})<small>${a.tipo === 'qr_en_habituales' ? 'su pago figura dentro de Habituales' : a.tipo === 'posible_duplicado' ? 'mismo pago en los dos circuitos' : 'sin entrega ni cobro registrados'}</small></div>`).join('') : '';
+                html += `<div class="rc-c" data-l="Queruclor">${qr.length ? qr.map(rcPagoHTML).join('') : (alCelda || '<span class="rc-nd">No tiene</span>')}${qr.length ? alCelda : ''}</div>`;
                 html += `<div class="rc-c rc-tot" data-l="Total cobrado"><b>${RC_$(totHab + totQR)}</b>${hab.length && qr.length ? `<small>Hab. ${RC_$(totHab)} + Q. ${RC_$(totQR)}</small>` : ''}</div>`;
                 html += `<div class="rc-c rc-compc" data-l="Comprobantes">${hab.map(r => rcComprobanteHTML('Habituales', r, r.comprobanteId)).join('')}${qr.map(r => rcComprobanteHTML('Queruclor', r, r.comprobanteRef)).join('')}</div>`;
                 html += `<div class="rc-c rc-acc" data-l="Acción">` +
@@ -3666,6 +3673,15 @@
             (r.correcciones = r.correcciones || []).push(cor);
             return true;
         }
+        /* Avisos de Queruclor dentro de Habituales (Worker, solo lectura). Un error de consulta se muestra, no se oculta. */
+        window.cargarAlertasQR = async function(r) {
+            r.alertasQR = {}; r.alertasQRError = false;
+            if (!r.rendicionId) return;
+            let x = null;
+            try { x = await api('alertasQueruclorRendicion', { rendicionId: r.rendicionId }); } catch (e) {}
+            if (!x || !x.ok) { r.alertasQRError = true; return; }
+            (x.alertas || []).forEach(a => { (r.alertasQR[String(a.cliente)] = r.alertasQR[String(a.cliente)] || []).push(a); });
+        };
         window.aplicarCorreccionesPago = async function(r) {
             r.correcciones = []; r.correccionesError = false;
             if (!r.rendicionId) return;
@@ -4449,6 +4465,11 @@
     #modal-rendicion-completa .rc-tile div { font-size:0.72rem; font-weight:800; letter-spacing:0.4px; }
     #modal-rendicion-completa .rc-tile b { font-size:1.35rem; font-weight:900; }
     #modal-rendicion-completa .rc-aviso { background:#fff3cd; color:#8a5a00; border-radius:10px; padding:9px 12px; margin-bottom:10px; font-weight:700; font-size:0.85rem; }
+    #modal-rendicion-completa .rc-aviso-rojo { background:#ffe8e8; color:#a93226; border:2px solid #e17055; }
+    #modal-rendicion-completa .rc-alerta { border-radius:9px; padding:5px 8px; font-size:0.78rem; font-weight:800; margin-top:3px; }
+    #modal-rendicion-completa .rc-alerta small { display:block; font-weight:600; }
+    #modal-rendicion-completa .rc-alerta-rojo { background:#ffe8e8; color:#a93226; border:1.5px solid #e17055; }
+    #modal-rendicion-completa .rc-alerta-amar { background:#fff3cd; color:#8a5a00; border:1.5px solid #f0c36d; }
     #modal-rendicion-completa .rc-tabla { border-radius:12px; background:#fff; }
     #modal-rendicion-completa .rc-th, #modal-rendicion-completa .rc-fila { display:grid; grid-template-columns: minmax(230px,2.3fr) minmax(120px,1fr) minmax(170px,1.35fr) minmax(170px,1.35fr) minmax(130px,1fr) minmax(210px,1.6fr) minmax(150px,1.1fr); gap:10px 14px; align-items:center; }
     #modal-rendicion-completa .rc-th { background:#e9eaff; color:#333; font-weight:800; font-size:0.82rem; padding:11px 16px 11px 20px; border-radius:10px; position:sticky; top:0; z-index:2; }
