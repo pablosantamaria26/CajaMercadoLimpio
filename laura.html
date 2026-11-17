@@ -6111,7 +6111,8 @@
     let fi = null;
     try { fi = QRSrv.rpc("qr_rendicion_ficha", { p_id: q.id }); } catch (e) {}
     if (fi && fi.clientes) return fi.clientes.map(c => ({ linea: "Queruclor", numCliente: c.cliente_id, nombre: (c.cliente_nombre || "") + " · Queruclor " + c.remito,
-      formaPago1: FORMA(c.cobrado ? c.forma : ""), importe1: Number(c.cobrado) || 0, formaPago2: "", importe2: 0, totalPagado: Number(c.cobrado) || 0,
+      formaPago1: FORMA(Array.isArray(c.pagos) && c.pagos.length ? c.pagos[0].forma : (c.cobrado ? c.forma : "")), importe1: Array.isArray(c.pagos) && c.pagos.length ? Number(c.pagos[0].importe) || 0 : Number(c.cobrado) || 0,
+      formaPago2: Array.isArray(c.pagos) && c.pagos.length > 1 ? FORMA(c.pagos[1].forma) : "", importe2: Array.isArray(c.pagos) && c.pagos.length > 1 ? Number(c.pagos[1].importe) || 0 : 0, totalPagado: Number(c.cobrado) || 0,
       importeFact: Number(c.total) || 0, devolucion: (c.devoluciones || []).reduce((a, d) => a + (d.estado !== "acreditada" ? Number(d.valor) || 0 : 0), 0),
       notas: c.estado === "rechazado" ? "Rechazó todo" : "", comprobanteId: "",
       /* 15/11/2026 — lo que llegó de Queruclor, tal cual, para «Ver rendición completa» (nada se infiere). */
@@ -10606,7 +10607,21 @@
   }
   /* 15/11/2026 — Pagos listos para emitir recibo: una persona toca «Emitir recibo»; nunca sale solo. Sin verificación
      bancaria previa: alcanza con que el pago y su comprobante estén registrados (o que Pablo lo haya confirmado). */
-  function listosSinRecibo() { try { return S.get("qr_cobros", "recibo=is.null&estado=eq.verificado&order=fecha_cobro.asc", 0) || []; } catch (e) { return null; } }
+  /* 17/11/2026 — Pago dividido: las partes de una misma entrega son UNA fila (por el total) y solo cuando todas están verificadas. */
+  function listosAgrupados(todos) {
+    const FIN = { anulado: 1, rechazado: 1, conciliado: 1 };
+    const vivos = (todos || []).filter(c => !FIN[c.estado]);
+    const bloqueada = new Set(vivos.filter(c => c.estado !== "verificado").map(c => c.entrega_id || c.id));
+    const g = {}, orden = [];
+    vivos.filter(c => c.estado === "verificado").forEach(c => { const k = c.entrega_id || c.id; if (!g[k]) { g[k] = []; orden.push(k); } g[k].push(c); });
+    return orden.filter(k => !bloqueada.has(k)).map(k => {
+      const p = g[k]; if (p.length === 1) return p[0];
+      const trf = p.find(x => String(x.forma).toLowerCase() === "transferencia") || p[0];
+      const formas = p.map(x => String(x.forma)).sort((a, b) => (b === "efectivo") - (a === "efectivo") || a.localeCompare(b)).join(" + ");
+      return Object.assign({}, p[0], { importe: Math.round(p.reduce((a, x) => a + (Number(x.importe) || 0), 0) * 100) / 100, forma: formas, comprobante_ref: trf.comprobante_ref, historial: trf.historial, partes: p.length });
+    });
+  }
+  function listosSinRecibo() { try { return listosAgrupados(S.get("qr_cobros", "recibo=is.null&order=fecha_cobro.asc", 0) || []); } catch (e) { return null; } }
   function listosHTML() {
     const l = listosSinRecibo();
     if (l === null) return `<div class="qr-aviso qv6-err">No se pudo consultar los pagos listos para emitir recibo. Eso no significa que no haya. <button class="qr-b chico" onclick="qrRecibosV3()">Volver a consultar</button></div>`;
