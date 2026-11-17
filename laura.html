@@ -4732,6 +4732,16 @@
   .qr-chip-est{ display:inline-block; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:99px; background:#f1f5f9; color:#475569; max-width:240px }
   .qr-chip-est.ok{ background:#dcfce7; color:#166534 } .qr-chip-est.ojo{ background:#fef3c7; color:#92400e } .qr-chip-est.mal{ background:#fee2e2; color:#991b1b }
   .qr-cobro-acc{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end }
+  .qcv-prem{ display:grid; gap:6px; margin:8px 0; padding:10px 12px; border-radius:12px; background:#eef4ff; border:1px solid #bcd0f5 }
+  .qcv-prem-f{ display:flex; justify-content:space-between; gap:10px; align-items:baseline; font-size:.82rem; color:#1e3a8a }
+  .qcv-prem-f b{ font-variant-numeric:tabular-nums; text-align:right }
+  .qcv-prem-f.ok b{ color:#166534 }
+  .qcv-prem-n{ font-size:.74rem; color:#92400e; background:#fffbeb; border-radius:8px; padding:5px 8px }
+  .qcv-prem-s{ font-size:.8rem; font-weight:700; color:#92400e; background:#fff7ed; border-radius:8px; padding:6px 9px }
+  .qcv-prem-s.max{ color:#166534; background:#f0fdf4 }
+  .qcv-prem-t{ display:grid; gap:2px; padding:9px 11px; border-radius:10px; background:#166534; color:#fff }
+  .qcv-prem-t span{ font-size:.74rem; opacity:.9 } .qcv-prem-t b{ font-size:1.25rem; font-variant-numeric:tabular-nums } .qcv-prem-t small{ font-size:.72rem; opacity:.9 }
+  .qcv-prem-chip{ display:block; margin-top:3px; font-size:.7rem; font-weight:700; color:#1e3a8a; line-height:1.3 }
   .qcv-kpi{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; margin:6px 0 8px }
   .qcv-kpi > div{ background:#f7f9fa; border-radius:10px; padding:8px 10px; min-width:0 }
   .qcv-kpi span{ display:block; font-size:.66rem; color:var(--qr-tx3) }
@@ -6684,11 +6694,42 @@
      cómo se pagó si ya se registró). El detalle por recibo queda como opción aparte, para mandarlo al
      vendedor cuando haga falta un control. La forma de pago sale de lo registrado: nunca se supone. */
   const estadoPago = l => l.pagado_en ? "pagada el " + fd(l.pagado_en) + (l.forma_pago ? " por " + String(l.forma_pago).toLowerCase() : "") : "pendiente de pago";
+  /* 17/11/2026 · Premio semanal. Todo lo de abajo tolera que la base todavía no traiga «premio» (sin la 041 se ve como antes). */
+  const premioDe = d => (d && d.premio && d.premio.activo) ? d.premio : null;
+  const desdeTxt = n => n == null ? "ninguno todavía" : "desde " + m2(n);
+  function premioSigTxt(p) { return p.maximo ? "Objetivo máximo alcanzado" : p.siguiente ? "Faltan " + m2(p.siguiente.faltan) + " para el objetivo de " + m2(p.siguiente.desde) + " (premio " + m2(p.siguiente.premio) + ")" : ""; }
+  function premioPanel(d) {
+    const p = premioDe(d); if (!p) return "";
+    const ajustes = (d.pendientes_resolucion || []).length;
+    return '<div class="qcv-prem" role="group" aria-label="Premio y total a liquidar">' +
+      '<div class="qcv-prem-f"><span>Base computable para el premio</span><b>' + m2(p.base) + '</b></div>' +
+      (Number(p.fuera_de_vigencia) > 0 ? '<div class="qcv-prem-n">Hay ' + m2(p.fuera_de_vigencia) + ' confirmados antes del ' + fd(p.vigente_desde) + ': conservan su comisión del 1 % pero no suman para el premio.</div>' : '') +
+      '<div class="qcv-prem-f"><span>Comisión base</span><b>' + m2(p.comision) + '</b></div>' +
+      '<div class="qcv-prem-f"><span>Ajustes</span><b>' + (ajustes ? ajustes + ' para decidir (no se descuentan solos)' : 'sin ajustes en este ciclo') + '</b></div>' +
+      '<div class="qcv-prem-f ' + (p.alcanzado != null ? 'ok' : '') + '"><span>Objetivo alcanzado</span><b>' + desdeTxt(p.alcanzado) + '</b></div>' +
+      '<div class="qcv-prem-f ' + (Number(p.premio) > 0 ? 'ok' : '') + '"><span>Premio</span><b>' + m2(p.premio) + '</b></div>' +
+      (premioSigTxt(p) ? '<div class="qcv-prem-s ' + (p.maximo ? 'max' : '') + '">' + premioSigTxt(p) + '</div>' : '') +
+      '<div class="qcv-prem-t"><span>Total a liquidar</span><b>' + m2(p.total_a_liquidar) + '</b><small>comisión ' + m2(p.comision) + ' + premio ' + m2(p.premio) + '</small></div></div>';
+  }
+  function premioChip(d) {
+    const p = premioDe(d); if (!p || !Number(d.movimientos || 0)) return "";
+    return '<small class="qcv-prem-chip">' + (Number(p.premio) > 0 ? 'Premio ' + m2(p.premio) + ' · ' : 'Premio $0 · ') + (premioSigTxt(p) || '') + '</small>';
+  }
+  /* Desglose de una liquidación ya cerrada (solo si se cerró con premio configurado). */
+  const conPremio = l => l && l.premio_cfg && Number(l.premio_cfg.activo !== false);
+  function lineasTotal(l) {
+    if (!conPremio(l)) return "*Comisión: " + m2(l.total) + "*\n";
+    const pc = (l.detalle && l.detalle.length) ? pctTxt(l.detalle[0].pct) : "";
+    return "Comisión base" + (pc ? " (" + pc + ")" : "") + ": " + m2(l.comision) + "\n" +
+      "Objetivo alcanzado: " + desdeTxt(l.premio_desde) + "\n" +
+      "Premio: " + m2(l.premio) + "\n" +
+      "*Total a liquidar: " + m2(l.total) + "* (" + m2(l.comision) + " + " + m2(l.premio) + ")\n";
+  }
   function resumenLiquidacion(l) {
     let t = "*Comisiones Queruclor — " + l.vendedor + "*\n";
     t += "Período: " + fd(l.desde) + " al " + fd(l.cerrado_en || l.hasta) + "\n";
     t += "Ventas cobradas: " + m2(l.importe_cobrado) + "\n";
-    t += "*Comisión: " + m2(l.total) + "*\n";
+    t += lineasTotal(l);
     t += "Estado: " + estadoPago(l);
     return t;
   }
@@ -6701,7 +6742,7 @@
       t += "   Cobrado " + m2(d.importe) + " · " + pctTxt(d.pct) + " · Comisión " + m2(d.comision) + "\n";
     });
     t += "\nVentas cobradas: " + m2(l.importe_cobrado) + "\n";
-    t += "*Comisión: " + m2(l.total) + "*\n";
+    t += lineasTotal(l);
     t += "Estado: " + estadoPago(l);
     return t;
   }
@@ -6710,7 +6751,7 @@
     const det = l.detalle || [];
     return `<div class="qcv-liq" data-liq="${esc(l.id)}">
       <div class="qcv-liq-h"><span>Cerrada el ${fh(l.cerrado_en || l.hasta)} por ${esc(l.cerrado_por || "—")} · ${det.length} cobro${det.length === 1 ? "" : "s"}</span>
-        <b>${m2(l.total)}</b>
+        <b>${m2(l.total)}</b>${conPremio(l) ? `<small class="qcv-prem-chip">comisión ${m2(l.comision)} + premio ${m2(l.premio)}</small>` : ""}
         <span class="qr-chip-est ${l.pagado_en ? "ok" : "ojo"}">${l.pagado_en ? "Pago registrado el " + fd(l.pagado_en) + (l.forma_pago ? " · " + esc(l.forma_pago) : "") : "Cerrada · falta registrar el pago en Haberes"}</span></div>
       <div class="qcv-liq-a">
         <button type="button" class="qr-b chico" onclick="qrLiqDetalle('${esc(l.id)}')">Ver detalle</button>
@@ -6724,7 +6765,9 @@
         <thead><tr><th>Cliente</th><th>Remito</th><th>Recibo</th><th>Confirmado</th><th class="qr-num">Importe cobrado</th><th class="qr-num">Porcentaje de comisión</th><th class="qr-num">Comisión</th></tr></thead>
         <tbody>${det.map(d => `<tr><td>${esc(d.cliente)}</td><td>${esc(d.remito)}</td><td>${esc(d.recibo)}</td><td>${fh(d.confirmado_en)}</td>
           <td class="qr-num">${m2(d.importe)}</td><td class="qr-num">${pctTxt(d.pct)}</td><td class="qr-num">${m2(d.comision)}</td></tr>`).join("")}</tbody>
-        <tfoot><tr><td colspan="4"><b>Total a pagar</b></td><td class="qr-num"><b>${m2(l.importe_cobrado)}</b></td><td></td><td class="qr-num"><b>${m2(l.total)}</b></td></tr></tfoot>
+        <tfoot>${conPremio(l) ? `<tr><td colspan="6">Comisión base</td><td class="qr-num">${m2(l.comision)}</td></tr>
+          <tr><td colspan="6">Premio · objetivo ${desdeTxt(l.premio_desde)} (base ${m2(l.base_premio)})</td><td class="qr-num">${m2(l.premio)}</td></tr>` : ""}
+        <tr><td colspan="4"><b>Total a pagar</b></td><td class="qr-num"><b>${m2(l.importe_cobrado)}</b></td><td></td><td class="qr-num"><b>${m2(l.total)}</b></td></tr></tfoot>
       </table></div></div>`;
   }
 
@@ -6799,7 +6842,7 @@
           ${mov ? `<span class="qcv-ciclo">Ciclo abierto · ${mov} recibo${mov === 1 ? "" : "s"}</span>` : ""}</div>
         <div class="qcv-c qr-num" role="cell"><span class="qcv-lbl">Cobrado (recibos confirmados)</span>${m2(d.cobrado)}</div>
         <div class="qcv-c qcv-pct" role="cell"><span class="qcv-lbl">Porcentaje</span>${pctTxt(d.pct)}</div>
-        <div class="qcv-c qr-num qcv-com" role="cell"><span class="qcv-lbl">Comisión acumulada</span><b>${m2(d.comision)}</b></div>
+        <div class="qcv-c qr-num qcv-com" role="cell"><span class="qcv-lbl">Comisión acumulada</span><b>${m2(d.comision)}</b>${premioChip(d)}</div>
         <div class="qcv-c qcv-pend" role="cell"><span class="qcv-lbl">Pendientes de confirmar</span>${fuera.length ? `<span class="qr-chip-est ojo">${fuera.length} por confirmar · ${m2(impPend)}</span>` : "—"}
           ${inc.length ? `<small class="qcv-inc">${inc.length} con inconsistencias, fuera del cálculo</small>` : ""}${pres.length ? `<small class="qcv-inc">${pres.length} para decidir</small>` : ""}${(d.no_corresponde || []).length ? `<small class="qcv-inc">${m2(d.no_corresponde.reduce((a, x) => a + Number(x.importe || 0), 0))} sin comisión: cobrado con el vendedor ya de baja</small>` : ""}</div>
         <div class="qcv-c qcv-a" role="cell">
@@ -6852,13 +6895,14 @@
         <div class="qcv-dlg-h"><b id="qcvDlgT">Revisar cierre de ${esc(nomV(v))}${d.baja ? " (dado de baja)" : ""}</b><button type="button" class="qcv-x" aria-label="Cancelar" onclick="qrRevisarCerrar()">✕</button></div>
         <div class="qcv-dlg-c">
           <div class="qcv-kpi"><div><span>Cobrado con recibo confirmado</span><b>${m2(d.cobrado)}</b></div><div><span>Porcentaje</span><b>${pctTxt(d.pct)}</b></div><div><span>Comisión a liquidar</span><b>${m2(d.comision)}</b></div></div>
+          ${premioPanel(d)}
           ${tablaMovs(d.detalle || [])}
           ${fuera.length ? `<div class="qcv-nota"><b>No entran en este cierre (sin recibo confirmado):</b> ${fuera.map(f => esc(f.cliente) + " · " + esc(f.remito) + " · " + m2(f.importe)).join(" | ")}. Entran al ciclo siguiente cuando se confirme el recibo.</div>` : ""}
           <p class="qr-d">La liquidación queda fija: lo que se confirme después entra al próximo cierre, nunca a este. Cerrar no es pagar: el pago se registra en Haberes.</p>
           <div class="qcv-dlg-e" id="qcvDlgE" role="status" aria-live="polite"></div>
         </div>
         <div class="qcv-dlg-a"><button type="button" class="qr-b ghost" onclick="qrRevisarCerrar()">Cancelar</button>
-          <button type="button" class="qr-b qcv-confirmar" data-total="${Number(d.comision) || 0}" data-n="${d.movimientos}" onclick="qrCerrarSemana('${esc(v)}', true)">Cerrar las comisiones de esta semana de ${esc(v)}</button></div>
+          <button type="button" class="qr-b qcv-confirmar" data-total="${premioDe(d) ? Number(d.premio.total_a_liquidar) || 0 : Number(d.comision) || 0}" data-n="${d.movimientos}" onclick="qrCerrarSemana('${esc(v)}', true)">Cerrar las comisiones de esta semana de ${esc(v)}</button></div>
       </div>`;
     m.addEventListener("click", e => { if (e.target === m) qrRevisarCerrar(); });
     document.body.appendChild(m);
