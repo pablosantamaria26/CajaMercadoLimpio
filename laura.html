@@ -10709,12 +10709,23 @@
   window.abiertaId = () => abierta;
   window.qrRendVerConteo = function () { verConteo = !verConteo; pintarFicha(); };
 
+  /* 17/11/2026 — pago dividido: una entrega con dos formas de pago se muestra en dos renglones (uno por cobro). */
+  function expandirCobros(clientes) {
+    const out = [];
+    (clientes || []).forEach(c => {
+      const vivos = (Array.isArray(c.cobros) ? c.cobros : []).filter(k => k.estado !== "anulado");
+      if (vivos.length > 1) vivos.forEach(k => out.push(Object.assign({}, c, { cobro: k, _parteDe: vivos.length })));
+      else out.push(c);
+    });
+    return out;
+  }
   function datos(id) {
     const par = lista().find(x => (x.q && x.q.id === id) || (x.m && x.m.id === id));
     if (!par) return null;
     let fi = null, q = null;
     if (par.q) {
       try { fi = S.rpc("qr_rendicion_ficha", { p_id: par.q.id }); } catch (e) { fi = { error: e.message }; }
+      if (fi && !fi.error && Array.isArray(fi.clientes)) fi = Object.assign({}, fi, { clientes: expandirCobros(fi.clientes) });
       q = fi && !fi.error ? Object.assign({}, fi, par.q) : par.q;
     }
     return { q, m: par.m, fi, resumen: par.q, reconstruido: par.reconstruido, historica: par.historica };
@@ -10733,6 +10744,8 @@
        cobro declarado (fecha): antes decía 11:17 (declaración) para un recibo confirmado a las 11:22. */
     if (cob.recibo) { const r = recibo(cob.recibo); return { txt: "Recibo emitido" + (r ? " N° " + r.numero + " · " + fh(r.confirmado_en || r.fecha) : ""), cls: "ok", acc: "", reciboObj: r }; }
     if (c.cargo_registrado === false) return { txt: "Registro con inconsistencias", cls: "mal", acc: "", motivo: "El remito no tiene cargo en la cuenta corriente: el recibo queda bloqueado. Lo resuelve Pablo (Administración)." };
+    if (cob.estado === "verificado" && (c.cobros || []).some(k => k.id !== cob.id && !["verificado", "conciliado", "anulado", "rechazado"].includes(k.estado)))
+      return { txt: "Falta verificar la otra parte del pago (" + (c.cobros || []).filter(k => k.id !== cob.id && !["verificado", "conciliado", "anulado", "rechazado"].includes(k.estado)).map(k => k.forma).join(" + ") + "): el recibo es uno solo por el total", cls: "ojo", acc: "" };
     const pl = cob.estado === "verificado" ? pendDe(cob.id) : null;
     if (pl) return pl.estado === "revisar"
       ? { txt: "Requiere revisión (guardado en este equipo)", cls: "mal", acc: "", motivo: pl.motivo || "" }
