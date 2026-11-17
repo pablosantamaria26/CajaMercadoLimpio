@@ -10755,7 +10755,7 @@
     if (cob.forma === "cheque" && cob.estado === "rendido") return { txt: "Pendiente de verificación", cls: "ojo",
       acc: `<button class="qr-b" onclick="qrRendCheque('${esc(cob.id)}', true)">Cheque recibido</button>
             <button class="qr-b ghost" onclick="qrRendCheque('${esc(cob.id)}', false)">No vino / observado</button>` };
-    if (cob.estado === "pendiente_banco") return { txt: "Pendiente de verificación bancaria", cls: "ojo", acc: `<small>la verifica Pablo en el banco</small>` };
+    if (cob.estado === "pendiente_banco") return { txt: "Transferencia sin comprobante", cls: "ojo", acc: `<button class="qr-b" onclick="qrRendConfirmarPago('${esc(cob.id)}')">Confirmar el pago</button><small>queda registrado quién lo confirmó</small>` };
     if (["declarado", "rendido", "con_diferencia"].includes(cob.estado)) return { txt: "Pendiente de verificación", cls: "ojo",
       acc: q && !q.conteo ? `<button class="qr-b ghost" onclick="qrRendicionContar()">Falta contar el bolsín</button>` : "" };
     return { txt: cob.estado === "anulado" ? "Anulado" : cob.estado === "rechazado" ? "Rechazado" : cob.estado, cls: "neutro", acc: "" };
@@ -10853,6 +10853,19 @@
     quitarPend(info.id);
     return Object.assign({}, info, { estado: r.repetida ? "ya" : "ok", numero: (r.recibo || {}).numero || "", sinComision: window.qrSinComisionTxt ? qrSinComisionTxt((r.recibo || {}).id) : "" });
   }
+  /* 17/11/2026 — transferencia sin comprobante: se confirma a mano (con constancia) y queda lista para «Emitir recibo». */
+  window.qrRendConfirmarPago = function (id) {
+    if (enCurso || !id) return;
+    if (!confirm("¿Confirmás que esta transferencia ya está acreditada?\n\nNo tiene comprobante en el sistema: queda registrado que la confirmaste vos, con fecha y hora. Después se habilita «Emitir recibo» (el recibo no sale solo).")) return;
+    enCurso = true;
+    try {
+      const r = S.rpc("qr_cobro_confirmacion_manual", { p: { cobro: id, quien: "CAJA", nota: "Confirmado desde la ficha de la rendición, sin comprobante en el sistema" } });
+      if (!r || r.ok === false) { if (window.showToast) showToast((r && r.motivo) || "No se pudo confirmar.", false); }
+      else if (window.showToast) showToast(r.repetida ? "Ya estaba confirmado." : "Pago confirmado: ya se puede emitir el recibo.", true);
+    } catch (e) { if (window.showToast) showToast("Sin conexión: no se confirmó. Probá de nuevo.", false); }
+    finally { enCurso = false; finEnCurso = Date.now(); }
+    recibosCache = {}; try { pintarFicha(); } catch (e) {} try { contar(); } catch (e) {}
+  };
   window.qrRendConfirmar = function (ids) {
     /* Un segundo toque mientras procesa, o encolado durante el proceso (llega pegado, en menos de
        0,35 s), no hace nada. Un toque deliberado en otro botón después sí. */
