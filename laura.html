@@ -186,19 +186,80 @@
     if (x.status >= 400) throw new Error((datos && (datos.message || datos.error)) || ("error " + x.status));
     return datos;
   }
+  /* ── 18/11/2026 · Lecturas precargadas, en paralelo y con memoria ──────────────────────────────────────────────────────────────────
+     Antes cada pantalla de Queruclor pedía sus datos UNO POR UNO y con la pantalla congelada (hasta 22 consultas seguidas en «Cuentas»).
+     Ahora las pantallas pueden pedir todo junto, en paralelo y sin congelar (precargar), y las lecturas quedan guardadas 45 s.
+     Se descartan solas ante CUALQUIER escritura (recibo, cierre, pago…), cualquier cambio avisado por el servidor o «Actualizar»:
+     nunca se muestra un total viejo después de una operación. Si algo no está precargado, se pide como siempre. */
+  var pre = {}, kvPre = {}, epoca = 0, PRE_TTL = 45000, KV_TTL = 20000, enVuelo = {}, ultimaLectura = 0;   // kvPre: claves compartidas (p. ej. las rendiciones de Habituales), con memoria más corta
+  var LECT_RPC = /^qr_(rendiciones_resumen|cobros_inconsistentes|liquidaciones|comisiones_abierto|comision_abierta_de|saldo|saldo_anterior|pendientes|cuentas_lista)$/;   // el detalle de una rendición y la conciliación de un recibo NO se guardan: siempre frescos al confirmar
+  var PRE_GET = /^(qr_cobros|qr_cuenta_movs|qr_recibos|qr_ciclos|qr_comision_movs|qr_rendiciones|qr_notas_credito)$/;
+  function copia(v) { if (v == null || typeof v !== "object") return v; try { return typeof structuredClone === "function" ? structuredClone(v) : JSON.parse(JSON.stringify(v)); } catch (e) { return JSON.parse(JSON.stringify(v)); } }
+  function claveIt(it) { return it.k ? "K " + it.k : it.g ? "G " + it.g + "?" + (it.q || "") : "R " + it.r + " " + JSON.stringify(it.a || {}); }
+  function frescoIt(it) { if (it.k) { var ck = kvPre[it.k]; return !!(ck && Date.now() - ck.t < KV_TTL); } var c = pre[claveIt(it)]; return !!(c && Date.now() - c.t < PRE_TTL); }
+  function invalidar() { pre = {}; kvPre = {}; enVuelo = {}; epoca++; }
+  /* La misma llamada que xhr(), pero sin bloquear la pantalla. */
+  function xhrAsync(metodo, url, cuerpo) {
+    var h = { "Content-Type": "application/json" }; if (GEN) h["X-QR-Gen"] = GEN;
+    var h0 = conToken({}); for (var k0 in h0) h[k0] = h0[k0];
+    return _fetch(ORIGEN + url, { method: metodo, headers: h, body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo), cache: "no-store" }).then(function (r) {
+      vigilarToken(r.status);
+      if (r.status === 0 || r.status >= 500) { marcar(true); throw new Error("El servidor no respondió (" + r.status + ")."); }
+      marcar(false);
+      return r.text().then(function (t) {
+        var d = null; try { d = t ? JSON.parse(t) : null; } catch (e) {}
+        if (r.status === 409 && d && d.generacion_vieja) avisoGeneracion();
+        if (r.status >= 400) throw new Error((d && (d.message || d.error)) || ("error " + r.status));
+        return d;
+      });
+    });
+  }
+  function traerIt(it) {
+    var k = claveIt(it);
+    if (frescoIt(it)) return Promise.resolve(it.k ? kvPre[it.k].v : pre[k].v);
+    if (enVuelo[k]) return enVuelo[k];
+    var e0 = epoca;
+    if (it.k) {
+      var pk = xhrAsync("GET", "/local/kv/" + it.k).then(function (d) { var v = d ? d.valor : null; if (epoca === e0) { kvPre[it.k] = { v: v == null ? null : v, t: Date.now() }; ultimaLectura = Date.now(); } delete enVuelo[k]; return v; }, function () { delete enVuelo[k]; return null; });
+      enVuelo[k] = pk; return pk;
+    }
+    var p = (it.g ? xhrAsync("GET", "/rest/v1/" + it.g + (it.q ? "?" + it.q : "")) : xhrAsync("POST", "/rest/v1/rpc/" + it.r, it.a || {})).then(function (v) {
+      if (epoca === e0) { pre[k] = { v: v, t: Date.now() }; ultimaLectura = Date.now(); }   // si hubo una escritura mientras tanto, no se guarda
+      delete enVuelo[k]; return v;
+    }, function () { delete enVuelo[k]; return null; });
+    enVuelo[k] = p; return p;
+  }
   var cache = {};
   window.QRSrv = {
-    rpc: function (fn, args) { var r = xhr("POST", "/rest/v1/rpc/" + fn, args || {}); cache = {}; return r; },
+    rpc: function (fn, args) {
+      if (LECT_RPC.test(fn)) {                                   // lectura pura: se guarda y se reutiliza hasta la próxima escritura
+        var kp = "R " + fn + " " + JSON.stringify(args || {}), c = pre[kp];
+        if (c && Date.now() - c.t < PRE_TTL) return copia(c.v);
+        var rl = xhr("POST", "/rest/v1/rpc/" + fn, args || {}); pre[kp] = { v: rl, t: Date.now() }; ultimaLectura = Date.now(); return copia(rl);
+      }
+      invalidar();                                               // cualquier escritura (recibo, cierre, pago…) descarta lo guardado, antes y después
+      var r = xhr("POST", "/rest/v1/rpc/" + fn, args || {}); cache = {}; invalidar(); return r;
+    },
     /* Lecturas con memoria corta: una pantalla pregunta el stock de cada
        tarjeta varias veces por dibujo; con esto es una sola consulta. */
     get: function (tabla, qs, ttl) {
       var k = tabla + "?" + (qs || ""), ahora = Date.now();
+      if (PRE_GET.test(tabla)) {
+        var kg = "G " + k, cg = pre[kg];
+        if (cg && ahora - cg.t < PRE_TTL) return copia(cg.v);
+        var vg = xhr("GET", "/rest/v1/" + tabla + (qs ? "?" + qs : "")); pre[kg] = { v: vg, t: ahora }; ultimaLectura = ahora; return copia(vg);
+      }
       if (cache[k] && ahora - cache[k].t < (ttl == null ? 1500 : ttl)) return cache[k].v;
       var v = xhr("GET", "/rest/v1/" + tabla + (qs ? "?" + qs : ""));
       cache[k] = { t: ahora, v: v };
       return v;
     },
-    olvidar: function () { cache = {}; },
+    olvidar: function () { cache = {}; invalidar(); },
+    /* Pedir varias lecturas JUNTAS y sin congelar la pantalla (cada una: {r:"funcion", a:{args}} o {g:"tabla", q:"consulta"}). */
+    precargar: function (items) { return Promise.all(items.map(traerIt)); },
+    fresco: function (items) { return items.every(frescoIt); },
+    epoca: function () { return epoca; },
+    ultimaLectura: function () { return ultimaLectura; },
     generacion: function () { return GEN; },
     caido: function () { return caido; },
     /* Aviso de cambios para las pantallas que no usan el cliente de
@@ -217,7 +278,7 @@
         if (desdeCambios >= 0 && j.cambios && j.cambios.length) {
           var hubo = {};
           j.cambios.forEach(function (c) { hubo[c.tabla] = true; });
-          cache = {};
+          cache = {}; invalidar();
           oyentesCambios.forEach(function (o) {
             var t = o.tablas.filter(function (x) { return hubo[x]; });
             if (t.length) try { o.fn(t); } catch (e) { console.warn("[cambios]", e); }
@@ -235,6 +296,7 @@
   S.getItem = function (k) {
     if (this !== window.localStorage || !COMPARTIDAS.test(k)) return g0.call(this, k);
     var c = kvCache[k];
+    var cp = kvPre[k]; if (cp && Date.now() - cp.t < KV_TTL) return cp.v;
     if (c && Date.now() - c.t < 800) return c.v;
     try { var v = xhr("GET", "/local/kv/" + k).valor; kvCache[k] = { t: Date.now(), v: v }; return v; }
     catch (e) { return c ? c.v : null; }
@@ -248,11 +310,11 @@
     try { x.send(String(v)); } catch (e) { marcar(true); throw new Error("Sin conexión con el servidor: no se guardó."); }
     if (x.status === 409) { avisoGeneracion(); throw new Error("Esta pantalla es de antes de renovar el entorno: no se guardó. Recargala."); }
     if (x.status !== 200) { marcar(true); throw new Error("El servidor no guardó " + k); }
-    kvCache[k] = { t: Date.now(), v: String(v) };
+    kvCache[k] = { t: Date.now(), v: String(v) }; delete kvPre[k];
   };
   S.removeItem = function (k) {
     if (this !== window.localStorage || !COMPARTIDAS.test(k)) return r0.call(this, k);
-    xhr("DELETE", "/local/kv/" + k); delete kvCache[k];
+    xhr("DELETE", "/local/kv/" + k); delete kvCache[k]; delete kvPre[k];
   };
 
   /* ── fetch: Supabase, Worker y Forms van al servidor local ──────── */
@@ -4742,6 +4804,43 @@
   .qcv-prem-t{ display:grid; gap:2px; padding:9px 11px; border-radius:10px; background:#166534; color:#fff }
   .qcv-prem-t span{ font-size:.74rem; opacity:.9 } .qcv-prem-t b{ font-size:1.25rem; font-variant-numeric:tabular-nums } .qcv-prem-t small{ font-size:.72rem; opacity:.9 }
   .qcv-prem-chip{ display:block; margin-top:3px; font-size:.7rem; font-weight:700; color:#1e3a8a; line-height:1.3 }
+  /* ── Comisiones (18/11/2026): vendedores a la izquierda, detalle a la derecha. Colores de Caja: violeta = lo que se toca, verde = pagado, ámbar = pendiente. */
+  .qc2-res{ display:flex; flex-wrap:wrap; gap:4px 14px; align-items:baseline; margin:4px 0 10px; font-size:.84rem } .qc2-res span{ color:var(--qr-tx3) }
+  .qc2-grid{ display:grid; grid-template-columns:minmax(330px,5fr) minmax(380px,6fr); gap:14px; align-items:start }
+  .qc2-izq,.qc2-der{ background:#fff; border:1px solid var(--qr-ln); border-radius:14px; padding:14px 16px; min-width:0; box-shadow:var(--qr-sh) }
+  .qc2 h3{ margin:0 0 8px; font-size:1.15rem; color:var(--qr-tx) } .qc2 h4{ margin:14px 0 6px; font-size:.9rem; color:var(--qr-tx) }
+  .qc2-tabs{ display:flex; gap:4px; border-bottom:2px solid var(--qr-ln); margin-bottom:10px; flex-wrap:wrap }
+  .qc2-tab{ background:none; border:0; padding:9px 12px; font:inherit; font-weight:700; font-size:.88rem; color:var(--qr-tx2); cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; min-height:40px }
+  .qc2-tab.on{ color:var(--qr-vio); border-bottom-color:var(--qr-vio) } .qc2-tab i{ font-style:normal; background:var(--qr-ln); border-radius:99px; padding:1px 8px; font-size:.75rem; margin-left:4px }
+  .qc2-lista{ display:grid; gap:10px }
+  .qc2-card{ display:grid; grid-template-columns:42px minmax(0,1fr) auto; gap:12px; text-align:left; width:100%; background:#fff; border:2px solid var(--qr-ln); border-radius:12px; padding:12px; font:inherit; cursor:pointer; color:var(--qr-tx) }
+  .qc2-card:hover{ border-color:#b9b4ff } .qc2-card.on{ border-color:var(--qr-vio); background:#f7f6ff }
+  .qc2-av{ width:42px; height:42px; border-radius:50%; background:#ece9ff; color:#4338ca; display:grid; place-items:center; font-weight:900; font-size:1.05rem }
+  .qc2-c1{ display:grid; gap:3px; min-width:0; align-content:start } .qc2-c1 b{ font-size:1rem } .qc2-cob{ font-weight:700; font-size:.88rem } .qc2-mut{ color:var(--qr-tx3); font-size:.8rem }
+  .qc2-bar{ display:block; height:8px; background:#e5e7eb; border-radius:99px; overflow:hidden } .qc2-bar i{ display:block; height:100%; background:var(--qr-ok) }
+  .qc2-c1 small{ font-size:.78rem; color:var(--qr-tx2) } .qc2-c1 small.ok{ color:#0b7a60; font-weight:800 }
+  .qc2-c2{ display:grid; gap:2px; font-size:.8rem; min-width:150px; align-content:start } .qc2-c2 span{ display:flex; justify-content:space-between; gap:12px } .qc2-c2 em{ font-style:normal; color:var(--qr-tx3) }
+  .qc2-c2 b{ font-variant-numeric:tabular-nums } .qc2-tot{ background:#ece9ff; border-radius:8px; padding:3px 8px; font-weight:800; margin-top:3px }
+  .qc2-dh{ display:flex; gap:10px; justify-content:space-between; align-items:flex-start; margin-bottom:6px } .qc2-sub{ color:var(--qr-tx2); font-size:.8rem; display:block; line-height:1.4 }
+  .qc2-grande{ font-size:2rem; font-weight:900; color:#4338ca; font-variant-numeric:tabular-nums; margin:2px 0 8px } .qc2-grande span{ display:block; font-size:.8rem; font-weight:600; color:var(--qr-tx2) }
+  .qc2-grande.ok{ color:#0b7a60 } .qc2-grande.pend{ color:#92600a }
+  .qc2-df{ display:flex; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px solid var(--qr-ln2); font-size:.9rem } .qc2-df b{ font-variant-numeric:tabular-nums; text-align:right } .qc2-df.tot b{ color:#4338ca }
+  .qc2-eq{ display:grid; grid-template-columns:1fr auto 1fr auto 1.2fr; gap:8px; align-items:center; margin:10px 0; padding:10px; border-radius:12px; background:#f7f6ff; border:1px solid #dcd8ff }
+  .qc2-eq div{ display:grid; gap:2px; min-width:0 } .qc2-eq span{ font-size:.72rem; color:var(--qr-tx2) } .qc2-eq b{ font-size:1rem; font-variant-numeric:tabular-nums } .qc2-eq i{ font-style:normal; font-weight:900; color:var(--qr-tx3) }
+  .qc2-eq .tot{ background:var(--qr-vio); color:#fff; border-radius:9px; padding:6px 9px } .qc2-eq .tot span{ color:#e9e7ff } .qc2-eq .tot b{ font-size:1.12rem }
+  .qc2-prox{ margin:8px 0; padding:8px 10px; border-radius:9px; background:var(--qr-warn-l); color:#7a5208; font-size:.85rem } .qc2-prox.ok{ background:var(--qr-ok-l); color:#0b7a60 }
+  .qc2-nota{ margin:8px 0; padding:8px 10px; border-radius:9px; background:var(--qr-warn-l); color:#7a5208; font-size:.8rem }
+  .qc2-aj{ margin:6px 0; padding:8px 10px; border-radius:9px; background:var(--qr-warn-l); font-size:.82rem; display:grid; gap:3px }
+  .qc2-tw{ max-height:300px; overflow:auto; border:1px solid var(--qr-ln); border-radius:10px } .qc2-tw table{ width:100%; border-collapse:collapse; font-size:.82rem }
+  .qc2-tw th{ position:sticky; top:0; background:var(--qr-ln2); text-align:left; padding:7px 9px; font-size:.72rem; z-index:2 } .qc2-tw td{ padding:7px 9px; border-top:1px solid var(--qr-ln2) } .qc2 .n{ text-align:right; font-variant-numeric:tabular-nums }
+  .qc2-pago{ margin-top:12px; padding:12px 14px; border-radius:12px; display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; font-size:.85rem }
+  .qc2-pago.pend{ background:var(--qr-warn-l); border:1px solid #f0d99a } .qc2-pago.ok{ background:var(--qr-ok-l); border:1px solid #9fe0cf; display:block }
+  .qc2-acc{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:flex-start }
+  .qc2-prim{ width:100%; margin-top:14px; min-height:48px; font-size:1rem } .qc2-pie{ color:var(--qr-tx3); font-size:.78rem; margin:8px 0 0 }
+  .qc2-link{ background:none; border:0; color:#4338ca; font:inherit; font-weight:700; text-decoration:underline; cursor:pointer; padding:6px 2px; min-height:34px }
+  .qc2-vacio,.qc2-vacio-g{ padding:30px 10px; text-align:center } .qc2-viejas{ margin-top:14px }
+  .qc2 button:focus-visible{ outline:3px solid #2563eb; outline-offset:2px }
+  @media (max-width:1050px){ .qc2-grid{ grid-template-columns:1fr } .qc2-card{ grid-template-columns:42px minmax(0,1fr) } .qc2-c2{ grid-column:1 / -1 } .qc2-eq{ grid-template-columns:1fr 1fr } .qc2-eq i{ display:none } .qc2-eq .tot{ grid-column:1 / -1 } }
   .qcv-kpi{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; margin:6px 0 8px }
   .qcv-kpi > div{ background:#f7f9fa; border-radius:10px; padding:8px 10px; min-width:0 }
   .qcv-kpi span{ display:block; font-size:.66rem; color:var(--qr-tx3) }
@@ -6781,11 +6880,147 @@
   const opGuardada = v => { try { return (JSON.parse(localStorage.getItem(K_OPS) || "{}"))[v] || null; } catch (e) { return null; } };
   const guardarOp = (v, op) => { try { const o = JSON.parse(localStorage.getItem(K_OPS) || "{}"); if (op) o[v] = op; else delete o[v]; localStorage.setItem(K_OPS, JSON.stringify(o)); } catch (e) {} };
   const detAbierto = new Set();
+  /* ── 18/11/2026 · Comisiones: vendedores a la izquierda y el detalle del elegido a la derecha ────────────────────────────────────────
+     Mismos datos, mismas operaciones y mismos botones de siempre (Revisar y cerrar, WhatsApp, Copiar, Registrar pago en efectivo o
+     transferencia con su movimiento de Caja): solo cambia la distribución. Si algo falla al dibujar, vuelve a la tabla anterior. */
+  const comPro = { tab: "curso", sel: null, todos: false };
+  const ITEMS_COM = () => [{ r: "qr_liquidaciones", a: { o: {} } }, { r: "qr_comisiones_abierto", a: {} }, { r: "qr_cobros_inconsistentes", a: {} }, { g: "qr_cobros", q: "select=id,rendicion&recibo=is.null" }];
+  const nObjPro = (p, desde) => { const i = ((p && p.escalones) || []).findIndex(x => Number(x.desde) === Number(desde)); return i >= 0 ? i + 1 : ""; };
+  const faltaPro = p => !p ? "" : p.maximo ? "Objetivo máximo alcanzado" : p.siguiente ? "Faltan " + m2(p.siguiente.faltan) + " para el objetivo " + nObjPro(p, p.siguiente.desde) : "";
+  const logroPro = p => !p ? "" : p.alcanzado != null ? "Objetivo " + nObjPro(p, p.alcanzado) + " alcanzado" : "Sin premio todavía";
+  function pintarComisionPro(forzado) {
+    const box = $("qv-comision");
+    if (!box || !window.QRSrv || !QRSrv.precargar || !enBase()) return false;
+    /* Sin datos precargados: se dibuja «Cargando…» al instante y se piden TODOS juntos, en paralelo (no uno por uno con la pantalla congelada). */
+    if (!forzado && !QRSrv.fresco(ITEMS_COM())) {
+      box.innerHTML = '<div class="qrc-carga" role="status"><span class="qrc-spin" aria-hidden="true"></span> Cargando comisiones…</div>';
+      QRSrv.precargar(ITEMS_COM()).then(w => {
+        const ab = (w && w[1]) || {}, ids = [...new Set([...(ab.vendedores || []), ...(ab.con_pendientes || [])].map(v => v.vendedor_id).filter(Boolean))];
+        return QRSrv.precargar(ids.map(id => ({ r: "qr_comision_abierta_de", a: { p_nombre: id } })));
+      }).then(() => { if ($("qv-comision") && $("qv-comision").style.display !== "none") pintarComisionPro(true); });
+      return true;
+    }
+    let liqs = [], abierto = { vendedores: [] };
+    try { liqs = Comisiones.liquidaciones(); abierto = Comisiones.abierto(); }
+    catch (e) { box.innerHTML = '<div class="qr-aviso q6-err">No se pudieron consultar las comisiones (sin conexión con el servidor). No significa que estén en cero. ' + esc(e.message) + ' <button class="qr-b chico" onclick="qrSub(\'comision\')">Volver a consultar</button></div>'; return true; }
+    window._qrLiqs = {}; liqs.forEach(l => { window._qrLiqs[l.id] = l; });
+    const nombreDe = window._qrNomVend = {};
+    const sumar = (k, n) => { const c = k || String(n || "").toUpperCase(); if (c && !nombreDe[c]) nombreDe[c] = String(n || c).toUpperCase(); };
+    abierto.vendedores.forEach(v => sumar(v.vendedor_id, v.vendedor));
+    (abierto.con_pendientes || []).forEach(v => sumar(v.vendedor_id, v.vendedor));
+    liqs.filter(l => l.base === "importe_cobrado").forEach(l => sumar(l.vendedor_id, l.vendedor_actual || l.vendedor));
+    try { (window.Vendedores ? Vendedores.todos() : []).forEach(v => { if (Comisiones.cobraComision(v.nombre) && v.activo) sumar(v.id, v.nombre); }); } catch (e) {}
+    const mias = liqs.filter(l => l.base === "importe_cobrado").sort((a, b) => String(b.cerrado_en || b.hasta).localeCompare(String(a.cerrado_en || a.hasta)));
+    const viejas = liqs.filter(l => l.base !== "importe_cobrado");
+    const porPagar = mias.filter(l => !l.pagado_en), pagadas = mias.filter(l => l.pagado_en);
+    const claves = Object.keys(nombreDe).filter(k => Comisiones.cobraComision(nombreDe[k])).sort((a, b) => nombreDe[a].localeCompare(nombreDe[b]));
+    const regV = k => abierto.vendedores.find(x => x.vendedor_id === k) || null;
+    const lista = comPro.tab === "curso" ? claves : comPro.tab === "pagar" ? porPagar : pagadas;
+    const idDe = x => comPro.tab === "curso" ? x : x.id;
+    if (!lista.some(x => idDe(x) === comPro.sel)) comPro.sel = lista.length ? idDe(lista[0]) : null;
+
+    /* ── Tarjetas de la izquierda ─────────────────────────────────── */
+    const tarjeta = (id, nombre, cobrado, p, comision, premio, total, chip, sinRecibos) => `<button type="button" class="qc2-card ${comPro.sel === id ? "on" : ""}" onclick="qcSel('${esc(id)}')" aria-pressed="${comPro.sel === id}">
+        <span class="qc2-av" aria-hidden="true">${esc(String(nombre || "?").trim().charAt(0).toUpperCase())}</span>
+        <span class="qc2-c1"><b>${esc(nombre)}</b>
+          ${sinRecibos ? '<span class="qc2-mut">Sin recibos confirmados en este ciclo</span>' : `<span class="qc2-cob">${m2(cobrado)} cobrado</span>
+          ${p ? `<span class="qc2-bar" aria-hidden="true"><i style="width:${p.siguiente ? Math.min(100, Math.round(Number(p.base) / Number(p.siguiente.desde) * 100)) : 100}%"></i></span><small class="${p.maximo ? "ok" : ""}">${esc(faltaPro(p))}</small>` : ""}`}
+          <span class="qr-chip-est ${chip[1]}">${esc(chip[0])}</span></span>
+        <span class="qc2-c2"><span><em>Comisión base</em><b>${m2(comision)}</b></span><span><em>Premio</em><b>${m2(premio)}</b></span><span class="qc2-tot"><em>Total</em><b>${m2(total)}</b></span></span></button>`;
+    let izq = "";
+    if (comPro.tab === "curso") {
+      izq = claves.map(k => { const v = regV(k), p = v ? premioDe(v) : null, mov = v ? Number(v.movimientos) || 0 : 0;
+        return tarjeta(k, nombreDe[k], p ? p.base : (v ? v.cobrado : 0), p, v ? v.comision : 0, p ? p.premio : 0, p ? p.total_a_liquidar : (v ? v.comision : 0), [mov ? "En curso" : "Sin movimiento", mov ? "ok" : "neutro"], !mov); }).join("");
+    } else {
+      izq = lista.map(l => { const cp = l.premio_cfg && l.premio_cfg.calculo && l.premio_cfg.calculo.activo ? l.premio_cfg.calculo : null;
+        return tarjeta(l.id, l.vendedor_actual || l.vendedor, cp ? l.base_premio : l.importe_cobrado, cp, l.comision, l.premio, l.total, l.pagado_en ? ["Pagada el " + fd(l.pagado_en), "ok"] : ["Pendiente de pago", "ojo"], false); }).join("");
+    }
+    if (!izq) izq = '<p class="qc2-mut qc2-vacio">' + (comPro.tab === "pagar" ? "No hay comisiones cerradas pendientes de pago." : comPro.tab === "pagadas" ? "Todavía no hay comisiones pagadas." : "No hay vendedores con comisión.") + "</p>";
+
+    /* ── Detalle de la derecha ────────────────────────────────────── */
+    const df = (a, b, cls) => `<div class="qc2-df ${cls || ""}"><span>${a}</span><b>${b}</b></div>`;
+    const eq = (com, pre, tot, etq) => `<div class="qc2-eq"><div><span>Comisión base</span><b>${m2(com)}</b></div><i aria-hidden="true">+</i><div><span>Premio</span><b>${m2(pre)}</b></div><i aria-hidden="true">=</i><div class="tot"><span>${etq}</span><b>${m2(tot)}</b></div></div>`;
+    const recibos = (det, todos) => {
+      if (!(det || []).length) return '<p class="qc2-mut">Todavía no hay recibos en este ciclo.</p>';
+      const f = todos ? det : det.slice(0, 6);
+      return `<div class="qc2-tw"><table><thead><tr><th>Fecha</th><th>Recibo</th><th>Cliente</th><th class="n">Cobrado</th><th class="n">Comisión</th></tr></thead><tbody>${f.map(d => `<tr><td>${fd(d.confirmado_en)}</td><td>${esc(d.recibo || d.recibo_numero || "")}</td><td>${esc(d.cliente || d.cliente_nombre || "")}</td><td class="n">${m2(d.importe)}</td><td class="n">${m2(d.comision)}</td></tr>`).join("")}</tbody></table></div>` +
+        (det.length > 6 && !todos ? `<button type="button" class="qc2-link" onclick="qcTodos()">Ver los ${det.length} recibos</button>` : "");
+    };
+    let inconsistentes = new Map(), rendDe = new Map();
+    try { (QRSrv.rpc("qr_cobros_inconsistentes", {}) || []).forEach(x => inconsistentes.set(x.cobro, x)); } catch (e) {}
+    try { (QRSrv.get("qr_cobros", "select=id,rendicion&recibo=is.null", 0) || []).forEach(x => { if (x.rendicion) rendDe.set(x.id, x.rendicion); }); } catch (e) {}
+    const queFalta = f => {
+      if (f.estado === "declarado") return ["El repartidor declaró el cobro y todavía no envió la rendición", "Repartidor, al rendir", false];
+      if (f.estado === "rendido") return [f.forma === "cheque" ? "Falta revisar el cheque en la rendición" : "Falta contar el bolsín de la rendición", "Caja", true];
+      if (f.estado === "verificado") return ["Falta confirmar el recibo en la rendición", "Caja", true];
+      if (f.estado === "con_diferencia") return ["La rendición tiene una diferencia sin resolver", "Caja", true];
+      if (f.estado === "pendiente_banco") return ["Transferencia sin comprobante: se confirma el pago en la rendición", "Caja", true];
+      return [(ESTADO_COBRO[f.estado] || [f.estado])[0], "Caja", true];
+    };
+    let der = "";
+    if (!comPro.sel) der = '<div class="qc2-vacio-g">Elegí un vendedor de la lista para ver su detalle.</div>';
+    else if (comPro.tab === "curso") {
+      const k = comPro.sel; let d = {};
+      try { d = Comisiones.abiertoDe(k) || {}; } catch (e) { d = {}; }
+      const p = premioDe(d), mov = Number(d.movimientos) || 0, baja = d.baja;
+      const fuera = (d.fuera || []).filter(f => !inconsistentes.has(f.cobro)), inc = (d.fuera || []).filter(f => inconsistentes.has(f.cobro));
+      const pres = d.pendientes_resolucion || [], nc = d.no_corresponde || [];
+      const filaP = f => { const [q, quien, enCaja] = queFalta(f), rid = rendDe.get(f.cobro);
+        return `<tr><td>${esc(f.cliente)}</td><td>${esc(f.remito)}</td><td class="n">${m2(f.importe)}</td><td>${esc(q)}</td><td>${enCaja ? (rid ? `<button type="button" class="qr-b ghost chico" onclick="qrComIrRendicion('${esc(rid)}')">Abrir rendición</button>` : `<button type="button" class="qr-b ghost chico" onclick="qrSub('recibos')">Ir a Recibos</button>`) : esc(quien)}</td></tr>`; };
+      der = `<div class="qc2-dh"><div><h3>${esc(nombreDe[k] || "")}</h3><span class="qc2-sub">Detalle del ciclo · En curso${baja ? " · dado de baja el " + fd(baja) : ""}</span></div><span class="qr-chip-est ok">En curso</span></div>
+        <div class="qc2-grande">${m2(p ? p.total_a_liquidar : d.comision)}<span>Total previsto</span></div>
+        ${df("Cobranza computable", m2(p ? p.base : d.cobrado))}
+        ${p && Number(p.fuera_de_vigencia) > 0 ? `<div class="qc2-nota">${m2(p.fuera_de_vigencia)} confirmados antes del ${fd(p.vigente_desde)}: conservan su comisión del 1 % pero no suman para el premio.</div>` : ""}
+        ${eq(p ? p.comision : d.comision, p ? p.premio : 0, p ? p.total_a_liquidar : d.comision, "Total a liquidar")}
+        ${p ? `<div class="qc2-prox ${p.maximo ? "ok" : ""}"><b>${esc(logroPro(p))}</b> · ${esc(faltaPro(p))}</div>` : ""}
+        <h4>Recibos incluidos (${mov})</h4>${recibos(d.detalle, comPro.todos)}
+        <h4>Ajustes y pendientes</h4>
+        ${pres.length ? `<div class="qc2-aj"><b>Ajustes para decidir (no se descuentan solos): ${pres.length}</b>${pres.map(a => `<div>${esc(a.cliente)} · ${esc(a.remito)} · ${m2(a.comision)} · ${esc(a.motivo)}</div>`).join("")}</div>` : '<p class="qc2-mut">Sin ajustes en este ciclo.</p>'}
+        ${nc.length ? `<div class="qc2-aj"><b>Sin comisión (vendedor dado de baja): ${nc.length}</b>${nc.map(a => `<div>${esc(a.cliente)} · ${esc(a.remito)} · ${m2(a.importe)}</div>`).join("")}</div>` : ""}
+        ${fuera.length ? `<div class="qc2-tw"><table><thead><tr><th>Cliente</th><th>Remito</th><th class="n">Importe</th><th>Falta</th><th></th></tr></thead><tbody>${fuera.map(filaP).join("")}</tbody></table></div><p class="qc2-mut">Cobros todavía sin recibo confirmado: no comisionan hasta confirmarse.</p>` : ""}
+        ${inc.length ? `<div class="qc2-aj"><b>Registros con inconsistencias (fuera del cálculo): ${inc.length}</b>${inc.map(f => `<div>${esc(f.cliente)} · ${esc(f.remito)} · ${m2(f.importe)} · ${esc((inconsistentes.get(f.cobro) || {}).motivo || "revisar con Pablo")}</div>`).join("")}</div>` : ""}
+        ${mov ? `<button type="button" class="qr-b qc2-prim" onclick="qrRevisarCierre('${esc(k)}')">Revisar y cerrar comisión</button>
+          <p class="qc2-pie">Cerrar fija la liquidación y NO la paga: el pago es un paso aparte. Lo que se confirme después entra al ciclo siguiente.</p>` : '<p class="qc2-mut">Sin comisión disponible para cerrar.</p>'}`;
+    } else {
+      const l = mias.find(x => x.id === comPro.sel);
+      if (!l) der = '<div class="qc2-vacio-g">Elegí una comisión de la lista.</div>';
+      else {
+        const det = l.detalle || [], pagada = !!l.pagado_en, conP = conPremio(l), nom = l.vendedor_actual || l.vendedor;
+        der = `<div class="qc2-dh"><div><h3>${esc(nom)}</h3><span class="qc2-sub">Cerrada el ${fh(l.cerrado_en || l.hasta)} por ${esc(l.cerrado_por || "—")} · período ${fd(l.desde)} al ${fd(l.cerrado_en || l.hasta)}</span></div>
+            <span class="qr-chip-est ${pagada ? "ok" : "ojo"}">${pagada ? "Pagada" : "Pendiente de pago"}</span></div>
+          <div class="qc2-grande ${pagada ? "ok" : "pend"}">${m2(l.total)}<span>${pagada ? "Total pagado" : "Total definitivo a pagar"}</span></div>
+          ${df("Cobranza computable", m2(conP ? l.base_premio : l.importe_cobrado))}
+          ${conP ? eq(l.comision, l.premio, l.total, "Total a liquidar") : df("Comisión", m2(l.total), "tot")}
+          ${conP ? `<div class="qc2-prox ${Number(l.premio) > 0 ? "ok" : ""}">${l.premio_desde != null ? "Objetivo alcanzado: desde " + m2(l.premio_desde) : "Ningún objetivo alcanzado"}</div>` : ""}
+          <h4>Recibos incluidos (${det.length})</h4>${recibos(det, true)}
+          ${pagada ? `<div class="qc2-pago ok"><b>Pagada</b> el ${fh(l.pagado_en)} · medio: <b>${esc(l.forma_pago || "—")}</b> · por ${esc(l.pagado_por || "—")}<br><small>Movimiento de Caja asociado: <code>qrliq|${esc(l.id)}</code></small></div>`
+            : `<div class="qc2-pago pend"><span>Pendiente de pago. El pago se registra en efectivo o por transferencia y genera un solo movimiento en Caja.</span><button type="button" class="qr-b" onclick="qrLiqPagar('${esc(l.id)}')">Registrar pago</button></div>`}
+          <div class="qc2-acc"><button type="button" class="qr-b ghost" onclick="qrLiqWhatsApp('${esc(l.id)}')">Compartir por WhatsApp</button><button type="button" class="qr-b ghost" onclick="qrLiqCopiar('${esc(l.id)}')">Copiar resumen</button>
+            <details class="qcv-liq-mas"><summary>Detalle para el vendedor</summary><button type="button" class="qr-b ghost chico" onclick="qrLiqCopiarDetalle('${esc(l.id)}')">Copiar detalle</button><button type="button" class="qr-b ghost chico" onclick="qrLiqWhatsAppDetalle('${esc(l.id)}')">WhatsApp con el detalle</button></details></div>`;
+      }
+    }
+    const nCurso = claves.filter(k => { const v = regV(k); return v && Number(v.movimientos) > 0; }).length;
+    const tab = (k, t, n) => `<button type="button" class="qc2-tab ${comPro.tab === k ? "on" : ""}" onclick="qcTab('${k}')" role="tab" aria-selected="${comPro.tab === k}">${t}${n ? ` <i>${n}</i>` : ""}</button>`;
+    const totCob = abierto.vendedores.reduce((a, v) => a + (Number(v.cobrado) || 0), 0), totCom = abierto.vendedores.reduce((a, v) => a + (Number(v.comision) || 0), 0);
+    box.innerHTML = `<div class="qc2">
+      <div class="qc2-res"><b>Ciclo abierto: cobrado ${m2(totCob)} · comisión base ${m2(totCom)}</b><span>El cierre es manual y por vendedor (normalmente los viernes). Cerrar no es pagar.</span></div>
+      <div class="qc2-grid"><section class="qc2-izq" aria-label="Vendedores"><h3>Vendedores</h3>
+          <div class="qc2-tabs" role="tablist">${tab("curso", "En curso", nCurso)}${tab("pagar", "Pendiente de pago", porPagar.length)}${tab("pagadas", "Pagadas", pagadas.length)}</div>
+          <div class="qc2-lista">${izq}</div></section>
+        <section class="qc2-der" aria-live="polite">${der}</section></div>
+      ${viejas.length ? `<details class="qc2-viejas"><summary>Liquidaciones anteriores (con la regla anterior): ${viejas.length}</summary><table class="qr-tabla"><thead><tr><th>Cerrada</th><th>Vendedor</th><th class="qr-num">Comisión</th></tr></thead><tbody>${viejas.map(x => `<tr><td>${fh(x.hasta)}</td><td>${esc(x.vendedor || "todos")}</td><td class="qr-num">${m2(x.comision)}</td></tr>`).join("")}</tbody></table></details>` : ""}</div>`;
+    return true;
+  }
+  window.qcTab = t => { comPro.tab = t; comPro.sel = null; comPro.todos = false; pintarComisionBase(); };
+  window.qcSel = k => { comPro.sel = k; comPro.todos = false; pintarComisionBase(); };
+  window.qcTodos = () => { comPro.todos = true; pintarComisionBase(); };
+
   window.qrComDet = function (v) { if (detAbierto.has(v)) detAbierto.delete(v); else detAbierto.add(v); pintarComisionBase(); };
   window.qrComIrRendicion = function (rid) { qrSub("recibos"); if (window.qrRendicionAbrir) setTimeout(() => qrRendicionAbrir(rid), 60); };
   const tablaMovs = l => `<div class="qcv-det-t"><table class="qr-tabla"><thead><tr><th>Cliente</th><th>Remito</th><th>Recibo</th><th>Confirmado</th><th class="qr-num">Cobrado</th><th class="qr-num">%</th><th class="qr-num">Comisión</th></tr></thead>
     <tbody>${l.map(d => `<tr><td>${esc(d.cliente)}</td><td>${esc(d.remito)}</td><td>${esc(d.recibo)}</td><td>${fh(d.confirmado_en)}</td><td class="qr-num">${m2(d.importe)}</td><td class="qr-num">${pctTxt(d.pct)}</td><td class="qr-num">${m2(d.comision)}</td></tr>`).join("")}</tbody></table></div>`;
   function pintarComisionBase() {
+    try { if (pintarComisionPro()) return; } catch (e) { console.warn("[comisiones] diseño nuevo:", e); }   // si algo falla, la tabla de siempre
     let liqs = [], abierto = { vendedores: [] };
     const box = $("qv-comision");
     try { liqs = Comisiones.liquidaciones(); abierto = Comisiones.abierto(); }
@@ -14951,6 +15186,130 @@
 
 })();
 
+</script>
+<script>
+/* ═════════════════════════════════════════════════════════════════
+   CAJA → QUERUCLOR: NAVEGACIÓN FLUIDA (18/11/2026)
+
+   Medido en la Caja real: cada clic congelaba la pantalla entre 1 y 5 s porque pedía sus datos con consultas sincrónicas, una tras otra
+   (Cuentas: 22 consultas, Comisión: 7 —tres idénticas, una por vendedor—, Recibos: 4) y volvía a pedirlo todo en cada clic.
+
+   Ahora, al tocar una sección:
+     1. la solapa y el panel responden AL INSTANTE («Cargando…»);
+     2. los datos de esa sección se piden TODOS JUNTOS, en paralelo y sin congelar nada;
+     3. recién cuando llegan se dibuja la sección (con las lecturas ya guardadas: sin consultas bloqueantes);
+     4. volver a la sección dentro de 45 s no repite la carga; arriba dice de hace cuánto son los datos y hay un botón «Actualizar».
+   Cualquier escritura (emitir recibo, cerrar, pagar…), cualquier cambio avisado por el servidor o «Actualizar» descarta lo guardado.
+   Si una precarga falla, la sección se dibuja igual con el camino de siempre (nunca queda peor que antes). Sin consultas periódicas nuevas:
+   solo se precarga al tocar o al pasar el mouse por una solapa. No toca ninguna regla ni operación.
+   ═════════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const R = (r, a) => ({ r, a: a || {} }), G = (g, q) => ({ g, q: q || "" });
+  const Q = () => window.QRSrv;
+  /* Qué necesita cada sección (exactamente con los mismos parámetros con que las pide el código existente). */
+  const PLAN = {
+    recibos: async () => { await Q().precargar([R("qr_rendiciones_resumen", { p_limite: 60 }), G("qr_cobros", "recibo=is.null&order=fecha_cobro.asc"), R("qr_cobros_inconsistentes"),
+      G("qr_cobros", "forma=eq.cheque&estado=eq.conciliado&order=recibido_server.desc"), { k: "qr_rend_ml_v1" }]); },
+    comision: async () => {
+      const w = await Q().precargar([R("qr_liquidaciones", { o: {} }), R("qr_comisiones_abierto"), R("qr_cobros_inconsistentes"), G("qr_cobros", "select=id,rendicion&recibo=is.null")]);
+      const ab = w[1] || {}, ids = [...new Set([...(ab.vendedores || []), ...(ab.con_pendientes || [])].map(v => v.vendedor_id).filter(Boolean))];
+      await Q().precargar(ids.map(id => R("qr_comision_abierta_de", { p_nombre: id })));
+    },
+    cuentas: async () => {
+      const w = await Q().precargar([G("qr_cuenta_movs", "order=seq.asc"), R("qr_cuentas_lista", { o: {} })]), lista = Array.isArray(w[1]) ? w[1] : [];
+      await Q().precargar(lista.map(f => R("qr_saldo", { p_cliente: String(f.cliente_id) })));
+      await Q().precargar(lista.filter(f => Number(f.saldo) > 0 || Number(f.cobros_pendientes) > 0).map(f => R("qr_pendientes", { p_cliente: String(f.cliente_id) })));
+    },
+  };
+  window.__qrPlanes = PLAN;
+  const listas = { recibos: "Recibos", cuentas: "Cuentas", comision: "Comisión", devoluciones: "Devoluciones" };
+  const caliente = {};                 // sección → { t, e }: cuándo y con qué «época» se precargó
+  const enCurso = {};                  // precargas en marcha
+  let pedido = 0, ultima = "recibos";
+  const tibia = n => { const c = caliente[n]; return !!(c && c.e === Q().epoca() && Date.now() - c.t < 40000); };
+  function precargar(n) {
+    if (!PLAN[n] || !Q() || !Q().precargar) return Promise.resolve();
+    if (tibia(n)) return Promise.resolve();
+    if (enCurso[n]) return enCurso[n];
+    const e0 = Q().epoca();
+    enCurso[n] = Promise.race([PLAN[n](), new Promise(r => setTimeout(r, 9000))]).catch(() => {}).then(() => { if (Q().epoca() === e0) caliente[n] = { t: Date.now(), e: e0 }; delete enCurso[n]; });
+    return enCurso[n];
+  }
+  /* Respuesta visual inmediata: solapa marcada, panel visible y aviso «Cargando…» (sin esperar al servidor). */
+  const TODAS = ["recibos", "clientes", "cuentas", "comision", "devoluciones", "avisos"];
+  function visual(n) {
+    TODAS.forEach(x => { if ($("qst-" + x)) $("qst-" + x).classList.toggle("on", x === n); if ($("qv-" + x)) $("qv-" + x).style.display = x === n ? "" : "none"; });
+    const pane = $("qv-" + n); if (!pane) return;
+    let c = $("qrCarga"); if (c) c.remove();
+    c = document.createElement("div"); c.id = "qrCarga"; c.className = "qrc-carga"; c.setAttribute("role", "status"); c.setAttribute("aria-live", "polite");
+    c.innerHTML = '<span class="qrc-spin" aria-hidden="true"></span> Cargando ' + (listas[n] || "") + '…';
+    pane.insertBefore(c, pane.firstChild); if (pane.children.length > 1) pane.classList.add("qrc-viejo");
+  }
+  function quitarCarga() { const c = $("qrCarga"); if (c) c.remove(); document.querySelectorAll(".qrc-viejo").forEach(p => p.classList.remove("qrc-viejo")); }
+
+  function envolver() {
+    if (typeof window.qrSub !== "function" || window.qrSub.__fluida || !window.QRSrv || !QRSrv.precargar) return false;
+    const orig = window.qrSub;
+    window.qrSub = function (n) {
+      const args = arguments, self = this;
+      if (!PLAN[n]) { ultima = n === "avisos" || n === "clientes" ? ultima : ultima; return orig.apply(self, args); }
+      ultima = n;
+      if (tibia(n)) { const r = orig.apply(self, args); marcarFresco(); return r; }       // ya está precargada: se dibuja al toque
+      const mi = ++pedido; visual(n);
+      /* Se cede el hilo para que el navegador pinte «Cargando…» ANTES de empezar a pedir datos. */
+      return new Promise(res => setTimeout(res, 0)).then(() => precargar(n)).then(() => {
+        if (mi !== pedido) return;                                                         // tocó otra sección mientras tanto
+        quitarCarga(); const r = orig.apply(self, args); marcarFresco(); return r;
+      });
+    };
+    window.qrSub.__fluida = true;
+    return true;
+  }
+  /* Se precarga al pasar el mouse / apoyar el dedo en una solapa (el clic llega unas décimas después). */
+  function calentar(e) {
+    const el = e.target && e.target.closest ? e.target.closest("[id^=qst-],a.nav-item,.nav-item") : null; if (!el) return;
+    let n = el.id && el.id.indexOf("qst-") === 0 ? el.id.slice(4) : null;
+    if (!n && /queruclor/.test(el.getAttribute("onclick") || "")) n = "recibos";
+    if (n && PLAN[n] && !tibia(n)) precargar(n);
+  }
+  document.addEventListener("pointerover", calentar, { passive: true }); document.addEventListener("pointerdown", calentar, { passive: true });
+
+  /* «Datos de hace Xs · Actualizar»: se dice de cuándo son los datos y se puede refrescar a mano. */
+  function textoEdad() {
+    const t = Q() && Q().ultimaLectura ? Q().ultimaLectura() : 0; if (!t) return "";
+    const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+    return "Datos de hace " + (s < 90 ? s + " s" : Math.round(s / 60) + " min");
+  }
+  function marcarFresco() {
+    const hd = document.querySelector("#screen-queruclor .qr-hd"); if (!hd) return;
+    let f = $("qrFresco");
+    if (!f) { f = document.createElement("div"); f.id = "qrFresco"; f.className = "qrc-fresco"; hd.appendChild(f);
+      f.innerHTML = '<span id="qrFrescoT"></span><button type="button" class="qr-b ghost chico" id="qrFrescoB">↻ Actualizar</button>';
+      $("qrFrescoB").onclick = () => window.qrActualizarDatos(); }
+    $("qrFrescoT").textContent = textoEdad();
+  }
+  window.qrActualizarDatos = function () {
+    const b = $("qrFrescoB"); if (b) { b.disabled = true; b.textContent = "Actualizando…"; }
+    Q().olvidar(); Object.keys(caliente).forEach(k => delete caliente[k]);
+    const r = window.qrSub(ultima);
+    Promise.resolve(r).then(() => { const b2 = $("qrFrescoB"); if (b2) { b2.disabled = false; b2.textContent = "↻ Actualizar"; } marcarFresco(); });
+  };
+  setInterval(() => { const s = $("screen-queruclor"); if (s && s.classList.contains("active") && !document.hidden && $("qrFrescoT")) $("qrFrescoT").textContent = textoEdad(); }, 15000);   // solo el texto: sin consultas
+  document.addEventListener("DOMContentLoaded", envolver); setTimeout(envolver, 700); setTimeout(envolver, 1800); setTimeout(envolver, 3500);
+
+  const st = document.createElement("style");
+  st.textContent = `
+    .qrc-carga{ display:flex; align-items:center; gap:10px; margin:6px 0 10px; padding:11px 14px; border-radius:12px; background:#f3f1ff; color:#4338ca; font-weight:700; font-size:.9rem }
+    .qrc-spin{ width:16px; height:16px; border:3px solid #c7c2ff; border-top-color:#6C63FF; border-radius:50%; animation:qrcg .8s linear infinite }
+    @keyframes qrcg{ to{ transform:rotate(360deg) } }
+    @media (prefers-reduced-motion:reduce){ .qrc-spin{ animation:none } }
+    .qrc-viejo > :not(#qrCarga){ opacity:.45; pointer-events:none }
+    .qrc-fresco{ display:flex; align-items:center; gap:10px; margin-left:auto; font-size:.78rem; color:var(--qr-tx3, #5f6b78) }
+  `;
+  document.head.appendChild(st);
+})();
 </script>
 </body>
 </html>
