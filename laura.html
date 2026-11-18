@@ -6815,7 +6815,8 @@
       (Number(p.fuera_de_vigencia) > 0 ? '<div class="qcv-prem-n">Hay ' + m2(p.fuera_de_vigencia) + ' confirmados antes del ' + fd(p.vigente_desde) + ': conservan su comisión del 1 % pero no suman para el premio.</div>' : '') +
       '<div class="qcv-prem-f"><span>Comisión base</span><b>' + m2(p.comision) + '</b></div>' +
       '<div class="qcv-prem-f"><span>Ajustes</span><b>' + (ajustes ? ajustes + ' para decidir (no se descuentan solos)' : 'sin ajustes en este ciclo') + '</b></div>' +
-      '<div class="qcv-prem-f ' + (p.alcanzado != null ? 'ok' : '') + '"><span>Objetivo alcanzado</span><b>' + desdeTxt(p.alcanzado) + '</b></div>' +
+      '<div class="qcv-prem-f ' + (p.alcanzado != null ? 'ok' : '') + '"><span>' + (p.con_tolerancia ? 'Premio alcanzado con tolerancia' : 'Objetivo alcanzado') + '</span><b>' + desdeTxt(p.alcanzado) + '</b></div>' +
+      (p.con_tolerancia ? '<div class="qcv-prem-n">Cobrado real ' + m2(p.base) + '. Con la tolerancia de ' + String(p.tolerancia).replace('.', ',') + ' % el objetivo se habilita desde ' + m2(p.alcanzado_minimo) + ': el premio se paga completo y el 1 % sigue sobre lo cobrado.</div>' : '') +
       '<div class="qcv-prem-f ' + (Number(p.premio) > 0 ? 'ok' : '') + '"><span>Premio</span><b>' + m2(p.premio) + '</b></div>' +
       (premioSigTxt(p) ? '<div class="qcv-prem-s ' + (p.maximo ? 'max' : '') + '">' + premioSigTxt(p) + '</div>' : '') +
       '<div class="qcv-prem-t"><span>Total a liquidar</span><b>' + m2(p.total_a_liquidar) + '</b><small>comisión ' + m2(p.comision) + ' + premio ' + m2(p.premio) + '</small></div></div>';
@@ -6830,7 +6831,7 @@
     if (!conPremio(l)) return "*Comisión: " + m2(l.total) + "*\n";
     const pc = (l.detalle && l.detalle.length) ? pctTxt(l.detalle[0].pct) : "";
     return "Comisión base" + (pc ? " (" + pc + ")" : "") + ": " + m2(l.comision) + "\n" +
-      "Objetivo alcanzado: " + desdeTxt(l.premio_desde) + "\n" +
+      "Objetivo alcanzado: " + desdeTxt(l.premio_desde) + (l.premio_cfg && l.premio_cfg.calculo && l.premio_cfg.calculo.con_tolerancia ? " (premio alcanzado con tolerancia; cobrado real " + m2(l.base_premio) + ")" : "") + "\n" +
       "Premio: " + m2(l.premio) + "\n" +
       "*Total a liquidar: " + m2(l.total) + "* (" + m2(l.comision) + " + " + m2(l.premio) + ")\n";
   }
@@ -6897,7 +6898,7 @@
   const ITEMS_COM = () => [{ r: "qr_liquidaciones", a: { o: {} } }, { r: "qr_comisiones_abierto", a: {} }, { r: "qr_cobros_inconsistentes", a: {} }, { g: "qr_cobros", q: "select=id,rendicion&recibo=is.null" }];
   const nObjPro = (p, desde) => { const i = ((p && p.escalones) || []).findIndex(x => Number(x.desde) === Number(desde)); return i >= 0 ? i + 1 : ""; };
   const faltaPro = p => !p ? "" : p.maximo ? "Objetivo máximo alcanzado" : p.siguiente ? "Faltan " + m2(p.siguiente.faltan) + " para el objetivo " + nObjPro(p, p.siguiente.desde) : "";
-  const logroPro = p => !p ? "" : p.alcanzado != null ? "Objetivo " + nObjPro(p, p.alcanzado) + " alcanzado" : "Sin premio todavía";
+  const logroPro = p => !p ? "" : p.alcanzado != null ? (p.con_tolerancia ? "Premio alcanzado con tolerancia · Objetivo " + nObjPro(p, p.alcanzado) : "Objetivo " + nObjPro(p, p.alcanzado) + " alcanzado") : "Sin premio todavía";
   function pintarComisionPro(forzado) {
     const box = $("qv-comision");
     if (!box || !window.QRSrv || !QRSrv.precargar || !enBase()) return false;
@@ -6984,6 +6985,7 @@
         ${p && Number(p.fuera_de_vigencia) > 0 ? `<div class="qc2-nota">${m2(p.fuera_de_vigencia)} confirmados antes del ${fd(p.vigente_desde)}: conservan su comisión del 1 % pero no suman para el premio.</div>` : ""}
         ${eq(p ? p.comision : d.comision, p ? p.premio : 0, p ? p.total_a_liquidar : d.comision, "Total a liquidar")}
         ${p ? `<div class="qc2-prox ${p.maximo ? "ok" : ""}"><b>${esc(logroPro(p))}</b> · ${esc(faltaPro(p))}</div>` : ""}
+        ${p && p.con_tolerancia ? `<div class="qc2-nota">Cobrado real: ${m2(p.base)}. Con la tolerancia de ${esc(String(p.tolerancia).replace(".", ","))} % el objetivo se habilita desde ${m2(p.alcanzado_minimo)}: el premio se paga completo y el 1 % sigue sobre lo cobrado.</div>` : ""}
         <h4>Recibos incluidos (${mov})</h4>${recibos(d.detalle, comPro.todos)}
         <h4>Ajustes y pendientes</h4>
         ${pres.length ? `<div class="qc2-aj"><b>Ajustes para decidir (no se descuentan solos): ${pres.length}</b>${pres.map(a => `<div>${esc(a.cliente)} · ${esc(a.remito)} · ${m2(a.comision)} · ${esc(a.motivo)}</div>`).join("")}</div>` : '<p class="qc2-mut">Sin ajustes en este ciclo.</p>'}
@@ -7002,7 +7004,7 @@
           <div class="qc2-grande ${pagada ? "ok" : "pend"}">${m2(l.total)}<span>${pagada ? "Total pagado" : "Total definitivo a pagar"}</span></div>
           ${df("Cobranza computable", m2(conP ? l.base_premio : l.importe_cobrado))}
           ${conP ? eq(l.comision, l.premio, l.total, "Total a liquidar") : df("Comisión", m2(l.total), "tot")}
-          ${conP ? `<div class="qc2-prox ${Number(l.premio) > 0 ? "ok" : ""}">${l.premio_desde != null ? "Objetivo alcanzado: desde " + m2(l.premio_desde) : "Ningún objetivo alcanzado"}</div>` : ""}
+          ${conP ? `<div class="qc2-prox ${Number(l.premio) > 0 ? "ok" : ""}">${l.premio_desde != null ? "Objetivo alcanzado: desde " + m2(l.premio_desde) + (l.premio_cfg && l.premio_cfg.calculo && l.premio_cfg.calculo.con_tolerancia ? " · Premio alcanzado con tolerancia (cobrado real " + m2(l.base_premio) + ")" : "") : "Ningún objetivo alcanzado"}</div>` : ""}
           <h4>Recibos incluidos (${det.length})</h4>${recibos(det, true)}
           ${pagada ? `<div class="qc2-pago ok"><b>Pagada</b> el ${fh(l.pagado_en)} · medio: <b>${esc(l.forma_pago || "—")}</b> · por ${esc(l.pagado_por || "—")}<br><small>Movimiento de Caja asociado: <code>qrliq|${esc(l.id)}</code></small></div>`
             : `<div class="qc2-pago pend"><span>Pendiente de pago. El pago se registra en efectivo o por transferencia y genera un solo movimiento en Caja.</span><button type="button" class="qr-b" onclick="qrLiqPagar('${esc(l.id)}')">Registrar pago</button></div>`}
@@ -7132,6 +7134,7 @@
       if (ya) { guardarOp(v, null); aviso("El cierre anterior de " + nomV(v) + " ya se había guardado: " + m2(ya.total) + ". Revisá lo que quedó abierto."); }
     }
     let d;
+    try { if (window.QRSrv && QRSrv.olvidar) QRSrv.olvidar(); } catch (e) {}   // 18/11: la revisión se lee del servidor, no de la memoria temporal
     try { d = Comisiones.abiertoDe(v); } catch (e) { return alert("No se pudo consultar (sin conexión con el servidor). No se cerró nada."); }
     if (!d.movimientos) { pintarComisionBase(); return aviso("Sin comisiones de " + nomV(v) + " para cerrar."); }
     const fuera = d.fuera || [];
