@@ -192,7 +192,7 @@
      Se descartan solas ante CUALQUIER escritura (recibo, cierre, pago…), cualquier cambio avisado por el servidor o «Actualizar»:
      nunca se muestra un total viejo después de una operación. Si algo no está precargado, se pide como siempre. */
   var pre = {}, kvPre = {}, epoca = 0, PRE_TTL = 45000, KV_TTL = 20000, enVuelo = {}, ultimaLectura = 0;   // kvPre: claves compartidas (p. ej. las rendiciones de Habituales), con memoria más corta
-  var LECT_RPC = /^qr_(rendiciones_resumen|cobros_inconsistentes|liquidaciones|comisiones_abierto|comision_abierta_de|saldo|saldo_anterior|pendientes|cuentas_lista)$/;   // el detalle de una rendición y la conciliación de un recibo NO se guardan: siempre frescos al confirmar
+  var LECT_RPC = /^qr_(rendiciones_resumen|cobros_inconsistentes|liquidaciones|comisiones_abierto|comision_abierta_de|saldo|saldo_anterior|pendientes|cuentas_lista|avisos|dev_bandeja)$/;   // el detalle de una rendición y la conciliación de un recibo NO se guardan: siempre frescos al confirmar
   var PRE_GET = /^(qr_cobros|qr_cuenta_movs|qr_recibos|qr_ciclos|qr_comision_movs|qr_rendiciones|qr_notas_credito)$/;
   /* Cambios que NO afectan a lo guardado (stock, pedidos, armado, impresión…) no lo descartan: así la memoria sirve aunque el resto del sistema esté en movimiento. */
   var IRRELEVANTE = /^(pedidos|items_pedido|qr_stock|qr_estado|qr_bultos|qr_movimientos|qr_lotes|qr_lotes_estado|qr_prep_ops|qr_prep_lote_sel|qr_bloques|qr_imp_trabajos|qr_imp_agentes|qr_publicados|qr_cambios_articulo|qr_articulos|qr_despachos|qr_recepciones)$/;
@@ -15227,6 +15227,8 @@
       const ab = w[1] || {}, ids = [...new Set([...(ab.vendedores || []), ...(ab.con_pendientes || [])].map(v => v.vendedor_id).filter(Boolean))];
       await Q().precargar(ids.map(id => R("qr_comision_abierta_de", { p_nombre: id })));
     },
+    devoluciones: async () => { await Q().precargar([R("qr_dev_bandeja")]); },
+    avisos: async () => { await Q().precargar([R("qr_avisos", { o: { para: "caja", actualizar: true } }), G("qr_cuenta_movs", "order=seq.asc"), G("qr_recibos", "order=seq.asc")]); },
     cuentas: async () => {
       const w = await Q().precargar([G("qr_cuenta_movs", "order=seq.asc"), R("qr_cuentas_lista", { o: {} })]), lista = Array.isArray(w[1]) ? w[1] : [];
       /* El saldo de cada cliente ya vino en la lista: no se pide uno por uno (cada qr_saldo recalcula los pendientes del cliente en el servidor). */
@@ -15235,7 +15237,7 @@
     },
   };
   window.__qrPlanes = PLAN;
-  const listas = { recibos: "Recibos", cuentas: "Cuentas", comision: "Comisión", devoluciones: "Devoluciones" };
+  const listas = { recibos: "Recibos", cuentas: "Cuentas", comision: "Comisión", devoluciones: "Devoluciones", avisos: "Avisos" };
   const caliente = {};                 // sección → { t, e }: cuándo y con qué «época» se precargó
   const enCurso = {};                  // precargas en marcha
   let pedido = 0, ultima = "recibos";
