@@ -194,9 +194,17 @@
   var pre = {}, kvPre = {}, epoca = 0, PRE_TTL = 45000, KV_TTL = 20000, enVuelo = {}, ultimaLectura = 0;   // kvPre: claves compartidas (p. ej. las rendiciones de Habituales), con memoria más corta
   var LECT_RPC = /^qr_(rendiciones_resumen|cobros_inconsistentes|liquidaciones|comisiones_abierto|comision_abierta_de|saldo|saldo_anterior|pendientes|cuentas_lista)$/;   // el detalle de una rendición y la conciliación de un recibo NO se guardan: siempre frescos al confirmar
   var PRE_GET = /^(qr_cobros|qr_cuenta_movs|qr_recibos|qr_ciclos|qr_comision_movs|qr_rendiciones|qr_notas_credito)$/;
+  /* Cambios que NO afectan a lo guardado (stock, pedidos, armado, impresión…) no lo descartan: así la memoria sirve aunque el resto del sistema esté en movimiento. */
+  var IRRELEVANTE = /^(pedidos|items_pedido|qr_stock|qr_estado|qr_bultos|qr_movimientos|qr_lotes|qr_lotes_estado|qr_prep_ops|qr_prep_lote_sel|qr_bloques|qr_imp_trabajos|qr_imp_agentes|qr_publicados|qr_cambios_articulo|qr_articulos|qr_despachos|qr_recepciones)$/;
+  /* El servidor atiende de a poco: se piden como máximo 4 lecturas a la vez (más no es más rápido y le quita aire a lo demás). */
+  var MAX_PAR = 4, activos = 0, cola = [];
+  function programar(tarea) { return new Promise(function (res, rej) { cola.push({ t: tarea, res: res, rej: rej }); bombear(); }); }
+  function bombear() { while (activos < MAX_PAR && cola.length) { (function (x) { activos++; x.t().then(function (v) { activos--; x.res(v); bombear(); }, function (e) { activos--; x.rej(e); bombear(); }); })(cola.shift()); } }
   function copia(v) { if (v == null || typeof v !== "object") return v; try { return typeof structuredClone === "function" ? structuredClone(v) : JSON.parse(JSON.stringify(v)); } catch (e) { return JSON.parse(JSON.stringify(v)); } }
   function claveIt(it) { return it.k ? "K " + it.k : it.g ? "G " + it.g + "?" + (it.q || "") : "R " + it.r + " " + JSON.stringify(it.a || {}); }
   function frescoIt(it) { if (it.k) { var ck = kvPre[it.k]; return !!(ck && Date.now() - ck.t < KV_TTL); } var c = pre[claveIt(it)]; return !!(c && Date.now() - c.t < PRE_TTL); }
+  /* Datos que el servidor ya entregó junto con otra consulta (p. ej. el saldo de cada cliente viene en la lista de cuentas) se guardan sin volver a pedirlos. */
+  function sembrarIt(it) { var e0 = epoca; if (epoca === e0) pre[claveIt(it)] = { v: it.v, t: Date.now() }; }
   function invalidar() { pre = {}; kvPre = {}; enVuelo = {}; epoca++; }
   /* La misma llamada que xhr(), pero sin bloquear la pantalla. */
   function xhrAsync(metodo, url, cuerpo) {
@@ -220,10 +228,10 @@
     if (enVuelo[k]) return enVuelo[k];
     var e0 = epoca;
     if (it.k) {
-      var pk = xhrAsync("GET", "/local/kv/" + it.k).then(function (d) { var v = d ? d.valor : null; if (epoca === e0) { kvPre[it.k] = { v: v == null ? null : v, t: Date.now() }; ultimaLectura = Date.now(); } delete enVuelo[k]; return v; }, function () { delete enVuelo[k]; return null; });
+      var pk = programar(function () { return xhrAsync("GET", "/local/kv/" + it.k); }).then(function (d) { var v = d ? d.valor : null; if (epoca === e0) { kvPre[it.k] = { v: v == null ? null : v, t: Date.now() }; ultimaLectura = Date.now(); } delete enVuelo[k]; return v; }, function () { delete enVuelo[k]; return null; });
       enVuelo[k] = pk; return pk;
     }
-    var p = (it.g ? xhrAsync("GET", "/rest/v1/" + it.g + (it.q ? "?" + it.q : "")) : xhrAsync("POST", "/rest/v1/rpc/" + it.r, it.a || {})).then(function (v) {
+    var p = programar(function () { return it.g ? xhrAsync("GET", "/rest/v1/" + it.g + (it.q ? "?" + it.q : "")) : xhrAsync("POST", "/rest/v1/rpc/" + it.r, it.a || {}); }).then(function (v) {
       if (epoca === e0) { pre[k] = { v: v, t: Date.now() }; ultimaLectura = Date.now(); }   // si hubo una escritura mientras tanto, no se guarda
       delete enVuelo[k]; return v;
     }, function () { delete enVuelo[k]; return null; });
@@ -258,6 +266,7 @@
     /* Pedir varias lecturas JUNTAS y sin congelar la pantalla (cada una: {r:"funcion", a:{args}} o {g:"tabla", q:"consulta"}). */
     precargar: function (items) { return Promise.all(items.map(traerIt)); },
     fresco: function (items) { return items.every(frescoIt); },
+    sembrar: function (items) { items.forEach(sembrarIt); },
     epoca: function () { return epoca; },
     ultimaLectura: function () { return ultimaLectura; },
     generacion: function () { return GEN; },
@@ -278,7 +287,7 @@
         if (desdeCambios >= 0 && j.cambios && j.cambios.length) {
           var hubo = {};
           j.cambios.forEach(function (c) { hubo[c.tabla] = true; });
-          cache = {}; invalidar();
+          cache = {}; if (Object.keys(hubo).some(function (t) { return !IRRELEVANTE.test(t); })) invalidar();
           oyentesCambios.forEach(function (o) {
             var t = o.tablas.filter(function (x) { return hubo[x]; });
             if (t.length) try { o.fn(t); } catch (e) { console.warn("[cambios]", e); }
@@ -6917,7 +6926,7 @@
     const regV = k => abierto.vendedores.find(x => x.vendedor_id === k) || null;
     const lista = comPro.tab === "curso" ? claves : comPro.tab === "pagar" ? porPagar : pagadas;
     const idDe = x => comPro.tab === "curso" ? x : x.id;
-    if (!lista.some(x => idDe(x) === comPro.sel)) comPro.sel = lista.length ? idDe(lista[0]) : null;
+    if (!lista.some(x => idDe(x) === comPro.sel)) { const conMov = comPro.tab === "curso" ? lista.find(k => { const v = regV(k); return v && Number(v.movimientos) > 0; }) : null; comPro.sel = conMov ? idDe(conMov) : lista.length ? idDe(lista[0]) : null; }
 
     /* ── Tarjetas de la izquierda ─────────────────────────────────── */
     const tarjeta = (id, nombre, cobrado, p, comision, premio, total, chip, sinRecibos) => `<button type="button" class="qc2-card ${comPro.sel === id ? "on" : ""}" onclick="qcSel('${esc(id)}')" aria-pressed="${comPro.sel === id}">
@@ -6961,7 +6970,8 @@
     if (!comPro.sel) der = '<div class="qc2-vacio-g">Elegí un vendedor de la lista para ver su detalle.</div>';
     else if (comPro.tab === "curso") {
       const k = comPro.sel; let d = {};
-      try { d = Comisiones.abiertoDe(k) || {}; } catch (e) { d = {}; }
+      const conDatos = regV(k) || (abierto.con_pendientes || []).some(x => x.vendedor_id === k);   // quien no figura en el ciclo no tiene detalle que pedir
+      if (conDatos) { try { d = Comisiones.abiertoDe(k) || {}; } catch (e) { d = {}; } }
       const p = premioDe(d), mov = Number(d.movimientos) || 0, baja = d.baja;
       const fuera = (d.fuera || []).filter(f => !inconsistentes.has(f.cobro)), inc = (d.fuera || []).filter(f => inconsistentes.has(f.cobro));
       const pres = d.pendientes_resolucion || [], nc = d.no_corresponde || [];
@@ -15219,7 +15229,8 @@
     },
     cuentas: async () => {
       const w = await Q().precargar([G("qr_cuenta_movs", "order=seq.asc"), R("qr_cuentas_lista", { o: {} })]), lista = Array.isArray(w[1]) ? w[1] : [];
-      await Q().precargar(lista.map(f => R("qr_saldo", { p_cliente: String(f.cliente_id) })));
+      /* El saldo de cada cliente ya vino en la lista: no se pide uno por uno (cada qr_saldo recalcula los pendientes del cliente en el servidor). */
+      Q().sembrar(lista.filter(f => f && f.cliente_id != null && isFinite(Number(f.saldo))).map(f => ({ r: "qr_saldo", a: { p_cliente: String(f.cliente_id) }, v: Number(f.saldo) })));
       await Q().precargar(lista.filter(f => Number(f.saldo) > 0 || Number(f.cobros_pendientes) > 0).map(f => R("qr_pendientes", { p_cliente: String(f.cliente_id) })));
     },
   };
