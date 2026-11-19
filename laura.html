@@ -6313,12 +6313,13 @@
         enPantalla = Object.assign({}, real, { ok: true, hayPendiente: true, fecha, turno: real.turno || q.turno, repartidor: real.repartidor || q.repartidor,
           efectivoEsperado: dinero(mlEf + suma("efectivo")), transferencia: dinero((real.hayPendiente ? Number(real.transferencia) || 0 : 0) + suma("transferencia")),
           cheque: dinero((real.hayPendiente ? Number(real.cheque) || 0 : 0) + suma("cheque")),
-          detalleClientes: [].concat((real.hayPendiente && (real.detalleClientes || real.detalle_clientes)) || [], filasQR(q)), _qr: q.id, _mlEf: mlEf });
+          detalleClientes: [].concat((real.hayPendiente && (real.detalleClientes || real.detalle_clientes)) || [], filasQR(q)), _qr: q.id, _mlEf: mlEf, _soloQR: !real.hayPendiente });
         ultimo = enPantalla;
         return enPantalla;
       }
       if (fn === "procesarRendicionDesdeRecibo") {
-        const r = await original(fn, params);
+        /* 19/11/2026: turno solo de Queruclor (sin planilla de Habituales pendiente) → el servidor no busca una planilla que no existe. */
+        const r = await original(fn, (enPantalla && enPantalla._qr && enPantalla._soloQR) ? Object.assign({}, params, { soloQueruclor: true }) : params);
         if (!r || !r.ok || !enPantalla || !enPantalla._qr) return r;
         const op = (params && params.opId) || ("cnt|" + enPantalla._qr + "|" + params.efectivoContado);
         let c;

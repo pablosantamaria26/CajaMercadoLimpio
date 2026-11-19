@@ -401,6 +401,8 @@ async function marcarProcesadaRendReparto(env, params, fechaReparto) {
     });
     const rows = await r.json().catch(() => []);
     if (r.ok && Array.isArray(rows) && rows.length > 0) return { ok: true };
+    /* 19/11/2026 · Turno SOLO de Queruclor: no existe planilla de Habituales que marcar (se rinde por la parte de Queruclor). Solo si la pantalla lo avisa. */
+    if (r.ok && params.soloQueruclor === true) return { ok: true, sinPlanilla: true };
     return { ok: false, motivo: r.ok ? "no se encontró esa rendición del reparto" : "HTTP " + r.status };
   } catch (e) { return { ok: false, motivo: e.message }; }
 }
