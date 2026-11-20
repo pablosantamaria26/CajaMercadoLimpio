@@ -15501,7 +15501,7 @@
    con los datos del remito y se muestra el avance.
 
    Reglas acordadas con Pablo (19/11/2026):
-     · Un remito = una factura. Se factura SOLO el remito cuyo botón se toca. Solo remitos entregados y sin factura.
+     · Un remito = una factura. Se factura SOLO el remito cuyo botón se toca, sin factura previa; entregado o no (lo decide Laura, 20/11/2026).
      · Los precios del remito son finales con IVA incluido; el total del remito es el total de la factura.
      · Cantidad en cajas, como el remito. Código de barras (EAN) de cada artículo. Condición de venta: Cuenta Corriente.
      · CUIT y email se piden la primera vez y quedan en la ficha fiscal del cliente (qr_clientes_fiscal, vía Worker).
@@ -15766,8 +15766,9 @@
       let acc = "";
       if (fs.length) acc = fs.map(f => accionesFactura(f, r)).join("");
       else if (job) acc = `<span class="fx-chip pend">Emisión en curso…</span>`;
-      else if (entregado) acc = `<button type="button" class="fx-b prim" ${conCuit ? "" : "disabled title=\"Primero guardá el CUIT del cliente\""} onclick="qrFxElegir('${esc(r.numero)}')">Facturar</button>`;
-      else acc = `<span class="fx-nota">Se factura cuando esté entregado</span>`;
+      /* 20/11/2026 (Pablo): se factura cuando Laura toca el botón, esté o no entregado el remito (el pedido ya salió en el reparto). */
+      else acc = (entregado ? "" : `<span class="fx-nota">${ent && ent.estado === "rechazado" ? "La entrega figura rechazada" : "Todavía sin entregar"} · se factura igual si lo decidís</span>`) +
+        `<button type="button" class="fx-b prim" ${conCuit ? "" : "disabled title=\"Primero guardá el CUIT del cliente\""} onclick="qrFxElegir('${esc(r.numero)}')">Facturar</button>`;
       return `<div class="fx-rem" id="fxRem-${esc(r.numero)}"><div><b>${esc(r.numero)}</b> · ${fd(r.fecha)} · <b>${money(r.total)}</b> ${chip}<small>${r.renglones.length} renglón(es)${fs.length && fs[0].fecha ? " · factura del " + fd(fs[0].fecha) : ""}</small></div><div class="fx-acc">${acc}</div></div><div id="fxDet-${esc(r.numero)}"></div>`;
     }).join("") + (conCuit ? "" : `<p class="fx-nota">Para facturar hace falta el CUIT del cliente (arriba).</p>`);
     Object.keys(abiertos).forEach(id => { const x = $(id); if (x && !x.innerHTML) x.innerHTML = abiertos[id]; });
