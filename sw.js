@@ -1,5 +1,5 @@
 // Service Worker — Caja Mercado Limpio
-const CACHE_NAME = 'caja-ml-v64';
+const CACHE_NAME = 'caja-ml-v65';
 
 const urlsToCache = [
   './',

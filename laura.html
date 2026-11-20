@@ -5055,6 +5055,7 @@
   .fx-mail{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:.84rem; padding:8px 10px; border-radius:10px; background:#fff; border:1px solid var(--qr-ln) }
   .fx-nota{ font-size:.78rem; color:var(--qr-tx3) }
   /* Datos fiscales desde la lista de Clientes */
+  .fx-chip-b{ border:0; cursor:pointer; font:inherit; font-size:.74rem; font-weight:800; line-height:1.3 } .fx-chip-b:hover{ filter:brightness(.96) }
   .qc-tabla td[data-fx]{ white-space:nowrap } .qc-tabla td[data-fx] .fx-chip{ margin-right:6px; font-variant-numeric:tabular-nums }
   .fxm-bg{ position:fixed; inset:0; z-index:2147483000; background:rgba(15,18,32,.5); display:flex; align-items:center; justify-content:center; padding:16px }
   .fxm{ background:#fff; border-radius:16px; max-width:560px; width:100%; padding:18px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:grid; gap:12px; animation:fxIn .22s ease; font-size:.92rem }
@@ -15637,22 +15638,46 @@
       .catch(() => { fxLista = fxLista || []; fxListaT = Date.now(); return fxLista; });
   }
   const fmtCuit = c => { c = String(c || "").replace(/\D/g, ""); return c.length === 11 ? c.slice(0, 2) + "-" + c.slice(2, 10) + "-" + c.slice(10) : c; };
+  /* Altas hechas desde Pedidos que todavía no se cargaron en E-PyME (19/11/2026): chip en la misma columna.
+     Laura lo toca cuando ya lo cargó con el mismo número; si el Gestor no recibió el cliente, también lo dice. */
+  let altasLista = null, altasT = 0;
+  function listaAltas(fresca) {
+    if (!fresca && altasLista && Date.now() - altasT < 60000) return Promise.resolve(altasLista);
+    return Promise.resolve().then(() => QRSrv.rpc("qr_altas_clientes_lista", { p: { solo_pendientes: true } })).then(l => { altasLista = Array.isArray(l) ? l : []; altasT = Date.now(); return altasLista; })
+      .catch(() => { altasLista = altasLista || []; altasT = Date.now(); return altasLista; });
+  }
   let pintando = false;
   function pintarCeldasFiscales(forzar) {
     if (pintando || (!forzar && !document.querySelector("td[data-fx]:empty"))) return;
     pintando = true;
-    listaFiscal().then(l => {
+    Promise.all([listaFiscal(), listaAltas()]).then(([l, altas]) => {
       const por = {}; l.forEach(f => { por[f.cliente_id] = f; });
+      const alta = {}; altas.forEach(a => { alta[a.numero] = a; });
       document.querySelectorAll("td[data-fx]").forEach(td => {
-        const id = td.getAttribute("data-fx"), f = por[id], marca = f ? f.cuit + "|" + (f.email || "") : "-";
+        const id = td.getAttribute("data-fx"), f = por[id], a = alta[id];
+        const marca = (f ? f.cuit + "|" + (f.email || "") : "-") + "|" + (a ? a.epyme_estado + "/" + a.gestor_estado : "");
         if (td.getAttribute("data-fx-marca") === marca) return;
         td.setAttribute("data-fx-marca", marca);
-        td.innerHTML = f
+        td.innerHTML = (f
           ? `<span class="fx-chip ok" title="${esc(f.email || "sin email")}">${esc(fmtCuit(f.cuit))}</span><button type="button" class="qr-b ghost chico" onclick="event.stopPropagation();qrFxDatos('${esc(id)}')">Editar</button>`
-          : `<button type="button" class="qr-b ghost chico" onclick="event.stopPropagation();qrFxDatos('${esc(id)}')">Cargar CUIT</button>`;
+          : `<button type="button" class="qr-b ghost chico" onclick="event.stopPropagation();qrFxDatos('${esc(id)}')">Cargar CUIT</button>`)
+          + (a && a.epyme_estado === "pendiente" ? ` <button type="button" class="fx-chip pend fx-chip-b" title="Alta hecha desde Pedidos por ${esc(a.vendedor || "")}. Tocá cuando ya esté cargado en E-PyME con el mismo número." onclick="event.stopPropagation();qrFxEpyme('${esc(id)}')">🕒 Pendiente E-PyME</button>` : "")
+          + (a && a.gestor_estado === "error" ? ` <span class="fx-chip gris" title="${esc(a.gestor_detalle || "")}">Gestor: sin copiar</span>` : "");
       });
     }).finally(() => { pintando = false; });
   }
+  window.qrFxEpyme = async function (id) {
+    id = String(id);
+    const a = (await listaAltas()).find(x => String(x.numero) === id) || {};
+    const nom = ((a.apellido || "") + " " + (a.nombre || "")).trim() || ("Cliente " + id);
+    if (!confirm(`¿Ya cargaste en E-PyME al cliente N° ${id} · ${nom} con ese mismo número?\n\nVendedor: ${a.vendedor || "-"}\nDomicilio: ${a.domicilio || "-"}, ${a.localidad || "-"}\nDescuento Habituales: ${Number(a.descuento) === 5 ? "5 %" : "sin descuento"}${a.cuit ? "\nCUIT: " + fmtCuit(a.cuit) : ""}`)) return;
+    try {
+      const r = await Promise.resolve(QRSrv.rpc("qr_alta_epyme_confirmar", { p: { numero: id, quien: quien() } }));
+      if (!r || !r.ok) throw new Error((r && r.motivo) || "No se pudo confirmar.");
+      altasLista = null; document.querySelectorAll("td[data-fx]").forEach(td => td.removeAttribute("data-fx-marca")); pintarCeldasFiscales(true);
+      if (typeof toast === "function") toast("Alta en E-PyME confirmada para el N° " + id);
+    } catch (e) { alert(e.message || String(e)); }
+  };
   let obsT = null;
   try { new MutationObserver(() => { if (obsT) return; obsT = setTimeout(() => { obsT = null; pintarCeldasFiscales(); }, 60); }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
   setTimeout(pintarCeldasFiscales, 1500);
