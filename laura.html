@@ -6772,7 +6772,8 @@
       /* La diferencia chica (hasta el límite central de la base) se cierra sola
          en la misma operación; no es un cobro ni suma comisión. */
       const aj = r.ajuste;
-      const ajTxt = !aj ? "" : aj.aplicado ? " · se cerró una diferencia de " + money(aj.importe) + " por redondeo (no es cobro ni suma comisión)"
+      const ajTxt = !aj ? "" : aj.aplicado && aj.favor ? " · tenía " + money(aj.importe) + " a favor: se dio por saldado y la cuenta queda al día (no es cobro ni cambia la comisión)"
+        : aj.aplicado ? " · se cerró una diferencia de " + money(aj.importe) + " por redondeo (no es cobro ni suma comisión)"
         : aj.motivo ? " · " + aj.motivo : "";
       aviso("Recibo " + ((r.recibo || {}).numero || "") + " · " + (r.recibo || {}).cliente_nombre + " · " + money((r.recibo || {}).importe) + (r.repetida ? " (ya estaba)" : "") + ajTxt + qrSinComisionTxt((r.recibo || {}).id));
       pintarRecibos();
@@ -8157,7 +8158,10 @@
     const masViejo = pend.length
       ? pend.slice().sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""))[0]
       : null;
-    return { id, nombre, movs, pend, recs, venc, masViejo, saldo: Cuentas.saldo(id) };
+    /* Ajustes por redondeo (009/047): diferencias chicas cerradas y saldos a favor dados por saldado. Sin ellos el libro no cierra. */
+    let ajs = [];
+    try { if (window.QRSrv && QRSrv.get) ajs = QRSrv.get("qr_ajustes_redondeo", "cliente_id=eq." + encodeURIComponent(id) + "&order=seq.asc") || []; } catch (e) { ajs = []; }
+    return { id, nombre, movs, pend, recs, ajs, venc, masViejo, saldo: Cuentas.saldo(id) };
   }
 
   function pintarFicha() {
@@ -8253,6 +8257,17 @@
         id: r.id, confirmadoEn,
       });
     });
+    (d.ajs || []).forEach(a => {
+      const imp = Number(a.importe) || 0, favor = imp < 0;
+      filas.push({
+        fecha: a.fecha, orden: 2e8 + (Number(a.seq) || 0), tipo: "ajuste",
+        tag: favor ? "A favor dado por saldado" : "Ajuste por redondeo",
+        doc: a.recibo ? "con el recibo" : "—",
+        detalle: favor ? "Saldo a favor chico dado por saldado (tolerancia $" + (Number(a.tolerancia_centavos) / 100).toFixed(2).replace(".", ",") + "). No es un cobro ni cambia la comisión."
+                       : "Diferencia chica cerrada al confirmar el recibo (tolerancia $" + (Number(a.tolerancia_centavos) / 100).toFixed(2).replace(".", ",") + "). No es un cobro ni suma comisión.",
+        debe: favor ? -imp : 0, haber: favor ? 0 : imp, id: a.id,
+      });
+    });
     filas.sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || a.orden - b.orden);
     let s = 0;
     filas.forEach(f => { s = Math.round((s + f.debe - f.haber) * 100) / 100; f.saldo = s; });
@@ -8277,8 +8292,8 @@
       <td class="n">${f.haber ? money2(f.haber) : ""}</td>
       <td class="n"><b>${money2(f.saldo)}</b></td>
       <td class="qfl-acc">
-        <button class="qr-b ghost chico qfl-ver" onclick="qrDoc('${f.tipo}','${esc(f.id)}')">Ver documento</button>
-        ${!remoto && f.tipo !== "remito" ? `<button class="qr-anu-b" title="Anular — va a la papelera" onclick="qrAnular('${f.tipo === "recibo" ? "recibo" : "nc"}','${esc(f.id)}')">🗑</button>` : ""}
+        ${f.tipo === "ajuste" ? `<small class="qfl-ok">asiento interno</small>` : `<button class="qr-b ghost chico qfl-ver" onclick="qrDoc('${f.tipo}','${esc(f.id)}')">Ver documento</button>`}
+        ${!remoto && f.tipo !== "remito" && f.tipo !== "ajuste" ? `<button class="qr-anu-b" title="Anular — va a la papelera" onclick="qrAnular('${f.tipo === "recibo" ? "recibo" : "nc"}','${esc(f.id)}')">🗑</button>` : ""}
       </td></tr>`;
     return banner + `<div class="qc-tabla"><table><thead><tr><th>Fecha</th><th>Documento</th><th>Detalle</th><th class="n">Debe</th><th class="n">Haber</th><th class="n">Saldo</th><th></th></tr></thead>
       <tbody>${(ordenNuevoPrimero ? filas.slice().reverse() : filas).map(fila).join("")}</tbody></table></div>`;
