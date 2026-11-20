@@ -401,8 +401,18 @@ async function marcarProcesadaRendReparto(env, params, fechaReparto) {
     });
     const rows = await r.json().catch(() => []);
     if (r.ok && Array.isArray(rows) && rows.length > 0) return { ok: true };
-    /* 19/11/2026 · Turno SOLO de Queruclor: no existe planilla de Habituales que marcar (se rinde por la parte de Queruclor). Solo si la pantalla lo avisa. */
-    if (r.ok && params.soloQueruclor === true) return { ok: true, sinPlanilla: true };
+    /* 19/11/2026 · Turno SOLO de Queruclor: no existe planilla de Habituales que marcar (se rinde por la parte de Queruclor).
+       Se acepta solo si la pantalla lo avisa Y, además, el servidor comprueba que NO hay ninguna planilla de Habituales de ese
+       fecha/turno/repartidor (ni procesada ni pendiente): la composición del turno la dicen los datos, no solo la ausencia de un pendiente. */
+    if (r.ok && params.soloQueruclor === true) {
+      try {
+        const chk = await fetch(`${SB_URL}/rendiciones_reparto?fecha=eq.${fechaReparto}&turno=eq.${encodeURIComponent(params.turno)}&repartidor=eq.${encodeURIComponent(params.repartidor)}&select=id,procesado&limit=1`, { headers: sbReadH(env.SUPABASE_SERVICE_KEY) });
+        const hay = await chk.json().catch(() => null);
+        if (!chk.ok || !Array.isArray(hay)) return { ok: false, motivo: "no se pudo comprobar si el turno tiene planilla de Habituales" };
+        if (hay.length) return { ok: false, motivo: "el turno sí tiene una planilla de Habituales que no se pudo marcar" };
+        return { ok: true, sinPlanilla: true };
+      } catch (e) { return { ok: false, motivo: e.message }; }
+    }
     return { ok: false, motivo: r.ok ? "no se encontró esa rendición del reparto" : "HTTP " + r.status };
   } catch (e) { return { ok: false, motivo: e.message }; }
 }
