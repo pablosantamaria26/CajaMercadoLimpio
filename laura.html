@@ -5011,6 +5011,49 @@
     color:#8e2a22; line-height:1.65 }
   .qf-venc b{ display:block; margin-bottom:3px; font-size:.76rem }
 
+  /* ── Facturar en ARCA desde la ficha (19/11/2026) ─────────────────────────────────────────────────────── */
+  @keyframes fxIn{ from{ opacity:0; transform:translateY(10px) } to{ opacity:1; transform:none } }
+  .fx{ background:#fff; border:1px solid var(--qr-ln); border-radius:16px; padding:16px; margin:10px 0 14px; box-shadow:var(--qr-sh); animation:fxIn .28s ease; display:grid; gap:14px }
+  @media (prefers-reduced-motion:reduce){ .fx, .fx-sec, .fx-barra i{ animation:none; transition:none } }
+  .fx-h{ display:flex; justify-content:space-between; gap:12px; align-items:flex-start }
+  .fx-h b{ font-size:1.1rem; color:var(--qr-tx) } .fx-h span{ display:block; color:var(--qr-tx2); font-size:.82rem; margin-top:2px }
+  .fx-x{ background:none; border:1px solid var(--qr-ln); border-radius:10px; width:36px; height:36px; cursor:pointer; font-size:1rem; color:var(--qr-tx2) }
+  .fx-srv{ display:flex; align-items:center; gap:8px; font-size:.82rem; color:var(--qr-tx2); padding:8px 10px; border-radius:10px; background:var(--qr-ln2) }
+  .fx-srv.ok{ background:var(--qr-ok-l); color:#0b7a60 } .fx-srv.mal{ background:var(--qr-mal-l); color:#9f1d1d } .fx-srv.esp{ background:var(--qr-warn-l); color:#7a5208 }
+  .fx-spin{ width:14px; height:14px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:fxGira .8s linear infinite; flex:none }
+  @keyframes fxGira{ to{ transform:rotate(360deg) } }
+  .fx-sec{ border:1px solid var(--qr-ln); border-radius:14px; padding:12px 14px; animation:fxIn .3s ease }
+  .fx-sec h4{ margin:0 0 8px; font-size:.92rem; color:var(--qr-tx); display:flex; justify-content:space-between; align-items:center; gap:8px }
+  .fx-sec h4 small{ font-weight:600; color:var(--qr-tx2) }
+  .fx-fila{ display:grid; grid-template-columns:1fr 1fr; gap:10px } @media (max-width:640px){ .fx-fila{ grid-template-columns:1fr } }
+  .fx-fila label{ display:grid; gap:4px; font-size:.78rem; color:var(--qr-tx2); font-weight:700 }
+  .fx input{ padding:10px 12px; border:1px solid var(--qr-ln); border-radius:10px; font:inherit; font-size:.95rem; min-height:42px; width:100% }
+  .fx input:focus{ outline:2px solid var(--qr-vio); outline-offset:1px }
+  .fx-acc{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; align-items:center }
+  .fx-b{ padding:9px 14px; border:1px solid var(--qr-ln); background:#fff; border-radius:10px; font:inherit; font-weight:700; cursor:pointer; min-height:40px; color:var(--qr-tx) }
+  .fx-b:hover{ border-color:var(--qr-vio); color:var(--qr-vio) } .fx-b.prim{ background:var(--qr-vio); border-color:var(--qr-vio); color:#fff } .fx-b.prim:hover{ filter:brightness(1.07); color:#fff }
+  .fx-b.ok{ background:var(--qr-ok); border-color:var(--qr-ok); color:#fff } .fx-b:disabled{ opacity:.55; cursor:not-allowed; filter:none }
+  .fx-padron{ margin-top:10px; padding:10px 12px; border-radius:10px; background:var(--qr-vio-l); font-size:.86rem; display:grid; gap:3px }
+  .fx-padron.mal{ background:var(--qr-mal-l); color:#9f1d1d } .fx-padron b{ font-size:.95rem }
+  .fx-chip{ display:inline-block; padding:2px 9px; border-radius:99px; font-size:.74rem; font-weight:800; white-space:nowrap }
+  .fx-chip.ok{ background:var(--qr-ok-l); color:#0b7a60 } .fx-chip.pend{ background:var(--qr-warn-l); color:#7a5208 } .fx-chip.gris{ background:var(--qr-ln2); color:var(--qr-tx2) } .fx-chip.vio{ background:var(--qr-vio-l); color:#4338ca }
+  .fx-rem{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; padding:10px 0; border-top:1px solid var(--qr-ln2) } .fx-rem:first-of-type{ border-top:0 }
+  .fx-rem b{ font-variant-numeric:tabular-nums } .fx-rem small{ color:var(--qr-tx2); display:block; font-size:.78rem; margin-top:2px }
+  .fx-rem .fx-acc{ margin:0; justify-content:flex-end } @media (max-width:640px){ .fx-rem{ grid-template-columns:1fr } .fx-rem .fx-acc{ justify-content:flex-start } }
+  .fx-conf{ margin-top:8px; padding:12px; border-radius:12px; background:var(--qr-ln2); display:grid; gap:6px; font-size:.86rem; animation:fxIn .25s ease }
+  .fx-conf .fx-tot{ font-size:1.25rem; font-weight:900; color:var(--qr-tx) } .fx-conf table{ width:100%; border-collapse:collapse; font-size:.8rem } .fx-conf td{ padding:3px 0; border-top:1px solid var(--qr-ln) } .fx-conf td.n{ text-align:right; font-variant-numeric:tabular-nums }
+  .fx-pasos{ list-style:none; margin:8px 0 0; padding:0; display:grid; grid-template-columns:repeat(7,1fr); gap:4px }
+  .fx-pasos li{ font-size:.68rem; text-align:center; color:var(--qr-tx3); padding-top:6px; position:relative; transition:color .3s }
+  .fx-pasos li::before{ content:""; display:block; height:6px; border-radius:99px; background:var(--qr-ln); margin:0 2px 5px; transition:background .35s }
+  .fx-pasos li.hecho{ color:#0b7a60 } .fx-pasos li.hecho::before{ background:var(--qr-ok) }
+  .fx-pasos li.activo{ color:#4338ca; font-weight:800 } .fx-pasos li.activo::before{ background:var(--qr-vio); animation:fxPulsa 1s ease-in-out infinite }
+  .fx-pasos li.mal::before{ background:#dc2626 } .fx-pasos li.mal{ color:#9f1d1d }
+  @keyframes fxPulsa{ 0%,100%{ opacity:1 } 50%{ opacity:.45 } }
+  .fx-res{ margin-top:10px; padding:12px; border-radius:12px; background:var(--qr-ok-l); border:1px solid #9fe0cf; display:grid; gap:8px; animation:fxIn .3s ease }
+  .fx-res.mal{ background:var(--qr-mal-l); border-color:#f5c6c2 } .fx-res.esp{ background:var(--qr-warn-l); border-color:#f0d99a }
+  .fx-res .fx-g{ font-size:1.15rem; font-weight:900 } .fx-res .fx-k{ font-size:.82rem; color:var(--qr-tx2) }
+  .fx-mail{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:.84rem; padding:8px 10px; border-radius:10px; background:#fff; border:1px solid var(--qr-ln) }
+  .fx-nota{ font-size:.78rem; color:var(--qr-tx3) }
   .qf-acc{ display:grid; grid-template-columns:repeat(auto-fit,minmax(126px,1fr));
     gap:7px; margin-bottom:11px }
   .qf-b{ padding:10px 8px; border:1px solid var(--qr-ln); background:#fff;
@@ -8142,6 +8185,7 @@
           <button class="qf-b" onclick="qrNuevaNC()">Nota de crédito</button>
           <button class="qf-b" onclick="qrNuevoRecibo()">Cobro fuera del reparto</button>
           <button class="qf-b" onclick="qrNuevoAjuste()">Pedir ajuste de saldo</button>
+          <button class="qf-b" onclick="qrFacturarArca()">Facturar en ARCA</button>
         </div>
         <div class="qf-hist-nota">Los recibos salen de la rendición, cuando el cobro está verificado. «Cobro fuera del reparto» y «Pedir ajuste» quedan como pedido a Administración: no cambian el saldo.</div>`
         /* 25/10/2026: en el sistema compartido «Recibo» no va resaltado: un recibo no se hace
@@ -15422,6 +15466,295 @@
   setInterval(revisar, CADA_MS);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) revisar(); });
   window.qrRevisarActualizacion = revisar;
+})();
+
+</script>
+<script id="qrFacturarArcaMod">
+/* ═══════════════════════════════════════════════════════════════════
+   FACTURAR EN ARCA desde la ficha del cliente (Caja · Queruclor) — 19/11/2026
+
+   La Caja NO habla con ARCA: le pide la factura al servidor de facturación (afip-worker, el mismo que usa FacturacionML),
+   que hace todo igual que hoy (A/B según padrón, CAE, QR, leyendas, PDF, email, historial). Acá solo se arma el pedido
+   con los datos del remito y se muestra el avance.
+
+   Reglas acordadas con Pablo (19/11/2026):
+     · Un remito = una factura. Se factura SOLO el remito cuyo botón se toca. Solo remitos entregados y sin factura.
+     · Los precios del remito son finales con IVA incluido; el total del remito es el total de la factura.
+     · Cantidad en cajas, como el remito. Código de barras (EAN) de cada artículo. Condición de venta: Cuenta Corriente.
+     · CUIT y email se piden la primera vez y quedan en la ficha fiscal del cliente (qr_clientes_fiscal, vía Worker).
+       El CUIT se verifica contra el padrón de ARCA (/padron) antes de guardarlo.
+     · Sin email se emite igual; siempre se puede mandar el PDF por WhatsApp.
+     · Factura emitida ≠ email enviado: se muestran por separado; email y PDF se reintentan solos, nunca la emisión.
+     · Anti-duplicado: el servidor usa el número de remito como clave; un reintento devuelve la factura que ya existe.
+       El jobId queda guardado en este equipo: si se corta, al volver se retoma la consulta, no se emite de nuevo.
+   ═══════════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
+  if (window.qrFacturarArca) return;
+  const FACT = () => window.QR_FACTURACION_API || "https://api-mercadolimpio.onrender.com";
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const r2 = n => Math.round((Number(n) || 0) * 100 + Number.EPSILON) / 100;
+  const money = n => "$" + r2(n).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fd = s => { const m = String(s || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + "/" + m[2] + "/" + m[1] : String(s || ""); };
+  const quien = () => (typeof USUARIO_APP !== "undefined" && USUARIO_APP) || "Laura";
+  const aviso = (t, ok) => { if (window.showToast) showToast(t, ok !== false); };
+  const PASOS = [["preparando", "Preparando"], ["padron", "Padrón ARCA"], ["cae", "CAE"], ["pdf", "PDF"], ["guardado", "Guardado"], ["email", "Email"], ["listo", "Listo"]];
+  const COND_VENTA = "Cuenta Corriente";
+  let cliente = null, D = null, vivo = 0, timers = {};
+
+  /* ── Recordar qué cliente está abierto (la ficha la pinta el módulo de Cuentas) ── */
+  const _ficha = window.qrFicha;
+  if (typeof _ficha === "function" && !_ficha.__fx) { window.qrFicha = function (id) { cliente = String(id); return _ficha.apply(this, arguments); }; window.qrFicha.__fx = true; }
+  const clienteActual = () => { if (cliente) return cliente; const t = document.querySelector(".qf-id"); const m = t && t.textContent.match(/(\d{3,})/); return m ? m[1] : null; };
+
+  /* ── Servidor de facturación (Render se duerme: /health lo despierta) ── */
+  const conTiempo = (url, opc, ms) => { const c = new AbortController(); const t = setTimeout(() => c.abort(), ms || 15000); return fetch(url, Object.assign({}, opc, { signal: c.signal })).finally(() => clearTimeout(t)); };
+  async function despertar(estado) {
+    for (let i = 0; i < 9; i++) {
+      try { const r = await conTiempo(FACT() + "/health", { cache: "no-store" }, i ? 9000 : 6000); if (r.ok) { const j = await r.json().catch(() => ({})); return j; } } catch (e) {}
+      if (estado) estado("esp", "Despertando el servidor de facturación… (" + (i + 1) + ")");
+      await new Promise(r => setTimeout(r, 2500));
+    }
+    return null;
+  }
+  const api = async (ruta, body, ms) => {
+    const r = await conTiempo(FACT() + ruta, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { cache: "no-store" }, ms || 30000);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || j.mensaje || ("HTTP " + r.status));
+    return j;
+  };
+
+  /* ── Datos del cliente: remitos (con renglones), entregas, factura por remito, ficha fiscal ── */
+  async function cargar(id) {
+    try { if (QRSrv.olvidar) QRSrv.olvidar(); } catch (e) {}      /* abrir el panel es una acción puntual: se lee todo fresco (la ficha fiscal pudo cambiar desde otra PC) */
+    const [movs, entregas, ficha] = await QRSrv.precargar([
+      { g: "qr_cuenta_movs", q: "cliente_id=eq." + encodeURIComponent(id) + "&tipo=eq.remito&order=seq.desc&select=comprobante,fecha,total,con_iva,renglones,cliente_nombre,cliente_domicilio,pedido_id" },
+      { g: "qr_entregas", q: "cliente_id=eq." + encodeURIComponent(id) + "&select=remito,estado,fecha_entrega,registrada" },
+      { r: "qr_cliente_fiscal_get", a: { p_cliente_id: String(id) } },
+    ]);
+    const ent = {}; (entregas || []).forEach(e => { ent[e.remito] = e; });
+    const remitos = (movs || []).map(m => ({ numero: m.comprobante, fecha: m.fecha, total: r2(m.total), renglones: m.renglones || [], domicilio: m.cliente_domicilio || "", nombre: m.cliente_nombre || "", entrega: ent[m.comprobante] || null }));
+    return { id, remitos, ficha: ficha || null, facturas: {}, jobs: {} };
+  }
+  async function cargarFacturas(d) {
+    if (!d.remitos.length) return;
+    const j = await api("/facturas-remitos?remitos=" + encodeURIComponent(d.remitos.map(r => r.numero).join(",")));
+    d.facturas = j.facturas || {};
+  }
+  const jobKey = rem => "qr_fx_job|" + rem;
+  const jobGuardado = rem => { try { return localStorage.getItem(jobKey(rem)); } catch (e) { return null; } };
+  const jobGuardar = (rem, id) => { try { id ? localStorage.setItem(jobKey(rem), id) : localStorage.removeItem(jobKey(rem)); } catch (e) {} };
+
+  /* ── Ítems de la factura: cantidad en cajas, precio final con IVA, código de barras ── */
+  function itemsDe(rem) {
+    return (rem.renglones || []).map(r => {
+      const sueltas = String(r.modo || "") === "sueltas" || !(Number(r.cajas) > 0);
+      const cantidad = sueltas ? Number(r.unidades) || 0 : Number(r.cajas) || 0;
+      const sub = r2(r.neto);                                              // en el remito «neto» ya es el importe final con IVA del renglón
+      let desc = String(r.nombre || "").trim(); if (r.variante) desc += " · " + r.variante; if (sueltas) desc += " (unidades)";
+      return { descripcion: desc, codigo: String(r.ean || r.familia_ean || ""), cantidad, precioConIva: cantidad > 0 ? r2(sub / cantidad) : sub, subtotalConIva: sub };
+    }).filter(i => i.cantidad > 0 && i.subtotalConIva > 0);
+  }
+  const cuerpoDe = (rem, ficha) => ({ remito: rem.numero, cuitCliente: ficha.cuit, emailCliente: ficha.email || "", condicionVenta: COND_VENTA, domicilioRemito: rem.domicilio, items: itemsDe(rem), total: r2(rem.total) });
+
+  /* ── Pantalla ── */
+  function estadoSrv(cls, txt) { const e = $("fxSrv"); if (!e) return; e.className = "fx-srv " + (cls || ""); e.innerHTML = (cls === "esp" ? '<span class="fx-spin" aria-hidden="true"></span>' : "") + esc(txt); }
+  window.qrFacturarArca = async function () {
+    const id = clienteActual(); if (!id) return aviso("Abrí la ficha de un cliente primero.", false);
+    const box = $("qf-form"); if (!box) return;
+    const mi = ++vivo; D = null;
+    box.innerHTML = `<div class="fx" id="fxPanel" role="region" aria-label="Facturar en ARCA">
+      <div class="fx-h"><div><b>Facturar en ARCA</b><span>Factura electrónica por remito · precios finales con IVA incluido · condición de venta: ${COND_VENTA}</span></div><button type="button" class="fx-x" aria-label="Cerrar" onclick="qrCancelarForm()">✕</button></div>
+      <div class="fx-srv esp" id="fxSrv" role="status" aria-live="polite"><span class="fx-spin" aria-hidden="true"></span> Leyendo remitos y ficha del cliente…</div>
+      <section class="fx-sec" id="fxFiscal"></section>
+      <section class="fx-sec" id="fxRemitos"><h4>Remitos</h4><p class="fx-nota">Cargando…</p></section>
+    </div>`;
+    try { D = await cargar(id); } catch (e) { estadoSrv("mal", "No se pudieron leer los remitos del cliente: " + e.message); return; }
+    if (mi !== vivo) return;
+    pintarFiscal(); pintarRemitos();
+    estadoSrv("esp", "Conectando con el servidor de facturación…");
+    const h = await despertar(estadoSrv); if (mi !== vivo) return;
+    if (!h) { estadoSrv("mal", "El servidor de facturación no responde. Se puede reintentar más tarde; no se emitió nada."); return; }
+    try { await cargarFacturas(D); } catch (e) { estadoSrv("mal", "Servidor despierto, pero no pudo informar qué remitos ya están facturados: " + e.message); pintarRemitos(); return; }
+    if (mi !== vivo) return;
+    estadoSrv("ok", "Servidor de facturación listo (versión " + (h.version || "?") + ").");
+    pintarRemitos();
+    retomarPendientes();
+  };
+
+  function pintarFiscal() {
+    const f = D.ficha || {}, s = $("fxFiscal"); if (!s) return;
+    s.innerHTML = `<h4>Datos fiscales del cliente ${f.cuit ? '<small>guardados' + (f.actualizado ? " · " + fd(f.actualizado) : "") + "</small>" : "<small>primera vez: se guardan para las próximas facturas</small>"}</h4>
+      <div class="fx-fila">
+        <label>CUIT <input id="fxCuit" inputmode="numeric" autocomplete="off" placeholder="20-12345678-9" value="${esc(f.cuit || "")}"></label>
+        <label>Email para la factura (opcional) <input id="fxEmail" type="email" autocomplete="off" placeholder="cliente@correo.com" value="${esc(f.email || "")}"></label>
+      </div>
+      <div id="fxPadron">${f.cuit && f.nombre_afip ? padronHtml({ nombre: f.nombre_afip, condicionIVA: f.condicion_afip, letra: f.tipo_cbte }, true) : ""}</div>
+      <div class="fx-acc"><button type="button" class="fx-b" id="fxVerificar" onclick="qrFxVerificar()">Verificar en ARCA</button><button type="button" class="fx-b prim" id="fxGuardar" onclick="qrFxGuardar()">Guardar datos</button><span class="fx-nota" id="fxFiscalEst" role="status" aria-live="polite"></span></div>`;
+  }
+  const padronHtml = (p, guardado) => `<div class="fx-padron"><b>${esc(p.nombre || "—")}</b><span>${esc(p.condicionIVA || p.condicion_iva || "")} · sale <b>Factura ${esc(p.letra || "?")}</b>${guardado ? " · según el padrón al guardar" : ""}</span></div>`;
+  let padronVisto = null;
+  window.qrFxVerificar = async function () {
+    const cuit = String(($("fxCuit") || {}).value || "").replace(/\D/g, ""); const est = $("fxFiscalEst"), b = $("fxVerificar");
+    if (cuit.length !== 11) { est.textContent = "El CUIT tiene 11 dígitos."; return; }
+    b.disabled = true; est.textContent = "Consultando el padrón de ARCA…"; $("fxPadron").innerHTML = "";
+    try {
+      const p = await api("/padron/" + cuit, null, 25000);
+      padronVisto = { cuit, nombre: p.nombre, condicionIVA: p.condicionIVA || p.condicion_iva, letra: p.comprobante && p.comprobante.letra };
+      $("fxPadron").innerHTML = padronHtml(padronVisto, false); est.textContent = "";
+    } catch (e) { padronVisto = null; $("fxPadron").innerHTML = `<div class="fx-padron mal">No se pudo verificar: ${esc(e.message)}</div>`; est.textContent = ""; }
+    b.disabled = false;
+  };
+  window.qrFxGuardar = async function () {
+    const cuit = String(($("fxCuit") || {}).value || "").replace(/\D/g, ""), email = String(($("fxEmail") || {}).value || "").trim(); const est = $("fxFiscalEst"), b = $("fxGuardar");
+    if (cuit.length !== 11) { est.textContent = "El CUIT tiene 11 dígitos."; return; }
+    b.disabled = true; est.textContent = "Guardando…";
+    try {
+      if (!padronVisto || padronVisto.cuit !== cuit) { await window.qrFxVerificar(); }
+      const p = padronVisto && padronVisto.cuit === cuit ? padronVisto : null;
+      if (!p) { est.textContent = "Primero hay que poder verificar el CUIT en ARCA."; b.disabled = false; return; }
+      const r = await Promise.resolve(QRSrv.rpc("qr_cliente_fiscal_set", { p: { cliente_id: D.id, cuit, email, nombre_afip: p.nombre || "", condicion_afip: p.condicionIVA || "", tipo_cbte: p.letra || "", quien: quien() } }));
+      if (!r || !r.ok) { est.textContent = (r && r.motivo) || "No se pudo guardar."; b.disabled = false; return; }
+      D.ficha = r.ficha; est.textContent = "Guardado ✓"; aviso("Datos fiscales guardados para " + (D.remitos[0] || {}).nombre || "el cliente");
+      pintarFiscal(); pintarRemitos();
+    } catch (e) { est.textContent = "No se pudo guardar: " + e.message; b.disabled = false; }
+  };
+
+  function pintarRemitos() {
+    const s = $("fxRemitos"); if (!s || !D) return;
+    const conCuit = !!(D.ficha && D.ficha.cuit);
+    /* Lo que ya estaba desplegado debajo de un remito (confirmación, avance, resultado) se conserva al redibujar la lista. */
+    const abiertos = {}; s.querySelectorAll("[id^='fxDet-']").forEach(x => { if (x.innerHTML) abiertos[x.id] = x.innerHTML; });
+    if (!D.remitos.length) { s.innerHTML = `<h4>Remitos</h4><p class="fx-nota">Este cliente no tiene remitos de Queruclor.</p>`; return; }
+    s.innerHTML = `<h4>Remitos <small>${D.remitos.length} · se factura solo el que elijas</small></h4>` + D.remitos.map(r => {
+      const fs = D.facturas[r.numero] || [], ent = r.entrega, entregado = ent && ent.estado === "entregado", job = jobGuardado(r.numero);
+      const chip = fs.length ? `<span class="fx-chip ok">Facturado · ${esc(fs.map(f => f.comprobante).join(" + "))}</span>` : entregado ? `<span class="fx-chip vio">Entregado</span>` : ent && ent.estado === "rechazado" ? `<span class="fx-chip gris">Rechazado</span>` : `<span class="fx-chip pend">Sin entregar</span>`;
+      let acc = "";
+      if (fs.length) acc = fs.map(f => accionesFactura(f, r)).join("");
+      else if (job) acc = `<span class="fx-chip pend">Emisión en curso…</span>`;
+      else if (entregado) acc = `<button type="button" class="fx-b prim" ${conCuit ? "" : "disabled title=\"Primero guardá el CUIT del cliente\""} onclick="qrFxElegir('${esc(r.numero)}')">Facturar</button>`;
+      else acc = `<span class="fx-nota">Se factura cuando esté entregado</span>`;
+      return `<div class="fx-rem" id="fxRem-${esc(r.numero)}"><div><b>${esc(r.numero)}</b> · ${fd(r.fecha)} · <b>${money(r.total)}</b> ${chip}<small>${r.renglones.length} renglón(es)${fs.length && fs[0].fecha ? " · factura del " + fd(fs[0].fecha) : ""}</small></div><div class="fx-acc">${acc}</div></div><div id="fxDet-${esc(r.numero)}"></div>`;
+    }).join("") + (conCuit ? "" : `<p class="fx-nota">Para facturar hace falta el CUIT del cliente (arriba).</p>`);
+    Object.keys(abiertos).forEach(id => { const x = $(id); if (x && !x.innerHTML) x.innerHTML = abiertos[id]; });
+  }
+  const waLink = (f, r) => "https://wa.me/?text=" + encodeURIComponent("Factura " + f.comprobante + " de Mercado Limpio\nCliente: " + (r.nombre || "") + "\nTotal: " + money(f.total) + "\nCAE: " + (f.cae || "") + (f.pdfUrl ? "\nPDF: " + f.pdfUrl : ""));
+  function accionesFactura(f, r) {
+    return (f.pdfUrl ? `<a class="fx-b" href="${esc(f.pdfUrl)}" target="_blank" rel="noopener">Ver PDF</a><a class="fx-b" href="${waLink(f, r)}" target="_blank" rel="noopener">WhatsApp</a>` : `<button type="button" class="fx-b" onclick="qrFxRegenerarPdf('${esc(f.comprobante)}','${esc(r.numero)}')">Regenerar PDF</button>`) +
+      `<button type="button" class="fx-b" onclick="qrFxReenviar('${esc(f.comprobante)}','${esc(r.numero)}')">${f.emailStatus === "sent" ? "Reenviar email" : "Enviar email"}</button>`;
+  }
+
+  /* ── Elegir un remito: resumen y confirmación ── */
+  window.qrFxElegir = function (num) {
+    const r = D.remitos.find(x => x.numero === num); if (!r) return;
+    const items = itemsDe(r), suma = r2(items.reduce((a, i) => a + i.subtotalConIva, 0)), f = D.ficha || {};
+    const det = $("fxDet-" + num); if (!det) return;
+    document.querySelectorAll("[id^='fxDet-']").forEach(x => { if (x !== det) x.innerHTML = ""; });
+    det.innerHTML = `<div class="fx-conf">
+      <div><b>Se va a emitir una factura por el remito ${esc(num)}</b> · ${items.length} renglón(es) · ${fd(r.fecha)}</div>
+      <div class="fx-tot">${money(r.total)} <span class="fx-nota">total final con IVA incluido (= total del remito)</span></div>
+      <div class="fx-nota">CUIT ${esc(f.cuit)} · ${esc(f.nombre_afip || "")} · Factura ${esc(f.tipo_cbte || "A/B según padrón")} · ${COND_VENTA} · email: ${f.email ? esc(f.email) : "sin email (se emite igual; después se puede mandar por WhatsApp)"}</div>
+      ${Math.abs(suma - r2(r.total)) > 0.05 ? `<div class="fx-padron mal">La suma de los renglones (${money(suma)}) no coincide con el total del remito (${money(r.total)}): no se factura hasta revisarlo.</div>` : ""}
+      <details><summary class="fx-nota">Ver renglones</summary><table>${items.map(i => `<tr><td>${esc(i.codigo)}</td><td>${esc(i.descripcion)}</td><td class="n">${i.cantidad}</td><td class="n">${money(i.precioConIva)}</td><td class="n">${money(i.subtotalConIva)}</td></tr>`).join("")}</table></details>
+      <div class="fx-acc"><button type="button" class="fx-b" onclick="qrFxPreview('${esc(num)}')">Vista previa</button><button type="button" class="fx-b prim" id="fxEmitir-${esc(num)}" ${Math.abs(suma - r2(r.total)) > 0.05 || !items.length ? "disabled" : ""} onclick="qrFxEmitir('${esc(num)}')">Emitir factura</button><button type="button" class="fx-b" onclick="document.getElementById('fxDet-${esc(num)}').innerHTML=''">Cancelar</button></div>
+    </div>`;
+    det.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+  window.qrFxPreview = async function (num) {
+    const r = D.remitos.find(x => x.numero === num); if (!r || !D.ficha) return;
+    const w = window.open("", "_blank"); if (w) w.document.write("<p style='font-family:sans-serif;padding:20px'>Armando la vista previa…</p>");
+    try {
+      const resp = await conTiempo(FACT() + "/debug/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDe(r, D.ficha)) }, 40000);
+      const html = await resp.text();
+      if (!resp.ok || !html) throw new Error("sin vista previa (" + resp.status + ")");
+      if (w) { w.document.open(); w.document.write(html); w.document.close(); }
+    } catch (e) { if (w) w.close(); aviso("No se pudo armar la vista previa: " + e.message, false); }
+  };
+
+  /* ── Emitir: trabajo en el servidor + seguimiento ── */
+  window.qrFxEmitir = async function (num) {
+    const r = D.remitos.find(x => x.numero === num); if (!r || !D.ficha || !D.ficha.cuit) return;
+    const b = $("fxEmitir-" + num); if (b) { b.disabled = true; b.textContent = "Enviando…"; }
+    const det = $("fxDet-" + num);
+    try {
+      const j = await api("/facturar-remito", cuerpoDe(r, D.ficha), 30000);
+      if (j.yaFacturado) { D.facturas[num] = j.facturas; jobGuardar(num, null); pintarRemitos(); aviso("Este remito ya estaba facturado: " + j.facturas.map(f => f.comprobante).join(", ")); return; }
+      jobGuardar(num, j.jobId);
+      if (det) det.innerHTML = procesoHtml(num, "preparando");
+      pintarRemitos(); seguir(num, j.jobId);
+    } catch (e) {
+      if (b) { b.disabled = false; b.textContent = "Emitir factura"; }
+      if (det) det.insertAdjacentHTML("beforeend", `<div class="fx-res mal" role="alert"><div class="fx-g">No se pudo iniciar la emisión</div><div>${esc(e.message)}</div><div class="fx-nota">No se emitió nada. Revisá la conexión y volvé a intentar.</div></div>`);
+      aviso("No se pudo iniciar la emisión: " + e.message, false);
+    }
+  };
+  function procesoHtml(num, paso, error) {
+    const idx = PASOS.findIndex(p => p[0] === paso);
+    return `<div class="fx-conf" id="fxProc-${esc(num)}" role="status" aria-live="polite"><div><b>Emitiendo la factura del remito ${esc(num)}…</b> <span class="fx-nota">no cierres esta pantalla; si se corta, al volver se retoma sin emitir dos veces</span></div>
+      <ol class="fx-pasos">${PASOS.map((p, i) => `<li class="${error && i === idx ? "mal" : i < idx ? "hecho" : i === idx ? "activo" : ""}">${p[1]}</li>`).join("")}</ol></div>`;
+  }
+  function seguir(num, jobId) {
+    clearTimeout(timers[num]); const inicio = Date.now();
+    const tick = async () => {
+      if (!D) return;
+      let j;
+      try { j = await api("/estado-facturacion/" + encodeURIComponent(jobId), null, 15000); }
+      catch (e) {
+        if (/404|no encontrado/i.test(e.message)) { return cerrarPorRemito(num, "El servidor se reinició durante la emisión. Se consultó qué quedó emitido:"); }
+        if (Date.now() - inicio > 6 * 60 * 1000) return mostrarError(num, "Sin respuesta del servidor por más de 6 minutos. Tocá «Actualizar» en la ficha: si la factura salió, va a aparecer; si no, se puede volver a emitir sin riesgo de duplicar.");
+        timers[num] = setTimeout(tick, 4000); return;
+      }
+      const det = $("fxDet-" + num);
+      if (j.estado === "procesando") { if (det) det.innerHTML = procesoHtml(num, j.paso); timers[num] = setTimeout(tick, 2000); return; }
+      if (j.estado === "terminado" && j.resultado && j.resultado.ok) { jobGuardar(num, null); return mostrarResultado(num, j.resultado); }
+      if (j.estado === "interrumpido") return cerrarPorRemito(num, "La emisión se interrumpió (el servidor se reinició). Se consultó qué quedó emitido:");
+      jobGuardar(num, null);
+      mostrarError(num, (j.resultado && (j.resultado.message || j.resultado.mensaje)) || j.error || "La emisión falló.", j.status === 409);
+    };
+    tick();
+  }
+  async function cerrarPorRemito(num, titulo) {
+    try {
+      const j = await api("/factura-remito/" + encodeURIComponent(num));
+      jobGuardar(num, null);
+      if ((j.facturas || []).length) { D.facturas[num] = j.facturas; pintarRemitos(); const det = $("fxDet-" + num); if (det) det.innerHTML = `<div class="fx-res esp"><div class="fx-k">${esc(titulo)}</div><div class="fx-g">Factura ${esc(j.facturas.map(f => f.comprobante).join(" + "))} emitida</div><div class="fx-acc">${j.facturas.map(f => accionesFactura(f, D.remitos.find(x => x.numero === num) || {})).join("")}</div></div>`; }
+      else mostrarError(num, titulo + " no hay ninguna factura de este remito. Se puede volver a emitir sin riesgo de duplicar.");
+    } catch (e) { mostrarError(num, "No se pudo confirmar el estado: " + e.message + ". Volvé a abrir la ficha más tarde antes de reintentar."); }
+  }
+  function mostrarError(num, msg, conflicto) {
+    const det = $("fxDet-" + num); if (!det) return;
+    det.innerHTML = `<div class="fx-res mal"><div class="fx-g">No se emitió la factura</div><div>${esc(msg)}</div><div class="fx-acc">${conflicto ? "" : `<button type="button" class="fx-b prim" onclick="qrFxElegir('${esc(num)}')">Revisar y reintentar</button>`}<button type="button" class="fx-b" onclick="document.getElementById('fxDet-${esc(num)}').innerHTML='';qrFacturarArca()">Actualizar</button></div></div>`;
+    pintarRemitos(); const d2 = $("fxDet-" + num); if (d2 && d2 !== det) d2.innerHTML = det.innerHTML;
+  }
+  function mostrarResultado(num, res) {
+    const r = D.remitos.find(x => x.numero === num) || {};
+    const fs = (res.facturas || []).map(f => ({ comprobante: f.comprobante, nroFactura: f.nroFactura, cae: f.cae, total: f.total, pdfUrl: f.pdfUrl, emailStatus: res.emailEnviado ? "sent" : "error", fecha: "" }));
+    D.facturas[num] = fs; pintarRemitos();
+    const det = $("fxDet-" + num); if (!det) return;
+    det.innerHTML = `<div class="fx-res">
+      <div class="fx-g">✅ ${fs.length > 1 ? fs.length + " facturas emitidas" : "Factura " + esc(fs[0] && fs[0].comprobante) + " emitida"}</div>
+      ${fs.map(f => `<div class="fx-k">${esc(f.comprobante)} · CAE ${esc(f.cae)} · ${money(f.total)}</div>`).join("")}
+      <div class="fx-mail">${res.emailEnviado ? "📧 Email enviado a " + esc((D.ficha || {}).email || "") : "📧 Email <b>no enviado</b>" + (res.emailError && !/sin email/i.test(res.emailError) ? ": " + esc(res.emailError) : (D.ficha || {}).email ? "" : " (el cliente no tiene email)")} ${(D.ficha || {}).email ? `<button type="button" class="fx-b" onclick="qrFxReenviar('${esc(fs[0].comprobante)}','${esc(num)}')">${res.emailEnviado ? "Reenviar" : "Reintentar envío"}</button>` : ""}</div>
+      <div class="fx-acc">${fs.map(f => f.pdfUrl ? `<a class="fx-b ok" href="${esc(f.pdfUrl)}" target="_blank" rel="noopener">Ver PDF ${fs.length > 1 ? esc(f.comprobante) : ""}</a><a class="fx-b" href="${waLink(f, r)}" target="_blank" rel="noopener">Compartir por WhatsApp</a>` : `<button type="button" class="fx-b" onclick="qrFxRegenerarPdf('${esc(f.comprobante)}','${esc(num)}')">Regenerar PDF ${esc(f.comprobante)}</button>`).join("")}</div>
+      <div class="fx-nota">La factura ya figura en el historial de Facturación (desde ahí se hacen las notas de crédito).</div></div>`;
+    aviso("Factura emitida: " + fs.map(f => f.comprobante).join(", "));
+  }
+  window.qrFxReenviar = async function (comprobante, num) {
+    const email = (D.ficha || {}).email || prompt("Email de destino:"); if (!email) return;
+    aviso("Enviando email…");
+    try { const j = await api("/reenviar-email", { comprobante, emailDestino: email }, 40000); aviso(j.ok === false ? (j.message || "No se envió") : "Email enviado a " + email, j.ok !== false); }
+    catch (e) { aviso("No se pudo enviar el email: " + e.message, false); }
+  };
+  window.qrFxRegenerarPdf = async function (comprobante, num) {
+    aviso("Regenerando el PDF…");
+    try { const j = await api("/regenerar-pdf", { comprobante }, 60000); if (j.ok === false) throw new Error(j.message || "no se pudo"); await cargarFacturas(D); pintarRemitos(); aviso("PDF listo"); }
+    catch (e) { aviso("No se pudo regenerar el PDF: " + e.message, false); }
+  };
+  /* Si quedó una emisión en curso guardada en este equipo (se cerró la pantalla o se cortó), se retoma la consulta. */
+  function retomarPendientes() {
+    D.remitos.forEach(r => { const j = jobGuardado(r.numero); if (!j) return; if ((D.facturas[r.numero] || []).length) { jobGuardar(r.numero, null); return; } const det = $("fxDet-" + r.numero); if (det) det.innerHTML = procesoHtml(r.numero, "preparando"); seguir(r.numero, j); });
+  }
 })();
 
 </script>
