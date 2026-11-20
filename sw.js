@@ -1,5 +1,5 @@
 // Service Worker — Caja Mercado Limpio
-const CACHE_NAME = 'caja-ml-v61';
+const CACHE_NAME = 'caja-ml-v62';
 
 const urlsToCache = [
   './',
@@ -29,6 +29,24 @@ self.addEventListener('fetch', event => {
   // Los guardados (POST) van directo a la red, sin pasar por el service worker:
   // así un envío con keepalive puede terminar aunque se bloquee el celular.
   if (event.request.method !== 'GET') return;
+  // 19/11/2026: las PÁGINAS (laura.html, pablo.html, index.html) van primero a la red, con 3 s de espera, y recién si falla
+  // se sirve la copia guardada. Antes eran cache-first: una página publicada no llegaba hasta un Ctrl+F5 o un cambio de versión.
+  // Lo demás (íconos, manifest) sigue cache-first.
+  const esPagina = event.request.mode === 'navigate' || (event.request.headers.get('accept') || '').includes('text/html');
+  if (esPagina && new URL(event.request.url).origin === self.location.origin) {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      try {
+        const fresca = await Promise.race([fetch(event.request), new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 3000))]);
+        if (fresca && fresca.ok) cache.put(event.request, fresca.clone());
+        return fresca;
+      } catch (e) {
+        const guardada = await cache.match(event.request);
+        return guardada || fetch(event.request);
+      }
+    })());
+    return;
+  }
   event.respondWith(
     caches.match(event.request).then(r => r || fetch(event.request))
   );
