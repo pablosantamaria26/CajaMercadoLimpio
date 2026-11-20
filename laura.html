@@ -5054,6 +5054,12 @@
   .fx-res .fx-g{ font-size:1.15rem; font-weight:900 } .fx-res .fx-k{ font-size:.82rem; color:var(--qr-tx2) }
   .fx-mail{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:.84rem; padding:8px 10px; border-radius:10px; background:#fff; border:1px solid var(--qr-ln) }
   .fx-nota{ font-size:.78rem; color:var(--qr-tx3) }
+  /* Datos fiscales desde la lista de Clientes */
+  .qc-tabla td[data-fx]{ white-space:nowrap } .qc-tabla td[data-fx] .fx-chip{ margin-right:6px; font-variant-numeric:tabular-nums }
+  .fxm-bg{ position:fixed; inset:0; z-index:2147483000; background:rgba(15,18,32,.5); display:flex; align-items:center; justify-content:center; padding:16px }
+  .fxm{ background:#fff; border-radius:16px; max-width:560px; width:100%; padding:18px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:grid; gap:12px; animation:fxIn .22s ease; font-size:.92rem }
+  .fxm input{ padding:10px 12px; border:1px solid var(--qr-ln); border-radius:10px; font:inherit; font-size:.95rem; min-height:42px; width:100% }
+  .fxm .fx-fila label{ display:grid; gap:4px; font-size:.78rem; color:var(--qr-tx2); font-weight:700 }
   .qf-acc{ display:grid; grid-template-columns:repeat(auto-fit,minmax(126px,1fr));
     gap:7px; margin-bottom:11px }
   .qf-b{ padding:10px 8px; border:1px solid var(--qr-ln); background:#fff;
@@ -9468,7 +9474,7 @@
       ${excluido ? `<div class="qr-aviso qc-excl"><b>${esc(excluido.nombre || "Cliente " + excluido.id)}</b> (N° ${esc(excluido.id)}) está <b>${ESTADO[excluido.estado][0].toLowerCase()}</b>: no aparece porque el filtro muestra otra cosa.
         <button type="button" class="qr-b chico" onclick="qrClienteAbrir('${esc(excluido.id)}')">Ver cliente</button>
         <button type="button" class="qr-b ghost chico" onclick="qrClLimpiar()">Limpiar filtros</button></div>` : ""}
-      <div class="qc-tabla"><table><thead><tr>${th("id", "N°")}${th("nombre", "Cliente")}${th("localidad", "Localidad")}${th("estado", "Estado")}${th("saldo", "Saldo", "n")}<th><span class="q6-sr">Acción</span></th></tr></thead><tbody>
+      <div class="qc-tabla"><table><thead><tr>${th("id", "N°")}${th("nombre", "Cliente")}${th("localidad", "Localidad")}${th("estado", "Estado")}${th("saldo", "Saldo", "n")}<th>CUIT</th><th><span class="q6-sr">Acción</span></th></tr></thead><tbody>
         ${visibles.length ? visibles.map(f => `
           <tr tabindex="0" data-cliente="${esc(f.id)}" onclick="qrClienteAbrir('${esc(f.id)}')" onkeydown="if(event.key==='Enter')qrClienteAbrir('${esc(f.id)}')">
             <td>${esc(f.id)}</td>
@@ -9477,8 +9483,9 @@
             <td><span class="qr-chip-est ${ESTADO[f.estado][1]}">${ESTADO[f.estado][0]}</span></td>
             <td class="n">${f.estado === "deuda" ? `<b>${money(f.saldo)}</b><small>debe</small>` : f.estado === "favor" ? `<b class="qc-fav">${money(Math.abs(f.saldo))}</b><small>a favor</small>` : `<span>$0,00</span>`}</td>
             <td><button type="button" class="qr-b ghost chico" onclick="event.stopPropagation();qrClienteAbrir('${esc(f.id)}')">Ver cuenta</button></td>
+            <td data-fx="${esc(f.id)}" onclick="event.stopPropagation()"></td>
           </tr>`).join("")
-          : `<tr><td colspan="6" class="qr-vacio">${vacio}${filtros.q || filtros.estado !== "todos" ? ` <button type="button" class="qr-b ghost chico" onclick="qrClLimpiar()">Limpiar filtros</button>` : ""}</td></tr>`}
+          : `<tr><td colspan="7" class="qr-vacio">${vacio}${filtros.q || filtros.estado !== "todos" ? ` <button type="button" class="qr-b ghost chico" onclick="qrClLimpiar()">Limpiar filtros</button>` : ""}</td></tr>`}
       </tbody></table></div>
       <div class="qcl-pie"><span>${visibles.length < total ? "Mostrando " + visibles.length + " de " + total : ""}</span>
         ${visibles.length < total ? `<button type="button" class="qr-b ghost chico" onclick="qrClMas()">Mostrar más</button>` : ""}</div>`;
@@ -15614,11 +15621,97 @@
       if (!padronVisto || padronVisto.cuit !== cuit) { await window.qrFxVerificar(); }
       const p = padronVisto && padronVisto.cuit === cuit ? padronVisto : null;
       if (!p) { est.textContent = "Primero hay que poder verificar el CUIT en ARCA."; b.disabled = false; return; }
-      const r = await Promise.resolve(QRSrv.rpc("qr_cliente_fiscal_set", { p: { cliente_id: D.id, cuit, email, nombre_afip: p.nombre || "", condicion_afip: p.condicionIVA || "", tipo_cbte: p.letra || "", quien: quien() } }));
-      if (!r || !r.ok) { est.textContent = (r && r.motivo) || "No se pudo guardar."; b.disabled = false; return; }
-      D.ficha = r.ficha; est.textContent = "Guardado ✓"; aviso("Datos fiscales guardados para " + (D.remitos[0] || {}).nombre || "el cliente");
-      pintarFiscal(); pintarRemitos();
+      await guardarFicha(D.id, cuit, email, p);
+      aviso("Datos fiscales guardados para " + ((D.remitos[0] || {}).nombre || "el cliente"));
     } catch (e) { est.textContent = "No se pudo guardar: " + e.message; b.disabled = false; }
+  };
+
+  /* ── Datos fiscales desde la lista de Clientes (pedido de Pablo, 19/11/2026) ──────────────────────────────
+     Cada fila de Clientes muestra el CUIT si ya está cargado («Editar») o «Cargar CUIT». La ficha es POR CLIENTE: varios negocios
+     del mismo dueño pueden tener el mismo CUIT y email; si el CUIT ya lo tiene otro cliente se avisa y se ofrece usar el mismo
+     email. Con el CUIT alcanza para facturar (el domicilio fiscal lo da el padrón; el de entrega ya está en el cliente). */
+  let fxLista = null, fxListaT = 0;
+  function listaFiscal(fresca) {
+    if (!fresca && fxLista && Date.now() - fxListaT < 60000) return Promise.resolve(fxLista);
+    return Promise.resolve().then(() => QRSrv.rpc("qr_clientes_fiscal_lista", {})).then(l => { fxLista = Array.isArray(l) ? l : []; fxListaT = Date.now(); return fxLista; })
+      .catch(() => { fxLista = fxLista || []; fxListaT = Date.now(); return fxLista; });
+  }
+  const fmtCuit = c => { c = String(c || "").replace(/\D/g, ""); return c.length === 11 ? c.slice(0, 2) + "-" + c.slice(2, 10) + "-" + c.slice(10) : c; };
+  let pintando = false;
+  function pintarCeldasFiscales(forzar) {
+    if (pintando || (!forzar && !document.querySelector("td[data-fx]:empty"))) return;
+    pintando = true;
+    listaFiscal().then(l => {
+      const por = {}; l.forEach(f => { por[f.cliente_id] = f; });
+      document.querySelectorAll("td[data-fx]").forEach(td => {
+        const id = td.getAttribute("data-fx"), f = por[id], marca = f ? f.cuit + "|" + (f.email || "") : "-";
+        if (td.getAttribute("data-fx-marca") === marca) return;
+        td.setAttribute("data-fx-marca", marca);
+        td.innerHTML = f
+          ? `<span class="fx-chip ok" title="${esc(f.email || "sin email")}">${esc(fmtCuit(f.cuit))}</span><button type="button" class="qr-b ghost chico" onclick="event.stopPropagation();qrFxDatos('${esc(id)}')">Editar</button>`
+          : `<button type="button" class="qr-b ghost chico" onclick="event.stopPropagation();qrFxDatos('${esc(id)}')">Cargar CUIT</button>`;
+      });
+    }).finally(() => { pintando = false; });
+  }
+  let obsT = null;
+  try { new MutationObserver(() => { if (obsT) return; obsT = setTimeout(() => { obsT = null; pintarCeldasFiscales(); }, 60); }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+  setTimeout(pintarCeldasFiscales, 1500);
+
+  async function verificarCuit(cuit) {
+    const p = await api("/padron/" + cuit, null, 25000);
+    return { cuit, nombre: p.nombre, condicionIVA: p.condicionIVA || p.condicion_iva, letra: p.comprobante && p.comprobante.letra };
+  }
+  async function guardarFicha(id, cuit, email, p) {
+    const r = await Promise.resolve(QRSrv.rpc("qr_cliente_fiscal_set", { p: { cliente_id: String(id), cuit, email, nombre_afip: (p && p.nombre) || "", condicion_afip: (p && p.condicionIVA) || "", tipo_cbte: (p && p.letra) || "", quien: quien() } }));
+    if (!r || !r.ok) throw new Error((r && r.motivo) || "No se pudo guardar.");
+    fxLista = null; document.querySelectorAll("td[data-fx]").forEach(td => td.removeAttribute("data-fx-marca")); pintarCeldasFiscales(true);
+    if (D && String(D.id) === String(id)) { D.ficha = r.ficha; if ($("fxFiscal")) { pintarFiscal(); pintarRemitos(); } }
+    return r.ficha;
+  }
+  window.qrFxDatos = async function (id) {
+    id = String(id);
+    const fila = document.querySelector(`tr[data-cliente="${id}"] td:nth-child(2) b`);
+    const nombre = (fila && fila.textContent.trim()) || ("Cliente " + id);
+    const l = await listaFiscal(); const f = l.find(x => String(x.cliente_id) === id) || {};
+    let m = $("fxmBg"); if (m) m.remove();
+    m = document.createElement("div"); m.id = "fxmBg"; m.className = "fxm-bg";
+    m.innerHTML = `<div class="fxm" role="dialog" aria-modal="true" aria-labelledby="fxmT">
+      <div class="fx-h"><div><b id="fxmT">Datos fiscales · ${esc(nombre)}</b><span>N° ${esc(id)} · con el CUIT alcanza para facturar: el domicilio fiscal lo da el padrón de ARCA</span></div><button type="button" class="fx-x" aria-label="Cerrar" onclick="document.getElementById('fxmBg').remove()">✕</button></div>
+      <div class="fx-fila"><label>CUIT <input id="fxmCuit" inputmode="numeric" autocomplete="off" placeholder="20-12345678-9" value="${esc(fmtCuit(f.cuit || ""))}"></label><label>Email para la factura (opcional) <input id="fxmEmail" type="email" autocomplete="off" placeholder="cliente@correo.com" value="${esc(f.email || "")}"></label></div>
+      <div id="fxmPadron">${f.cuit && f.nombre_afip ? padronHtml({ nombre: f.nombre_afip, condicionIVA: f.condicion_afip, letra: f.tipo_cbte }, true) : ""}</div>
+      <div id="fxmOtros"></div>
+      <div class="fx-acc"><button type="button" class="fx-b" id="fxmVer">Verificar en ARCA</button><button type="button" class="fx-b prim" id="fxmOk">Guardar</button><span class="fx-nota" id="fxmEst" role="status" aria-live="polite"></span></div>
+    </div>`;
+    m.addEventListener("click", e => { if (e.target === m) m.remove(); });
+    m.addEventListener("keydown", e => { if (e.key === "Escape") m.remove(); });
+    document.body.appendChild(m);
+    let visto = null;
+    const otros = () => {
+      const c = String($("fxmCuit").value || "").replace(/\D/g, ""); const o = $("fxmOtros"); if (!o) return;
+      const comp = c.length === 11 ? l.filter(x => x.cuit === c && String(x.cliente_id) !== id) : [];
+      o.innerHTML = comp.length ? `<div class="fx-padron"><span>Este CUIT ya lo tienen: <b>${comp.map(x => esc(x.cliente_id)).join(", ")}</b> (varios negocios del mismo dueño: está bien).</span>${comp.find(x => x.email) && !$("fxmEmail").value ? `<button type="button" class="fx-b" id="fxmMismo">Usar el mismo email (${esc(comp.find(x => x.email).email)})</button>` : ""}</div>` : "";
+      const b = $("fxmMismo"); if (b) b.onclick = () => { $("fxmEmail").value = comp.find(x => x.email).email; otros(); };
+    };
+    $("fxmCuit").addEventListener("input", otros); otros();
+    $("fxmVer").onclick = async () => {
+      const c = String($("fxmCuit").value || "").replace(/\D/g, ""); if (c.length !== 11) { $("fxmEst").textContent = "El CUIT tiene 11 dígitos."; return; }
+      $("fxmVer").disabled = true; $("fxmEst").textContent = "Consultando el padrón de ARCA…"; $("fxmPadron").innerHTML = "";
+      try { visto = await verificarCuit(c); $("fxmPadron").innerHTML = padronHtml(visto, false); $("fxmEst").textContent = ""; }
+      catch (e) { visto = null; $("fxmPadron").innerHTML = `<div class="fx-padron mal">No se pudo verificar: ${esc(e.message)}</div>`; $("fxmEst").textContent = ""; }
+      $("fxmVer").disabled = false;
+    };
+    $("fxmOk").onclick = async () => {
+      const c = String($("fxmCuit").value || "").replace(/\D/g, ""), email = String($("fxmEmail").value || "").trim();
+      if (c.length !== 11) { $("fxmEst").textContent = "El CUIT tiene 11 dígitos."; return; }
+      $("fxmOk").disabled = true; $("fxmEst").textContent = "Guardando…";
+      try {
+        if (!visto || visto.cuit !== c) { await $("fxmVer").onclick(); }
+        if (!visto || visto.cuit !== c) { $("fxmEst").textContent = "Primero hay que poder verificar el CUIT en ARCA."; $("fxmOk").disabled = false; return; }
+        await guardarFicha(id, c, email, visto);
+        aviso("Datos fiscales guardados: " + nombre); m.remove();
+      } catch (e) { $("fxmEst").textContent = e.message; $("fxmOk").disabled = false; }
+    };
+    setTimeout(() => { try { $("fxmCuit").focus(); } catch (e) {} }, 50);
   };
 
   function pintarRemitos() {
