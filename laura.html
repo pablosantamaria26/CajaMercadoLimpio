@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<script>/* caja-buscadores 26/11/2026 (ver produccion/caja-navegacion-parche.js) */
+window.qrNorm = function (s) { return String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim(); };
+window.qrCoincide = function (q) { var p = qrNorm(q).split(" ").filter(Boolean); if (!p.length) return true; var h = qrNorm([].slice.call(arguments, 1).join(" ")); return p.every(function (x) { return h.indexOf(x) >= 0; }); };
+window.qrDiaAR = function (f) { var t = String(f || ""); if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; var d = new Date(t); if (isNaN(d)) return t.slice(0, 10); return d.toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }); };
+</script>
 <script>window.QR_PROD_API="https://queruclor-api.santamariapablodaniel.workers.dev";window.QR_API_BASE="https://queruclor-api.santamariapablodaniel.workers.dev";window.QR_PUESTO="caja";window.QR_URL_REGISTRO="https://frosty-term-20ea.santamariapablodaniel.workers.dev/";window.QR_FOTOS_BASE="https://gjeyvbidomxzofcdycya.supabase.co/storage/v1/object/public/qr-fotos/";</script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -5905,7 +5910,7 @@
     const porCliente = new Map();
     for (const a of movimientos()) if (!porCliente.has(a.cliente_id)) porCliente.set(a.cliente_id, { id: a.cliente_id, nombre: a.cliente_nombre });
     return [...porCliente.values()]
-      .filter(c => String(c.id).startsWith(t) || String(c.nombre).toLowerCase().includes(t))
+      .filter(c => String(c.id).startsWith(t) || qrCoincide(t, c.nombre))
       .map(c => Object.assign({}, c, { saldo: saldo(c.id), vencidos: vencidos(c.id).length }));
   }
   const anular = (tipo, id) => S.rpc("qr_anular", { p_tipo: tipo, p_id: id });
@@ -6074,7 +6079,7 @@
     const porCliente = new Map();
     for (const a of movimientos()) if (!porCliente.has(a.cliente_id)) porCliente.set(a.cliente_id, { id: a.cliente_id, nombre: a.cliente_nombre });
     return [...porCliente.values()]
-      .filter(c => String(c.id).startsWith(t) || String(c.nombre).toLowerCase().includes(t))
+      .filter(c => String(c.id).startsWith(t) || qrCoincide(t, c.nombre))
       .map(c => Object.assign({}, c, { saldo: saldo(c.id), vencidos: vencidos(c.id).length }));
   }
   const anular = (tipo, id) => S.rpc("qr_anular", { p_tipo: tipo, p_id: id });
@@ -9003,7 +9008,7 @@
       if (filtros.antig === "con" && tr === "sin") return false;
       if (!["", "con"].includes(filtros.antig) && tr !== filtros.antig) return false;
       if (filtros.pend && !(f.cobros_pendientes || f.devoluciones_sin_nota)) return false;
-      if (t && !(String(f.cliente_id).includes(t) || String(f.cliente_nombre || "").toLowerCase().includes(t))) return false;
+      if (t && !qrCoincide(t, f.cliente_id, f.cliente_nombre)) return false;
       const d = f.remito_antiguo ? f.remito_antiguo.slice(0, 10) : "";
       if (filtros.desde && (!d || d < filtros.desde)) return false;
       if (filtros.hasta && (!d || d > filtros.hasta)) return false;
@@ -9046,7 +9051,7 @@
               <td>${Object.entries(f.por_vendedor || {}).map(([v, s]) => esc(v) + " " + money(s)).join("<br>") || "—"}</td>
               <td>${dia(f.ultimo_cobro)}</td>
               <td><button type="button" class="qr-b ghost chico" onclick="event.stopPropagation();qrCuentaAbrir('${esc(f.cliente_id)}')">Ver cuenta</button></td></tr>`; }).join("")
-            || `<tr><td colspan="9" class="qr-vacio">${!filas.length ? "No hay cuentas con movimientos en Queruclor." : t && !filas.some(f => String(f.cliente_id).includes(t) || String(f.cliente_nombre || "").toLowerCase().includes(t)) ? "Sin resultados para «" + esc(filtros.q.trim()) + "» entre las cuentas con movimientos. Si es un cliente sin movimientos, está en Clientes." : "Ninguna cuenta con esos filtros."}
+            || `<tr><td colspan="9" class="qr-vacio">${!filas.length ? "No hay cuentas con movimientos en Queruclor." : t && !filas.some(f => qrCoincide(t, f.cliente_id, f.cliente_nombre)) ? "Sin resultados para «" + esc(filtros.q.trim()) + "» entre las cuentas con movimientos. Si es un cliente sin movimientos, está en Clientes." : "Ninguna cuenta con esos filtros."}
               <button type="button" class="qr-b ghost chico" onclick="qrCuentasLimpiar()">Limpiar filtros</button></td></tr>`}</tbody></table></div>`;
   }
   window.qrCuentaAbrir = function (id) { scrollLista = window.scrollY; window.__qrFichaOrigen = "cuentas"; qrFicha(id); };
@@ -9197,9 +9202,9 @@
     const t = docFiltros.q.trim().toLowerCase();
     const n = docFiltros.q.trim().replace(/[^0-9.,]/g, "").replace(/\./g, "").replace(",", ".");
     const l = todos.filter(x => (docFiltros.tipo === "todos" || x.tipo === docFiltros.tipo) &&
-      (!t || String(x.clienteId).includes(t) || String(x.cliente || "").toLowerCase().includes(t) || String(x.doc || "").toLowerCase().includes(t) ||
+      (!t || qrCoincide(t, x.clienteId, x.cliente, x.doc) ||
         (n && /^\d+(\.\d+)?$/.test(n) && Math.abs(Math.abs(Number(x.importe)) - Number(n)) < 0.005)) &&
-      (!docFiltros.desde || x.fecha >= docFiltros.desde) && (!docFiltros.hasta || x.fecha <= docFiltros.hasta + "T23:59:59.999Z")
+      (!docFiltros.desde || qrDiaAR(x.fecha) >= docFiltros.desde) && (!docFiltros.hasta || qrDiaAR(x.fecha) <= docFiltros.hasta)
     ).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
     const vis = l.slice(0, 300);
     const hayFiltro = docFiltros.q || docFiltros.tipo !== "todos" || docFiltros.desde || docFiltros.hasta;
@@ -9471,7 +9476,7 @@
   }
   function filtrados() {
     const t = filtros.q.trim().toLowerCase();
-    const porTexto = f => !t || String(f.id).includes(t) || f.nombre.toLowerCase().includes(t) || f.localidad.toLowerCase().includes(t);
+    const porTexto = f => !t || qrCoincide(t, f.id, f.nombre, f.localidad, f.domicilio);
     const coinciden = (cache || []).filter(porTexto);
     let l = coinciden.filter(f => filtros.estado === "todos" || f.estado === filtros.estado);
     const cmp = COLS[orden.col] || COLS.nombre;
@@ -15334,7 +15339,8 @@
   const listas = { recibos: "Recibos", cuentas: "Cuentas", comision: "Comisión", devoluciones: "Devoluciones", avisos: "Avisos" };
   const caliente = {};                 // sección → { t, e }: cuándo y con qué «época» se precargó
   const enCurso = {};                  // precargas en marcha
-  let pedido = 0, ultima = "recibos";
+  /* caja-navegacion 26/11/2026 */
+  let pedido = 0, ultima = "recibos", enCamino = null;   // enCamino = { n, mi, p }: la sección que está cargando
   const tibia = n => { const c = caliente[n]; return !!(c && c.e === Q().epoca() && Date.now() - c.t < 40000); };
   function precargar(n) {
     if (!PLAN[n] || !Q() || !Q().precargar) return Promise.resolve();
@@ -15361,18 +15367,50 @@
     const orig = window.qrSub;
     window.qrSub = function (n) {
       const args = arguments, self = this;
-      if (!PLAN[n]) { ultima = n === "avisos" || n === "clientes" ? ultima : ultima; return orig.apply(self, args); }
-      ultima = n;
-      if (tibia(n)) { const r = orig.apply(self, args); marcarFresco(); return r; }       // ya está precargada: se dibuja al toque
-      const mi = ++pedido; visual(n);
+      /* 26/11/2026: CUALQUIER cambio de sección (también Clientes) cancela el dibujo pendiente de otra, y se recuerda para
+         «Actualizar». Ver produccion/caja-navegacion-parche.js. */
+      const mi = ++pedido; ultima = n; enCamino = null;
+      if (!PLAN[n]) { quitarCarga(); return orig.apply(self, args); }
+      if (tibia(n)) { quitarCarga(); const r = orig.apply(self, args); marcarFresco(); return r; }       // ya está precargada: se dibuja al toque
+      visual(n);
       /* Se cede el hilo para que el navegador pinte «Cargando…» ANTES de empezar a pedir datos. */
-      return new Promise(res => setTimeout(res, 0)).then(() => precargar(n)).then(() => {
+      const p = new Promise(res => setTimeout(res, 0)).then(() => precargar(n)).then(() => {
         if (mi !== pedido) return;                                                         // tocó otra sección mientras tanto
         quitarCarga(); const r = orig.apply(self, args); marcarFresco(); return r;
       });
+      enCamino = { n: n, mi: mi, p: p };
+      p.then(() => { if (enCamino && enCamino.mi === mi) enCamino = null; }, () => { if (enCamino && enCamino.mi === mi) enCamino = null; });
+      return p;
     };
     window.qrSub.__fluida = true;
+    envolverFichas();
     return true;
+  }
+  /* Abrir una ficha mientras su sección está cargando: se cancela el dibujo de la lista (que la taparía) y la ficha se muestra YA.
+     (Esperar no sirve: la carga de Cuentas pide los pendientes de cada cliente con saldo y puede llegar al tope de 9 s.) La lista se
+     dibuja al volver de la ficha; lo que se llegó a precargar queda guardado igual. qrRendicionAbrir, si Recibos no está a la
+     vista, primero pasa a Recibos. */
+  function trasSeccion(sec, fn, self, args) {
+    if (enCamino && enCamino.n === sec) { ++pedido; enCamino = null; quitarCarga(); }
+    return fn.apply(self, args);
+  }
+  function envolverFichas() {
+    const fF = window.qrFicha;
+    if (typeof fF === "function" && !fF.__trasSeccion) {
+      const w = function () { return trasSeccion("cuentas", fF, this, arguments); };
+      for (const k of Object.keys(fF)) w[k] = fF[k];
+      w.__trasSeccion = true; window.qrFicha = w;
+    }
+    const fR = window.qrRendicionAbrir;
+    if (typeof fR === "function" && !fR.__trasSeccion) {
+      const w = function () {
+        const pane = $("qv-recibos");
+        if (pane && pane.style.display === "none" && !(enCamino && enCamino.n === "recibos")) { try { window.qrSub("recibos"); } catch (e) {} }
+        return trasSeccion("recibos", fR, this, arguments);
+      };
+      for (const k of Object.keys(fR)) w[k] = fR[k];
+      w.__trasSeccion = true; window.qrRendicionAbrir = w;
+    }
   }
   /* Se precarga al pasar el mouse / apoyar el dedo en una solapa (el clic llega unas décimas después). */
   function calentar(e) {
@@ -15405,6 +15443,9 @@
   };
   setInterval(() => { const s = $("screen-queruclor"); if (s && s.classList.contains("active") && !document.hidden && $("qrFrescoT")) $("qrFrescoT").textContent = textoEdad(); }, 15000);   // solo el texto: sin consultas
   document.addEventListener("DOMContentLoaded", envolver); setTimeout(envolver, 700); setTimeout(envolver, 1800); setTimeout(envolver, 3500);
+  /* Las fichas pueden definirse o re-envolverse después (otros módulos): se revisa también más tarde. Si alguien las envolvió de
+     nuevo por fuera, la marca queda adentro y no se duplica. */
+  [2500, 5000, 9000].forEach(ms => setTimeout(() => { if (window.qrSub && window.qrSub.__fluida) envolverFichas(); }, ms));
 
   const st = document.createElement("style");
   st.textContent = `
